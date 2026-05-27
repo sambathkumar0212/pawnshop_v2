@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Branch Biometric Settings{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h2>Branch Biometric Settings</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'biometric_settings' %}">Biometric Settings</a></li>
+                    <li class="breadcrumb-item active">Branch Settings</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Branch Biometric Settings -->
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-store me-2"></i>Branch Specific Settings</h5>
+                </div>
+                <div class="card-body">
+                    {% if branch %}
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-4">
+                            <h6 class="mb-3">Branch Information</h6>
+                            <div class="mb-3">
+                                <label class="form-label">Branch Name</label>
+                                <input type="text" class="form-control" value="{{ branch.name }}" readonly>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Location</label>
+                                <input type="text" class="form-control" value="{{ branch.city }}, {{ branch.state }}" readonly>
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <h6 class="mb-3">Face Recognition</h6>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="face_recognition_enabled" name="face_recognition_enabled" {% if branch_settings.face_recognition_enabled %}checked{% endif %}>
+                                    <label class="form-check-label" for="face_recognition_enabled">Enable Face Recognition</label>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="face_recognition_staff" name="face_recognition_required_for_staff" {% if branch_settings.face_recognition_required_for_staff %}checked{% endif %}>
+                                    <label class="form-check-label" for="face_recognition_staff">Required for Staff</label>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="face_recognition_customers" name="face_recognition_required_for_customers" {% if branch_settings.face_recognition_required_for_customers %}checked{% endif %}>
+                                    <label class="form-check-label" for="face_recognition_customers">Required for Customers</label>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="min_confidence" class="form-label">Minimum Confidence Score</label>
+                                    <input type="range" class="form-range" id="min_confidence" name="min_confidence" min="0.1" max="1.0" step="0.05" value="{{ branch_settings.min_confidence|default:0.6 }}">
+                                    <div class="d-flex justify-content-between">
+                                        <small>0.1 (Permissive)</small>
+                                        <small>1.0 (Strict)</small>
+                                    </div>
+                                    <small class="form-text text-muted">Current: <span id="confidence_value">{{ branch_settings.min_confidence|default:0.6 }}</span></small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="mb-3">Fingerprint Authentication</h6>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="fingerprint_enabled" name="fingerprint_enabled" {% if branch_settings.fingerprint_enabled %}checked{% endif %}>
+                                    <label class="form-check-label" for="fingerprint_enabled">Enable Fingerprint Authentication</label>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Maximum Failed Attempts</label>
+                                    <input type="number" class="form-control" name="max_attempts" min="1" max="10" value="{{ branch_settings.max_attempts|default:3 }}">
+                                    <small class="form-text text-muted">Number of failed attempts before lockout</small>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Lockout Duration (minutes)</label>
+                                    <input type="number" class="form-control" name="lockout_duration_minutes" min="1" max="120" value="{{ branch_settings.lockout_duration.total_seconds|floatformat:0|divisibleby:60|default:30 }}">
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="require_liveness" name="require_liveness" {% if branch_settings.require_liveness %}checked{% endif %}>
+                                    <label class="form-check-label" for="require_liveness">Require Liveness Detection</label>
+                                    <small class="form-text text-muted d-block">Helps prevent spoofing with photos</small>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="allow_customer_enrollment" name="allow_customer_enrollment" {% if branch_settings.allow_customer_enrollment %}checked{% endif %}>
+                                    <label class="form-check-label" for="allow_customer_enrollment">Allow Customer Self-Enrollment</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="text-end">
+                            <a href="{% url 'biometric_settings' %}" class="btn btn-outline-secondary me-2">
+                                <i class="fas fa-arrow-left me-1"></i> Back
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i> Save Branch Settings
+                            </button>
+                        </div>
+                    </form>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Branch with ID {{ branch_id }} not found.
+                        <a href="{% url 'biometric_settings' %}" class="alert-link">Return to settings</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Help Card -->
+        <div class="col-lg-4">
+            <div class="card shadow mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Help</h5>
+                </div>
+                <div class="card-body">
+                    <h6>Face Recognition Settings</h6>
+                    <ul class="mb-4">
+                        <li><strong>Enable Face Recognition</strong> - Turn on/off biometric face authentication for this branch</li>
+                        <li><strong>Required for Staff</strong> - If enabled, staff must use face recognition to login</li>
+                        <li><strong>Required for Customers</strong> - If enabled, customers must be verified via face recognition for transactions</li>
+                        <li><strong>Minimum Confidence</strong> - Higher values are more secure but may increase false rejections</li>
+                    </ul>
+                    
+                    <h6>Fingerprint Settings</h6>
+                    <ul>
+                        <li><strong>Maximum Failed Attempts</strong> - Number of failed attempts before temporary lockout</li>
+                        <li><strong>Lockout Duration</strong> - Time in minutes a user is locked out after failed attempts</li>
+                        <li><strong>Liveness Detection</strong> - Helps prevent spoofing attacks using photos</li>
+                        <li><strong>Self-Enrollment</strong> - Allows customers to enroll themselves via the customer portal</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    $(document).ready(function() {
+        // Update confidence score display
+        $('#min_confidence').on('input', function() {
+            $('#confidence_value').text($(this).val());
+        });
+    });
+</script>
+{% endblock %}

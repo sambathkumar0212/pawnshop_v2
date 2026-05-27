@@ -1,0 +1,282 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Market Indicators{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0 text-gray-800">Market Indicators</h1>
+                <div>
+                    <a href="{% url 'analytics:dashboard' %}" class="btn btn-secondary mr-2">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                    <a href="{% url 'analytics:add_market_indicator' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add New Indicator
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Market Indicators Overview Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Latest Gold Price</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {% for indicator in indicators %}
+                                    {% if indicator.indicator_type == 'gold_price' %}
+                                        ₹{{ indicator.value|floatformat:0 }}/g
+                                        {% break %}
+                                    {% endif %}
+                                {% empty %}
+                                    Not Available
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-coins fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-secondary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-secondary text-uppercase mb-1">
+                                Latest Silver Price</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {% for indicator in indicators %}
+                                    {% if indicator.indicator_type == 'silver_price' %}
+                                        ₹{{ indicator.value|floatformat:0 }}/g
+                                        {% break %}
+                                    {% endif %}
+                                {% empty %}
+                                    Not Available
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-medal fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Inflation Rate</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {% for indicator in indicators %}
+                                    {% if indicator.indicator_type == 'inflation_rate' %}
+                                        {{ indicator.value|floatformat:1 }}%
+                                        {% break %}
+                                    {% endif %}
+                                {% empty %}
+                                    Not Available
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-chart-line fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Interest Rate</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {% for indicator in indicators %}
+                                    {% if indicator.indicator_type == 'interest_rate' %}
+                                        {{ indicator.value|floatformat:1 }}%
+                                        {% break %}
+                                    {% endif %}
+                                {% empty %}
+                                    Not Available
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-percentage fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Market Indicators Table -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">All Market Indicators</h6>
+        </div>
+        <div class="card-body">
+            {% if indicators %}
+                <div class="table-responsive">
+                    <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Indicator Type</th>
+                                <th>Value</th>
+                                <th>Source</th>
+                                <th>Notes</th>
+                                <th>Added</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for indicator in indicators %}
+                            <tr>
+                                <td>{{ indicator.date }}</td>
+                                <td>
+                                    <span class="badge badge-{% if indicator.indicator_type == 'gold_price' %}warning{% elif indicator.indicator_type == 'silver_price' %}secondary{% elif indicator.indicator_type == 'inflation_rate' %}info{% elif indicator.indicator_type == 'interest_rate' %}success{% else %}primary{% endif %}">
+                                        {{ indicator.get_indicator_type_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if indicator.indicator_type == 'gold_price' or indicator.indicator_type == 'silver_price' %}
+                                        ₹{{ indicator.value|floatformat:2 }}/gram
+                                    {% elif indicator.indicator_type == 'inflation_rate' or indicator.indicator_type == 'interest_rate' %}
+                                        {{ indicator.value|floatformat:2 }}%
+                                    {% else %}
+                                        {{ indicator.value|floatformat:2 }}
+                                    {% endif %}
+                                </td>
+                                <td>{{ indicator.source|default:"—" }}</td>
+                                <td>
+                                    {% if indicator.notes %}
+                                        <span class="text-truncate d-inline-block" style="max-width: 200px;" title="{{ indicator.notes }}">
+                                            {{ indicator.notes }}
+                                        </span>
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+                                <td>{{ indicator.created_at|timesince }} ago</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if indicators.has_other_pages %}
+                <nav aria-label="Market indicators pagination">
+                    <ul class="pagination justify-content-center">
+                        {% if indicators.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page=1">&laquo; First</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ indicators.previous_page_number }}">Previous</a>
+                            </li>
+                        {% endif %}
+
+                        {% for i in indicators.paginator.page_range %}
+                            {% if indicators.number == i %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ i }}</span>
+                                </li>
+                            {% else %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ i }}">{{ i }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if indicators.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ indicators.next_page_number }}">Next</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ indicators.paginator.num_pages }}">Last &raquo;</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-chart-line fa-3x text-gray-300 mb-3"></i>
+                    <h5 class="text-gray-600">No Market Indicators Found</h5>
+                    <p class="text-muted">Start by adding some market indicators to track economic conditions that affect your pawnshop's risk assessment.</p>
+                    <a href="{% url 'analytics:add_market_indicator' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Your First Indicator
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Information Card -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">About Market Indicators</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="font-weight-bold">How They're Used:</h6>
+                            <ul class="text-muted">
+                                <li>Economic risk scoring in customer risk assessment</li>
+                                <li>Loan-to-value ratio adjustments based on commodity prices</li>
+                                <li>Portfolio health calculations</li>
+                                <li>Cash flow forecasting accuracy</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="font-weight-bold">Recommended Update Frequency:</h6>
+                            <ul class="text-muted">
+                                <li><strong>Gold/Silver Prices:</strong> Daily</li>
+                                <li><strong>Interest Rates:</strong> Monthly or when changed by RBI</li>
+                                <li><strong>Inflation Rate:</strong> Monthly</li>
+                                <li><strong>Market Volatility:</strong> Weekly</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Initialize DataTable if there are indicators
+{% if indicators %}
+$(document).ready(function() {
+    $('#dataTable').DataTable({
+        "pageLength": 25,
+        "order": [[ 0, "desc" ]], // Sort by date descending
+        "columnDefs": [
+            { "orderable": false, "targets": [4] } // Disable sorting on Notes column
+        ]
+    });
+});
+{% endif %}
+</script>
+{% endblock %}

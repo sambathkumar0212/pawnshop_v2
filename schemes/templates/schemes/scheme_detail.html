@@ -1,0 +1,506 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load scheme_filters %}
+
+{% block title %}{{ scheme.name }} - Scheme Details{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mt-4 mb-0">Scheme Details</h1>
+        <div class="btn-group" role="group">
+            <a href="{% url 'scheme_list' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Schemes
+            </a>
+            {% if request.user.is_authenticated %}
+                {% if can_edit %}
+                <a href="{% url 'scheme_update' scheme.id %}" class="btn btn-primary">
+                    <i class="fas fa-edit me-2"></i>Edit
+                </a>
+                {% endif %}
+                {% if can_delete %}
+                <a href="{% url 'scheme_delete' scheme.id %}" class="btn btn-danger">
+                    <i class="fas fa-trash me-2"></i>Delete
+                </a>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Basic Information -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between">
+                    <div>
+                        <i class="fas fa-info-circle me-1"></i>
+                        Basic Information
+                    </div>
+                    <div>
+                        {% if scheme.status == 'active' %}
+                        <span class="badge bg-success">Active</span>
+                        {% elif scheme.status == 'upcoming' %}
+                        <span class="badge bg-info">Upcoming</span>
+                        {% elif scheme.status == 'expired' %}
+                        <span class="badge bg-danger">Expired</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Inactive</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    <h2 class="card-title">{{ scheme.name }}</h2>
+                    <p class="card-text">{{ scheme.description }}</p>
+                </div>
+            </div>
+
+            <!-- Financial Details -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-calculator me-1"></i>
+                    Financial Details
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table">
+                                <tr>
+                                    <th>Interest Rate (Yearly):</th>
+                                    <td>{{ scheme.interest_rate }}%</td>
+                                </tr>
+                                <tr>
+                                    <th>Loan Duration:</th>
+                                    <td>{{ scheme.loan_duration }} days</td>
+                                </tr>
+                                <tr>
+                                    <th>Processing Fee:</th>
+                                    <td>
+                                        {% if scheme.processing_fee_percentage %}
+                                            {{ scheme.processing_fee_percentage }}%
+                                        {% elif scheme.additional_conditions.processing_fee_percentage %}
+                                            {{ scheme.additional_conditions.processing_fee_percentage }}%
+                                        {% else %}
+                                            Not specified
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table">
+                                <tr>
+                                    <th>Minimum Amount:</th>
+                                    <td>{{ scheme.minimum_amount }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Maximum Amount:</th>
+                                    <td>{{ scheme.maximum_amount }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Branch:</th>
+                                    <td>{% if scheme.branch %}{{ scheme.branch.name }}{% else %}Global{% endif %}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Gold Scheme Specific Details -->
+                    {% if scheme.is_gold_scheme %}
+                    <div class="mt-4">
+                        <h5 class="mb-3">Gold Loan Specific Details</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <table class="table">
+                                    <tr>
+                                        <th>Gold Interest Rate:</th>
+                                        <td>{{ scheme.gold_interest_rate }} per ₹100 per month</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Expiry Period:</th>
+                                        <td>{{ scheme.expiry_period }} months</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Minimum Duration:</th>
+                                        <td>{% if scheme.minimum_duration %}{{ scheme.minimum_duration }} months{% else %}No minimum{% endif %}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Processing Fee:</th>
+                                        <td>{% if scheme.processing_fee_percentage %}{{ scheme.processing_fee_percentage }}%{% else %}Not specified{% endif %}</td>
+                                    </tr>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <table class="table">
+                                    <tr>
+                                        <th>Late Payment Interest:</th>
+                                        <td>{% if scheme.late_payment_interest %}{{ scheme.late_payment_interest }} per ₹100 per month{% else %}Not specified{% endif %}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Payment Due Day:</th>
+                                        <td>{% if scheme.payment_due_day %}{{ scheme.payment_due_day }}th of month{% else %}Not specified{% endif %}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Fixed Interest:</th>
+                                        <td>{% if scheme.is_fixed_interest %}<i class="fas fa-check text-success"></i> Yes{% else %}<i class="fas fa-times text-danger"></i> No{% endif %}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Auction on Expiry:</th>
+                                        <td>{% if scheme.auction_on_expiry %}<i class="fas fa-check text-success"></i> Yes{% else %}<i class="fas fa-times text-danger"></i> No{% endif %}</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Tiered Interest Rate System Display -->
+                        {% if scheme.early_period_months or scheme.standard_period_months or scheme.early_period_interest_rate or scheme.late_period_interest_rate %}
+                        <div class="mt-4">
+                            <h5 class="mb-3">
+                                <i class="fas fa-layer-group me-2"></i>Tiered Interest Rate System
+                            </h5>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="card border-success">
+                                        <div class="card-header bg-success text-white">
+                                            <h6 class="mb-0">
+                                                <i class="fas fa-clock me-2"></i>Early Period
+                                            </h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <p class="card-text">
+                                                <strong>Duration:</strong> {% if scheme.early_period_months %}{{ scheme.early_period_months }} months{% else %}Not set{% endif %}<br>
+                                                <strong>Interest Rate:</strong> {% if scheme.early_period_interest_rate %}{{ scheme.early_period_interest_rate }} per ₹100/month{% else %}Not set{% endif %}<br>
+                                                <small class="text-muted">Reduced rate for quick repayment</small>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card border-primary">
+                                        <div class="card-header bg-primary text-white">
+                                            <h6 class="mb-0">
+                                                <i class="fas fa-calendar-alt me-2"></i>Standard Period
+                                            </h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <p class="card-text">
+                                                <strong>Duration:</strong> {% if scheme.standard_period_months %}{{ scheme.standard_period_months }} months{% else %}Not set{% endif %}<br>
+                                                <strong>Interest Rate:</strong> {% if scheme.gold_interest_rate %}{{ scheme.gold_interest_rate }} per ₹100/month{% else %}Not set{% endif %}<br>
+                                                <small class="text-muted">Normal interest rate</small>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card border-danger">
+                                        <div class="card-header bg-danger text-white">
+                                            <h6 class="mb-0">
+                                                <i class="fas fa-exclamation-triangle me-2"></i>Late Period
+                                            </h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <p class="card-text">
+                                                <strong>Duration:</strong> {{ scheme|calculate_late_period }} months<br>
+                                                <strong>Interest Rate:</strong> {% if scheme.late_period_interest_rate %}{{ scheme.late_period_interest_rate }} per ₹100/month{% else %}Not set{% endif %}<br>
+                                                <small class="text-muted">Higher rate for delayed payment</small>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Period Summary -->
+                            <div class="mt-3">
+                                <div class="alert alert-info">
+                                    <h6 class="alert-heading">
+                                        <i class="fas fa-info-circle me-2"></i>How It Works
+                                    </h6>
+                                    <p class="mb-0">
+                                        Customers benefit from lower interest rates for early repayment within the first 
+                                        {% if scheme.early_period_months %}{{ scheme.early_period_months }} month{{ scheme.early_period_months|pluralize }}{% else %}period{% endif %}.
+                                        Standard rates apply for the next 
+                                        {% if scheme.standard_period_months %}{{ scheme.standard_period_months }} month{{ scheme.standard_period_months|pluralize }}{% else %}period{% endif %}, 
+                                        and higher rates for any delays beyond that.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if scheme.special_conditions %}
+                        <div class="mt-3">
+                            <h6 class="mb-2">Special Conditions:</h6>
+                            <div class="p-3 bg-light rounded">{{ scheme.special_conditions|linebreaks }}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Dynamic Interest Rate Structure -->
+                    {% if scheme.interest_rate_structure %}
+                    <div class="mt-4">
+                        <h5 class="mb-3">Dynamic Interest Rate Structure</h5>
+                        <div class="table-responsive">
+                            <table class="table table-bordered">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Loan Tenure</th>
+                                        <th>Interest Rate</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for range, rate in scheme.interest_rate_structure.items %}
+                                    <tr>
+                                        <td>
+                                            {% if "-" in range %}
+                                                {{ range }} months
+                                            {% elif "+" in range %}
+                                                > {{ range|cut:"+" }} months
+                                            {% else %}
+                                                {{ range }} month{% if range != "1" %}s{% endif %}
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ rate }}%</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Additional Conditions -->
+            {% if scheme.additional_conditions %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-list-alt me-1"></i>
+                    Additional Conditions
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Payment Terms</h5>
+                            <table class="table">
+                                {% if scheme.additional_conditions.no_interest_period_days %}
+                                <tr>
+                                    <th>No Interest Period:</th>
+                                    <td>{{ scheme.additional_conditions.no_interest_period_days }} days</td>
+                                </tr>
+                                {% endif %}
+                                {% if scheme.additional_conditions.grace_period_days %}
+                                <tr>
+                                    <th>Grace Period:</th>
+                                    <td>{{ scheme.additional_conditions.grace_period_days }} days</td>
+                                </tr>
+                                {% endif %}
+                                {% if scheme.additional_conditions.early_payment_discount %}
+                                <tr>
+                                    <th>Early Payment Discount:</th>
+                                    <td><i class="fas fa-check text-success"></i> Available</td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Fees & Penalties</h5>
+                            <table class="table">
+                                {% if scheme.additional_conditions.late_fee_percentage %}
+                                <tr>
+                                    <th>Late Fee:</th>
+                                    <td>{{ scheme.additional_conditions.late_fee_percentage }}%</td>
+                                </tr>
+                                {% endif %}
+                                {% if scheme.additional_conditions.prepayment_penalty_percentage %}
+                                <tr>
+                                    <th>Prepayment Penalty:</th>
+                                    <td>{{ scheme.additional_conditions.prepayment_penalty_percentage }}%</td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Custom Conditions -->
+                    {% with custom_conditions=scheme.additional_conditions.items %}
+                    {% with standard_fields="no_interest_period_days,late_fee_percentage,processing_fee_percentage,early_payment_discount,grace_period_days,prepayment_penalty_percentage" %}
+                    {% for key, value in custom_conditions %}
+                    {% if key not in standard_fields|split:"," %}
+                    <div class="mt-3">
+                        <h5>Other Conditions</h5>
+                        <table class="table">
+                            <tr>
+                                <th>{{ key|title|replace:"_" }}:</th>
+                                <td>
+                                    {% if value|stringformat:"s"|lower in "yes,true" %}
+                                        <i class="fas fa-check text-success"></i> Yes
+                                    {% elif value|stringformat:"s"|lower in "no,false" %}
+                                        <i class="fas fa-times text-danger"></i> No
+                                    {% else %}
+                                        {{ value }}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                    {% endwith %}
+                    {% endwith %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Dates -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-calendar me-1"></i>
+                    Important Dates
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table">
+                                <tr>
+                                    <th>Start Date:</th>
+                                    <td>{{ scheme.start_date }}</td>
+                                </tr>
+                                <tr>
+                                    <th>End Date:</th>
+                                    <td>{% if scheme.end_date %}{{ scheme.end_date }}{% else %}No end date (ongoing){% endif %}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table">
+                                <tr>
+                                    <th>Created On:</th>
+                                    <td>{{ scheme.created_at }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Created By:</th>
+                                    <td>
+                                        {% if scheme.created_by %}
+                                            {{ scheme.created_by.get_full_name|default:scheme.created_by.username }}
+                                        {% else %}
+                                            System
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Last Updated:</th>
+                                    <td>{{ scheme.updated_at }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Audit Logs -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-history me-1"></i>
+                    Change History
+                </div>
+                <div class="card-body">
+                    {% if audit_logs %}
+                    <div class="timeline">
+                        {% for log in audit_logs %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker">
+                                {% if log.action == 'created' %}
+                                <i class="fas fa-plus-circle text-success"></i>
+                                {% elif log.action == 'updated' %}
+                                <i class="fas fa-edit text-primary"></i>
+                                {% elif log.action == 'deleted' %}
+                                <i class="fas fa-trash text-danger"></i>
+                                {% endif %}
+                            </div>
+                            <div class="timeline-content">
+                                <div class="timeline-heading">
+                                    <strong>
+                                        {% if log.action == 'created' %}Created
+                                        {% elif log.action == 'updated' %}Updated
+                                        {% elif log.action == 'deleted' %}Deleted
+                                        {% endif %}
+                                    </strong>
+                                    by {% if log.user %}{{ log.user.get_full_name|default:log.user.username }}{% else %}System{% endif %}
+                                </div>
+                                <div class="timeline-date">
+                                    <small>{{ log.timestamp }}</small>
+                                </div>
+                                {% if log.changes %}
+                                <div class="timeline-details mt-2">
+                                    <strong>Changes:</strong>
+                                    <ul class="small">
+                                        {% for field, value in log.changes.items %}
+                                        <li><strong>{{ field|title }}</strong>: {{ value }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No audit logs found for this scheme.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+    .timeline {
+        position: relative;
+        padding: 0;
+        list-style: none;
+    }
+    .timeline-item {
+        position: relative;
+        padding-left: 30px;
+        padding-bottom: 20px;
+        border-left: 2px solid #dee2e6;
+    }
+    .timeline-item:last-child {
+        border-left: 2px solid transparent;
+    }
+    .timeline-marker {
+        position: absolute;
+        top: 0;
+        left: -10px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background-color: #fff;
+        border: 2px solid #dee2e6;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .timeline-marker i {
+        font-size: 12px;
+    }
+    .timeline-content {
+        margin-left: 10px;
+    }
+    .timeline-date {
+        color: #6c757d;
+    }
+    .table th {
+        width: 40%;
+        font-weight: 600;
+    }
+    .card-header {
+        background-color: #f8f9fa;
+    }
+</style>
+{% endblock %}

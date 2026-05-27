@@ -1,0 +1,180 @@
+{% extends 'base.html' %}
+
+{% block title %}Add New Branch - Pawnshop Management System{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Branch Form Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-0">Add New Branch</h3>
+                            <p class="text-muted mb-0">Create a new pawnshop branch location for your organization</p>
+                        </div>
+                        <div>
+                            <a href="{% url 'organization_dashboard' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Branch Form -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <strong>Error:</strong> Please correct the errors below.
+                            <ul>
+                                {% for field in form %}
+                                    {% for error in field.errors %}
+                                    <li>{{ field.label }}: {{ error }}</li>
+                                    {% endfor %}
+                                {% endfor %}
+                                {% for error in form.non_field_errors %}
+                                <li>{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="border-bottom pb-2 mb-3">Branch Information</h5>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="id_name" class="form-label">Branch Name*</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-store"></i></span>
+                                    <input type="text" name="name" id="id_name" class="form-control" placeholder="Branch Name" required>
+                                </div>
+                                <small class="text-muted">A unique name for this branch location</small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="id_email" class="form-label">Email</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                    <input type="email" name="email" id="id_email" class="form-control" placeholder="branch@example.com">
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="id_phone" class="form-label">Phone Number*</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-phone"></i></span>
+                                    <input type="text" name="phone" id="id_phone" class="form-control" placeholder="Phone Number" required>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="id_manager" class="form-label">Branch Manager</label>
+                                <select name="manager" id="id_manager" class="form-select">
+                                    <option value="">- Select Manager -</option>
+                                    {% for user in form.fields.manager.queryset %}
+                                        <option value="{{ user.id }}">{{ user.get_full_name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">You can assign a manager later if not available now</small>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="border-bottom pb-2 mb-3">Location Details</h5>
+                            </div>
+                            
+                            <div class="col-12 mb-3">
+                                <label for="id_address" class="form-label">Street Address*</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-map-marker-alt"></i></span>
+                                    <input type="text" name="address" id="id_address" class="form-control" placeholder="123 Main St" required>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label for="id_city" class="form-label">City*</label>
+                                <input type="text" name="city" id="id_city" class="form-control" placeholder="City" required>
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label for="id_state" class="form-label">State/Province*</label>
+                                <input type="text" name="state" id="id_state" class="form-control" placeholder="State" required>
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label for="id_zip_code" class="form-label">ZIP/Postal Code*</label>
+                                <input type="text" name="zip_code" id="id_zip_code" class="form-control" placeholder="ZIP Code" required>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="border-bottom pb-2 mb-3">Branch Settings</h5>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="id_opening_time" class="form-label">Opening Time</label>
+                                <input type="time" name="opening_time" id="id_opening_time" class="form-control" value="09:00">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="id_closing_time" class="form-label">Closing Time</label>
+                                <input type="time" name="closing_time" id="id_closing_time" class="form-control" value="18:00">
+                            </div>
+                            
+                            <div class="col-md-12 mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="is_active" id="id_is_active" checked>
+                                    <label class="form-check-label" for="id_is_active">
+                                        Branch is active and operational
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info mb-4">
+                            <div class="d-flex">
+                                <div class="me-3">
+                                    <i class="fas fa-info-circle fa-2x"></i>
+                                </div>
+                                <div>
+                                    <h5 class="alert-heading">Next Steps</h5>
+                                    <p class="mb-0">After creating your branch, you'll be able to:</p>
+                                    <ul class="mb-0">
+                                        <li>Add staff members to this branch</li>
+                                        <li>Configure branch-specific settings like loan terms</li>
+                                        <li>Set up inventory categories</li>
+                                        <li>Create loan schemes specific to this branch</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'organization_dashboard' %}" class="btn btn-outline-secondary me-md-2">
+                                Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-plus-circle me-2"></i>Create Branch
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

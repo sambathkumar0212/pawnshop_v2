@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% if form.instance.pk %}Edit Integration{% else %}Add New Integration{% endif %} - Pawnshop Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>
+                    <i class="fas fa-plug me-2"></i>
+                    {% if form.instance.pk %}
+                        Edit Integration: {{ form.instance.name }}
+                    {% else %}
+                        Add New Integration
+                    {% endif %}
+                </h2>
+                <a href="{% url 'integration_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Integrations
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-body">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="card-title mb-3">
+                                    <i class="fas fa-cog me-2"></i>Basic Settings
+                                </h5>
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.name|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.integration_type|as_crispy_field }}
+                            </div>
+                            <div class="col-12">
+                                {{ form.description|as_crispy_field }}
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="card-title mb-3">
+                                    <i class="fas fa-key me-2"></i>Authentication
+                                </h5>
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.api_key|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.api_secret|as_crispy_field }}
+                            </div>
+                            <div class="col-12">
+                                {{ form.api_endpoint|as_crispy_field }}
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="card-title mb-3">
+                                    <i class="fas fa-globe me-2"></i>Availability
+                                </h5>
+                            </div>
+                            <div class="col-12">
+                                {{ form.is_global|as_crispy_field }}
+                            </div>
+                            <div class="col-12" id="branches-field" {% if form.instance.is_global %}style="display: none;"{% endif %}>
+                                {{ form.branches|as_crispy_field }}
+                            </div>
+                        </div>
+
+                        {% if form.instance.pk %}
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="card-title mb-3">
+                                    <i class="fas fa-sync me-2"></i>Integration Details
+                                </h5>
+                            </div>
+                            
+                            {% if form.instance.integration_type == 'pos' %}
+                            <div class="col-12" id="pos-settings">
+                                {{ pos_form.pos_provider|as_crispy_field }}
+                                {{ pos_form.inventory_sync_enabled|as_crispy_field }}
+                                {{ pos_form.transaction_sync_enabled|as_crispy_field }}
+                                {{ pos_form.customer_sync_enabled|as_crispy_field }}
+                                {{ pos_form.mapping_config|as_crispy_field }}
+                            </div>
+                            {% endif %}
+
+                            {% if form.instance.integration_type == 'accounting' %}
+                            <div class="col-12" id="accounting-settings">
+                                {{ accounting_form.accounting_provider|as_crispy_field }}
+                                {{ accounting_form.sync_sales|as_crispy_field }}
+                                {{ accounting_form.sync_purchases|as_crispy_field }}
+                                {{ accounting_form.sync_inventory|as_crispy_field }}
+                                {{ accounting_form.sync_customers|as_crispy_field }}
+                                {{ accounting_form.chart_of_accounts_mapping|as_crispy_field }}
+                            </div>
+                            {% endif %}
+
+                            {% if form.instance.integration_type == 'crm' %}
+                            <div class="col-12" id="crm-settings">
+                                {{ crm_form.crm_provider|as_crispy_field }}
+                                {{ crm_form.sync_customers|as_crispy_field }}
+                                {{ crm_form.sync_transactions|as_crispy_field }}
+                                {{ crm_form.sync_communications|as_crispy_field }}
+                                {{ crm_form.field_mapping|as_crispy_field }}
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'integration_list' %}" class="btn btn-outline-secondary me-md-2">
+                                Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>
+                                {% if form.instance.pk %}Update{% else %}Save{% endif %} Integration
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+$(document).ready(function() {
+    // Toggle branches field based on is_global checkbox
+    $('#id_is_global').change(function() {
+        if ($(this).is(':checked')) {
+            $('#branches-field').slideUp();
+        } else {
+            $('#branches-field').slideDown();
+        }
+    });
+
+    // Show/hide integration type specific settings based on selection
+    $('#id_integration_type').change(function() {
+        var selectedType = $(this).val();
+        $('.integration-settings').hide();
+        $('#' + selectedType + '-settings').show();
+    });
+});
+</script>
+{% endblock %}

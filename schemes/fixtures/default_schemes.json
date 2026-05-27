@@ -1,0 +1,169 @@
+[
+    {
+        "model": "schemes.scheme",
+        "pk": 1,
+        "fields": {
+            "name": "Quick Personal Loan",
+            "description": "Fast approval personal loan with competitive rates",
+            "interest_rate": 12.99,
+            "loan_duration": 24,
+            "minimum_amount": 1000.00,
+            "maximum_amount": 50000.00,
+            "start_date": "2024-01-01",
+            "end_date": "2024-12-31",
+            "status": "active",
+            "additional_conditions": {
+                "processing_fee_percentage": 1.5,
+                "late_fee_percentage": 2.0,
+                "early_payment_discount": true,
+                "no_interest_period_days": 15
+            },
+            "created_at": "2024-01-01T00:00:00Z",
+            "updated_at": "2024-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "schemes.scheme",
+        "pk": 2,
+        "fields": {
+            "name": "Business Growth Loan",
+            "description": "Supporting small and medium businesses with flexible terms",
+            "interest_rate": 14.50,
+            "loan_duration": 36,
+            "minimum_amount": 50000.00,
+            "maximum_amount": 500000.00,
+            "start_date": "2024-01-01",
+            "end_date": "2024-12-31",
+            "status": "active",
+            "additional_conditions": {
+                "processing_fee_percentage": 2.0,
+                "late_fee_percentage": 2.5,
+                "collateral_required": true,
+                "business_vintage_years": 2
+            },
+            "created_at": "2024-01-01T00:00:00Z",
+            "updated_at": "2024-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "schemes.scheme",
+        "pk": 3,
+        "fields": {
+            "name": "Education Loan Plus",
+            "description": "Special education loan with extended repayment period",
+            "interest_rate": 8.75,
+            "loan_duration": 84,
+            "minimum_amount": 100000.00,
+            "maximum_amount": 2000000.00,
+            "start_date": "2024-01-01",
+            "end_date": "2024-12-31",
+            "status": "active",
+            "additional_conditions": {
+                "processing_fee_percentage": 1.0,
+                "moratorium_period": 12,
+                "parent_co_applicant_required": true,
+                "academic_score_minimum": "70%"
+            },
+            "created_at": "2024-01-01T00:00:00Z",
+            "updated_at": "2024-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "schemes.scheme",
+        "pk": 4,
+        "fields": {
+            "name": "Senior Citizen Special",
+            "description": "Exclusive loan scheme for senior citizens with preferential rates",
+            "interest_rate": 11.50,
+            "loan_duration": 12,
+            "minimum_amount": 10000.00,
+            "maximum_amount": 100000.00,
+            "start_date": "2024-01-01",
+            "end_date": "2024-12-31",
+            "status": "active",
+            "additional_conditions": {
+                "processing_fee_percentage": 0.5,
+                "late_fee_percentage": 1.5,
+                "age_minimum": 60,
+                "pension_proof_required": true,
+                "no_interest_period_days": 30
+            },
+            "created_at": "2024-01-01T00:00:00Z",
+            "updated_at": "2024-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "schemes.scheme",
+        "pk": 5,
+        "fields": {
+            "name": "Gold Loan Express",
+            "description": "Quick loans against gold jewelry with minimal documentation",
+            "interest_rate": 9.99,
+            "loan_duration": 12,
+            "minimum_amount": 5000.00,
+            "maximum_amount": 1000000.00,
+            "start_date": "2025-01-01",
+            "end_date": "2025-12-31",
+            "status": "active",
+            "additional_conditions": {
+                "processing_fee_percentage": 0.75,
+                "late_fee_percentage": 1.5,
+                "gold_purity_minimum": "18K",
+                "loan_to_value_ratio": 75,
+                "same_day_disbursement": true
+            },
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "schemes.scheme",
+        "pk": 6,
+        "fields": {
+            "name": "Digital Business Loan",
+            "description": "Tailored for e-commerce and digital businesses with revenue-based repayment",
+            "interest_rate": 13.50,
+            "loan_duration": 18,
+            "minimum_amount": 25000.00,
+            "maximum_amount": 300000.00,
+            "start_date": "2025-01-01",
+            "end_date": "2025-12-31",
+            "status": "active",
+            "additional_conditions": {
+                "processing_fee_percentage": 1.75,
+                "late_fee_percentage": 2.0,
+                "minimum_monthly_revenue": 50000,
+                "business_age_months": 6,
+                "online_presence_required": true,
+                "flexible_repayment": true
+            },
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "schemes.scheme",
+        "pk": 7,
+        "fields": {
+            "name": "Green Energy Loan",
+            "description": "Special financing for solar panels and renewable energy installations",
+            "interest_rate": 7.99,
+            "loan_duration": 60,
+            "minimum_amount": 100000.00,
+            "maximum_amount": 1500000.00,
+            "start_date": "2025-01-01",
+            "end_date": "2025-12-31",
+            "status": "active",
+            "additional_conditions": {
+                "processing_fee_percentage": 1.0,
+                "late_fee_percentage": 1.5,
+                "green_certification_required": true,
+                "subsidy_eligible": true,
+                "energy_audit_required": true,
+                "no_interest_period_days": 45
+            },
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    }
+]

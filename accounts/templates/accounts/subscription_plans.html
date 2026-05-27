@@ -1,0 +1,796 @@
+{% extends 'accounts/base.html' %}
+
+{% block title %}Subscription Plans - Pawnshop Management System{% endblock %}
+
+{% block subscriptions_active %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+    .pricing-header {
+        background: linear-gradient(135deg, #3498db, #2c3e50);
+        color: white;
+        padding: 40px 0;
+        border-radius: 10px 10px 0 0;
+        margin-bottom: 30px;
+    }
+    
+    .plan-card {
+        border-radius: 10px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s, box-shadow 0.3s;
+        height: 100%;
+        overflow: hidden;
+    }
+    
+    .plan-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+    }
+    
+    .plan-card.current-plan {
+        border: 3px solid #3498db;
+    }
+    
+    .plan-header {
+        padding: 20px;
+        text-align: center;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .plan-price {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 0;
+    }
+    
+    .price-period {
+        color: #6c757d;
+        font-size: 1rem;
+    }
+    
+    .plan-features {
+        padding: 20px;
+    }
+    
+    .plan-features ul {
+        list-style: none;
+        padding-left: 0;
+    }
+    
+    .plan-features li {
+        padding: 8px 0;
+        border-bottom: 1px solid #f3f3f3;
+    }
+    
+    .plan-features li:last-child {
+        border-bottom: none;
+    }
+    
+    .plan-cta {
+        padding: 20px;
+        text-align: center;
+    }
+    
+    .plan-badge {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-size: 0.8rem;
+    }
+    
+    .badge-crown {
+        margin-right: 5px;
+    }
+    
+    .usage-stat {
+        padding: 30px 20px;
+        text-align: center;
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        margin-bottom: 30px;
+    }
+    
+    .usage-stat h3 {
+        font-size: 2rem;
+        margin-bottom: 5px;
+    }
+    
+    .usage-stat p {
+        color: #6c757d;
+        margin-bottom: 0;
+    }
+    
+    .usage-icon {
+        font-size: 2rem;
+        margin-bottom: 15px;
+        color: #3498db;
+    }
+    
+    .recommended-badge {
+        position: absolute;
+        top: 0;
+        right: 15px;
+        background-color: #ffc107;
+        color: #212529;
+        padding: 5px 10px;
+        border-radius: 0 0 10px 10px;
+        font-weight: bold;
+    }
+    
+    .progress {
+        height: 10px;
+    }
+    
+    .progress-bar {
+        background-color: #3498db;
+    }
+    
+    .progress-danger {
+        background-color: #dc3545;
+    }
+    
+    .plan-limitations {
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px dashed #eee;
+    }
+    
+    /* New styles for payment methods and billing history */
+    .payment-method-card {
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+        transition: all 0.3s ease;
+    }
+    
+    .payment-method-card:hover {
+        border-color: #3498db;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    .payment-method-card.active {
+        border-color: #28a745;
+        border-width: 2px;
+    }
+    
+    .payment-method-card .card-logo {
+        height: 40px;
+        margin-right: 10px;
+    }
+    
+    .payment-method-card .card-info {
+        font-size: 0.9rem;
+        color: #6c757d;
+    }
+    
+    .billing-history-item {
+        padding: 15px;
+        border-bottom: 1px solid #f3f3f3;
+    }
+    
+    .billing-history-item:last-child {
+        border-bottom: none;
+    }
+    
+    .enterprise-features {
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 30px;
+    }
+    
+    .enterprise-feature-item {
+        margin-bottom: 20px;
+    }
+    
+    .enterprise-feature-icon {
+        font-size: 2rem;
+        color: #3498db;
+        margin-bottom: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="fas fa-crown text-warning"></i> Subscription Plans</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{% url 'dashboard' %}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Nav tabs for subscription management -->
+<ul class="nav nav-tabs mb-4" id="subscriptionTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="plans-tab" data-bs-toggle="tab" data-bs-target="#plans" type="button" role="tab" aria-controls="plans" aria-selected="true">
+            <i class="fas fa-th-large me-2"></i>Plans
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="payment-tab" data-bs-toggle="tab" data-bs-target="#payment" type="button" role="tab" aria-controls="payment" aria-selected="false">
+            <i class="fas fa-credit-card me-2"></i>Payment Options
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab" aria-controls="history" aria-selected="false">
+            <i class="fas fa-history me-2"></i>Billing History
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="enterprise-tab" data-bs-toggle="tab" data-bs-target="#enterprise" type="button" role="tab" aria-controls="enterprise" aria-selected="false">
+            <i class="fas fa-building me-2"></i>Enterprise Solutions
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="subscriptionTabsContent">
+    <!-- Plans Tab -->
+    <div class="tab-pane fade show active" id="plans" role="tabpanel" aria-labelledby="plans-tab">
+        <!-- Current Usage Stats -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i> Your Current Usage</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="usage-stat">
+                                    <div class="usage-icon">
+                                        <i class="fas fa-store"></i>
+                                    </div>
+                                    <h3>{{ usage_stats.branches.current }}</h3>
+                                    <p>Branches</p>
+                                    {% if usage_stats.branches.limit != 'Unlimited' %}
+                                    <div class="progress mt-2">
+                                        <div class="progress-bar {% if usage_stats.branches.current >= usage_stats.branches.limit %}progress-danger{% endif %}" 
+                                             style="width: {% widthratio usage_stats.branches.current usage_stats.branches.limit 100 %}%"></div>
+                                    </div>
+                                    <small class="text-muted">{{ usage_stats.branches.current }} of {{ usage_stats.branches.limit }}</small>
+                                    {% else %}
+                                    <small class="text-success">Unlimited</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="usage-stat">
+                                    <div class="usage-icon">
+                                        <i class="fas fa-user-shield"></i>
+                                    </div>
+                                    <h3>{{ usage_stats.users.current }}</h3>
+                                    <p>Users</p>
+                                    {% if usage_stats.users.limit != 'Unlimited' %}
+                                    <div class="progress mt-2">
+                                        <div class="progress-bar {% if usage_stats.users.current >= usage_stats.users.limit %}progress-danger{% endif %}" 
+                                             style="width: {% widthratio usage_stats.users.current usage_stats.users.limit 100 %}%"></div>
+                                    </div>
+                                    <small class="text-muted">{{ usage_stats.users.current }} of {{ usage_stats.users.limit }}</small>
+                                    {% else %}
+                                    <small class="text-success">Unlimited</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="usage-stat">
+                                    <div class="usage-icon">
+                                        <i class="fas fa-users"></i>
+                                    </div>
+                                    <h3>{{ usage_stats.customers.current }}</h3>
+                                    <p>Customers</p>
+                                    {% if usage_stats.customers.limit != 'Unlimited' %}
+                                    <div class="progress mt-2">
+                                        <div class="progress-bar {% if usage_stats.customers.current >= usage_stats.customers.limit %}progress-danger{% endif %}" 
+                                             style="width: {% widthratio usage_stats.customers.current usage_stats.customers.limit 100 %}%"></div>
+                                    </div>
+                                    <small class="text-muted">{{ usage_stats.customers.current }} of {{ usage_stats.customers.limit }}</small>
+                                    {% else %}
+                                    <small class="text-success">Unlimited</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="usage-stat">
+                                    <div class="usage-icon">
+                                        <i class="fas fa-boxes"></i>
+                                    </div>
+                                    <h3>{{ usage_stats.items.current }}</h3>
+                                    <p>Inventory Items</p>
+                                    {% if usage_stats.items.limit != 'Unlimited' %}
+                                    <div class="progress mt-2">
+                                        <div class="progress-bar {% if usage_stats.items.current >= usage_stats.items.limit %}progress-danger{% endif %}" 
+                                             style="width: {% widthratio usage_stats.items.current usage_stats.items.limit 100 %}%"></div>
+                                    </div>
+                                    <small class="text-muted">{{ usage_stats.items.current }} of {{ usage_stats.items.limit }}</small>
+                                    {% else %}
+                                    <small class="text-success">Unlimited</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pricing Cards -->
+        <div class="row">
+            {% for plan in plans %}
+            <div class="col-md-4 mb-4">
+                <div class="card plan-card position-relative {% if plan.is_current %}current-plan{% endif %}">
+                    {% if plan.is_current %}
+                    <div class="plan-badge bg-primary text-white">
+                        <i class="fas fa-check-circle badge-crown"></i> Current Plan
+                    </div>
+                    {% endif %}
+                    
+                    {% if plan.recommended %}
+                    <div class="recommended-badge">
+                        <i class="fas fa-star me-1"></i> RECOMMENDED
+                    </div>
+                    {% endif %}
+                    
+                    <div class="plan-header">
+                        <h3 class="card-title">{{ plan.name }}</h3>
+                        <p class="plan-price mb-0">₹{{ plan.price }}
+                            <span class="price-period">/{{ plan.period }}</span>
+                        </p>
+                        <p class="text-muted">{{ plan.description }}</p>
+                    </div>
+                    
+                    <div class="plan-features">
+                        <h6 class="fw-bold text-uppercase small">Features</h6>
+                        <ul>
+                            {% for feature in plan.features %}
+                            <li><i class="fas fa-check me-2 text-success"></i> {{ feature }}</li>
+                            {% endfor %}
+                        </ul>
+                        
+                        {% if plan.limitations %}
+                        <div class="plan-limitations">
+                            <h6 class="fw-bold text-uppercase small text-muted">Limitations</h6>
+                            <ul>
+                                {% for limitation in plan.limitations %}
+                                <li><i class="fas fa-times me-2 text-danger"></i> {{ limitation }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="plan-cta">
+                        {% if plan.disabled %}
+                        <button class="btn btn-secondary" disabled>{{ plan.action_text }}</button>
+                        {% else %}
+                        <a href="{{ plan.action_url }}" class="btn btn-primary">
+                            {{ plan.action_text }}
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- FAQ Section -->
+        <div class="card mt-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-question-circle me-2"></i> Frequently Asked Questions</h5>
+            </div>
+            <div class="card-body">
+                <div class="accordion" id="planFAQ">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingOne">
+                            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                                How do I upgrade my plan?
+                            </button>
+                        </h2>
+                        <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#planFAQ">
+                            <div class="accordion-body">
+                                Click the "Upgrade" button under your desired plan. You'll be taken to our subscription management page where you can review the details and provide payment information.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingTwo">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                                What happens if I exceed my plan limits?
+                            </button>
+                        </h2>
+                        <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#planFAQ">
+                            <div class="accordion-body">
+                                If you approach or reach your plan limits, you'll receive notifications within the system. To continue adding more branches, users, or customers, you'll need to upgrade to a higher-tier plan.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingThree">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                                Can I change my plan later?
+                            </button>
+                        </h2>
+                        <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#planFAQ">
+                            <div class="accordion-body">
+                                Yes, you can upgrade or downgrade your plan at any time. When upgrading, the new features become available immediately. When downgrading, the changes take effect at the start of your next billing cycle.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingFour">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour">
+                                Do you offer custom enterprise solutions?
+                            </button>
+                        </h2>
+                        <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour" data-bs-parent="#planFAQ">
+                            <div class="accordion-body">
+                                Yes, for larger organizations with specific needs, we offer custom solutions beyond our Premium plan. Please click on the "Enterprise Solutions" tab to learn more or contact our sales team at <a href="mailto:sales@pawnshopms.com">sales@pawnshopms.com</a> to discuss your requirements.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Payment Options Tab -->
+    <div class="tab-pane fade" id="payment" role="tabpanel" aria-labelledby="payment-tab">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-credit-card me-2"></i> Payment Methods</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i> Select or add a payment method to use for subscription billing.
+                </div>
+                
+                <!-- Existing Payment Methods -->
+                <h6 class="mt-4 mb-3">Your Payment Methods</h6>
+                
+                {% if payment_methods %}
+                    {% for method in payment_methods %}
+                    <div class="payment-method-card {% if method.is_default %}active{% endif %} d-flex align-items-center">
+                        <div class="me-auto">
+                            {% if method.type == 'credit_card' %}
+                            <img src="/static/img/card-brands/{{ method.brand|lower }}.png" alt="{{ method.brand }}" class="card-logo">
+                            <strong>{{ method.brand }} •••• {{ method.last4 }}</strong>
+                            <div class="card-info">Expires {{ method.exp_month }}/{{ method.exp_year }}</div>
+                            {% elif method.type == 'bank_account' %}
+                            <i class="fas fa-university fa-2x me-3"></i>
+                            <strong>{{ method.bank_name }}</strong>
+                            <div class="card-info">Account ending in {{ method.last4 }}</div>
+                            {% endif %}
+                        </div>
+                        <div>
+                            {% if method.is_default %}
+                            <span class="badge bg-success me-2">Default</span>
+                            {% else %}
+                            <button class="btn btn-sm btn-outline-primary me-2">Set Default</button>
+                            {% endif %}
+                            <button class="btn btn-sm btn-outline-danger">Remove</button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-credit-card fa-3x text-muted mb-3"></i>
+                    <p>You don't have any payment methods saved yet.</p>
+                </div>
+                {% endif %}
+                
+                <!-- Add New Payment Method -->
+                <h6 class="mt-4 mb-3">Add New Payment Method</h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h6 class="card-title"><i class="fas fa-credit-card me-2"></i> Credit Card</h6>
+                                <form id="creditCardForm">
+                                    <div class="mb-3">
+                                        <label for="cardNumber" class="form-label">Card Number</label>
+                                        <input type="text" class="form-control" id="cardNumber" placeholder="1234 5678 9012 3456">
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-6">
+                                            <label for="expiryDate" class="form-label">Expiry Date</label>
+                                            <input type="text" class="form-control" id="expiryDate" placeholder="MM/YY">
+                                        </div>
+                                        <div class="col-6">
+                                            <label for="cvv" class="form-label">CVV</label>
+                                            <input type="text" class="form-control" id="cvv" placeholder="123">
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="nameOnCard" class="form-label">Name on Card</label>
+                                        <input type="text" class="form-control" id="nameOnCard" placeholder="John Doe">
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Add Credit Card</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6 class="card-title"><i class="fas fa-university me-2"></i> Bank Account</h6>
+                                <form id="bankAccountForm">
+                                    <div class="mb-3">
+                                        <label for="accountName" class="form-label">Account Holder Name</label>
+                                        <input type="text" class="form-control" id="accountName" placeholder="John Doe">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="bankName" class="form-label">Bank Name</label>
+                                        <input type="text" class="form-control" id="bankName" placeholder="Your Bank">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="accountNumber" class="form-label">Account Number</label>
+                                        <input type="text" class="form-control" id="accountNumber" placeholder="Your account number">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="ifscCode" class="form-label">IFSC Code</label>
+                                        <input type="text" class="form-control" id="ifscCode" placeholder="ABCD0123456">
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Add Bank Account</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Payment Security Information -->
+                <div class="card mt-4">
+                    <div class="card-body bg-light">
+                        <h6 class="card-title"><i class="fas fa-shield-alt me-2"></i> Payment Security</h6>
+                        <p class="card-text small">Your payment information is securely processed and stored by our payment provider. We never store your full credit card details on our servers. All transactions are encrypted using industry-standard SSL technology.</p>
+                        <div class="d-flex justify-content-center mt-3">
+                            <img src="/static/img/payment-security-badges.png" alt="Payment Security" height="40">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Billing History Tab -->
+    <div class="tab-pane fade" id="history" role="tabpanel" aria-labelledby="history-tab">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-history me-2"></i> Billing History</h5>
+            </div>
+            <div class="card-body">
+                {% if billing_history %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Description</th>
+                                <th>Plan</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Receipt</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transaction in billing_history %}
+                            <tr>
+                                <td>{{ transaction.date }}</td>
+                                <td>{{ transaction.description }}</td>
+                                <td>{{ transaction.plan }}</td>
+                                <td>₹{{ transaction.amount }}</td>
+                                <td>
+                                    {% if transaction.status == 'paid' %}
+                                    <span class="badge bg-success">Paid</span>
+                                    {% elif transaction.status == 'pending' %}
+                                    <span class="badge bg-warning text-dark">Pending</span>
+                                    {% elif transaction.status == 'failed' %}
+                                    <span class="badge bg-danger">Failed</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ transaction.receipt_url }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-file-invoice"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-receipt fa-3x text-muted mb-3"></i>
+                    <h5>No Billing History</h5>
+                    <p class="text-muted">Your billing history will appear here once you have made a payment.</p>
+                </div>
+                {% endif %}
+                
+                <!-- Download Options -->
+                <div class="mt-4">
+                    <h6>Export Billing History</h6>
+                    <div class="btn-group">
+                        <a href="#" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-file-csv me-2"></i> CSV
+                        </a>
+                        <a href="#" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-file-pdf me-2"></i> PDF
+                        </a>
+                        <a href="#" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-file-excel me-2"></i> Excel
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Enterprise Solutions Tab -->
+    <div class="tab-pane fade" id="enterprise" role="tabpanel" aria-labelledby="enterprise-tab">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-building me-2"></i> Enterprise Solutions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h4>Tailored for Large Scale Operations</h4>
+                        <p>Our Enterprise plan is designed for large pawnshop chains and financial institutions that require custom features, advanced security, and dedicated support.</p>
+                        
+                        <h5 class="mt-4">Enterprise Benefits</h5>
+                        <ul class="list-group list-group-flush mb-4">
+                            <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i> Unlimited branches and users</li>
+                            <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i> Dedicated account manager</li>
+                            <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i> 24/7 priority support</li>
+                            <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i> Custom integration with existing systems</li>
+                            <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i> Advanced security features</li>
+                            <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i> Service Level Agreement (SLA)</li>
+                            <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i> Customized reporting</li>
+                        </ul>
+                        
+                        <div class="text-center">
+                            <a href="#contactForm" class="btn btn-lg btn-primary">Contact Sales</a>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="enterprise-features">
+                            <h5 class="text-center mb-4">Enterprise-Grade Features</h5>
+                            
+                            <div class="enterprise-feature-item">
+                                <div class="enterprise-feature-icon text-center">
+                                    <i class="fas fa-shield-alt"></i>
+                                </div>
+                                <h6 class="text-center">Advanced Security</h6>
+                                <p>Enterprise-grade security with multi-factor authentication, IP restrictions, and detailed audit logs for all system activities.</p>
+                            </div>
+                            
+                            <div class="enterprise-feature-item">
+                                <div class="enterprise-feature-icon text-center">
+                                    <i class="fas fa-chart-line"></i>
+                                </div>
+                                <h6 class="text-center">Business Intelligence</h6>
+                                <p>Advanced analytics and reporting tools to gain insights into your business performance across all branches.</p>
+                            </div>
+                            
+                            <div class="enterprise-feature-item">
+                                <div class="enterprise-feature-icon text-center">
+                                    <i class="fas fa-plug"></i>
+                                </div>
+                                <h6 class="text-center">Custom Integrations</h6>
+                                <p>Seamlessly integrate with your existing ERP, CRM, accounting software, and other business systems.</p>
+                            </div>
+                            
+                            <div class="enterprise-feature-item">
+                                <div class="enterprise-feature-icon text-center">
+                                    <i class="fas fa-server"></i>
+                                </div>
+                                <h6 class="text-center">Dedicated Infrastructure</h6>
+                                <p>Optional dedicated server infrastructure for maximum performance and security.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Contact Form -->
+                <div class="card mt-5" id="contactForm">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Request Enterprise Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <form>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="fullName" class="form-label">Full Name</label>
+                                        <input type="text" class="form-control" id="fullName" placeholder="Enter your name">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="companyName" class="form-label">Company Name</label>
+                                        <input type="text" class="form-control" id="companyName" placeholder="Enter your company name">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="emailAddress" class="form-label">Email Address</label>
+                                        <input type="email" class="form-control" id="emailAddress" placeholder="Enter your email">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="phoneNumber" class="form-label">Phone Number</label>
+                                        <input type="tel" class="form-control" id="phoneNumber" placeholder="Enter your phone number">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="requirements" class="form-label">Requirements</label>
+                                <textarea class="form-control" id="requirements" rows="4" placeholder="Tell us about your specific requirements"></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Interested In</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="" id="customIntegrations">
+                                    <label class="form-check-label" for="customIntegrations">
+                                        Custom Integrations
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="" id="dedicatedSupport">
+                                    <label class="form-check-label" for="dedicatedSupport">
+                                        Dedicated Support
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="" id="customReporting">
+                                    <label class="form-check-label" for="customReporting">
+                                        Custom Reporting
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="" id="privateHosting">
+                                    <label class="form-check-label" for="privateHosting">
+                                        Private Hosting
+                                    </label>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Submit Request</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    $(document).ready(function() {
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        });
+        
+        // Save active tab to session storage
+        $('button[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
+            sessionStorage.setItem('activeSubscriptionTab', $(e.target).attr('id'));
+        });
+        
+        // Check for saved tab and activate it
+        var activeTab = sessionStorage.getItem('activeSubscriptionTab');
+        if(activeTab){
+            $('#' + activeTab).tab('show');
+        }
+    });
+</script>
+{% endblock %}

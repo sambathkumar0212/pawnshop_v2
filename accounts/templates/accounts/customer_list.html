@@ -1,0 +1,454 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}Customers Management{% endblock %}
+
+{% block customers_active %}active{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h2>Customer Management</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+                    <li class="breadcrumb-item active">Customers</li>
+                </ol>
+            </nav>
+        </div>
+        <div class="col-md-6 text-end">
+            <div class="btn-group me-2">
+                <button type="button" class="btn btn-outline-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-download"></i> Download
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="?download=pdf{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
+                        <i class="fas fa-file-pdf text-danger"></i> Download as PDF
+                    </a></li>
+                    <li><a class="dropdown-item" href="?download=excel{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
+                        <i class="fas fa-file-excel text-success"></i> Download as Excel
+                    </a></li>
+                    <li><a class="dropdown-item" href="?download=csv{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
+                        <i class="fas fa-file-csv text-info"></i> Download as CSV
+                    </a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#columnSelectModal">
+                        <i class="fas fa-columns"></i> Select Columns to Download
+                    </a></li>
+                </ul>
+            </div>
+            <a href="{% url 'customer_create' %}" class="btn btn-primary">
+                <i class="fas fa-user-plus"></i> New Customer
+            </a>
+        </div>
+    </div>
+
+    <!-- Customer Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card stat-card bg-primary text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Total Customers</h5>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="value">{{ total_customers }}</span>
+                        <span class="icon"><i class="fas fa-users"></i></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card bg-success text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Active Customers</h5>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="value">{{ active_customers }}</span>
+                        <span class="icon"><i class="fas fa-user-check"></i></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card bg-info text-white">
+                <div class="card-body">
+                    <h5 class="card-title">New This Month</h5>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="value">{{ new_customers }}</span>
+                        <span class="icon"><i class="fas fa-user-plus"></i></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card bg-warning text-white">
+                <div class="card-body">
+                    <h5 class="card-title">With Active Loans</h5>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="value">{{ customers_with_loans }}</span>
+                        <span class="icon"><i class="fas fa-hand-holding-usd"></i></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filter -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-8">
+                    <div class="input-group">
+                        <input type="text" name="search" class="form-control" placeholder="Search by name, email, phone..." value="{{ search_query }}">
+                        <button class="btn btn-primary" type="submit">
+                            <i class="fas fa-search"></i> Search
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <select name="filter" class="form-select">
+                        <option value="" {% if not filter %}selected{% endif %}>All Customers</option>
+                        <option value="active_loans" {% if filter == 'active_loans' %}selected{% endif %}>With Active Loans</option>
+                        <option value="recent" {% if filter == 'recent' %}selected{% endif %}>Recently Added</option>
+                    </select>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Customer Table -->
+    <div class="card">
+        <div class="card-body">
+            {% if customers %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="px-3 py-3">ID</th>
+                                <th class="px-3 py-3">
+                                    <a href="?sort={% if current_sort == 'name' %}-{% endif %}name{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}" class="text-decoration-none text-dark">
+                                        Customer Name 
+                                        {% if current_sort == 'name' %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% elif current_sort == '-name' %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort text-muted"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                                <th class="px-3 py-3">
+                                    <a href="?sort={% if current_sort == 'email' %}-{% endif %}email{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}" class="text-decoration-none text-dark">
+                                        Contact 
+                                        {% if current_sort == 'email' %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% elif current_sort == '-email' %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort text-muted"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                                <th class="px-3 py-3">
+                                    <a href="?sort={% if current_sort == 'branch' %}-{% endif %}branch{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}" class="text-decoration-none text-dark">
+                                        Branch 
+                                        {% if current_sort == 'branch' %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% elif current_sort == '-branch' %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort text-muted"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                                <th class="px-3 py-3">Active Loans</th>
+                                <th class="px-3 py-3">
+                                    <a href="?sort={% if current_sort == 'created_at' %}-{% endif %}created_at{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}" class="text-decoration-none text-dark">
+                                        Registered 
+                                        {% if current_sort == 'created_at' %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% elif current_sort == '-created_at' %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort text-muted"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                                <th class="px-3 py-3">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for customer in customers %}
+                                <tr>
+                                    <td>{{ customer.id }}</td>
+                                    <td>
+                                        <a href="{% url 'customer_detail' customer.id %}">
+                                            {{ customer.first_name }} {{ customer.last_name }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <div><i class="fas fa-envelope"></i> {{ customer.email|default:"No email" }}</div>
+                                        <div><i class="fas fa-phone"></i> {{ customer.phone|mobile_format|default:"No phone" }}</div>
+                                    </td>
+                                    <td>
+                                        {% if customer.branch %}
+                                            <span class="badge bg-primary">
+                                                <i class="fas fa-building"></i> {{ customer.branch.name }}
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">
+                                                <i class="fas fa-question-circle"></i> No branch
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if customer.active_loans_count %}
+                                            {% for loan in customer.loans.all %}
+                                                {% if loan.status == 'active' and loan.item_photos %}
+                                                    <div class="position-relative mb-1" style="width: 48px; height: 48px;" data-bs-toggle="tooltip" title="Loan #{{ loan.loan_number }}">
+                                                        <img src="{{ loan.item_photos|get_first_photo }}" 
+                                                             alt="Pawned Item" 
+                                                             class="rounded border"
+                                                             style="width: 100%; height: 100%; object-fit: cover;">
+                                                    </div>
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% else %}
+                                            <span class="badge bg-secondary">No Loans</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ customer.created_at|date:"M d, Y" }}</td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{% url 'customer_detail' customer.id %}" class="btn btn-outline-primary" title="View">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{% url 'customer_update' customer.id %}" class="btn btn-outline-secondary" title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{% url 'loan_create' %}?customer_id={{ customer.id }}" class="btn btn-outline-success" title="New Loan">
+                                                <i class="fas fa-hand-holding-usd"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                {% if is_paginated %}
+                <nav aria-label="Page navigation" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}" aria-label="First">
+                                    <span aria-hidden="true">&laquo;&laquo;</span>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#" aria-label="First">
+                                    <span aria-hidden="true">&laquo;&laquo;</span>
+                                </a>
+                            </li>
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                                <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">{{ num }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}" aria-label="Last">
+                                    <span aria-hidden="true">&raquo;&raquo;</span>
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#" aria-label="Last">
+                                    <span aria-hidden="true">&raquo;&raquo;</span>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> No customers found matching your search criteria.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Column Selection Modal -->
+<div class="modal fade" id="columnSelectModal" tabindex="-1" aria-labelledby="columnSelectModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="columnSelectModalLabel">Select Columns to Download</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="columnSelectForm" method="GET">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Available Columns</h6>
+                            <div class="form-check">
+                                <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="roll_number" id="col_roll_number" checked>
+                                <label class="form-check-label" for="col_roll_number">Roll Number</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="first_name" id="col_first_name" checked>
+                                <label class="form-check-label" for="col_first_name">First Name</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="last_name" id="col_last_name" checked>
+                                <label class="form-check-label" for="col_last_name">Last Name</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="phone" id="col_phone" checked>
+                                <label class="form-check-label" for="col_phone">Phone</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="email" id="col_email" checked>
+                                <label class="form-check-label" for="col_email">Email</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="address" id="col_address" checked>
+                                <label class="form-check-label" for="col_address">Address</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="city" id="col_city" checked>
+                                <label class="form-check-label" for="col_city">City</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>&nbsp;</h6>
+                            <div class="form-check">
+                                <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="state" id="col_state" checked>
+                                <label class="form-check-label" for="col_state">State</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="zip_code" id="col_zip_code" checked>
+                                <label class="form-check-label" for="col_zip_code">ZIP Code</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="id_type" id="col_id_type" checked>
+                                <label class="form-check-label" for="col_id_type">ID Type</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="id_number" id="col_id_number" checked>
+                                <label class="form-check-label" for="col_id_number">ID Number</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="branch" id="col_branch" checked>
+                                <label class="form-check-label" for="col_branch">Branch</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="created_at" id="col_created_at" checked>
+                                <label class="form-check-label" for="col_created_at">Created Date</label>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="selectAllBtn">Select All</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="deselectAllBtn">Deselect All</button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <div class="me-auto">
+                        <label for="downloadFormat" class="form-label">Download Format:</label>
+                        <select name="format" id="downloadFormat" class="form-select form-select-sm" style="width: auto; display: inline-block;">
+                            <option value="pdf">PDF</option>
+                            <option value="excel">Excel</option>
+                            <option value="csv">CSV</option>
+                        </select>
+                    </div>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success" onclick="downloadWithColumns(event)">
+                        <i class="fas fa-download"></i> Download
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    $(document).ready(function() {
+        // Initialize tooltips
+        $('[data-bs-toggle="tooltip"]').tooltip();
+        
+        // Auto-submit form when filter changes
+        $('select[name="filter"]').change(function() {
+            $(this).closest('form').submit();
+        });
+    });
+    
+    document.getElementById('selectAllBtn').addEventListener('click', function() {
+        document.querySelectorAll('.column-checkbox').forEach(checkbox => {
+            checkbox.checked = true;
+        });
+    });
+
+    document.getElementById('deselectAllBtn').addEventListener('click', function() {
+        document.querySelectorAll('.column-checkbox').forEach(checkbox => {
+            checkbox.checked = false;
+        });
+    });
+
+    function downloadWithColumns(event) {
+        event.preventDefault();
+        const selectedColumns = [];
+        document.querySelectorAll('.column-checkbox:checked').forEach(checkbox => {
+            selectedColumns.push(checkbox.value);
+        });
+        
+        if (selectedColumns.length === 0) {
+            alert('Please select at least one column');
+            return;
+        }
+        
+        const format = document.getElementById('downloadFormat').value;
+        const params = new URLSearchParams(window.location.search);
+        params.set('download', format);
+        params.set('columns', selectedColumns.join(','));
+        
+        window.location.href = '?' + params.toString();
+    }
+</script>
+{% endblock %}

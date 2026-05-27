@@ -1,0 +1,414 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+{% load static %}
+
+{% block title %}{{ organization.name }} - Organization Details - Super Admin{% endblock %}
+
+{% block superadmin_organizations_active %}active{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2 class="mb-0"><i class="fas fa-building me-2"></i>{{ organization.name }}</h2>
+                            <p class="text-muted mb-0">Organization Details & Management</p>
+                        </div>
+                        <div>
+                            <a href="{% url 'superadmin_organization_list' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Organizations
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Organization Info & Actions -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Organization Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th width="150">Name:</th>
+                                    <td>{{ organization.name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Slug:</th>
+                                    <td><code>{{ organization.slug }}</code></td>
+                                </tr>
+                                <tr>
+                                    <th>Owner:</th>
+                                    <td>
+                                        {{ organization.owner.get_full_name }}
+                                        <br><small class="text-muted">{{ organization.owner.username }} ({{ organization.owner.email }})</small>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Contact Email:</th>
+                                    <td>{{ organization.contact_email }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Contact Phone:</th>
+                                    <td>{{ organization.contact_phone|mobile_format|default:"Not provided" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th width="150">Plan:</th>
+                                    <td><span class="badge bg-info fs-6">{{ organization.get_plan_display }}</span></td>
+                                </tr>
+                                <tr>
+                                    <th>Status:</th>
+                                    <td>
+                                        {% if organization.status == 'active' %}
+                                            <span class="badge bg-success fs-6">{{ organization.get_status_display }}</span>
+                                        {% elif organization.status == 'suspended' %}
+                                            <span class="badge bg-danger fs-6">{{ organization.get_status_display }}</span>
+                                        {% elif organization.status == 'pending' %}
+                                            <span class="badge bg-warning fs-6">{{ organization.get_status_display }}</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary fs-6">{{ organization.get_status_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Subscription:</th>
+                                    <td>
+                                        {% if organization.is_subscription_active %}
+                                            <span class="badge bg-success fs-6">Active</span>
+                                        {% else %}
+                                            <span class="badge bg-danger fs-6">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Auto Renew:</th>
+                                    <td>
+                                        {% if organization.auto_renew %}
+                                            <span class="badge bg-success fs-6">Enabled</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary fs-6">Disabled</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Created:</th>
+                                    <td>{{ organization.created_at|date:"F d, Y H:i" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="fas fa-tools me-2"></i>Admin Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        {% if organization.status == 'active' %}
+                        <form method="post" action="{% url 'superadmin_organization_suspend' organization.pk %}" 
+                              onsubmit="return confirm('Are you sure you want to suspend {{ organization.name }}? All users will be deactivated.')">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-warning w-100">
+                                <i class="fas fa-pause me-2"></i>Suspend Organization
+                            </button>
+                        </form>
+                        {% elif organization.status == 'suspended' %}
+                        <form method="post" action="{% url 'superadmin_organization_reactivate' organization.pk %}" 
+                              onsubmit="return confirm('Are you sure you want to reactivate {{ organization.name }}?')">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-success w-100">
+                                <i class="fas fa-play me-2"></i>Reactivate Organization
+                            </button>
+                        </form>
+                        {% endif %}
+                        
+                        <a href="{% url 'superadmin_organization_delete' organization.pk %}" 
+                           class="btn btn-danger"
+                           onclick="return confirm('Are you sure you want to delete {{ organization.name }}? This action cannot be undone!')">
+                            <i class="fas fa-trash me-2"></i>Delete Organization
+                        </a>
+                        
+                        <a href="{% url 'admin:accounts_organization_change' organization.pk %}" 
+                           class="btn btn-secondary" target="_blank">
+                            <i class="fas fa-edit me-2"></i>Edit in Django Admin
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Subscription Details -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-calendar me-2"></i>Subscription Details</h6>
+                </div>
+                <div class="card-body">
+                    <small class="text-muted">Started:</small><br>
+                    <strong>{{ organization.subscription_start|date:"F d, Y" }}</strong><br><br>
+                    
+                    {% if organization.subscription_end %}
+                    <small class="text-muted">Ends:</small><br>
+                    <strong>{{ organization.subscription_end|date:"F d, Y" }}</strong><br><br>
+                    {% endif %}
+                    
+                    <small class="text-muted">Auto Renew:</small><br>
+                    <strong>{{ organization.auto_renew|yesno:"Yes,No" }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center bg-primary text-white">
+                <div class="card-body">
+                    <i class="fas fa-users fa-2x mb-2"></i>
+                    <h4>{{ users|length }}</h4>
+                    <p class="mb-0">Total Users</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center bg-success text-white">
+                <div class="card-body">
+                    <i class="fas fa-store fa-2x mb-2"></i>
+                    <h4>{{ branches|length }}</h4>
+                    <p class="mb-0">Branches</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center bg-info text-white">
+                <div class="card-body">
+                    <i class="fas fa-user-friends fa-2x mb-2"></i>
+                    <h4>{{ total_customers }}</h4>
+                    <p class="mb-0">Customers</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center bg-warning text-white">
+                <div class="card-body">
+                    <i class="fas fa-handshake fa-2x mb-2"></i>
+                    <h4>{{ total_loans }}</h4>
+                    <p class="mb-0">Loans</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Plan Limits -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Plan Limits & Usage</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h6>Branches</h6>
+                            <div class="progress mb-2">
+                                {% widthratio branches|length organization.max_branches 100 as branch_percentage %}
+                                <div class="progress-bar {% if branch_percentage > 80 %}bg-danger{% elif branch_percentage > 60 %}bg-warning{% else %}bg-success{% endif %}" 
+                                     style="width: {{ branch_percentage }}%"></div>
+                            </div>
+                            <small>{{ branches|length }} / {{ organization.max_branches }} branches used</small>
+                        </div>
+                        <div class="col-md-4">
+                            <h6>Users</h6>
+                            <div class="progress mb-2">
+                                {% widthratio users|length organization.max_users 100 as user_percentage %}
+                                <div class="progress-bar {% if user_percentage > 80 %}bg-danger{% elif user_percentage > 60 %}bg-warning{% else %}bg-success{% endif %}" 
+                                     style="width: {{ user_percentage }}%"></div>
+                            </div>
+                            <small>{{ users|length }} / {{ organization.max_users }} users used</small>
+                        </div>
+                        <div class="col-md-4">
+                            <h6>Customers</h6>
+                            <div class="progress mb-2">
+                                {% widthratio total_customers organization.max_customers 100 as customer_percentage %}
+                                <div class="progress-bar {% if customer_percentage > 80 %}bg-danger{% elif customer_percentage > 60 %}bg-warning{% else %}bg-success{% endif %}" 
+                                     style="width: {{ customer_percentage }}%"></div>
+                            </div>
+                            <small>{{ total_customers }} / {{ organization.max_customers }} customers used</small>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <h6>Additional Features</h6>
+                            <ul class="list-unstyled">
+                                <li>
+                                    <i class="fas fa-{% if organization.enable_biometrics %}check text-success{% else %}times text-danger{% endif %} me-2"></i>
+                                    Biometrics {{ organization.enable_biometrics|yesno:"Enabled,Disabled" }}
+                                </li>
+                                <li>
+                                    <i class="fas fa-chart-line me-2 text-info"></i>
+                                    Max Loans: {{ organization.max_loans }}
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Users and Branches -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-users me-2"></i>Users ({{ users|length }})</h5>
+                </div>
+                <div class="card-body">
+                    {% if users %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Role</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in users %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ user.get_full_name|default:user.username }}</strong>
+                                        <br><small class="text-muted">{{ user.email }}</small>
+                                    </td>
+                                    <td>
+                                        {% if user.role %}
+                                            <span class="badge bg-secondary">{{ user.role.name }}</span>
+                                        {% else %}
+                                            <span class="text-muted">No role</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if user.is_active %}
+                                            <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No users found.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-store me-2"></i>Branches ({{ branches|length }})</h5>
+                </div>
+                <div class="card-body">
+                    {% if branches %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Location</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for branch in branches %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ branch.name }}</strong>
+                                        <br><small class="text-muted">{{ branch.code }}</small>
+                                    </td>
+                                    <td>
+                                        {{ branch.address|default:"Not specified" }}
+                                        {% if branch.city %}<br><small class="text-muted">{{ branch.city }}</small>{% endif %}
+                                    </td>
+                                    <td>
+                                        {% if branch.is_active %}
+                                            <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No branches found.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    {% if recent_activity %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Activity</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Activity</th>
+                                    <th>Description</th>
+                                    <th>Time</th>
+                                    <th>IP Address</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for activity in recent_activity %}
+                                <tr>
+                                    <td>{{ activity.user.get_full_name|default:activity.user.username }}</td>
+                                    <td><span class="badge bg-info">{{ activity.activity_type }}</span></td>
+                                    <td>{{ activity.description|default:"No description" }}</td>
+                                    <td>{{ activity.timestamp|timesince }} ago</td>
+                                    <td><code>{{ activity.ip_address|default:"Unknown" }}</code></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

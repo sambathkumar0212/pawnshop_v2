@@ -1,0 +1,10 @@
+# Memory-intensive requirements - install separately after deployment
+face-recognition>=1.3.0
+numpy>=2.0.0
+opencv-python>=4.8.0
+Pillow>=11.0.0
+psycopg2-binary>=2.9.0
+celery>=5.3.0
+redis>=5.0.0
+reportlab>=4.0.0
+openpyxl

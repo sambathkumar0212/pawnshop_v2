@@ -1,0 +1,290 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ branch.name }} - Pawnshop Management System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stats-card {
+        transition: all 0.3s;
+    }
+    .stats-card:hover {
+        transform: translateY(-3px);
+    }
+    .branch-info-label {
+        font-weight: 500;
+        color: #6c757d;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Branch Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 mb-1">{{ branch.name }}</h1>
+            <p class="text-muted mb-0">{{ branch.address }}, {{ branch.city }}, {{ branch.state }} {{ branch.zip_code }}</p>
+        </div>
+        <div class="btn-group">
+            {% if perms.branches.change_branch %}
+            <a href="{% url 'branch_update' branch.pk %}" class="btn btn-outline-primary">
+                <i class="fas fa-edit me-2"></i>Edit Branch
+            </a>
+            {% endif %}
+            {% if perms.branches.change_branchsettings %}
+            <a href="{% url 'branch_settings_update' branch.pk %}" class="btn btn-outline-secondary">
+                <i class="fas fa-cog me-2"></i>Settings
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Branch Status -->
+    <div class="card shadow mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Branch Status</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-lg-3 col-md-6 mb-4">
+                    <div class="card bg-primary text-white stats-card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">Staff</h5>
+                            <h2 class="display-4">{{ staff_count }}</h2>
+                            <p class="mb-0">Team members</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6 mb-4">
+                    <div class="card bg-success text-white stats-card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">Inventory</h5>
+                            <h2 class="display-4">{{ inventory_count }}</h2>
+                            <p class="mb-0">{{ available_items }} available, {{ pawned_items }} pawned</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6 mb-4">
+                    <div class="card bg-warning text-dark stats-card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">Active Loans</h5>
+                            <h2 class="display-4">{{ active_loans }}</h2>
+                            <p class="mb-0">{{ overdue_loans }} overdue</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6 mb-4">
+                    <div class="card bg-info text-white stats-card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">Monthly Sales</h5>
+                            <h2 class="display-4">₹{{ sales_this_month }}</h2>
+                            <p class="mb-0">This month</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Branch Information -->
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-building me-2"></i>Branch Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-sm-4 branch-info-label">Branch Name:</div>
+                        <div class="col-sm-8">{{ branch.name }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-4 branch-info-label">Status:</div>
+                        <div class="col-sm-8">
+                            {% if branch.is_active %}
+                                <span class="badge bg-success">Active</span>
+                            {% else %}
+                                <span class="badge bg-danger">Inactive</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-4 branch-info-label">Manager:</div>
+                        <div class="col-sm-8">{{ branch.manager.get_full_name|default:"Unassigned" }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-4 branch-info-label">Phone:</div>
+                        <div class="col-sm-8">{{ branch.phone }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-4 branch-info-label">Email:</div>
+                        <div class="col-sm-8">{{ branch.email }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-4 branch-info-label">Business Hours:</div>
+                        <div class="col-sm-8">{{ branch.opening_time|time:"h:i A" }} to {{ branch.closing_time|time:"h:i A" }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-4 branch-info-label">Address:</div>
+                        <div class="col-sm-8">{{ branch.address }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-4 branch-info-label">City/State/ZIP:</div>
+                        <div class="col-sm-8">{{ branch.city }}, {{ branch.state }} {{ branch.zip_code }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Branch Settings -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-cog me-2"></i>Branch Settings</h5>
+                </div>
+                <div class="card-body">
+                    {% if settings %}
+                    <div class="row mb-3">
+                        <div class="col-sm-6 branch-info-label">Max Loan Amount:</div>
+                        <div class="col-sm-6">₹{{ settings.max_loan_amount }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-6 branch-info-label">Default Interest Rate:</div>
+                        <div class="col-sm-6">{{ settings.default_interest_rate|floatformat:2 }}% per month</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-6 branch-info-label">Loan Duration:</div>
+                        <div class="col-sm-6">{{ settings.loan_duration_days }} days</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-6 branch-info-label">Grace Period:</div>
+                        <div class="col-sm-6">{{ settings.grace_period_days }} days</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-6 branch-info-label">ID Verification Required:</div>
+                        <div class="col-sm-6">
+                            {% if settings.require_id_verification %}
+                                <span class="badge bg-success">Enabled</span>
+                            {% else %}
+                                <span class="badge bg-danger">Disabled</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-6 branch-info-label">Face Recognition:</div>
+                        <div class="col-sm-6">
+                            {% if settings.enable_face_recognition %}
+                                <span class="badge bg-success">Enabled</span>
+                            {% else %}
+                                <span class="badge bg-danger">Disabled</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-6 branch-info-label">SMS Notifications:</div>
+                        <div class="col-sm-6">
+                            {% if settings.enable_sms_notifications %}
+                                <span class="badge bg-success">Enabled</span>
+                            {% else %}
+                                <span class="badge bg-danger">Disabled</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-6 branch-info-label">Email Notifications:</div>
+                        <div class="col-sm-6">
+                            {% if settings.enable_email_notifications %}
+                                <span class="badge bg-success">Enabled</span>
+                            {% else %}
+                                <span class="badge bg-danger">Disabled</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-6 branch-info-label">Auction Delay:</div>
+                        <div class="col-sm-6">{{ settings.auction_delay_days }} days after default</div>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>No settings found for this branch.
+                        {% if perms.branches.change_branchsettings %}
+                        <a href="{% url 'branch_settings_update' branch.pk %}" class="alert-link">Configure settings now</a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Staff List -->
+    <div class="card shadow mb-4">
+        <div class="card-header bg-light">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-users me-2"></i>Staff</h5>
+                <a href="{% url 'user_list' %}?branch={{ branch.id }}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-user-plus me-2"></i>Manage Staff
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if branch.staff.all %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Name</th>
+                            <th>Role</th>
+                            <th>Username</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in branch.staff.all %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    {% if user.face_id %}
+                                    <div class="me-3">
+                                        <img src="{{ user.face_image.url }}" class="rounded-circle" width="40" height="40" alt="{{ user }}">
+                                    </div>
+                                    {% else %}
+                                    <div class="me-3">
+                                        <div class="rounded-circle bg-light d-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                                            <i class="fas fa-user text-secondary"></i>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    <div>
+                                        <p class="fw-bold mb-0">{{ user.get_full_name }}</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>{{ user.role.name|default:"No Role" }}</td>
+                            <td>{{ user.username }}</td>
+                            <td>{{ user.email }}</td>
+                            <td>{{ user.phone|default:"N/A" }}</td>
+                            <td>
+                                {% if user.is_active %}
+                                    <span class="badge bg-success">Active</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Inactive</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>No staff members assigned to this branch.
+                <a href="{% url 'user_create' %}" class="alert-link">Assign staff to this branch</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

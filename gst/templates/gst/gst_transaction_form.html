@@ -1,0 +1,358 @@
+{% extends "gst/base_gst.html" %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block title %}
+    {% if form.instance.pk %}Edit GST Transaction{% else %}Add GST Transaction{% endif %}
+{% endblock %}
+
+{% block gst_content %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">{% if form.instance.pk %}Edit GST Transaction{% else %}Add GST Transaction{% endif %}</h5>
+    </div>
+    <div class="card-body">
+        <form method="post" id="gstTransactionForm">
+            {% csrf_token %}
+            
+            <!-- Add form errors display -->
+            {% if form.errors %}
+            <div class="alert alert-danger">
+                <h6><i class="fas fa-exclamation-triangle"></i> Please correct the following errors:</h6>
+                <ul class="mb-0">
+                    {% for field in form %}
+                        {% for error in field.errors %}
+                        <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                    {% for error in form.non_field_errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+            
+            <!-- Add success message if any -->
+            {% if messages %}
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                {% endfor %}
+            {% endif %}
+            
+            <!-- Add missing fields that might be required -->
+            <input type="hidden" name="total_tax" id="id_total_tax" value="0.00">
+            <input type="hidden" name="total_amount" id="id_total_amount" value="0.00">
+            
+            <div class="row">
+                <div class="col-md-6">
+                    {{ form.transaction_date|as_crispy_field }}
+                </div>
+                <div class="col-md-6">
+                    {{ form.invoice_number|as_crispy_field }}
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-4">
+                    {{ form.transaction_type|as_crispy_field }}
+                </div>
+                <div class="col-md-4">
+                    {{ form.is_interstate|as_crispy_field }}
+                </div>
+                <div class="col-md-4">
+                    {{ form.gst_rate|as_crispy_field }}
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    {{ form.party_name|as_crispy_field }}
+                </div>
+                <div class="col-md-6">
+                    {{ form.is_registered_dealer|as_crispy_field }}
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-12">
+                    <div id="gstinField" class="{% if not form.instance.is_registered_dealer and not form.errors.party_gstin %}d-none{% endif %}">
+                        {{ form.party_gstin|as_crispy_field }}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-12">
+                    {{ form.place_of_supply|as_crispy_field }}
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">Transaction Values</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            {{ form.taxable_value|as_crispy_field }}
+                        </div>
+                        <div class="col-md-8">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div id="cgst_field" class="{% if form.instance.is_interstate %}d-none{% endif %}">
+                                        {{ form.cgst_amount|as_crispy_field }}
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div id="sgst_field" class="{% if form.instance.is_interstate %}d-none{% endif %}">
+                                        {{ form.sgst_amount|as_crispy_field }}
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div id="igst_field" class="{% if not form.instance.is_interstate %}d-none{% endif %}">
+                                        {{ form.igst_amount|as_crispy_field }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4 offset-md-8">
+                            <div class="form-group">
+                                <label for="total_amount">Total Amount</label>
+                                <div class="input-group">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text">₹</span>
+                                    </div>
+                                    <input type="text" id="total_amount" class="form-control" readonly>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-12">
+                    {{ form.notes|as_crispy_field }}
+                </div>
+            </div>
+            
+            <div class="mt-3">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-1"></i> Save Transaction
+                </button>
+                <a href="{% url 'gst_transaction_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-times me-1"></i> Cancel
+                </a>
+                {% if form.instance.pk %}
+                <a href="{% url 'gst_transaction_detail' form.instance.pk %}" class="btn btn-info">
+                    <i class="fas fa-eye me-1"></i> View Details
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- GST Information Card -->
+<div class="card mt-4">
+    <div class="card-header bg-info text-white">
+        <h5 class="mb-0">GST Transaction Information</h5>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i> Transaction Types:
+            <ul class="mb-0">
+                <li><strong>Sales:</strong> For outward supplies of goods or services</li>
+                <li><strong>Purchase:</strong> For inward supplies of goods or services</li>
+                <li><strong>Credit Note:</strong> For return of goods or price adjustments (reduction in value)</li>
+                <li><strong>Debit Note:</strong> For additional charges or price adjustments (increase in value)</li>
+            </ul>
+        </div>
+        
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i> <strong>Intra-State vs Inter-State:</strong><br>
+            <ul class="mb-0">
+                <li><strong>Intra-State:</strong> When buyer and seller are in the same state (CGST + SGST applies)</li>
+                <li><strong>Inter-State:</strong> When buyer and seller are in different states (IGST applies)</li>
+            </ul>
+        </div>
+        
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i> <strong>B2B vs B2C:</strong><br>
+            <ul class="mb-0">
+                <li><strong>B2B (Business to Business):</strong> For registered dealers with GSTIN (GST Input Tax Credit available)</li>
+                <li><strong>B2C (Business to Consumer):</strong> For unregistered customers (No GST Input Tax Credit)</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Toggle GSTIN field based on registered dealer status
+        $('#id_is_registered_dealer').change(function() {
+            if($(this).prop('checked')) {
+                $('#gstinField').removeClass('d-none');
+            } else {
+                $('#gstinField').addClass('d-none');
+                $('#id_party_gstin').val('');
+            }
+        });
+        
+        // Toggle CGST/SGST/IGST fields based on interstate status
+        $('#id_is_interstate').change(function() {
+            if($(this).prop('checked')) {
+                // Inter-state: Show IGST, hide CGST and SGST
+                $('#igst_field').removeClass('d-none');
+                $('#cgst_field, #sgst_field').addClass('d-none');
+                $('#id_cgst_amount, #id_sgst_amount').val('0.00');
+            } else {
+                // Intra-state: Show CGST and SGST, hide IGST
+                $('#cgst_field, #sgst_field').removeClass('d-none');
+                $('#igst_field').addClass('d-none');
+                $('#id_igst_amount').val('0.00');
+            }
+            calculateTaxAmounts();
+        });
+        
+        // Calculate tax amounts based on taxable value and GST rate
+        $('#id_taxable_value, #id_gst_rate').change(function() {
+            calculateTaxAmounts();
+        });
+        
+        // Calculate total amount when any tax amount changes
+        $('#id_cgst_amount, #id_sgst_amount, #id_igst_amount').on('input', function() {
+            calculateTotalAmount();
+        });
+        
+        // Initialize calculations on page load
+        calculateTaxAmounts();
+        
+        function calculateTaxAmounts() {
+            var taxableValue = parseFloat($('#id_taxable_value').val()) || 0;
+            var gstRateId = $('#id_gst_rate').val();
+            
+            if (gstRateId && taxableValue > 0) {
+                // Make AJAX call to get GST rate details
+                $.ajax({
+                    url: '{% url "get_gst_rate_details" %}',
+                    type: 'GET',
+                    data: { 'rate_id': gstRateId },
+                    dataType: 'json',
+                    success: function(data) {
+                        if (data.success) {
+                            var isInterstate = $('#id_is_interstate').prop('checked');
+                            
+                            if (isInterstate) {
+                                // Inter-state: IGST only
+                                var igstRate = parseFloat(data.igst_rate);
+                                var igstAmount = (taxableValue * igstRate / 100).toFixed(2);
+                                $('#id_igst_amount').val(igstAmount);
+                                $('#id_cgst_amount, #id_sgst_amount').val('0.00');
+                            } else {
+                                // Intra-state: CGST + SGST
+                                var cgstRate = parseFloat(data.cgst_rate);
+                                var sgstRate = parseFloat(data.sgst_rate);
+                                var cgstAmount = (taxableValue * cgstRate / 100).toFixed(2);
+                                var sgstAmount = (taxableValue * sgstRate / 100).toFixed(2);
+                                $('#id_cgst_amount').val(cgstAmount);
+                                $('#id_sgst_amount').val(sgstAmount);
+                                $('#id_igst_amount').val('0.00');
+                            }
+                            
+                            // Update HSN code if available
+                            if (data.hsn_code && !$('#id_hsn_code').val()) {
+                                $('#id_hsn_code').val(data.hsn_code);
+                            }
+                            
+                            calculateTotalAmount();
+                        }
+                    }
+                });
+            } else {
+                // Reset tax amounts if no valid input
+                $('#id_cgst_amount, #id_sgst_amount, #id_igst_amount').val('0.00');
+                calculateTotalAmount();
+            }
+        }
+        
+        function calculateTotalAmount() {
+            var taxableValue = parseFloat($('#id_taxable_value').val()) || 0;
+            var cgstAmount = parseFloat($('#id_cgst_amount').val()) || 0;
+            var sgstAmount = parseFloat($('#id_sgst_amount').val()) || 0;
+            var igstAmount = parseFloat($('#id_igst_amount').val()) || 0;
+            
+            var totalTax = cgstAmount + sgstAmount + igstAmount;
+            var totalAmount = taxableValue + totalTax;
+            
+            // Update the display field
+            $('#total_amount').val(totalAmount.toFixed(2));
+            
+            // Update the hidden form fields that will be submitted
+            $('#id_total_tax').val(totalTax.toFixed(2));
+            $('#id_total_amount').val(totalAmount.toFixed(2));
+        }
+        
+        // Generate invoice number automatically if not provided
+        $('#id_transaction_date').change(function() {
+            if (!$('#id_invoice_number').val()) {
+                var date = new Date($(this).val());
+                if (!isNaN(date.getTime())) {
+                    var day = String(date.getDate()).padStart(2, '0');
+                    var month = String(date.getMonth() + 1).padStart(2, '0');
+                    var year = date.getFullYear().toString().substr(-2);
+                    
+                    var transactionType = $('#id_transaction_type').val();
+                    var typePrefix = '';
+                    
+                    switch(transactionType) {
+                        case 'SALE':
+                            typePrefix = 'INV';
+                            break;
+                        case 'PURCHASE':
+                            typePrefix = 'PUR';
+                            break;
+                        case 'LOAN':
+                            typePrefix = 'LN';
+                            break;
+                        case 'EXTENSION':
+                            typePrefix = 'EXT';
+                            break;
+                        case 'RETURN':
+                            typePrefix = 'RET';
+                            break;
+                        case 'OTHER':
+                            typePrefix = 'OTH';
+                            break;
+                        default:
+                            typePrefix = 'GST';
+                    }
+                    
+                    // Generate a random 3-digit number
+                    var randomNum = Math.floor(Math.random() * 900 + 100);
+                    
+                    var invoiceNumber = typePrefix + '/' + day + month + year + '/' + randomNum;
+                    $('#id_invoice_number').val(invoiceNumber);
+                }
+            }
+        });
+        
+        // Update invoice prefix when transaction type changes
+        $('#id_transaction_type').change(function() {
+            var currentInvoice = $('#id_invoice_number').val();
+            if (!currentInvoice || currentInvoice.indexOf('/') > 0) {
+                // Trigger date change to regenerate invoice number
+                $('#id_transaction_date').trigger('change');
+            }
+        });
+    });
+</script>
+{% endblock %}

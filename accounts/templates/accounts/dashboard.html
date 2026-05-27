@@ -1,0 +1,525 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Pawnshop Management System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+        height: 100%;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 100px;
+        height: 100px;
+        background: rgba(255,255,255,0.1);
+        border-radius: 50%;
+        transform: translate(30px, -30px);
+    }
+    
+    .stat-value {
+        font-size: 2.8rem;
+        font-weight: 700;
+        margin: 0.5rem 0;
+        position: relative;
+        z-index: 2;
+    }
+    
+    .stat-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        position: relative;
+        z-index: 2;
+    }
+    
+    .stat-trend {
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
+        position: relative;
+        z-index: 2;
+    }
+    
+    .stat-icon {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        font-size: 2.5rem;
+        opacity: 0.3;
+        z-index: 1;
+    }
+    
+    .quick-metrics {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        margin-bottom: 2rem;
+    }
+    
+    .metric-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #f1f3f4;
+    }
+    
+    .metric-row:last-child {
+        border-bottom: none;
+    }
+    
+    .metric-label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 500;
+    }
+    
+    .metric-value {
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    
+    .activity-feed {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    
+    .activity-item {
+        display: flex;
+        align-items: center;
+        padding: 1rem 0;
+        border-bottom: 1px solid #f1f3f4;
+    }
+    
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+    
+    .activity-icon {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        font-size: 1.2rem;
+        flex-shrink: 0;
+    }
+    
+    .activity-content {
+        flex-grow: 1;
+    }
+    
+    .activity-title {
+        font-weight: 600;
+        margin-bottom: 0.2rem;
+    }
+    
+    .activity-meta {
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+    
+    .quick-actions-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .action-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+        border: none;
+        text-decoration: none;
+        color: inherit;
+    }
+    
+    .action-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        text-decoration: none;
+        color: inherit;
+    }
+    
+    .action-icon {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        display: block;
+    }
+    
+    .action-title {
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    
+    .action-subtitle {
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+    
+    .header-controls {
+        background: white;
+        border-radius: 12px;
+        padding: 1rem 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        margin-bottom: 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    
+    .time-display {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        padding: 0.75rem 1.25rem;
+        border-radius: 8px;
+        text-align: center;
+        min-width: 200px;
+    }
+    
+    /* Color variations for stats cards */
+    .stat-loans { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+    .stat-sales { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+    .stat-inventory { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+    .stat-customers { background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); color: #333; }
+    
+    @media (max-width: 768px) {
+        .dashboard-grid {
+            grid-template-columns: 1fr;
+        }
+        .header-controls {
+            flex-direction: column;
+            text-align: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Subscription Banner -->
+{% if user.organization and user.organization.plan == 'free' or request.session.show_subscription_welcome %}
+<div class="alert alert-info alert-dismissible fade show mb-4" role="alert">
+    <div class="d-flex align-items-center">
+        <div class="me-3">
+            <i class="fas fa-crown fa-2x text-warning"></i>
+        </div>
+        <div>
+            <h5 class="mb-1">You're on the Free Plan</h5>
+            <p class="mb-0">Upgrade to Premium to unlock more features: multiple branches, unlimited users, advanced reporting, and more!</p>
+        </div>
+        <div class="ms-auto">
+            <a href="{% url 'subscription_plans' %}" class="btn btn-primary">View Plans</a>
+        </div>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
+
+<!-- Header Controls -->
+<div class="header-controls">
+    <div>
+        <h1 class="h3 mb-1"><i class="fas fa-tachometer-alt me-2"></i>Business Dashboard</h1>
+        {% if user.branch %}
+        <p class="text-muted mb-0">
+            <i class="fas fa-store me-1"></i> {{ user.branch.name }} Branch
+        </p>
+        {% endif %}
+    </div>
+    
+    <div class="d-flex align-items-center gap-3">
+        <div class="time-display">
+            <div id="current-date" class="fw-bold small"></div>
+            <div id="current-time" class="small" style="opacity: 0.9;"></div>
+        </div>
+        
+        {% if branch_count > 1 %}
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                <i class="fas fa-store"></i> All Branches
+            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="#">All Branches</a></li>
+                <li><hr class="dropdown-divider"></li>
+                {% for branch in branches %}
+                <li><a class="dropdown-item" href="#">{{ branch.name }}</a></li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Key Performance Indicators -->
+<div class="dashboard-grid">
+    <div class="stat-card stat-loans">
+        <div class="stat-icon">
+            <i class="fas fa-hand-holding-usd"></i>
+        </div>
+        <div class="stat-label">Active Loans</div>
+        <div class="stat-value">{{ active_loans|default:"0" }}</div>
+        <div class="stat-trend">
+            <i class="fas fa-exclamation-triangle"></i> {{ overdue_loans|default:"0" }} overdue
+            • {{ loans_due_today|default:"0" }} due today
+        </div>
+    </div>
+    
+    <div class="stat-card stat-sales">
+        <div class="stat-icon">
+            <i class="fas fa-cash-register"></i>
+        </div>
+        <div class="stat-label">Today's Revenue</div>
+        <div class="stat-value">₹{{ total_sales|default:"0" }}</div>
+        <div class="stat-trend">
+            <i class="fas fa-arrow-up"></i> 3.48% vs yesterday
+        </div>
+    </div>
+    
+    <div class="stat-card stat-inventory">
+        <div class="stat-icon">
+            <i class="fas fa-box-open"></i>
+        </div>
+        <div class="stat-label">Inventory Items</div>
+        <div class="stat-value">{{ total_items|default:"0" }}</div>
+        <div class="stat-trend">
+            {{ available_items|default:"0" }} available • {{ pawned_items|default:"0" }} pawned
+        </div>
+    </div>
+    
+    <div class="stat-card stat-customers">
+        <div class="stat-icon">
+            <i class="fas fa-users"></i>
+        </div>
+        <div class="stat-label">Total Customers</div>
+        <div class="stat-value">{{ customer_count|default:"0" }}</div>
+        <div class="stat-trend">
+            <i class="fas fa-user-plus"></i> {{ new_customers_today|default:"0" }} new today
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Quick Actions -->
+    <div class="col-lg-8 mb-4">
+        <h4 class="mb-3"><i class="fas fa-bolt me-2"></i>Quick Actions</h4>
+        <div class="quick-actions-grid">
+            <a href="{% url 'loan_create' %}" class="action-card">
+                <i class="fas fa-plus-circle action-icon text-primary"></i>
+                <div class="action-title">New Loan</div>
+                <div class="action-subtitle">Create pawn loan</div>
+            </a>
+            <a href="{% url 'sale_create' %}" class="action-card">
+                <i class="fas fa-shopping-cart action-icon text-success"></i>
+                <div class="action-title">New Sale</div>
+                <div class="action-subtitle">Process item sale</div>
+            </a>
+            <a href="{% url 'customer_create' %}" class="action-card">
+                <i class="fas fa-user-plus action-icon text-info"></i>
+                <div class="action-title">Add Customer</div>
+                <div class="action-subtitle">Register new customer</div>
+            </a>
+            <a href="{% url 'item_create' %}" class="action-card">
+                <i class="fas fa-box-open action-icon text-warning"></i>
+                <div class="action-title">Add Inventory</div>
+                <div class="action-subtitle">Add new item</div>
+            </a>
+        </div>
+        
+        <!-- Quick Metrics -->
+        <div class="quick-metrics">
+            <h5 class="mb-3"><i class="fas fa-chart-line me-2"></i>Quick Metrics</h5>
+            <div class="metric-row">
+                <div class="metric-label">
+                    <i class="fas fa-clock text-warning"></i>
+                    Loans Due This Week
+                </div>
+                <div class="metric-value">{{ loans_due_week|default:"0" }}</div>
+            </div>
+            <div class="metric-row">
+                <div class="metric-label">
+                    <i class="fas fa-percentage text-success"></i>
+                    Collection Rate
+                </div>
+                <div class="metric-value">{{ collection_rate|default:"95" }}%</div>
+            </div>
+            <div class="metric-row">
+                <div class="metric-label">
+                    <i class="fas fa-rupee-sign text-primary"></i>
+                    Average Loan Amount
+                </div>
+                <div class="metric-value">₹{{ avg_loan_amount|default:"15,000" }}</div>
+            </div>
+            <div class="metric-row">
+                <div class="metric-label">
+                    <i class="fas fa-trending-up text-info"></i>
+                    Monthly Growth
+                </div>
+                <div class="metric-value">+{{ monthly_growth|default:"12" }}%</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Activity -->
+    <div class="col-lg-4 mb-4">
+        <h4 class="mb-3"><i class="fas fa-history me-2"></i>Recent Activity</h4>
+        <div class="activity-feed">
+            {% if recent_loans %}
+                {% for loan in recent_loans|slice:":8" %}
+                <div class="activity-item">
+                    <div class="activity-icon bg-primary text-white">
+                        <i class="fas fa-hand-holding-usd"></i>
+                    </div>
+                    <div class="activity-content">
+                        <a href="{% url 'loan_detail' loan.loan_number %}" class="text-decoration-none">
+                            <div class="activity-title text-primary">New Loan #{{ loan.loan_number }}</div>
+                            <div class="activity-meta">
+                                {{ loan.customer.first_name }} {{ loan.customer.last_name }}
+                                • ₹{{ loan.principal_amount }}
+                                <br><small>{{ loan.created_at|timesince }} ago</small>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            {% endif %}
+            
+            {% if recent_sales %}
+                {% for sale in recent_sales|slice:":4" %}
+                <div class="activity-item">
+                    <div class="activity-icon bg-success text-white">
+                        <i class="fas fa-shopping-cart"></i>
+                    </div>
+                    <div class="activity-content">
+                        <a href="{% url 'sale_detail' sale.pk %}" class="text-decoration-none">
+                            <div class="activity-title text-success">Item Sold</div>
+                            <div class="activity-meta">
+                                {{ sale.item.name }}
+                                • ₹{{ sale.total_amount }}
+                                <br><small>{{ sale.created_at|timesince }} ago</small>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            {% endif %}
+            
+            {% if not recent_loans and not recent_sales %}
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-history fa-2x mb-2"></i>
+                    <p>No recent activity</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Navigation Links -->
+<div class="row">
+    <div class="col-12">
+        <div class="quick-metrics">
+            <h5 class="mb-3"><i class="fas fa-compass me-2"></i>Quick Navigation</h5>
+            <div class="row">
+                <div class="col-md-3 mb-2">
+                    <a href="{% url 'loan_list' %}" class="btn btn-outline-primary w-100">
+                        <i class="fas fa-list me-2"></i>All Loans
+                    </a>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <a href="{% url 'customer_list' %}" class="btn btn-outline-danger w-100">
+                        <i class="fas fa-users me-2"></i>All Customers
+                    </a>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <a href="{% url 'item_list' %}" class="btn btn-outline-warning w-100">
+                        <i class="fas fa-box-open me-2"></i>Inventory
+                    </a>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <a href="{% url 'dashboard_list' %}" class="btn btn-outline-secondary w-100">
+                        <i class="fas fa-chart-bar me-2"></i>Reports
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Update time every second
+        function updateDateTime() {
+            const now = new Date();
+            
+            const dateOptions = { 
+                weekday: 'short', 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric' 
+            };
+            const timeOptions = { 
+                hour: 'numeric', 
+                minute: 'numeric', 
+                second: 'numeric', 
+                hour12: true 
+            };
+            
+            $('#current-date').text(now.toLocaleDateString('en-US', dateOptions));
+            $('#current-time').text(now.toLocaleTimeString('en-US', timeOptions));
+        }
+        
+        updateDateTime();
+        setInterval(updateDateTime, 1000);
+        
+        // Add hover effects to action cards
+        $('.action-card, .stat-card').hover(
+            function() {
+                $(this).css('transform', 'translateY(-3px)');
+            },
+            function() {
+                $(this).css('transform', 'translateY(0)');
+            }
+        );
+        
+        // Initialize tooltips
+        $('[data-bs-toggle="tooltip"]').tooltip();
+    });
+</script>
+{% endblock %}

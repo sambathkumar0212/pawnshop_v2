@@ -1,0 +1,257 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Risk Alerts{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0 text-gray-800">Risk Alerts</h1>
+                <a href="{% url 'analytics:dashboard' %}" class="btn btn-primary">
+                    <i class="fas fa-arrow-left fa-sm text-white-50"></i> Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="status" class="form-label">Status</label>
+                            <select name="status" id="status" class="form-select">
+                                <option value="">All Statuses</option>
+                                <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                                <option value="acknowledged" {% if status_filter == 'acknowledged' %}selected{% endif %}>Acknowledged</option>
+                                <option value="resolved" {% if status_filter == 'resolved' %}selected{% endif %}>Resolved</option>
+                                <option value="dismissed" {% if status_filter == 'dismissed' %}selected{% endif %}>Dismissed</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="severity" class="form-label">Severity</label>
+                            <select name="severity" id="severity" class="form-select">
+                                <option value="">All Severities</option>
+                                <option value="low" {% if severity_filter == 'low' %}selected{% endif %}>Low</option>
+                                <option value="medium" {% if severity_filter == 'medium' %}selected{% endif %}>Medium</option>
+                                <option value="high" {% if severity_filter == 'high' %}selected{% endif %}>High</option>
+                                <option value="critical" {% if severity_filter == 'critical' %}selected{% endif %}>Critical</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-filter"></i> Apply Filters
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alerts List -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        Risk Alerts 
+                        {% if alerts %}
+                            <span class="badge badge-secondary">{{ alerts.paginator.count }} total</span>
+                        {% endif %}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if alerts %}
+                        <div class="table-responsive">
+                            <table class="table table-bordered" id="alertsTable" width="100%" cellspacing="0">
+                                <thead>
+                                    <tr>
+                                        <th>Alert</th>
+                                        <th>Type</th>
+                                        <th>Severity</th>
+                                        <th>Status</th>
+                                        <th>Customer</th>
+                                        <th>Branch</th>
+                                        <th>Created</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for alert in alerts %}
+                                        <tr>
+                                            <td>
+                                                <strong>{{ alert.title }}</strong>
+                                                {% if alert.description %}
+                                                    <br><small class="text-muted">{{ alert.description|truncatewords:15 }}</small>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="badge badge-info">{{ alert.get_alert_type_display }}</span>
+                                            </td>
+                                            <td>
+                                                <span class="badge badge-{% if alert.severity == 'critical' %}danger{% elif alert.severity == 'high' %}warning{% elif alert.severity == 'medium' %}info{% else %}secondary{% endif %}">
+                                                    {{ alert.get_severity_display }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="badge badge-{% if alert.status == 'active' %}primary{% elif alert.status == 'resolved' %}success{% elif alert.status == 'dismissed' %}secondary{% else %}warning{% endif %}">
+                                                    {{ alert.get_status_display }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                {% if alert.customer %}
+                                                    <a href="{% url 'analytics:customer_risk_analysis' alert.customer.id %}">
+                                                        {{ alert.customer.full_name }}
+                                                    </a>
+                                                {% else %}
+                                                    <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if alert.branch %}
+                                                    {{ alert.branch.name }}
+                                                {% else %}
+                                                    <span class="text-muted">All Branches</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span title="{{ alert.created_at }}">{{ alert.created_at|timesince }} ago</span>
+                                            </td>
+                                            <td>
+                                                <a href="{% url 'analytics:risk_alert_detail' alert.id %}" class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-eye"></i> View
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination -->
+                        {% if alerts.has_other_pages %}
+                            <nav aria-label="Alerts pagination">
+                                <ul class="pagination justify-content-center">
+                                    {% if alerts.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page=1{% if status_filter %}&status={{ status_filter }}{% endif %}{% if severity_filter %}&severity={{ severity_filter }}{% endif %}">First</a>
+                                        </li>
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ alerts.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if severity_filter %}&severity={{ severity_filter }}{% endif %}">Previous</a>
+                                        </li>
+                                    {% endif %}
+
+                                    <li class="page-item active">
+                                        <span class="page-link">
+                                            Page {{ alerts.number }} of {{ alerts.paginator.num_pages }}
+                                        </span>
+                                    </li>
+
+                                    {% if alerts.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ alerts.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if severity_filter %}&severity={{ severity_filter }}{% endif %}">Next</a>
+                                        </li>
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ alerts.paginator.num_pages }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if severity_filter %}&severity={{ severity_filter }}{% endif %}">Last</a>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-exclamation-triangle fa-3x text-gray-300 mb-3"></i>
+                            <h5 class="text-gray-600">No Risk Alerts Found</h5>
+                            <p class="text-muted">
+                                {% if status_filter or severity_filter %}
+                                    No alerts match your current filters. Try adjusting your search criteria.
+                                {% else %}
+                                    No risk alerts have been generated yet.
+                                {% endif %}
+                            </p>
+                            {% if status_filter or severity_filter %}
+                                <a href="{% url 'analytics:risk_alerts' %}" class="btn btn-primary">Clear Filters</a>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    {% if alerts %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Alert Summary</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <div class="mb-0">
+                                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Alerts</div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">{{ alerts.paginator.count }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-0">
+                                <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">High/Critical</div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                    {% widthratio alerts.paginator.count 1 100 as total_count %}
+                                    <!-- This would need a custom template tag to calculate the actual count -->
+                                    <span class="text-warning">-</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-0">
+                                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Resolved</div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                    <span class="text-success">-</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-0">
+                                <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Active</div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                    <span class="text-info">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+// Initialize DataTables if available
+$(document).ready(function() {
+    if ($.fn.DataTable) {
+        $('#alertsTable').DataTable({
+            "paging": false,
+            "searching": false,
+            "info": false,
+            "ordering": true,
+            "order": [[ 6, "desc" ]], // Sort by created date descending
+            "columnDefs": [
+                { "orderable": false, "targets": [7] } // Actions column not sortable
+            ]
+        });
+    }
+});
+</script>
+{% endblock %}

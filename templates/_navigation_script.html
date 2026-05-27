@@ -1,0 +1,124 @@
+<script>
+    // Navigation highlighting functionality
+    $(document).ready(function() {
+        highlightActiveNavigation();
+        
+        // Re-highlight on browser back/forward navigation
+        window.addEventListener('popstate', function() {
+            setTimeout(highlightActiveNavigation, 100);
+        });
+        
+        // Handle immediate visual feedback on clicks
+        $('.sidebar .nav-link').on('click', function(e) {
+            // Don't prevent default navigation
+            $('.sidebar .nav-link').removeClass('active');
+            $(this).addClass('active');
+            console.log('Navigation clicked:', $(this).attr('href'));
+            
+            // Force visual update immediately
+            $(this).css('background-color', 'var(--primary-color)');
+        });
+    });
+    
+    function highlightActiveNavigation() {
+        const currentPath = window.location.pathname;
+        const sidebarLinks = $('.sidebar .nav-link');
+        
+        // Remove existing active classes
+        sidebarLinks.removeClass('active');
+        
+        console.log('Checking navigation for path:', currentPath);
+        
+        // Enhanced matching logic with both URL patterns and href matching
+        let bestMatch = null;
+        let bestScore = 0;
+        
+        sidebarLinks.each(function() {
+            const $link = $(this);
+            const href = $link.attr('href');
+            
+            if (!href || href.startsWith('http') || href.includes('admin:index')) {
+                return; // Skip external links
+            }
+            
+            let score = 0;
+            
+            // Exact match gets highest score
+            if (currentPath === href) {
+                score = 1000;
+                console.log(`Exact match: ${currentPath} = ${href}, score: ${score}`);
+            }
+            // Partial match for sub-pages
+            else if (href !== '/' && currentPath.startsWith(href)) {
+                score = 500 + href.length; // Longer paths get higher scores
+                console.log(`Partial match: ${currentPath} starts with ${href}, score: ${score}`);
+            }
+            // Special cases for specific navigation items
+            else {
+                // Dashboard special case
+                if ((currentPath === '/' || currentPath === '/dashboard/') && 
+                    (href.includes('/dashboard') || href === '/')) {
+                    score = 400;
+                    console.log(`Dashboard match: ${currentPath} matches ${href}, score: ${score}`);
+                }
+                // Inventory special case - href contains 'item' but URL is '/inventory/'
+                else if (currentPath.startsWith('/inventory/') && href.includes('/item')) {
+                    score = 450;
+                    console.log(`Inventory match: ${currentPath} matches item href ${href}, score: ${score}`);
+                }
+                // Reports special case - href contains 'report' and URL starts with '/reporting/reports/'
+                else if (currentPath.startsWith('/reporting/reports/') && href.includes('/report')) {
+                    score = 450;
+                    console.log(`Reports match: ${currentPath} matches report href ${href}, score: ${score}`);
+                }
+                // Analytics special case - href contains 'dashboard_list' and URL starts with '/reporting/dashboards/'
+                else if (currentPath.startsWith('/reporting/dashboards/') && href.includes('/dashboard_list')) {
+                    score = 450;
+                    console.log(`Analytics match: ${currentPath} matches dashboard_list href ${href}, score: ${score}`);
+                }
+                // Biometrics special case - href contains 'biometric' and URL starts with '/biometrics/'
+                else if (currentPath.startsWith('/biometrics/') && href.includes('/biometric')) {
+                    score = 450;
+                    console.log(`Biometrics match: ${currentPath} matches biometric href ${href}, score: ${score}`);
+                }
+                // Integrations special case
+                else if (currentPath.startsWith('/integrations/') && href.includes('/integration')) {
+                    score = 450;
+                    console.log(`Integrations match: ${currentPath} matches integration href ${href}, score: ${score}`);
+                }
+                // Subscription special case
+                else if (currentPath.startsWith('/dashboard/subscription') && href.includes('/subscription')) {
+                    score = 450;
+                    console.log(`Subscription match: ${currentPath} matches subscription href ${href}, score: ${score}`);
+                }
+            }
+            
+            if (score > bestScore) {
+                bestMatch = $link;
+                bestScore = score;
+            }
+        });
+        
+        // Apply the best match
+        if (bestMatch) {
+            bestMatch.addClass('active');
+            console.log(`Applied highlighting to: ${bestMatch.attr('href')} - "${bestMatch.text().trim()}" (Score: ${bestScore})`);
+        } else {
+            console.log('No match found for:', currentPath);
+        }
+        
+        // Debug output
+        const activeLinks = $('.sidebar .nav-link.active');
+        console.log(`Total active links: ${activeLinks.length}`);
+    }
+    
+    // Force re-highlight after page transitions
+    $(document).on('DOMContentLoaded', highlightActiveNavigation);
+    
+    // Close alerts automatically after 5 seconds
+    window.setTimeout(function() {
+        $(".alert").fadeTo(500, 0).slideUp(500, function() {
+            $(this).remove();
+        });
+    }, 5000);
+</script>

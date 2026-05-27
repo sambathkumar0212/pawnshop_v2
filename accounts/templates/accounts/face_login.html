@@ -1,0 +1,187 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Facial Recognition Login{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center mt-5">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white text-center">
+                    <h4><i class="fas fa-face-viewfinder me-2"></i>Facial Recognition Login</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="text-center mb-4">
+                                <p class="lead">Please look at the camera for facial authentication</p>
+                                <div class="face-scan-container border rounded p-2 mb-3 position-relative">
+                                    <div id="video-container">
+                                        <video id="video" width="100%" autoplay muted playsinline></video>
+                                        <canvas id="overlay" class="position-absolute top-0 start-0" style="width: 100%; height: 100%;"></canvas>
+                                    </div>
+                                    <div id="loading-indicator" class="position-absolute top-50 start-50 translate-middle d-none">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="status-message" class="alert d-none"></div>
+                                <button id="start-scan" class="btn btn-primary">
+                                    <i class="fas fa-camera me-2"></i>Start Scan
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-6 border-start">
+                            <div class="text-center mb-4">
+                                <h5 class="mb-3">Instructions</h5>
+                                <ol class="text-start">
+                                    <li>Click "Start Scan" to begin</li>
+                                    <li>Position your face in the center of the frame</li>
+                                    <li>Maintain a neutral expression</li>
+                                    <li>Ensure good lighting on your face</li>
+                                    <li>Wait for the system to recognize you</li>
+                                </ol>
+                                <div class="mt-4">
+                                    <p>Having trouble?</p>
+                                    <a href="{% url 'login' %}" class="btn btn-outline-secondary">
+                                        <i class="fas fa-keyboard me-2"></i>Use Password Login
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-light text-center">
+                    <small class="text-muted">
+                        Your facial data is processed securely and is not stored during the login process.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    $(document).ready(function() {
+        const video = document.getElementById('video');
+        const overlay = document.getElementById('overlay');
+        const startScanBtn = document.getElementById('start-scan');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const statusMessage = document.getElementById('status-message');
+        let stream = null;
+
+        // Set up the canvas to match video dimensions
+        function setupOverlay() {
+            overlay.width = video.videoWidth;
+            overlay.height = video.videoHeight;
+        }
+
+        // Start the camera
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        facingMode: "user" 
+                    } 
+                });
+                video.srcObject = stream;
+                video.onloadedmetadata = setupOverlay;
+                
+                startScanBtn.textContent = 'Scanning...';
+                startScanBtn.disabled = true;
+                loadingIndicator.classList.remove('d-none');
+                
+                // Simulate the scanning process
+                setTimeout(captureAndVerify, 2000);
+                
+            } catch (err) {
+                console.error("Error accessing camera:", err);
+                showStatus('error', 'Could not access camera. Please ensure you have granted camera permissions.');
+            }
+        }
+
+        // Stop the camera
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            video.srcObject = null;
+            startScanBtn.textContent = 'Start Scan';
+            startScanBtn.disabled = false;
+            loadingIndicator.classList.add('d-none');
+        }
+
+        // Capture frame and send for verification
+        function captureAndVerify() {
+            const ctx = overlay.getContext('2d');
+            ctx.drawImage(video, 0, 0, overlay.width, overlay.height);
+            
+            // Here you would normally send the image data to the server for verification
+            // For this demo, we'll simulate an authentication process
+            
+            // Get the image data from canvas
+            const imageData = overlay.toDataURL('image/jpeg');
+            
+            // Simulate sending to server
+            sendForVerification(imageData);
+        }
+        
+        // Simulate sending to server for verification
+        function sendForVerification(imageData) {
+            // Show that we're processing
+            loadingIndicator.classList.remove('d-none');
+            
+            // In a real implementation, you would send the image data to your server
+            // using fetch or another AJAX method
+            
+            $.ajax({
+                url: '{% url "face_login" %}',
+                type: 'POST',
+                data: {
+                    'face_image': imageData,
+                    'csrfmiddlewaretoken': '{{ csrf_token }}'
+                },
+                success: function(response) {
+                    if (response.status === 'success') {
+                        showStatus('success', 'Authentication successful! Redirecting...');
+                        setTimeout(() => {
+                            window.location.href = '{% url "dashboard" %}';
+                        }, 1500);
+                    } else {
+                        showStatus('error', 'Authentication failed. Please try again or use password login.');
+                        stopCamera();
+                    }
+                },
+                error: function() {
+                    showStatus('error', 'Server error. Please try again later or use password login.');
+                    stopCamera();
+                },
+                complete: function() {
+                    loadingIndicator.classList.add('d-none');
+                }
+            });
+        }
+        
+        // Show status messages
+        function showStatus(type, message) {
+            statusMessage.textContent = message;
+            statusMessage.classList.remove('d-none', 'alert-success', 'alert-danger');
+            
+            if (type === 'success') {
+                statusMessage.classList.add('alert-success');
+            } else if (type === 'error') {
+                statusMessage.classList.add('alert-danger');
+            }
+        }
+
+        // Button event listener
+        startScanBtn.addEventListener('click', startCamera);
+    });
+</script>
+{% endblock %}

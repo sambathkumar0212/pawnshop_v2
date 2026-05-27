@@ -1,0 +1,184 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% if form.instance.id %}Edit Branch: {{ form.instance.name }}{% else %}Add New Branch{% endif %} - Pawnshop Management System{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        {% if form.instance.id %}
+                            <i class="fas fa-edit me-2"></i>Edit Branch: {{ form.instance.name }}
+                        {% else %}
+                            <i class="fas fa-plus-circle me-2"></i>Add New Branch
+                        {% endif %}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        <div class="alert alert-light border mb-3">
+                            <small class="text-muted">
+                                <i class="fas fa-language me-1"></i>
+                                Type in English or Tamil. The matching helper field will fill automatically.
+                            </small>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.name|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="branch_name_tamil" class="form-label">Name (Tamil)</label>
+                                <input type="text" id="branch_name_tamil" class="form-control" placeholder="Type branch name in Tamil">
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.manager|as_crispy_field }}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.address|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="branch_address_tamil" class="form-label">Address (Tamil)</label>
+                                <textarea id="branch_address_tamil" class="form-control" rows="3" placeholder="Type address in Tamil"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                {{ form.city|as_crispy_field }}
+                            </div>
+                            <div class="col-md-4">
+                                <label for="branch_city_tamil" class="form-label">City (Tamil)</label>
+                                <input type="text" id="branch_city_tamil" class="form-control" placeholder="Type city in Tamil">
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.state|as_crispy_field }}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label for="branch_state_tamil" class="form-label">State (Tamil)</label>
+                                <input type="text" id="branch_state_tamil" class="form-control" placeholder="Type state in Tamil">
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.zip_code|as_crispy_field }}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.phone|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.email|as_crispy_field }}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                {{ form.is_active|as_crispy_field }}
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.opening_time|as_crispy_field }}
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.closing_time|as_crispy_field }}
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <a href="{% url 'branch_list' %}" class="btn btn-outline-secondary me-md-2">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Save Branch
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        function debounce(func, wait) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+
+        async function transliterateText(text, direction) {
+            const params = new URLSearchParams({ text, direction });
+            const response = await fetch(`{% url "transliterate_between_english_tamil" %}?${params.toString()}`);
+            if (!response.ok) {
+                throw new Error('Transliteration request failed');
+            }
+            return response.json();
+        }
+
+        function setupBidirectionalTransliteration(sourceSelector, targetSelector, direction) {
+            const source = document.querySelector(sourceSelector);
+            const target = document.querySelector(targetSelector);
+
+            if (!source || !target) {
+                return;
+            }
+
+            const syncText = debounce(async function() {
+                if (source.dataset.syncLock === 'true') {
+                    delete source.dataset.syncLock;
+                    return;
+                }
+
+                const text = (source.value || '').trim();
+                if (!text) {
+                    target.value = '';
+                    return;
+                }
+
+                try {
+                    const data = await transliterateText(text, direction);
+                    target.dataset.syncLock = 'true';
+                    target.value = data.result || '';
+                } catch (error) {
+                    console.error('Branch transliteration error:', error);
+                }
+            }, 350);
+
+            ['input', 'keyup', 'change', 'compositionend'].forEach(eventName => {
+                source.addEventListener(eventName, syncText);
+            });
+
+            if (source.value.trim() && !target.value.trim()) {
+                syncText();
+            }
+        }
+
+        setupBidirectionalTransliteration('#id_name', '#branch_name_tamil', 'to_tamil');
+        setupBidirectionalTransliteration('#branch_name_tamil', '#id_name', 'to_english');
+        setupBidirectionalTransliteration('#id_address', '#branch_address_tamil', 'to_tamil');
+        setupBidirectionalTransliteration('#branch_address_tamil', '#id_address', 'to_english');
+        setupBidirectionalTransliteration('#id_city', '#branch_city_tamil', 'to_tamil');
+        setupBidirectionalTransliteration('#branch_city_tamil', '#id_city', 'to_english');
+        setupBidirectionalTransliteration('#id_state', '#branch_state_tamil', 'to_tamil');
+        setupBidirectionalTransliteration('#branch_state_tamil', '#id_state', 'to_english');
+    });
+</script>
+{% endblock %}

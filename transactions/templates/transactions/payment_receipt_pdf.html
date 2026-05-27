@@ -1,0 +1,263 @@
+﻿{% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% trans "Payment Receipt" %}</title>
+    <style>
+        @font-face {
+            font-family: 'NotoSansTamil';
+            src: url('{{ tamil_font_file_uri|default:"" }}') format('truetype'), 
+                 local('Noto Sans Tamil'), 
+                 local('NotoSansTamil');
+        }
+        @page {
+            size: A4;
+            margin: 0.5cm;
+        }
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
+        body {
+            font-family: 'NotoSansTamil', 'Nirmala UI', 'Latha', 'Helvetica', 'Arial', sans-serif;
+            font-size: 9px;
+            line-height: 1.2;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+        .receipt-container {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 7px;
+            border: 1px solid #4a5568;
+            position: relative;
+            box-sizing: border-box;
+            transform-origin: top left;
+        }
+        .receipt-header { text-align: center; margin-bottom: 7px; padding: 4px; }
+         .receipt-header h1 { margin: 0; font-size: 13px; color: #2d3748; text-transform: uppercase; font-weight: bold; }
+        .receipt-header p { margin: 2px 0 0; color: #4a5568; font-size: 9px; }
+         .receipt-title { text-align: center; color: #2d3748; padding: 3px; margin: 4px 0; font-size: 10px; font-weight: bold; text-transform: uppercase; }
+        .receipt-details { margin-bottom: 7px; padding: 4px; }
+        .receipt-details table { width: 100%; border-collapse: collapse; }
+        .receipt-details td { padding: 2px 2px; vertical-align: top; }
+        .receipt-details .label { font-weight: bold; width: 18%; color: #4a5568; white-space: nowrap; }
+        .receipt-details .value { width: 32%; padding-right: 10px; }
+        .payment-info { margin-bottom: 7px; }
+        .payment-info table { width: 100%; border-collapse: collapse; border: 1px solid #e2e8f0; }
+         .payment-info th, .payment-info td { padding: 3px 4px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        .payment-info th { color: #2d3748; font-weight: 600; text-transform: uppercase; font-size: 9px; letter-spacing: 0.5px; border-bottom: 1px solid #4a5568; }
+        .totals-table { width: 65%; margin-left: auto; margin-top: 3px; border-collapse: collapse; font-size: 9px; }
+        .totals-table td { padding: 2px 3px; border-bottom: 1px solid #e2e8f0; }
+        .totals-table .total-label { font-weight: bold; text-align: right; color: #4a5568; white-space: nowrap; }
+        .totals-table .total-amount { text-align: right; font-weight: 500; width: 25%; white-space: nowrap; }
+        .totals-table tr:last-child { border-top: 1px solid #4a5568; font-weight: bold; }
+         .amount-in-words { font-style: italic; margin: 7px 0; padding: 4px; border: 1px dashed #a0aec0; color: #4a5568; font-size: 10px; text-align: center; }
+        .notes { margin-top: 7px; font-style: italic; font-size: 8px; padding: 4px; }
+        .signature { margin-top: 7px; display: flex; justify-content: space-between; width: 100%; }
+        .signature div.customer-sign { width: 45%; text-align: left; margin-left: 0; }
+        .signature div.branch-sign { width: 45%; text-align: right; margin-right: 0; }
+        .signature .line { border-top: 1px solid #4a5568; margin-top: 14px; margin-bottom: 2px; }
+        .customer-sign .line { margin-right: 10%; }
+        .branch-sign .line { margin-left: 10%; }
+        .signature-name { margin: 0; padding: 0; font-weight: normal; font-size: 9px; }
+        .signature-title { margin: 0 0 2px 0; padding: 0; font-weight: bold; font-size: 9px; }
+        .footer { margin-top: 7px; text-align: center; font-size: 7px; color: #718096; padding-top: 4px; }
+        .paid-stamp {
+            position: absolute;
+            top: 30%;
+            right: 10%;
+            transform: rotate(25deg);
+            font-size: 15px;
+            font-weight: bold;
+            color: rgba(104, 211, 145, 0.4);
+            border: 3px solid rgba(104, 211, 145, 0.4);
+            border-radius: 5px;
+            padding: 5px;
+            z-index: 1;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .amount, .currency-symbol, .rupee {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Arial Unicode MS', 'Noto Sans', sans-serif;
+        }
+        @media print { .receipt-container { border: none; } }
+    </style>
+</head>
+<body>
+    <div class="receipt-container">
+        {% if payment_type == 'full' or loan.status == 'repaid' %}
+        <div class="paid-stamp">{% trans "PAID" %}</div>
+        {% endif %}
+
+        <div class="receipt-header">
+            <h1>{% if loan.branch %}{{ loan.branch.name }}{% endif %}</h1>
+            <p>{% if loan.branch %}{{ branch_address_display }}{% endif %}</p>
+            <p>{% trans "Phone" %}: {% if loan.branch %}{{ branch_phone_display }}{% endif %} | {% trans "Email" %}: {% if loan.branch %}{{ loan.branch.email }}{% endif %}</p>
+        </div>
+
+        <div class="receipt-title">{% trans "Payment Receipt" %}</div>
+
+        <div class="receipt-details">
+            <table>
+                <tr>
+                    <td class="label">{% trans "Receipt No:" %}</td>
+                    <td class="value">#{{ payment.id }}</td>
+                    <td class="label">{% trans "Date:" %}</td>
+                    <td class="value">{{ payment.payment_date|date:"d-M-Y" }}</td>
+                </tr>
+                <tr>
+                    <td class="label">{% trans "Customer:" %}</td>
+                    <td class="value">{{ customer_name_display }}</td>
+                    <td class="label">{% trans "Loan No:" %}</td>
+                    <td class="value">{{ loan.loan_number }}</td>
+                </tr>
+                <tr>
+                    <td class="label">{% trans "Payment Method:" %}</td>
+                    <td class="value">{{ payment.get_payment_method_display }}</td>
+                    <td class="label">{% trans "Reference No:" %}</td>
+                    <td class="value">{{ payment.reference_number|default:"-" }}</td>
+                </tr>
+                <tr>
+                    <td class="label">{% trans "Total Items:" %}</td>
+                    <td class="value">{{ total_items_count }}</td>
+                    <td class="label"></td>
+                    <td class="value"></td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="payment-info">
+            <table>
+                <thead>
+                    <tr>
+                        <th>{% trans "Description" %}</th>
+                        <th style="text-align: right;">{% trans "Amount" %} (&#8377;)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>{% trans "Payment towards Loan" %} #{{ loan.loan_number }}</td>
+                        <td style="text-align: right; font-weight: bold;">&#8377;{{ payment.amount|floatformat:2 }}</td>
+                    </tr>
+                    {% if payment_type == 'full' %}
+                    <tr>
+                        <td><em>{% trans "Full settlement (Principal + Interest)" %}</em></td>
+                        <td style="text-align: right;">-</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td><em>{% trans "Partial payment" %}</em></td>
+                        <td style="text-align: right;">-</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+
+            <table class="totals-table">
+                <tr>
+                    <td class="total-label">{% trans "Total Amount Paid:" %}</td>
+                    <td class="total-amount"><span class="currency-symbol">&#8377;</span>{{ payment.amount|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <td class="total-label">{% trans "Principal Amount:" %}</td>
+                    <td class="total-amount"><span class="currency-symbol">&#8377;</span>{{ loan.principal_amount|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <td class="total-label">{% trans "Interest Accrued:" %}</td>
+                    <td class="total-amount"><span class="currency-symbol">&#8377;</span>{{ interest_amount|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <td class="total-label">{% trans "Total Paid Till Date:" %}</td>
+                    <td class="total-amount"><span class="currency-symbol">&#8377;</span>{{ total_paid|floatformat:2 }}</td>
+                </tr>
+                {% if remaining_balance > 0 %}
+                <tr>
+                    <td class="total-label">{% trans "Remaining Balance:" %}</td>
+                    <td class="total-amount"><span class="currency-symbol">&#8377;</span>{{ remaining_balance|floatformat:2 }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td class="total-label">{% trans "Status:" %}</td>
+                    <td class="total-amount">{% trans "FULLY PAID" %}</td>
+                </tr>
+                {% endif %}
+            </table>
+        </div>
+
+        <div class="amount-in-words">
+            <strong>{% trans "Amount in words:" %}</strong>
+            {% if current_language|slice:':2' == 'ta' %}
+                {{ amount_in_words_tamil|default:amount_in_words }}
+            {% else %}
+                {{ amount_in_words|default:amount_in_words_tamil }}
+            {% endif %}
+        </div>
+
+        {% if payment.notes %}
+        <div class="notes">
+            <strong>{% trans "Notes:" %}</strong>
+            {% if current_language|slice:':2' == 'ta' %}
+                {{ payment.notes_tamil|default:payment.notes }}
+            {% else %}
+                {{ payment.notes }}
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <div style="clear: both;"></div>
+        <div class="signature">
+            <div class="customer-sign">
+                <div class="line"></div>
+                <p class="signature-title">{% trans "Customer Signature" %}</p>
+                <p class="signature-name">{{ loan.customer.full_name }}</p>
+            </div>
+            <div class="branch-sign">
+                <div class="line"></div>
+                <p class="signature-title">{% trans "For" %} {% if loan.branch %}{{ loan.branch.name }}{% endif %}</p>
+                <p class="signature-name">{{ payment.received_by.get_full_name }}</p>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>{% trans "Thank you for your business. This receipt is computer generated and serves as proof of payment." %}</p>
+            {% if loan.status == 'repaid' %}
+            <p style="font-weight: bold;">{% trans "This loan has been fully repaid. All pawned items have been returned to the customer." %}</p>
+            {% endif %}
+            <p>{% trans "Generated:" %} {{ date_today|date:"d-M-Y H:i:s" }}</p>
+        </div>
+    </div>
+    <script>
+        (function () {
+            function fitReceiptToOnePage() {
+                var container = document.querySelector('.receipt-container');
+                if (!container) return;
+
+                container.style.transform = 'scale(1)';
+                container.style.width = '100%';
+
+                var page = 1122;
+                var margin = 38;
+                var available = page - margin;
+                var contentHeight = container.scrollHeight;
+
+                if (contentHeight > available) {
+                    var scale = available / contentHeight;
+                    if (scale < 0.70) scale = 0.70;
+                    container.style.transform = 'scale(' + scale.toFixed(3) + ')';
+                    container.style.width = (100 / scale).toFixed(2) + '%';
+                }
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', fitReceiptToOnePage);
+            } else {
+                fitReceiptToOnePage();
+            }
+            window.addEventListener('load', fitReceiptToOnePage);
+        })();
+    </script>
+</body>
+</html>
+

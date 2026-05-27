@@ -1,0 +1,321 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Cash Flow Forecast{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0 text-gray-800">Cash Flow Forecast</h1>
+                <a href="{% url 'analytics:dashboard' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Forecast Configuration -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Generate New Forecast</h6>
+                </div>
+                <div class="card-body">
+                    <form id="forecastForm">
+                        {% csrf_token %}
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="branch_id">Branch</label>
+                                    <select class="form-control" id="branch_id" name="branch_id" required>
+                                        <option value="">Select Branch</option>
+                                        {% for branch in branches %}
+                                            <option value="{{ branch.id }}">{{ branch.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="time_period">Time Period</label>
+                                    <select class="form-control" id="time_period" name="time_period">
+                                        <option value="daily">Daily</option>
+                                        <option value="weekly">Weekly</option>
+                                        <option value="monthly" selected>Monthly</option>
+                                        <option value="quarterly">Quarterly</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="periods_ahead">Periods Ahead</label>
+                                    <select class="form-control" id="periods_ahead" name="periods_ahead">
+                                        <option value="1">1</option>
+                                        <option value="2">2</option>
+                                        <option value="3" selected>3</option>
+                                        <option value="6">6</option>
+                                        <option value="12">12</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label>&nbsp;</label>
+                                    <button type="submit" class="btn btn-primary btn-block">
+                                        <i class="fas fa-chart-line"></i> Generate Forecast
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Forecast Results -->
+    <div id="forecastResults" style="display: none;">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow">
+                    <div class="card-header">
+                        <h6 class="m-0 font-weight-bold text-primary">Cash Flow Forecast Results</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered" id="forecastTable">
+                                <thead>
+                                    <tr>
+                                        <th>Period</th>
+                                        <th>Date</th>
+                                        <th>Disbursements</th>
+                                        <th>Repayments</th>
+                                        <th>Interest Income</th>
+                                        <th>Fee Income</th>
+                                        <th>Sales Revenue</th>
+                                        <th>Operating Expenses</th>
+                                        <th>Net Cash Flow</th>
+                                        <th>Confidence</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="forecastTableBody">
+                                    <!-- Dynamic content will be inserted here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cash Flow Chart -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card shadow">
+                    <div class="card-header">
+                        <h6 class="m-0 font-weight-bold text-primary">Cash Flow Visualization</h6>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="cashFlowChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Existing Forecasts -->
+    {% if forecasts %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Recent Forecasts</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Branch</th>
+                                    <th>Forecast Date</th>
+                                    <th>Type</th>
+                                    <th>Net Cash Flow</th>
+                                    <th>Confidence</th>
+                                    <th>Created</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for forecast in forecasts %}
+                                <tr class="{% if forecast.predicted_net_cash_flow < 0 %}table-danger{% endif %}">
+                                    <td>{{ forecast.branch.name }}</td>
+                                    <td>{{ forecast.forecast_date|date:"d-m-Y" }}</td>
+                                    <td>{{ forecast.get_forecast_type_display }}</td>
+                                    <td>
+                                        <span class="{% if forecast.predicted_net_cash_flow < 0 %}text-danger{% else %}text-success{% endif %}">
+                                            ₹{{ forecast.predicted_net_cash_flow|floatformat:2|intcomma }}
+                                        </span>
+                                    </td>
+                                    <td>{{ forecast.confidence_level|floatformat:1 }}%</td>
+                                    <td>{{ forecast.created_at|timesince }} ago</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let cashFlowChart = null;
+
+document.getElementById('forecastForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    fetch('{% url "analytics:cash_flow_forecast" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error: ' + data.error);
+            return;
+        }
+        
+        displayForecastResults(data.forecasts);
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while generating the forecast.');
+    });
+});
+
+function displayForecastResults(forecasts) {
+    const tbody = document.getElementById('forecastTableBody');
+    tbody.innerHTML = '';
+    
+    const labels = [];
+    const netCashFlowData = [];
+    const confidenceData = [];
+    
+    forecasts.forEach((forecast, index) => {
+        // Format date to dd-mm-yyyy
+        const date = new Date(forecast.date);
+        const formattedDate = String(date.getDate()).padStart(2, '0') + '-' + 
+                             String(date.getMonth() + 1).padStart(2, '0') + '-' + 
+                             date.getFullYear();
+        
+        const row = tbody.insertRow();
+        row.innerHTML = `
+            <td>${forecast.period}</td>
+            <td>${formattedDate}</td>
+            <td class="text-danger">₹${forecast.disbursements.toLocaleString()}</td>
+            <td class="text-success">₹${forecast.repayments.toLocaleString()}</td>
+            <td class="text-success">₹${forecast.interest_income.toLocaleString()}</td>
+            <td class="text-success">₹${forecast.fee_income.toLocaleString()}</td>
+            <td class="text-success">₹${forecast.sales_revenue.toLocaleString()}</td>
+            <td class="text-danger">₹${forecast.operating_expenses.toLocaleString()}</td>
+            <td class="${forecast.net_cash_flow >= 0 ? 'text-success' : 'text-danger'}">
+                ₹${forecast.net_cash_flow.toLocaleString()}
+            </td>
+            <td>${forecast.confidence_level.toFixed(1)}%</td>
+        `;
+        
+        labels.push(`Period ${forecast.period}`);
+        netCashFlowData.push(forecast.net_cash_flow);
+        confidenceData.push(forecast.confidence_level);
+    });
+    
+    document.getElementById('forecastResults').style.display = 'block';
+    
+    // Create or update chart
+    const ctx = document.getElementById('cashFlowChart').getContext('2d');
+    
+    if (cashFlowChart) {
+        cashFlowChart.destroy();
+    }
+    
+    cashFlowChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Net Cash Flow (₹)',
+                data: netCashFlowData,
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.1,
+                yAxisID: 'y'
+            }, {
+                label: 'Confidence Level (%)',
+                data: confidenceData,
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                tension: 0.1,
+                yAxisID: 'y1'
+            }]
+        },
+        options: {
+            responsive: true,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            scales: {
+                x: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: 'Forecast Period'
+                    }
+                },
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Cash Flow (₹)'
+                    },
+                    ticks: {
+                        callback: function(value, index, values) {
+                            return '₹' + value.toLocaleString();
+                        }
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'Confidence (%)'
+                    },
+                    grid: {
+                        drawOnChartArea: false,
+                    },
+                    ticks: {
+                        callback: function(value, index, values) {
+                            return value + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

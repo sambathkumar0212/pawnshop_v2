@@ -1,0 +1,244 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% if form.instance.pk %}Edit User{% else %}Create New User{% endif %} - Pawnshop Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>
+                    <i class="fas fa-user-plus me-2"></i>
+                    {% if form.instance.pk %}Edit User{% else %}Create New User{% endif %}
+                </h2>
+                <a href="{% url 'user_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Users
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="mb-0">User Information</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="userForm" novalidate>
+                        {% csrf_token %}
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                {{ form.username|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.email|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        {% if not form.instance.pk %}
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                {{ form.password|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.confirm_password|as_crispy_field }}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                {{ form.first_name|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.last_name|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                {{ form.phone|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.branch|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                {{ form.role|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {% if form.is_active %}
+                                    {{ form.is_active|as_crispy_field }}
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Face Authentication Option -->
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                {{ form.enable_face_auth|as_crispy_field }}
+                                {{ form.face_image }}
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>
+                                {% if form.instance.pk %}Update{% else %}Create{% endif %} User
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Face Capture Column -->
+        <div class="col-lg-4" id="faceCaptureSection" style="display: none;">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-camera me-2"></i>Face Enrollment</h5>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-3">
+                        <p>Position your face in the frame for facial authentication enrollment.</p>
+                        <div class="face-capture-container border rounded mb-3 position-relative">
+                            <video id="video" width="100%" autoplay muted playsinline></video>
+                            <canvas id="canvas" class="position-absolute top-0 start-0" style="display:none;"></canvas>
+                        </div>
+                        <div class="mb-3">
+                            <button id="captureBtn" class="btn btn-primary" type="button">
+                                <i class="fas fa-camera me-2"></i>Capture Face
+                            </button>
+                        </div>
+                        <div id="previewContainer" class="d-none border rounded p-2 mb-3">
+                            <p class="text-muted small">Preview:</p>
+                            <img id="facePreview" class="img-fluid" src="" alt="Face preview">
+                            <div class="mt-2">
+                                <button id="retakeBtn" class="btn btn-sm btn-outline-secondary" type="button">
+                                    <i class="fas fa-redo me-1"></i>Retake
+                                </button>
+                            </div>
+                        </div>
+                        <div id="faceStatusMessage" class="alert d-none"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    $(document).ready(function() {
+        const enableFaceAuth = $('#id_enable_face_auth');
+        const faceCaptureSection = $('#faceCaptureSection');
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const captureBtn = $('#captureBtn');
+        const retakeBtn = $('#retakeBtn');
+        const facePreview = $('#facePreview');
+        const previewContainer = $('#previewContainer');
+        const faceStatusMessage = $('#faceStatusMessage');
+        let stream = null;
+
+        // Toggle face capture section based on checkbox
+        function toggleFaceCapture() {
+            if (enableFaceAuth.is(':checked')) {
+                faceCaptureSection.show();
+                startCamera();
+            } else {
+                faceCaptureSection.hide();
+                stopCamera();
+                $('#id_face_image').val(''); // Clear face data
+                previewContainer.addClass('d-none');
+            }
+        }
+
+        // Start camera
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        facingMode: "user" 
+                    } 
+                });
+                video.srcObject = stream;
+                showStatusMessage('info', 'Camera activated. Position your face and click "Capture Face".');
+            } catch (err) {
+                console.error("Error accessing camera:", err);
+                showStatusMessage('danger', 'Could not access camera. Please ensure camera permissions are granted.');
+            }
+        }
+
+        // Stop camera
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+            }
+        }
+
+        // Capture face image
+        function captureFace() {
+            const context = canvas.getContext('2d');
+            
+            // Set canvas dimensions to match video
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            // Draw video frame to canvas
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Convert canvas to data URL
+            const dataURL = canvas.toDataURL('image/jpeg');
+            
+            // Set the face image value in the hidden input
+            $('#id_face_image').val(dataURL);
+            
+            // Display the preview
+            facePreview.attr('src', dataURL);
+            previewContainer.removeClass('d-none');
+            
+            showStatusMessage('success', 'Face captured successfully!');
+        }
+
+        // Show status message
+        function showStatusMessage(type, message) {
+            faceStatusMessage.removeClass('d-none alert-success alert-danger alert-info alert-warning');
+            faceStatusMessage.addClass(`alert-${type}`).text(message);
+        }
+
+        // Event listeners
+        enableFaceAuth.on('change', toggleFaceCapture);
+        captureBtn.on('click', captureFace);
+        retakeBtn.on('click', function() {
+            previewContainer.addClass('d-none');
+            $('#id_face_image').val('');
+            showStatusMessage('info', 'Previous capture discarded. Position your face and capture again.');
+        });
+
+        // Initialize
+        toggleFaceCapture();
+        
+        // Form submission validation for face data
+        $('#userForm').on('submit', function(e) {
+            if (enableFaceAuth.is(':checked') && $('#id_face_image').val() === '') {
+                e.preventDefault();
+                showStatusMessage('danger', 'Face capture is required when face authentication is enabled.');
+                faceCaptureSection.show();
+                $('html, body').animate({
+                    scrollTop: faceCaptureSection.offset().top - 100
+                }, 500);
+            }
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,557 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Customer Dashboard{% endblock %}
+
+{% block dashboards_active %}active{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800">Customer Dashboard</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard_list' %}">Analytics</a></li>
+                    <li class="breadcrumb-item active">Customer Dashboard</li>
+                </ol>
+            </nav>
+        </div>
+        <div class="btn-toolbar">
+            <!-- Branch Filter Dropdown -->
+            <div class="btn-group me-2">
+                <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="fas fa-store"></i> 
+                    {% if selected_branch %}{{ selected_branch.name }}{% else %}All Branches{% endif %}
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item {% if not selected_branch %}active{% endif %}" href="?period={{ selected_period|default:'month' }}">All Branches</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    {% for branch in accessible_branches|default:'' %}
+                    <li>
+                        <a class="dropdown-item {% if selected_branch.id == branch.id %}active{% endif %}" 
+                           href="?branch={{ branch.id }}&period={{ selected_period|default:'month' }}">
+                            {{ branch.name }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            
+            <!-- Time Period Dropdown -->
+            <div class="btn-group me-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="fas fa-calendar"></i> 
+                    {% if selected_period == 'today' %}Today
+                    {% elif selected_period == 'week' %}This Week
+                    {% elif selected_period == 'quarter' %}This Quarter
+                    {% elif selected_period == 'year' %}This Year
+                    {% else %}This Month{% endif %}
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                        <a class="dropdown-item {% if selected_period == 'today' %}active{% endif %}" 
+                           href="?period=today{% if selected_branch %}&branch={{ selected_branch.id }}{% endif %}">Today</a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item {% if selected_period == 'week' %}active{% endif %}" 
+                           href="?period=week{% if selected_branch %}&branch={{ selected_branch.id }}{% endif %}">This Week</a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item {% if selected_period == 'month' or not selected_period %}active{% endif %}" 
+                           href="?period=month{% if selected_branch %}&branch={{ selected_branch.id }}{% endif %}">This Month</a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item {% if selected_period == 'quarter' %}active{% endif %}" 
+                           href="?period=quarter{% if selected_branch %}&branch={{ selected_branch.id }}{% endif %}">This Quarter</a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item {% if selected_period == 'year' %}active{% endif %}" 
+                           href="?period=year{% if selected_branch %}&branch={{ selected_branch.id }}{% endif %}">This Year</a>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- Export Button -->
+            <button class="btn btn-sm btn-outline-primary" id="exportBtn">
+                <i class="fas fa-file-export"></i> Export
+            </button>
+            
+            <!-- Print Button -->
+            <button class="btn btn-sm btn-outline-secondary ms-2" id="printBtn">
+                <i class="fas fa-print"></i> Print
+            </button>
+        </div>
+    </div>
+
+    {% if selected_branch %}
+    <div class="alert alert-info alert-dismissible fade show mb-4" role="alert">
+        <strong>Branch Filter Active:</strong> Showing data for {{ selected_branch.name }} branch only.
+        <a href="?period={{ selected_period|default:'month' }}" class="alert-link">View All Branches</a>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <!-- Quick Stats -->
+    <div class="row">
+        <!-- Total Customers -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Total Customers</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_customers|default:"0"|intcomma }}</div>
+                            <div class="text-{% if customer_growth|default:0 >= 0 %}success{% else %}danger{% endif %} small mt-1">
+                                <i class="fas fa-arrow-{% if customer_growth|default:0 >= 0 %}up{% else %}down{% endif %}"></i>
+                                {{ customer_growth|default:"0"|floatformat:2 }}% {{ comparison_label|default:"vs last month" }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-users fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- New Customers -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                New Customers</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ new_customers|default:"0"|intcomma }}</div>
+                            <div class="text-{% if new_customer_growth|default:0 >= 0 %}success{% else %}danger{% endif %} small mt-1">
+                                <i class="fas fa-arrow-{% if new_customer_growth|default:0 >= 0 %}up{% else %}down{% endif %}"></i>
+                                {{ new_customer_growth|default:"0"|floatformat:2 }}% {{ comparison_label|default:"vs last month" }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-user-plus fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Customers -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Active Customers</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ active_customers|default:"0"|intcomma }}</div>
+                            <div class="text-{% if active_rate_change|default:0 >= 0 %}success{% else %}danger{% endif %} small mt-1">
+                                <i class="fas fa-arrow-{% if active_rate_change|default:0 >= 0 %}up{% else %}down{% endif %}"></i>
+                                {{ active_rate_change|default:"0"|floatformat:2 }}% {{ comparison_label|default:"vs last month" }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-user-check fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Customer Retention Rate -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Retention Rate</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ retention_rate|default:"0"|floatformat:2 }}%</div>
+                            <div class="text-{% if retention_rate_change|default:0 >= 0 %}success{% else %}danger{% endif %} small mt-1">
+                                <i class="fas fa-arrow-{% if retention_rate_change|default:0 >= 0 %}up{% else %}down{% endif %}"></i>
+                                {{ retention_rate_change|default:"0"|floatformat:2 }}% {{ comparison_label|default:"vs last month" }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-user-shield fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row">
+        <!-- Customer Acquisition Trends -->
+        <div class="col-xl-8 col-lg-7">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        Customer Acquisition Trends 
+                        {% if selected_branch %}({{ selected_branch.name }}){% endif %}
+                    </h6>
+                    <div class="dropdown no-arrow">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end shadow animated--fade-in">
+                            <a class="dropdown-item" href="#" data-chart-period="month">Monthly View</a>
+                            <a class="dropdown-item" href="#" data-chart-period="quarter">Quarterly View</a>
+                            <a class="dropdown-item" href="#" data-chart-period="year">Yearly View</a>
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item" href="#" data-chart-type="bar">Bar Chart</a>
+                            <a class="dropdown-item" href="#" data-chart-type="line">Line Chart</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="chart-area">
+                        <canvas id="customerAcquisitionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Customer Demographics -->
+        <div class="col-xl-4 col-lg-5">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        Customer Demographics
+                        {% if selected_branch %}({{ selected_branch.name }}){% endif %}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-pie">
+                        <canvas id="customerDemographicsChart"></canvas>
+                    </div>
+                    <div class="mt-4 text-center small">
+                        <span class="me-2">
+                            <i class="fas fa-circle text-primary"></i> Male
+                        </span>
+                        <span class="me-2">
+                            <i class="fas fa-circle text-success"></i> Female
+                        </span>
+                        <span class="me-2">
+                            <i class="fas fa-circle text-warning"></i> Other
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Customer Metrics -->
+    <div class="row">
+        <!-- Customer Segments -->
+        <div class="col-xl-8 col-lg-7">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        Customer Segments
+                        {% if selected_branch %}({{ selected_branch.name }}){% endif %}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Segment</th>
+                                    <th>Count</th>
+                                    <th>% of Total</th>
+                                    <th>Avg. Loan Value</th>
+                                    <th>Avg. Transactions</th>
+                                    <th>Retention Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>New Customers</td>
+                                    <td>{{ new_customers_count|default:"0"|intcomma }}</td>
+                                    <td>{{ new_customers_percent|default:"0"|floatformat:2 }}%</td>
+                                    <td>₹{{ new_customers_avg_loan|default:"0"|intcomma }}</td>
+                                    <td>{{ new_customers_avg_trans|default:"0"|floatformat:2 }}</td>
+                                    <td>{{ new_customers_retention|default:"0"|floatformat:2 }}%</td>
+                                </tr>
+                                <tr>
+                                    <td>Regular Customers</td>
+                                    <td>{{ regular_customers_count|default:"0"|intcomma }}</td>
+                                    <td>{{ regular_customers_percent|default:"0"|floatformat:2 }}%</td>
+                                    <td>₹{{ regular_customers_avg_loan|default:"0"|intcomma }}</td>
+                                    <td>{{ regular_customers_avg_trans|default:"0"|floatformat:2 }}</td>
+                                    <td>{{ regular_customers_retention|default:"0"|floatformat:2 }}%</td>
+                                </tr>
+                                <tr>
+                                    <td>Premium Customers</td>
+                                    <td>{{ premium_customers_count|default:"0"|intcomma }}</td>
+                                    <td>{{ premium_customers_percent|default:"0"|floatformat:2 }}%</td>
+                                    <td>₹{{ premium_customers_avg_loan|default:"0"|intcomma }}</td>
+                                    <td>{{ premium_customers_avg_trans|default:"0"|floatformat:2 }}</td>
+                                    <td>{{ premium_customers_retention|default:"0"|floatformat:2 }}%</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Branch Customer Distribution -->
+        <div class="col-xl-4 col-lg-5">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">Customers by Branch</h6>
+                    <div class="dropdown no-arrow">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end shadow animated--fade-in">
+                            <a class="dropdown-item" href="#" data-metric="count">Customer Count</a>
+                            <a class="dropdown-item" href="#" data-metric="growth">Growth Rate</a>
+                            <a class="dropdown-item" href="#" data-metric="retention">Retention Rate</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="chart-pie mb-4">
+                        <canvas id="branchCustomerChart"></canvas>
+                    </div>
+                    <div class="mt-4 text-center small">
+                        {% for branch in branches|default:'' %}
+                        <span class="me-2">
+                            <i class="fas fa-circle" style="color: {{ branch.color|default:'#4e73df' }}"></i> {{ branch.name }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Export Modal -->
+<div class="modal fade" id="exportModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Export Customer Report</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <div class="mb-3">
+                        <label class="form-label">Format</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="exportFormat" id="formatPDF" checked>
+                            <label class="form-check-label" for="formatPDF">PDF Document</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="exportFormat" id="formatExcel">
+                            <label class="form-check-label" for="formatExcel">Excel Spreadsheet</label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Include</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="includeCharts" checked>
+                            <label class="form-check-label" for="includeCharts">Charts and Graphs</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="includeMetrics" checked>
+                            <label class="form-check-label" for="includeMetrics">Customer Metrics</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="includeSegments" checked>
+                            <label class="form-check-label" for="includeSegments">Customer Segments</label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary">Export</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+$(document).ready(function() {
+    // Customer Acquisition Chart
+    const acquisitionCtx = document.getElementById('customerAcquisitionChart').getContext('2d');
+    const acquisitionChart = new Chart(acquisitionCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+            datasets: [
+                {
+                    label: 'New Customers',
+                    data: {{ customer_acquisition_data|default:'[10, 15, 20, 25, 30, 35, 40, 45, 25, 20, 15, 10]'|safe }},
+                    backgroundColor: 'rgba(78, 115, 223, 0.8)',
+                    yAxisID: 'y-count'
+                },
+                {
+                    label: 'Retention Rate',
+                    data: {{ retention_rate_data|default:'[90, 88, 92, 95, 91, 93, 89, 94, 92, 90, 91, 93]'|safe }},
+                    backgroundColor: 'rgba(28, 200, 138, 0.8)',
+                    type: 'line',
+                    yAxisID: 'y-percent'
+                }
+            ]
+        },
+        options: {
+            maintainAspectRatio: false,
+            scales: {
+                'y-count': {
+                    position: 'left',
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Number of Customers'
+                    }
+                },
+                'y-percent': {
+                    position: 'right',
+                    beginAtZero: false,
+                    min: 50,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Retention Rate (%)'
+                    }
+                }
+            }
+        }
+    });
+
+    // Customer Demographics Chart
+    const demographicsCtx = document.getElementById('customerDemographicsChart').getContext('2d');
+    const demographicsChart = new Chart(demographicsCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Male', 'Female', 'Other'],
+            datasets: [{
+                data: {{ demographics_data|default:'[65, 30, 5]'|safe }},
+                backgroundColor: [
+                    'rgba(78, 115, 223, 0.8)',
+                    'rgba(28, 200, 138, 0.8)',
+                    'rgba(246, 194, 62, 0.8)'
+                ]
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.raw || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = Math.round((value / total) * 100);
+                            return `${label}: ${percentage}% (${value})`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Branch Customer Chart
+    const branchCtx = document.getElementById('branchCustomerChart').getContext('2d');
+    const branchChart = new Chart(branchCtx, {
+        type: 'pie',
+        data: {
+            labels: {{ branch_labels|default:'["Main Branch", "Branch 2", "Branch 3"]'|safe }},
+            datasets: [{
+                data: {{ branch_customer_data|default:'[60, 25, 15]'|safe }},
+                backgroundColor: {{ branch_colors|default:'["rgba(78, 115, 223, 0.8)", "rgba(28, 200, 138, 0.8)", "rgba(246, 194, 62, 0.8)"]'|safe }}
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+
+    // Handle export button
+    $("#exportBtn").click(function() {
+        $('#exportModal').modal('show');
+    });
+
+    // Handle print button
+    $("#printBtn").click(function() {
+        window.print();
+    });
+    
+    // Handle chart type changes
+    $("[data-chart-type]").click(function(e) {
+        e.preventDefault();
+        const chartType = $(this).data('chart-type');
+        acquisitionChart.config.type = chartType;
+        acquisitionChart.update();
+    });
+    
+    // Handle chart period changes
+    $("[data-chart-period]").click(function(e) {
+        e.preventDefault();
+        // This would typically trigger an AJAX call to get new data
+        // For demo purposes we're just showing an alert
+        alert("Changing chart period to: " + $(this).data('chart-period'));
+    });
+    
+    // Handle branch metric changes
+    $("[data-metric]").click(function(e) {
+        e.preventDefault();
+        const metric = $(this).data('metric');
+        
+        // For demo purposes just show a message
+        // In a real implementation, you would update the chart data
+        alert("Changing branch chart to show: " + metric);
+    });
+});
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.chart-area {
+    position: relative;
+    height: 300px;
+    margin: 0 -1rem;
+}
+
+.chart-pie {
+    position: relative;
+    height: 250px;
+}
+
+@media print {
+    .btn-toolbar,
+    .dropdown-toggle,
+    .modal,
+    .alert {
+        display: none !important;
+    }
+}
+</style>
+{% endblock %}

@@ -1,0 +1,97 @@
+{% extends "gst/base_gst.html" %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}GST Rates{% endblock %}
+
+{% block gst_content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">GST Rates</h5>
+        <a href="{% url 'gst_rate_create' %}" class="btn btn-sm btn-success">
+            <i class="fas fa-plus"></i> Add GST Rate
+        </a>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>HSN Code</th>
+                        <th>CGST Rate</th>
+                        <th>SGST Rate</th>
+                        <th>IGST Rate</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for rate in rates %}
+                    <tr{% if not rate.is_active %} class="table-secondary"{% endif %}>
+                        <td>{{ rate.name }}</td>
+                        <td>{{ rate.hsn_code|default:"-" }}</td>
+                        <td>{{ rate.cgst_rate }}%</td>
+                        <td>{{ rate.sgst_rate }}%</td>
+                        <td>{{ rate.igst_rate }}%</td>
+                        <td>
+                            {% if rate.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'gst_rate_update' rate.id %}" class="btn btn-primary" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'gst_rate_toggle_active' rate.id %}" class="btn {% if rate.is_active %}btn-warning{% else %}btn-success{% endif %}" title="{% if rate.is_active %}Deactivate{% else %}Activate{% endif %}">
+                                    <i class="fas {% if rate.is_active %}fa-ban{% else %}fa-check{% endif %}"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center">No GST rates found. Add your first GST rate.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header bg-info text-white">
+        <h5 class="mb-0">About GST Rates</h5>
+    </div>
+    <div class="card-body">
+        <p>GST (Goods and Services Tax) in India is categorized into the following main slabs:</p>
+        <div class="row">
+            <div class="col-md-6">
+                <ul>
+                    <li><strong>0% (Nil Rate):</strong> Essential goods like fresh vegetables, milk, etc.</li>
+                    <li><strong>5%:</strong> Items of mass consumption like sugar, tea, spices, etc.</li>
+                    <li><strong>12%:</strong> Processed food, computers, mobiles, etc.</li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <ul>
+                    <li><strong>18%:</strong> Most manufactured items and services.</li>
+                    <li><strong>28%:</strong> Luxury items like cars, aerated drinks, etc.</li>
+                    <li><strong>Special Rates:</strong> Gold (3%), precious stones (0.25%), etc.</li>
+                </ul>
+            </div>
+        </div>
+        <hr>
+        <p><strong>Notes:</strong></p>
+        <ul>
+            <li>For intra-state transactions, GST is divided equally between CGST (Central GST) and SGST (State GST).</li>
+            <li>For inter-state transactions, only IGST (Integrated GST) is applicable, which equals CGST + SGST.</li>
+            <li>HSN (Harmonized System of Nomenclature) codes are used to classify goods under GST.</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

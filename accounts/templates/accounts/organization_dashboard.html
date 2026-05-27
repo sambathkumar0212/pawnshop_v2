@@ -1,0 +1,274 @@
+{% extends 'base.html' %}
+
+{% block title %}Organization Dashboard - Pawnshop Management System{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Organization Overview -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-0">{{ organization.name }}</h3>
+                            <p class="text-muted mb-0">{{ organization.plan|title }} Plan</p>
+                        </div>
+                        <div>
+                            {% if subscription_active %}
+                                <span class="badge bg-success">Active Subscription</span>
+                            {% else %}
+                                <span class="badge bg-danger">Inactive Subscription</span>
+                            {% endif %}
+                            
+                            <div class="dropdown d-inline-block ms-2">
+                                <button class="btn btn-outline-primary dropdown-toggle" type="button" id="orgActionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fas fa-cog me-1"></i> Manage
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="orgActionsDropdown">
+                                    <li><a class="dropdown-item" href="{% url 'organization_update' %}"><i class="fas fa-edit me-2"></i>Edit Organization</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'subscription_plans' %}"><i class="fas fa-money-bill me-2"></i>Manage Subscription</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card bg-primary text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase mb-0">Branches</h6>
+                            <h2 class="mt-2 mb-0">{{ branch_count }}</h2>
+                            <small>of {{ organization.max_branches }} allowed</small>
+                        </div>
+                        <div>
+                            <i class="fas fa-store fa-3x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer d-flex justify-content-between align-items-center">
+                    <span>Manage Branches</span>
+                    <a href="{% url 'organization_branch_create' %}" class="btn btn-sm btn-light"><i class="fas fa-plus"></i> Add</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card bg-success text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase mb-0">Users</h6>
+                            <h2 class="mt-2 mb-0">{{ user_count }}</h2>
+                            <small>of {{ organization.max_users }} allowed</small>
+                        </div>
+                        <div>
+                            <i class="fas fa-users fa-3x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer d-flex justify-content-between align-items-center">
+                    <span>Manage Staff</span>
+                    <a href="{% url 'organization_user_create' %}" class="btn btn-sm btn-light"><i class="fas fa-plus"></i> Add</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card bg-info text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase mb-0">Customers</h6>
+                            <h2 class="mt-2 mb-0">{{ customer_count }}</h2>
+                            <small>of {{ organization.max_customers }} allowed</small>
+                        </div>
+                        <div>
+                            <i class="fas fa-user-friends fa-3x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer d-flex justify-content-between align-items-center">
+                    <span>View Customers</span>
+                    <a href="{% url 'customer_list' %}" class="btn btn-sm btn-light"><i class="fas fa-eye"></i> View</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card bg-warning text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase mb-0">Subscription</h6>
+                            <h2 class="mt-2 mb-0">{{ organization.plan|title }}</h2>
+                            <small>
+                                {% if subscription_end %}
+                                    Expires: {{ subscription_end|date:"M d, Y" }}
+                                {% else %}
+                                    Free Plan
+                                {% endif %}
+                            </small>
+                        </div>
+                        <div>
+                            <i class="fas fa-crown fa-3x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer d-flex justify-content-between align-items-center">
+                    <span>Manage Plan</span>
+                    <a href="{% url 'subscription_plans' %}" class="btn btn-sm btn-light"><i class="fas fa-arrow-up"></i> Upgrade</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Branches Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-store me-2"></i>Your Branches</h5>
+                    <a href="{% url 'organization_branch_create' %}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-plus me-1"></i>Add Branch
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if branches %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Branch Name</th>
+                                        <th>Location</th>
+                                        <th>Manager</th>
+                                        <th>Staff</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for branch in branches %}
+                                    <tr>
+                                        <td>{{ branch.name }}</td>
+                                        <td>{{ branch.city }}, {{ branch.state }}</td>
+                                        <td>{{ branch.manager|default:"Not Assigned" }}</td>
+                                        <td>{{ branch.staff_count }}</td>
+                                        <td>
+                                            {% if branch.is_active %}
+                                                <span class="badge bg-success">Active</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Inactive</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="#" class="btn btn-outline-primary"><i class="fas fa-eye"></i></a>
+                                                <a href="#" class="btn btn-outline-secondary"><i class="fas fa-edit"></i></a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% if approaching_branch_limit %}
+                            <div class="alert alert-warning mt-3">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                You're approaching your branch limit. <a href="{% url 'subscription_plans' %}">Upgrade your plan</a> to add more branches.
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <div class="mb-3">
+                                <i class="fas fa-store fa-4x text-muted"></i>
+                            </div>
+                            <h5>No Branches Yet</h5>
+                            <p class="text-muted">You haven't created any branches for your organization.</p>
+                            <a href="{% url 'organization_branch_create' %}" class="btn btn-primary">
+                                <i class="fas fa-plus me-2"></i>Create Your First Branch
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Users Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-users me-2"></i>Your Staff</h5>
+                    <a href="{% url 'organization_user_create' %}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-plus me-1"></i>Add User
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if users %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Username</th>
+                                        <th>Name</th>
+                                        <th>Role</th>
+                                        <th>Branch</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for user in users %}
+                                    <tr>
+                                        <td>{{ user.username }}</td>
+                                        <td>{{ user.get_full_name }}</td>
+                                        <td>{{ user.role|default:"No Role" }}</td>
+                                        <td>{{ user.branch|default:"No Branch" }}</td>
+                                        <td>
+                                            {% if user.is_active %}
+                                                <span class="badge bg-success">Active</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Inactive</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="#" class="btn btn-outline-primary"><i class="fas fa-eye"></i></a>
+                                                <a href="#" class="btn btn-outline-secondary"><i class="fas fa-edit"></i></a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% if approaching_user_limit %}
+                            <div class="alert alert-warning mt-3">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                You're approaching your user limit. <a href="{% url 'subscription_plans' %}">Upgrade your plan</a> to add more users.
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <div class="mb-3">
+                                <i class="fas fa-users fa-4x text-muted"></i>
+                            </div>
+                            <h5>No Staff Members Yet</h5>
+                            <p class="text-muted">You haven't added any staff members to your organization.</p>
+                            <a href="{% url 'organization_user_create' %}" class="btn btn-primary">
+                                <i class="fas fa-plus me-2"></i>Add Your First Staff Member
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

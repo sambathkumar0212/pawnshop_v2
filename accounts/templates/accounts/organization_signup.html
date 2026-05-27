@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+
+{% block title %}Create Your Pawnshop Organization - SaaS Signup{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-4">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="fas fa-building me-2"></i>Create Your Pawnshop Organization</h4>
+            </div>
+            <div class="card-body p-4">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    {% if form.errors %}
+                    <div class="alert alert-danger">
+                        <strong>Error:</strong> Please correct the errors below.
+                        <ul>
+                            {% for field in form %}
+                                {% for error in field.errors %}
+                                <li>{{ field.label }}: {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                            {% for error in form.non_field_errors %}
+                            <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h5 class="border-bottom pb-2 mb-3">Organization Details</h5>
+                        </div>
+                        <div class="col-md-12 mb-3">
+                            <label for="id_organization_name" class="form-label">Organization Name*</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-building"></i></span>
+                                <input type="text" name="organization_name" id="id_organization_name" class="form-control" placeholder="Your Pawnshop Business Name" value="{{ form.organization_name.value|default:'' }}" required>
+                            </div>
+                            <small class="text-muted">This will be the name of your pawnshop organization in the system.</small>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h5 class="border-bottom pb-2 mb-3">Administrator Account</h5>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_username" class="form-label">Username*</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                <input type="text" name="username" id="id_username" class="form-control" placeholder="Choose a username" value="{{ form.username.value|default:'' }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_email" class="form-label">Email Address*</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                <input type="email" name="email" id="id_email" class="form-control" placeholder="Your email address" value="{{ form.email.value|default:'' }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_first_name" class="form-label">First Name*</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-user-circle"></i></span>
+                                <input type="text" name="first_name" id="id_first_name" class="form-control" placeholder="Your first name" value="{{ form.first_name.value|default:'' }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_last_name" class="form-label">Last Name*</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-user-circle"></i></span>
+                                <input type="text" name="last_name" id="id_last_name" class="form-control" placeholder="Your last name" value="{{ form.last_name.value|default:'' }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_password" class="form-label">Password*</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                <input type="password" name="password" id="id_password" class="form-control" placeholder="Create a strong password" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_confirm_password" class="form-label">Confirm Password*</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                <input type="password" name="confirm_password" id="id_confirm_password" class="form-control" placeholder="Confirm your password" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_phone" class="form-label">Phone Number</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-phone"></i></span>
+                                <input type="tel" name="phone" id="id_phone" class="form-control" placeholder="Your contact number" value="{{ form.phone.value|default:'' }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info mb-4">
+                        <div class="d-flex">
+                            <div class="me-3">
+                                <i class="fas fa-info-circle fa-2x text-info"></i>
+                            </div>
+                            <div>
+                                <h5 class="alert-heading">Free Plan Features</h5>
+                                <p class="mb-0">You'll start with our Free Plan which includes:</p>
+                                <ul class="mb-0">
+                                    <li>1 branch</li>
+                                    <li>Up to 3 users</li>
+                                    <li>Up to 100 customers</li>
+                                    <li>Basic pawnshop management</li>
+                                </ul>
+                                <p class="mt-2 mb-0">You can upgrade to a paid plan anytime to unlock more features.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-building me-2"></i>Create Organization
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer text-muted">
+                <div class="row">
+                    <div class="col-md-6 text-md-start">
+                        <a href="{% url 'login' %}">Already have an account? Sign in</a>
+                    </div>
+                    <div class="col-md-6 text-md-end">
+                        <span>Need Help? <a href="#" class="text-primary">Contact Support</a></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

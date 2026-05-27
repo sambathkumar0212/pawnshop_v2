@@ -1,0 +1,127 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Expiry / Auction Notice - Loan {{ loan.loan_number }}</title>
+    <style>
+        @page { size: A4; margin: 25mm; }
+        body { font-family: Arial, Helvetica, sans-serif; font-size: 12pt; color: #222; }
+        .container { width: 100%; max-width: 794px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 18px; }
+        .title { font-size: 18pt; font-weight: bold; }
+        .sub { font-size: 10pt; color: #444; }
+        .notice { border: 2px solid #b30000; padding: 14px; background: #fff7f7; }
+        .loan-info { margin-top: 12px; }
+        .items { margin-top: 12px; }
+        .footer { margin-top: 28px; font-size: 10pt; }
+        .small { font-size: 9pt; color: #555; }
+        .signature { margin-top: 40px; display:flex; justify-content:space-between; }
+        .sig-block { width: 45%; text-align:center; }
+        .print-only { display: none; }
+        @media print { .no-print { display: none; } .print-only { display: block; } }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        {% if loan.branch %}
+            <div class="title">{{ loan.branch.name }}</div>
+            <div class="sub">{% if loan.branch.address %}{{ loan.branch.address }}{% endif %}{% if loan.branch.phone %} | Tel: {{ loan.branch.phone }}{% endif %}</div>
+            <hr style="margin:10px 0;" />
+        {% else %}
+            <div class="title">Pawnshop Management System</div>
+        {% endif %}
+        <div style="margin-top:6px; font-weight:600;">Expiry / Auction Notice</div>
+        <div class="sub">Loan #: {{ loan.loan_number }} &nbsp; | &nbsp; Date: {{ today|date:"M d, Y" }}</div>
+    </header>
+
+    {% if not show_notice %}
+        {% if use_tamil %}
+            <div class="alert alert-info">இந்தக் கடன் காலாவதியான/ஏல அறிவிக்கைக்கு தகுதியானது அல்ல.</div>
+        {% else %}
+            <div class="alert alert-info">This loan is not eligible for an expiry/auction notice at this time.</div>
+        {% endif %}
+    {% else %}
+    <div class="notice">
+        {% if use_tamil %}
+            <p>பெறுநர்: <strong>{% if loan.customer.first_name_tamil or loan.customer.last_name_tamil %}{{ loan.customer.first_name_tamil }} {{ loan.customer.last_name_tamil }}{% else %}{{ loan.customer.full_name }}{% endif %}</strong></p>
+            <p>முகவரி: <span class="small">{% if loan.customer.address_tamil %}{{ loan.customer.address_tamil }}, {% elif loan.customer.address %}{{ loan.customer.address }}, {% endif %}{% if loan.customer.city_tamil %}{{ loan.customer.city_tamil }}, {% elif loan.customer.city %}{{ loan.customer.city }}, {% endif %}{% if loan.customer.state_tamil %}{{ loan.customer.state_tamil }}{% elif loan.customer.state %}{{ loan.customer.state }}{% endif %}</span></p>
+
+            <div class="loan-info">
+                <p><strong>கடன் எண்:</strong> {{ loan.loan_number }}</p>
+                <p><strong>கடைசி தேதி:</strong> {{ loan.due_date|date:"M d, Y" }}{% if loan.grace_period_end %} &nbsp; | &nbsp; <strong>ஓய்வு காலம் முடிவு:</strong> {{ loan.grace_period_end|date:"M d, Y" }}{% endif %}</p>
+                <p><strong>நிலை:</strong> {{ loan.get_status_display }}</p>
+                <p><strong>மீதமுள்ள தொகை (சராசரி):</strong> ₹{{ loan.remaining_balance|default:loan.principal_amount|floatformat:2 }}</p>
+            </div>
+
+            <div class="items">
+                <strong>அடமான பொருட்கள்:</strong>
+                <ul>
+                    {% for li in loan.loanitem_set.all %}
+                        <li>{{ li.item.name }} — {{ li.gold_karat }}K, {{ li.net_weight }}g</li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <div class="footer small">
+                <p>மேலே பட்டியலிடப்பட்ட அடமான பொருட்கள் மீட்பு காலத்தை கடந்துவிட்டன. நிலுவையில் உள்ள தொகை செலுத்தப்படாவிட்டால், பொருட்கள் ஏலத்திற்கு செல்லவோ அல்லது விற்கப்படவோ செய்யப்படும். உங்கள் கிளையை உடனடியாக தொடர்பு கொண்டு நிலுவையை பூர்த்தி செய்து பொருட்களை சேகரிக்கவும்.</p>
+                <p class="small">சட்டக் குறிப்புகள்: இந்த அறிவிப்பு கடன் எண் {{ loan.loan_number }} உடன் தொடர்புடைய அடமான ஒப்பந்தத்தின் படி மற்றும் அடமான பத்திரத்தில் அல்லது கிளையின் கொள்கையில் குறிப்பிடப்பட்ட விதிமுறைகள்ப்படி வழங்கப்படுகிறது. தொடர்புடைய சட்ட பிரிவுகளுக்கான தெளிவான விவரங்களுக்கு உங்கள் அடமான பத்திரத்தை அல்லது கிளை பதிவுகளை அணுகவும். </p>
+            </div>
+
+            <div class="signature">
+                <div class="sig-block">
+                    _______________________<br>
+                    கிளை மேலாளர் கையொப்பம்
+                </div>
+                <div class="sig-block">
+                    _______________________<br>
+                    அதிகாரப்பூர்வ கையொப்பம்
+                </div>
+            </div>
+        {% else %}
+            <p>To: <strong>{% if loan.customer.full_name %}{{ loan.customer.full_name }}{% else %}Customer{% endif %}</strong></p>
+            <p>Address: <span class="small">{% if loan.customer.address %}{{ loan.customer.address }}, {% endif %} {% if loan.customer.city %}{{ loan.customer.city }}, {% endif %} {% if loan.customer.state %}{{ loan.customer.state }}{% endif %}</span></p>
+
+            <div class="loan-info">
+                <p><strong>Loan Number:</strong> {{ loan.loan_number }}</p>
+                <p><strong>Due Date:</strong> {{ loan.due_date|date:"M d, Y" }}{% if loan.grace_period_end %} &nbsp; | &nbsp; <strong>Grace End:</strong> {{ loan.grace_period_end|date:"M d, Y" }}{% endif %}</p>
+                <p><strong>Status:</strong> {{ loan.get_status_display }}</p>
+                <p><strong>Outstanding Amount (approx):</strong> ₹{{ loan.remaining_balance|default:loan.principal_amount|floatformat:2 }}</p>
+            </div>
+
+            <div class="items">
+                <strong>Items pledged:</strong>
+                <ul>
+                    {% for li in loan.loanitem_set.all %}
+                        <li>{{ li.item.name }} — {{ li.gold_karat }}K, {{ li.net_weight }}g</li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <div class="footer small">
+                <p>This is to inform you that the pledged items listed above have passed the allowed period for redemption. If the outstanding amount is not settled within the notice period, the items may be moved to auction or sold in accordance with applicable Indian laws and store policy. Please contact the branch immediately to settle dues and collect pledged items.</p>
+                <p class="small">Legal Reference: This notice is issued in relation to the Pawn Agreement for Loan No. {{ loan.loan_number }} and in accordance with the terms printed on the pawn ticket and the branch's pawn policy.</p>
+            </div>
+
+            <div class="signature">
+                <div class="sig-block">
+                    _______________________<br>
+                    Branch Manager Signature
+                </div>
+                <div class="sig-block">
+                    _______________________<br>
+                    Authorized Signatory
+                </div>
+            </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="no-print mt-3">
+        <button onclick="window.print()" class="btn btn-primary">Print / Save as PDF</button>
+    </div>
+</div>
+</body>
+</html>

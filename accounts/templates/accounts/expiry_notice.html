@@ -1,0 +1,21 @@
+{% load i18n %}
+{% if expiry_notices %}
+<div class="mt-3">
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <h5 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Notice: Loan(s) Expired / Moved to Auction</h5>
+        <p class="mb-1">The following loaned item(s) for this customer have passed the allowed period. As per applicable Indian laws and store policy, these items may be moved to auction or sale.</p>
+        <ul class="mb-2">
+            {% for loan in expiry_notices %}
+            <li>
+                <strong>Loan #{{ loan.loan_number }}</strong> — Due: {{ loan.due_date|date:"M d, Y" }}{% if loan.grace_period_end %}, Grace end: {{ loan.grace_period_end|date:"M d, Y" }}{% endif %} — Status: {{ loan.get_status_display }}
+                {% for item in loan.loanitem_set.all %}
+                <div class="small text-muted">• {{ item.item.name }} ({{ item.gold_karat }}K, {{ item.net_weight }}g)</div>
+                {% endfor %}
+            </li>
+            {% endfor %}
+        </ul>
+        <p class="mb-0"><small>Please contact the branch to settle dues or collect items before they are moved to auction/sale. For legal reference, consult your branch manager.</small></p>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+</div>
+{% endif %}

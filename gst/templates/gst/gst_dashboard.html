@@ -1,0 +1,327 @@
+{% extends "gst/base_gst.html" %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}GST Dashboard{% endblock %}
+
+{% block gst_content %}
+<!-- Company GST Details Card -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Company GST Details</h5>
+        {% if company_gst_details %}
+        <a href="{% url 'company_gst_details_update' company_gst_details.id %}" class="btn btn-sm btn-primary">
+            <i class="fas fa-edit"></i> Edit Details
+        </a>
+        {% else %}
+        <a href="{% url 'company_gst_details_update' 0 %}" class="btn btn-sm btn-success">
+            <i class="fas fa-plus"></i> Add GST Details
+        </a>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        {% if company_gst_details %}
+        <div class="row">
+            <div class="col-md-6">
+                <table class="table table-sm">
+                    <tr>
+                        <th>Legal Name:</th>
+                        <td>{{ company_gst_details.legal_name }}</td>
+                    </tr>
+                    <tr>
+                        <th>GSTIN:</th>
+                        <td>{{ company_gst_details.gstin }}</td>
+                    </tr>
+                    <tr>
+                        <th>State Code:</th>
+                        <td>{{ company_gst_details.state_code }}</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <table class="table table-sm">
+                    <tr>
+                        <th>Address:</th>
+                        <td>{{ company_gst_details.address }}</td>
+                    </tr>
+                    <tr>
+                        <th>Email:</th>
+                        <td>{{ company_gst_details.email|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Phone:</th>
+                        <td>{{ company_gst_details.phone|default:"-" }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i> Company GST details are not configured yet. Please add your GST registration details to enable full GST functionality.
+        </div>
+        <div class="text-center">
+            <a href="{% url 'company_gst_details_update' 0 %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Add GST Details Now
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <!-- Current Month Summary -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Current Month: {{ current_month }}</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card bg-light mb-3">
+                            <div class="card-body text-center">
+                                <h6 class="card-title">Taxable Value</h6>
+                                <h4 class="text-primary">₹{{ current_month_stats.total_taxable|floatformat:2|intcomma }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card bg-light mb-3">
+                            <div class="card-body text-center">
+                                <h6 class="card-title">Total Tax</h6>
+                                <h4 class="text-success">₹{{ current_month_stats.total_tax|floatformat:2|intcomma }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6 class="card-title">CGST</h6>
+                                <p class="mb-0">₹{{ current_month_stats.cgst|floatformat:2|intcomma }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6 class="card-title">SGST</h6>
+                                <p class="mb-0">₹{{ current_month_stats.sgst|floatformat:2|intcomma }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6 class="card-title">IGST</h6>
+                                <p class="mb-0">₹{{ current_month_stats.igst|floatformat:2|intcomma }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Financial Year Summary -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Financial Year: {{ financial_year }}</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card bg-light mb-3">
+                            <div class="card-body text-center">
+                                <h6 class="card-title">Taxable Value</h6>
+                                <h4 class="text-primary">₹{{ fy_stats.total_taxable|floatformat:2|intcomma }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card bg-light mb-3">
+                            <div class="card-body text-center">
+                                <h6 class="card-title">Total Tax</h6>
+                                <h4 class="text-success">₹{{ fy_stats.total_tax|floatformat:2|intcomma }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6 class="card-title">CGST</h6>
+                                <p class="mb-0">₹{{ fy_stats.cgst|floatformat:2|intcomma }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6 class="card-title">SGST</h6>
+                                <p class="mb-0">₹{{ fy_stats.sgst|floatformat:2|intcomma }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6 class="card-title">IGST</h6>
+                                <p class="mb-0">₹{{ fy_stats.igst|floatformat:2|intcomma }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Action Buttons -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3 mb-3">
+                        <a href="{% url 'gst_transaction_create' %}" class="btn btn-outline-success btn-lg w-100 h-100 d-flex flex-column justify-content-center align-items-center py-4">
+                            <i class="fas fa-plus-circle fa-3x mb-2"></i>
+                            <span>Add Transaction</span>
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="{% url 'gst_transaction_list' %}" class="btn btn-outline-primary btn-lg w-100 h-100 d-flex flex-column justify-content-center align-items-center py-4">
+                            <i class="fas fa-list-alt fa-3x mb-2"></i>
+                            <span>View Transactions</span>
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="{% url 'gst_rate_list' %}" class="btn btn-outline-warning btn-lg w-100 h-100 d-flex flex-column justify-content-center align-items-center py-4">
+                            <i class="fas fa-percentage fa-3x mb-2"></i>
+                            <span>Manage GST Rates</span>
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="{% url 'gst_report' %}" class="btn btn-outline-info btn-lg w-100 h-100 d-flex flex-column justify-content-center align-items-center py-4">
+                            <i class="fas fa-file-export fa-3x mb-2"></i>
+                            <span>Generate Reports</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Transactions -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Recent GST Transactions</h5>
+        <a href="{% url 'gst_transaction_list' %}" class="btn btn-sm btn-primary">
+            View All Transactions
+        </a>
+    </div>
+    <div class="card-body">
+        {% if recent_transactions %}
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Invoice No.</th>
+                        <th>Type</th>
+                        <th>Party</th>
+                        <th>GST Rate</th>
+                        <th>Taxable Value</th>
+                        <th>CGST</th>
+                        <th>SGST</th>
+                        <th>IGST</th>
+                        <th>Total</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for transaction in recent_transactions %}
+                    <tr>
+                        <td>{{ transaction.transaction_date|date:"d-m-Y" }}</td>
+                        <td>{{ transaction.invoice_number }}</td>
+                        <td>{{ transaction.get_transaction_type_display }}</td>
+                        <td>
+                            {{ transaction.party_name }}
+                            {% if transaction.is_registered_dealer %}
+                            <span class="badge bg-info" title="Registered Dealer">B2B</span>
+                            {% else %}
+                            <span class="badge bg-secondary" title="Unregistered Customer">B2C</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ transaction.gst_rate.name }} ({{ transaction.gst_rate.igst_rate }}%)</td>
+                        <td class="text-end">₹{{ transaction.taxable_value|floatformat:2|intcomma }}</td>
+                        <td class="text-end">₹{{ transaction.cgst_amount|floatformat:2|intcomma }}</td>
+                        <td class="text-end">₹{{ transaction.sgst_amount|floatformat:2|intcomma }}</td>
+                        <td class="text-end">₹{{ transaction.igst_amount|floatformat:2|intcomma }}</td>
+                        <td class="text-end">₹{{ transaction.total_amount|floatformat:2|intcomma }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'gst_transaction_detail' transaction.id %}" class="btn btn-info" title="View">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{% url 'gst_transaction_update' transaction.id %}" class="btn btn-primary" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i> No GST transactions found. Start by adding your first GST transaction.
+        </div>
+        <div class="text-center">
+            <a href="{% url 'gst_transaction_create' %}" class="btn btn-success">
+                <i class="fas fa-plus"></i> Add First Transaction
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- GST Information Card -->
+<div class="card mt-4">
+    <div class="card-header bg-secondary text-white">
+        <h5 class="mb-0">GST Filing Information</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h6 class="border-bottom pb-2">Common GST Return Types</h6>
+                <ul>
+                    <li><strong>GSTR-1:</strong> Monthly/Quarterly return for outward supplies</li>
+                    <li><strong>GSTR-3B:</strong> Monthly/Quarterly summary return</li>
+                    <li><strong>GSTR-9:</strong> Annual return</li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h6 class="border-bottom pb-2">Due Dates</h6>
+                <ul>
+                    <li><strong>GSTR-1 (Monthly):</strong> 11th of the next month</li>
+                    <li><strong>GSTR-1 (Quarterly):</strong> 13th of the month after quarter end</li>
+                    <li><strong>GSTR-3B:</strong> 20th of the next month</li>
+                </ul>
+            </div>
+        </div>
+        <div class="alert alert-warning mt-3">
+            <i class="fas fa-exclamation-triangle me-2"></i> This system helps you prepare GST data, but final filing must be done on the official GST portal.
+        </div>
+    </div>
+</div>
+{% endblock %}

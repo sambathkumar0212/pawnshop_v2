@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Item Categories{% endblock %}
+
+{% block extra_css %}
+<style>
+    .category-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .category-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    .category-icon {
+        font-size: 2.5rem;
+        color: #4e73df;
+        margin-bottom: 1rem;
+    }
+    .item-count {
+        font-size: 0.9rem;
+        color: #6c757d;
+        margin-top: 0.5rem;
+    }
+    .action-buttons {
+        opacity: 0.7;
+        transition: opacity 0.2s;
+    }
+    .category-card:hover .action-buttons {
+        opacity: 1;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Item Categories</h1>
+        {% if perms.inventory.add_category %}
+        <a href="{% url 'category_create' %}" class="d-none d-sm-inline-block btn btn-sm btn-primary shadow-sm">
+            <i class="fas fa-plus fa-sm text-white-50 mr-1"></i> Add New Category
+        </a>
+        {% endif %}
+    </div>
+    
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <p>Manage your inventory categories for better organization of items.</p>
+        </div>
+        <div class="col-md-6 text-md-right">
+            <a href="{% url 'item_list' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left mr-1"></i> Back to Inventory
+            </a>
+        </div>
+    </div>
+    
+    {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+        {% endfor %}
+    {% endif %}
+    
+    <div class="row">
+        {% for category in categories %}
+        <div class="col-xl-3 col-md-4 col-sm-6 mb-4">
+            <div class="card shadow h-100 category-card">
+                <div class="card-body">
+                    <div class="text-center mb-2">
+                        <i class="fas {% if category.icon %}{{ category.icon }}{% else %}fa-tag{% endif %} category-icon"></i>
+                    </div>
+                    <h5 class="card-title text-center font-weight-bold">{{ category.name }}</h5>
+                    {% if category.description %}
+                    <p class="card-text small text-muted text-center">{{ category.description|truncatechars:60 }}</p>
+                    {% endif %}
+                    <p class="item-count text-center">
+                        <span class="badge badge-light">
+                            {{ category.item_count }} Item{{ category.item_count|pluralize }}
+                        </span>
+                    </p>
+                    <div class="text-center action-buttons mt-3">
+                        <a href="{% url 'item_list' %}?category={{ category.id }}" class="btn btn-sm btn-info">
+                            <i class="fas fa-list fa-sm"></i> View Items
+                        </a>
+                        {% if perms.inventory.change_category %}
+                        <a href="{% url 'category_update' category.id %}" class="btn btn-sm btn-primary">
+                            <i class="fas fa-edit fa-sm"></i>
+                        </a>
+                        {% endif %}
+                        {% if perms.inventory.delete_category %}
+                        <a href="{% url 'category_delete' category.id %}" class="btn btn-sm btn-danger">
+                            <i class="fas fa-trash fa-sm"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-body text-center py-5">
+                    <h4 class="text-muted">No categories found</h4>
+                    <p class="mb-0">
+                        {% if perms.inventory.add_category %}
+                        <a href="{% url 'category_create' %}" class="btn btn-primary mt-3">
+                            <i class="fas fa-plus mr-1"></i> Add Your First Category
+                        </a>
+                        {% else %}
+                        You don't have any inventory categories yet.
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

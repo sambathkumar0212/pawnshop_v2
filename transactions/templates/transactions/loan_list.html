@@ -1,0 +1,714 @@
+﻿{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load loan_tags %}
+{% load loan_interest %}
+{% load custom_filters %}
+
+{% block title %}Loans Management{% endblock %}
+
+{% block loans_active %}active{% endblock %}
+
+{% block content %}
+{% get_current_language as LANGUAGE_CODE %}
+<div class="container-fluid py-3">
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h2>Loans Management</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+                    <li class="breadcrumb-item active">Loans</li>
+                </ol>
+            </nav>
+        </div>
+        <div class="col-md-6 text-end">
+            <div class="btn-group">
+                <div class="dropdown">
+                    <button class="btn btn-outline-success dropdown-toggle" type="button" id="downloadDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-download"></i> {% if LANGUAGE_CODE == 'ta' %}பதிவிறக்கு{% else %}Download{% endif %}
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="downloadDropdown">
+                        <li>
+                            <a class="dropdown-item" href="?download=pdf{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
+                                <i class="fas fa-file-pdf"></i> {% if LANGUAGE_CODE == 'ta' %}PDF ஆக பதிவிறக்கு{% else %}Download as PDF{% endif %}
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="?download=excel{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
+                                <i class="fas fa-file-excel"></i> {% if LANGUAGE_CODE == 'ta' %}Excel ஆக பதிவிறக்கு{% else %}Download as Excel{% endif %}
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="?download=csv{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
+                                <i class="fas fa-file-csv"></i> {% if LANGUAGE_CODE == 'ta' %}CSV ஆக பதிவிறக்கு{% else %}Download as CSV{% endif %}
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#columnSelectModal">
+                                <i class="fas fa-columns"></i> {% if LANGUAGE_CODE == 'ta' %}பதிவிறக்க வேண்டிய புலங்களைத் தேர்வு செய்க{% else %}Select Columns to Download{% endif %}
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                <a href="{% url 'loan_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus-circle"></i> New Loan
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loan Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card stat-card bg-primary text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Active Loans</h5>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="value">{{ active_loans_count }}</span>
+                        <span class="icon"><i class="fas fa-money-bill-wave"></i></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card bg-warning text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Due Today</h5>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="value">{{ due_today_count }}</span>
+                        <span class="icon"><i class="fas fa-calendar-day"></i></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card bg-danger text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Overdue</h5>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="value">{{ overdue_count }}</span>
+                        <span class="icon"><i class="fas fa-exclamation-circle"></i></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card bg-success text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Total Outstanding</h5>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="value">₹{{ total_outstanding|floatformat:2 }}</span>
+                        <span class="icon"><i class="fas fa-rupee-sign"></i></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label for="status" class="form-label">Status</label>
+                    <select name="status" id="status" class="form-select">
+                        <option value="">All Statuses</option>
+                        <option value="active" {% if selected_status == 'active' %}selected{% endif %}>Active</option>
+                        <option value="repaid" {% if selected_status == 'repaid' %}selected{% endif %}>Repaid</option>
+                        <option value="defaulted" {% if selected_status == 'defaulted' %}selected{% endif %}>Defaulted</option>
+                        <option value="extended" {% if selected_status == 'extended' %}selected{% endif %}>Extended</option>
+                        <option value="foreclosed" {% if selected_status == 'foreclosed' %}selected{% endif %}>Foreclosed</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="search" class="form-label">Search</label>
+                    <input type="text" name="search" id="search" class="form-control" placeholder="Customer name, ID..." value="{{ search_query }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="date_range" class="form-label">Date Range</label>
+                    <select name="date_range" id="date_range" class="form-select">
+                        <option value="">All Time</option>
+                        <option value="today" {% if selected_date_range == 'today' %}selected{% endif %}>Today</option>
+                        <option value="this_week" {% if selected_date_range == 'this_week' %}selected{% endif %}>This Week</option>
+                        <option value="this_month" {% if selected_date_range == 'this_month' %}selected{% endif %}>This Month</option>
+                        <option value="this_year" {% if selected_date_range == 'this_year' %}selected{% endif %}>This Year</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-filter"></i> Filter
+                    </button>
+                </div>
+                <div class="col-md-2">
+                    <a href="{% url 'loan_list' %}?filter_type=overdue{% if search_query %}&search={{ search_query }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}" 
+                       class="btn btn-danger w-100 {% if selected_filter_type == 'overdue' %}active{% endif %}">
+                        <i class="fas fa-exclamation-circle"></i> Overdue 
+                        <span class="badge text-bg-light rounded-pill ms-1">{{ overdue_count }}</span>
+                    </a>
+                </div>
+                <div class="col-md-2">
+                    <a href="{% url 'loan_list' %}" class="btn btn-outline-secondary w-100">
+                        <i class="fas fa-times-circle"></i> Clear
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Loans Table -->
+    <div class="card">
+        <div class="card-body p-0">
+            {% if loans %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="px-3 py-3">
+                                    <a href="?sort={% if current_sort == 'customer' %}-{% endif %}customer{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}" class="text-decoration-none text-dark">
+                                        Customer 
+                                        {% if current_sort == 'customer' %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% elif current_sort == '-customer' %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort text-muted"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                                <th class="px-3 py-3">Item</th>
+                                <th class="px-3 py-3">
+                                    <a href="?sort={% if current_sort == 'principal_amount' %}-{% endif %}principal_amount{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}" class="text-decoration-none text-dark">
+                                        Principal 
+                                        {% if current_sort == 'principal_amount' %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% elif current_sort == '-principal_amount' %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort text-muted"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                                <th class="px-3 py-3">Monthly Interest</th>
+                                <th class="px-3 py-3">
+                                    <a href="?sort={% if current_sort == 'issue_date' %}-{% endif %}issue_date{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}" class="text-decoration-none text-dark">
+                                        Start Date 
+                                        {% if current_sort == 'issue_date' %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% elif current_sort == '-issue_date' %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort text-muted"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                                <th class="px-3 py-3">
+                                    <a href="?sort={% if current_sort == 'due_date' %}-{% endif %}due_date{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}" class="text-decoration-none text-dark">
+                                        Due Date 
+                                        {% if current_sort == 'due_date' %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% elif current_sort == '-due_date' %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort text-muted"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                                <th class="px-3 py-3">
+                                    <a href="?sort={% if current_sort == 'status' %}-{% endif %}status{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}" class="text-decoration-none text-dark">
+                                        Status 
+                                        {% if current_sort == 'status' %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% elif current_sort == '-status' %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort text-muted"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                                <th class="px-3 py-3">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for loan in loans %}
+                                <tr>
+                                    <td class="px-3 py-3">
+                                        <div class="d-flex align-items-center">
+                                            {% if loan.customer_face_capture %}
+                                                <div class="position-relative me-2">
+                                                    <img src="{{ loan.customer_face_capture }}" 
+                                                         alt="Customer Photo" 
+                                                         class="rounded-circle customer-photo"
+                                                         style="width: 48px; height: 48px; object-fit: cover; cursor: pointer;"
+                                                         data-bs-toggle="modal" 
+                                                         data-bs-target="#customerModal-{{ loan.id }}">
+                                                    <div class="position-absolute bottom-0 end-0">
+                                                        <span class="badge bg-primary rounded-circle" style="font-size: 0.6rem; width: 18px; height: 18px;">
+                                                            <i class="fas fa-search-plus fa-xs"></i>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            {% elif loan.customer and loan.customer.photo %}
+                                                <div class="position-relative me-2">
+                                                    <img src="{{ loan.customer.photo }}" 
+                                                         alt="Customer Photo" 
+                                                         class="rounded-circle customer-photo"
+                                                         style="width: 48px; height: 48px; object-fit: cover;">
+                                                </div>
+                                            {% else %}
+                                                <div class="rounded-circle bg-light d-flex align-items-center justify-content-center me-2" 
+                                                     style="width: 48px; height: 48px;">
+                                                    <i class="fas fa-user text-secondary"></i>
+                                                </div>
+                                            {% endif %}
+                                            <div>
+                                                <a href="{% url 'customer_detail' loan.customer.id %}">
+                                                    {{ loan.customer.first_name }} {{ loan.customer.last_name }}
+                                                </a>
+                                                <small class="d-block text-muted">{{ loan.customer.phone|mobile_format|default:"" }}</small>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Customer Photo Modal -->
+                                        {% if loan.customer_face_capture %}
+                                        <div class="modal fade" id="customerModal-{{ loan.id }}" tabindex="-1" aria-hidden="true">
+                                            <div class="modal-dialog modal-sm modal-dialog-centered">
+                                                <div class="modal-content">
+                                                    <div class="modal-header py-2">
+                                                        <h6 class="modal-title">{{ loan.customer.first_name }} {{ loan.customer.last_name }}</h6>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body text-center p-2">
+                                                        <img src="{{ loan.customer_face_capture }}" alt="Customer Photo" class="img-fluid rounded">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-3 py-3">
+                                        {% if loan.loanitem_set.all %}
+                                            {% for loan_item in loan.loanitem_set.all|slice:":1" %}
+                                            <div class="d-flex align-items-center mb-1">
+                                                {% if loan.item_photos %}
+                                                    <div class="position-relative me-2" data-bs-toggle="modal" data-bs-target="#itemModal-{{ loan.id }}">
+                                                        {% if loan.loan_number and loan.loan_number != '' %}
+                                                            <img src="{{ loan.item_photos|first_item_photo }}" 
+                                                                 alt="Item Photo" 
+                                                                 class="rounded border"
+                                                                 style="width: 48px; height: 48px; object-fit: cover; cursor: pointer;">
+                                                            <div class="position-absolute bottom-0 end-0">
+                                                                <span class="badge bg-info rounded-circle" style="font-size: 0.6rem; width: 18px; height: 18px;">
+                                                                    {% with count=loan.item_photos|item_photos_count %}
+                                                                    {{ count }}
+                                                                    {% endwith %}
+                                                                </span>
+                                                            </div>
+                                                        {% else %}
+                                                            <div class="rounded border bg-light d-flex align-items-center justify-content-center" 
+                                                                 style="width: 48px; height: 48px;">
+                                                                <i class="fas fa-exclamation-triangle text-warning"></i>
+                                                            </div>
+                                                        {% endif %}
+                                                    </div>
+                                                {% endif %}
+                                                <div>
+                                                    {% if loan.loan_number and loan.loan_number != '' %}
+                                                        <a href="{% url 'loan_detail' loan.loan_number %}" class="d-block fw-bold text-primary">
+                                                            {{ loan_item.item.name }}
+                                                        </a>
+                                                    {% else %}
+                                                        <span class="d-block fw-bold text-primary">{{ loan_item.item.name }}</span>
+                                                    {% endif %}
+                                                    <small class="text-muted">
+                                                        {{ loan_item.gold_karat }}K, {{ loan_item.net_weight }}g
+                                                    </small>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Item Photos Modal -->
+                                            {% if loan.item_photos %}
+                                            <div class="modal fade" id="itemModal-{{ loan.id }}" tabindex="-1" aria-hidden="true">
+                                                <div class="modal-dialog modal-dialog-centered">
+                                                    <div class="modal-content">
+                                                        <div class="modal-header py-2">
+                                                            <h6 class="modal-title">Gold Item Photos</h6>
+                                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                        </div>
+                                                        <div class="modal-body">
+                                                            <div class="row g-2 item-photos-container" data-loan-id="{{ loan.id }}">
+                                                                <!-- Photos will be loaded here via JavaScript -->
+                                                                <div class="text-center py-3">
+                                                                    <div class="spinner-border text-primary" role="status">
+                                                                        <span class="visually-hidden">Loading...</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <!-- Hidden item photos data -->
+                                                            <script type="application/json" class="item-photos-data">
+                                                                {{ loan.item_photos|safe }}
+                                                            </script>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                            
+                                            {% empty %}
+                                            <span class="text-muted">No items</span>
+                                            {% endfor %}
+                                        {% else %}
+                                            <span class="text-muted">No items</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-3 py-3">₹{{ loan.principal_amount|floatformat:2 }}</td>
+                                    <td class="px-3 py-3">
+                                        {{ loan|monthly_interest_rate }}%
+                                        <small class="d-block text-muted">Monthly Amount: ₹{{ loan|monthly_interest_amount|floatformat:2 }}</small>
+                                    </td>
+                                    <td class="px-3 py-3">{{ loan.issue_date }}</td>
+                                    <td class="px-3 py-3">{{ loan.due_date }}</td>
+                                    <td class="px-3 py-3">
+                                        <div class="d-flex flex-column align-items-start">
+                                            <span class="badge bg-{{ loan.status|status_color }} mb-1">
+                                                {{ loan.get_status_display }}
+                                            </span>
+                                            {% if loan.branch %}
+                                                <small class="text-muted d-flex align-items-center">
+                                                    <i class="fas fa-building me-1" style="font-size: 0.7rem;"></i>
+                                                    <span style="font-size: 0.75rem;">{{ loan.branch.name }}</span>
+                                                </small>
+                                            {% else %}
+                                                <small class="text-muted">
+                                                    <i class="fas fa-question-circle me-1" style="font-size: 0.7rem;"></i>
+                                                    <span style="font-size: 0.75rem;">No branch</span>
+                                                </small>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td class="px-3 py-3">
+                                        <div class="btn-group btn-group-sm">
+                                            {% if loan.loan_number and loan.loan_number != '' %}
+                                                <a href="{% url 'loan_detail' loan.loan_number %}" class="btn btn-outline-primary" title="View">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                <a href="{% url 'loan_document' loan.loan_number %}" class="btn btn-outline-secondary" title="Download Agreement" target="_blank">
+                                                    <i class="fas fa-file-pdf"></i>
+                                                </a>
+                                                {% if loan.status == 'defaulted' %}
+                                                    <a href="{% url 'loan_expiry_notice' loan.loan_number %}" class="btn btn-outline-danger" title="Expiry Notice" target="_blank">
+                                                        <i class="fas fa-file-alt"></i>
+                                                    </a>
+                                                {% elif loan.status == 'active' and loan.is_overdue %}
+                                                    <a href="{% url 'loan_expiry_notice' loan.loan_number %}" class="btn btn-outline-danger" title="Expiry Notice" target="_blank">
+                                                        <i class="fas fa-file-alt"></i>
+                                                    </a>
+                                                {% endif %}
+                                                {% if loan.status == 'active' %}
+                                                    <a href="{% url 'payment_create' loan.loan_number %}" class="btn btn-outline-success" title="Make Payment">
+                                                        <i class="fas fa-dollar-sign"></i>
+                                                    </a>
+                                                    <a href="{% url 'loan_extend' loan.loan_number %}" class="btn btn-outline-info" title="Extend">
+                                                        <i class="fas fa-calendar-plus"></i>
+                                                    </a>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="badge bg-warning">Invalid Loan Number</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Simple Pagination -->
+                {% if is_paginated %}
+                <div class="card-footer bg-light border-top">
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
+                                        <i class="fas fa-chevron-left"></i> Previous
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link text-muted">
+                                        <i class="fas fa-chevron-left"></i> Previous
+                                    </span>
+                                </li>
+                            {% endif %}
+                            
+                            <li class="page-item active">
+                                <span class="page-link bg-primary border-primary">
+                                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                                </span>
+                            </li>
+                            
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
+                                        Next <i class="fas fa-chevron-right"></i>
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link text-muted">
+                                        Next <i class="fas fa-chevron-right"></i>
+                                    </span>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            {% else %}
+                <div class="card-body">
+                    <div class="alert alert-info text-center">
+                        <i class="fas fa-info-circle fa-2x mb-3"></i>
+                        <h5>No loans found</h5>
+                        <p class="mb-0">No loans match your current search criteria.</p>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    $(document).ready(function() {
+        // Initialize tooltips
+        $('[data-bs-toggle="tooltip"]').tooltip();
+        
+        // Handle item photos modal
+        $('.modal').on('show.bs.modal', function (event) {
+            const modal = $(this);
+            const modalId = modal.attr('id');
+            
+            // Only process item photo modals
+            if (modalId && modalId.startsWith('itemModal-')) {
+                const loanId = modalId.replace('itemModal-', '');
+                const container = modal.find('.item-photos-container');
+                
+                // Only load if container has data attribute and is not already loaded
+                if (container.attr('data-loan-id') === loanId && !container.hasClass('loaded')) {
+                    // Get item photos data for this loan using centralized processing
+                    const itemPhotos = getProcessedItemPhotos(loanId);
+                    
+                    if (itemPhotos && itemPhotos.length > 0) {
+                        // Clear loading spinner
+                        container.empty();
+                        
+                        // Build photo gallery
+                        itemPhotos.forEach((photoUrl, index) => {
+                            container.append(`
+                                <div class="col-6">
+                                    <div class="card position-relative">
+                                        <img src="${photoUrl}" class="card-img-top" alt="Item Photo ${index+1}">
+                                        <div class="position-absolute bottom-0 start-0 end-0 bg-dark bg-opacity-50 text-white small text-center py-1">
+                                            Photo ${index+1}
+                                        </div>
+                                    </div>
+                                </div>
+                            `);
+                        });
+                        
+                        // Mark as loaded
+                        container.addClass('loaded');
+                    } else {
+                        container.html('<div class="col-12 text-center py-3 text-muted">No photos available</div>');
+                    }
+                }
+            }
+        });
+        
+        // Function to get processed item photos for a loan using centralized logic
+        function getProcessedItemPhotos(loanId) {
+            let photos = [];
+            
+            // Find the modal with this loan
+            $(`#itemModal-${loanId}`).each(function() {
+                // Get the raw JSON string
+                const rawData = $(this).find('.item-photos-data').text();
+                
+                if (rawData) {
+                    try {
+                        // Parse the raw data (could be JSON array or single photo)
+                        let photosData;
+                        if (rawData.startsWith('[')) {
+                            photosData = JSON.parse(rawData);
+                        } else if (rawData.startsWith('data:image/')) {
+                            photosData = [rawData];
+                        } else {
+                            photosData = [rawData];
+                        }
+                        
+                        // Process each photo using the same logic as the centralized function
+                        photosData.forEach(photo => {
+                            if (photo && typeof photo === 'string') {
+                                if (photo.startsWith('data:image/')) {
+                                    // Already base64 format, use directly
+                                    photos.push(photo);
+                                } else if (photo.startsWith('/media/')) {
+                                    // File path - for display, show as relative URL
+                                    // Note: In a real scenario, this should be converted to base64
+                                    // but for browser display, relative URL works
+                                    photos.push(photo);
+                                } else {
+                                    // Assume it's base64 without data: prefix
+                                    photos.push(`data:image/jpeg;base64,${photo}`);
+                                }
+                            }
+                        });
+                    } catch (e) {
+                        console.error('Error parsing item photos:', e);
+                    }
+                }
+            });
+            
+            return photos;
+        }
+    });
+</script>
+
+<!-- Column Selection Modal -->
+<div class="modal fade" id="columnSelectModal" tabindex="-1" aria-labelledby="columnSelectModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="columnSelectModalLabel">{% if LANGUAGE_CODE == 'ta' %}பதிவிறக்க வேண்டிய புலங்களைத் தேர்வு செய்க{% else %}Select Columns to Download{% endif %}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="columnSelectForm" method="GET">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>{% if LANGUAGE_CODE == 'ta' %}கிடைக்கக்கூடிய புலங்கள்{% else %}Available Columns{% endif %}</h6>
+                            <div class="form-check">
+                                <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="roll_number" id="col_roll_number" checked>
+                                <label class="form-check-label" for="col_roll_number">{% if LANGUAGE_CODE == 'ta' %}வரிசை எண்{% else %}Roll Number{% endif %}</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="loan_number" id="col_loan_number" checked>
+                                <label class="form-check-label" for="col_loan_number">{% if LANGUAGE_CODE == 'ta' %}கடன் எண்{% else %}Loan Number{% endif %}</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="customer_name" id="col_customer_name" checked>
+                                <label class="form-check-label" for="col_customer_name">{% if LANGUAGE_CODE == 'ta' %}வாடிக்கையாளர் பெயர்{% else %}Customer Name{% endif %}</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="phone" id="col_phone" checked>
+                                <label class="form-check-label" for="col_phone">{% if LANGUAGE_CODE == 'ta' %}வாடிக்கையாளர் தொலைபேசி{% else %}Customer Phone{% endif %}</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="item_names" id="col_item_names" checked>
+                                <label class="form-check-label" for="col_item_names">{% if LANGUAGE_CODE == 'ta' %}பொருள் பெயர்கள்{% else %}Item Names{% endif %}</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="item_images" id="col_item_images" checked>
+                                <label class="form-check-label" for="col_item_images">{% if LANGUAGE_CODE == 'ta' %}பொருள் படங்கள்{% else %}Item Images{% endif %}</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="principal_amount" id="col_principal_amount" checked>
+                                <label class="form-check-label" for="col_principal_amount">{% if LANGUAGE_CODE == 'ta' %}முதல்தொகை{% else %}Principal Amount{% endif %}</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="distribution_amount" id="col_distribution_amount" checked>
+                                <label class="form-check-label" for="col_distribution_amount">{% if LANGUAGE_CODE == 'ta' %}வழங்கப்பட்ட தொகை{% else %}Distribution Amount{% endif %}</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="monthly_interest" id="col_monthly_interest" checked>
+                                <label class="form-check-label" for="col_monthly_interest">{% if LANGUAGE_CODE == 'ta' %}மாதாந்திர வட்டி{% else %}Monthly Interest{% endif %}</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>&nbsp;</h6>
+                            <div class="form-check">
+                                <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="issue_date" id="col_issue_date" checked>
+                                <label class="form-check-label" for="col_issue_date">{% if LANGUAGE_CODE == 'ta' %}வழங்கிய தேதி{% else %}Issue Date{% endif %}</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="due_date" id="col_due_date" checked>
+                                <label class="form-check-label" for="col_due_date">{% if LANGUAGE_CODE == 'ta' %}செலுத்த வேண்டிய தேதி{% else %}Due Date{% endif %}</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="status" id="col_status" checked>
+                                <label class="form-check-label" for="col_status">{% if LANGUAGE_CODE == 'ta' %}நிலை{% else %}Status{% endif %}</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="branch" id="col_branch" checked>
+                                <label class="form-check-label" for="col_branch">{% if LANGUAGE_CODE == 'ta' %}கிளை{% else %}Branch{% endif %}</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="created_by" id="col_created_by" checked>
+                                <label class="form-check-label" for="col_created_by">{% if LANGUAGE_CODE == 'ta' %}உருவாக்கியவர்{% else %}Created By{% endif %}</label>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="selectAllBtn">{% if LANGUAGE_CODE == 'ta' %}அனைத்தையும் தேர்வு செய்{% else %}Select All{% endif %}</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="deselectAllBtn">{% if LANGUAGE_CODE == 'ta' %}அனைத்தையும் நீக்கு{% else %}Deselect All{% endif %}</button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <div class="me-auto">
+                        <label for="downloadFormat" class="form-label">{% if LANGUAGE_CODE == 'ta' %}பதிவிறக்க வடிவம்:{% else %}Download Format:{% endif %}</label>
+                        <select name="format" id="downloadFormat" class="form-select form-select-sm" style="width: auto; display: inline-block;">
+                            <option value="pdf">PDF</option>
+                            <option value="excel">Excel</option>
+                            <option value="csv">CSV</option>
+                        </select>
+                    </div>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% if LANGUAGE_CODE == 'ta' %}ரத்து செய்{% else %}Cancel{% endif %}</button>
+                    <button type="submit" class="btn btn-success" onclick="downloadWithColumns(event)">
+                        <i class="fas fa-download"></i> {% if LANGUAGE_CODE == 'ta' %}பதிவிறக்கு{% else %}Download{% endif %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('selectAllBtn').addEventListener('click', function() {
+    document.querySelectorAll('.column-checkbox').forEach(checkbox => {
+        checkbox.checked = true;
+    });
+});
+
+document.getElementById('deselectAllBtn').addEventListener('click', function() {
+    document.querySelectorAll('.column-checkbox').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+});
+
+function downloadWithColumns(event) {
+    event.preventDefault();
+    const selectedColumns = [];
+    document.querySelectorAll('.column-checkbox:checked').forEach(checkbox => {
+        selectedColumns.push(checkbox.value);
+    });
+    
+    if (selectedColumns.length === 0) {
+        alert("{% if LANGUAGE_CODE == 'ta' %}குறைந்தது ஒரு புலத்தையாவது தேர்வு செய்யவும்{% else %}Please select at least one column{% endif %}");
+        return;
+    }
+    
+    const format = document.getElementById('downloadFormat').value;
+    const params = new URLSearchParams(window.location.search);
+    params.set('download', format);
+    params.set('columns', selectedColumns.join(','));
+    
+    window.location.href = '?' + params.toString();
+}
+</script>
+
+{% endblock %}
+

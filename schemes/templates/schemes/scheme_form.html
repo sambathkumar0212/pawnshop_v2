@@ -1,0 +1,580 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% if form.instance.id %}Update{% else %}Create New{% endif %} Scheme{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mt-4 mb-0">{% if form.instance.id %}Update{% else %}Create New{% endif %} Scheme</h1>
+        <div>
+            <a href="{% if form.instance.id %}{% url 'scheme_detail' form.instance.id %}{% else %}{% url 'scheme_list' %}{% endif %}" class="btn btn-secondary">
+                <i class="fas fa-times me-2"></i>Cancel
+            </a>
+        </div>
+    </div>
+
+    <!-- Form submission status alert -->
+    <div id="formSubmissionStatus" class="alert" style="display: none;"></div>
+
+    <div class="row">
+        <div class="col-lg-9">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-edit me-1"></i>
+                    Scheme Details
+                </div>
+                <div class="card-body">
+                    <form id="schemeForm" method="post" novalidate>
+                        {% csrf_token %}
+                        
+                        <!-- Basic Information Section -->
+                        <div class="card mb-4">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">Basic Information</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        {{ form.name|as_crispy_field }}
+                                    </div>
+                                    <div class="col-md-6">
+                                        {{ form.status|as_crispy_field }}
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-12 mb-3">
+                                        <div class="alert alert-info" style="background-color: #fff3cd; color: #856404; border-color: #ffeeba;">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            <strong>Gold Loan Scheme Creation</strong>
+                                            <p class="mb-0">You are creating a gold loan scheme. All schemes created here will automatically be gold loan schemes.</p>
+                                        </div>
+                                        <!-- Hidden field for is_gold_scheme, always set to true -->
+                                        <input type="hidden" name="is_gold_scheme" id="id_is_gold_scheme" value="true">
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-12">
+                                        {{ form.description|as_crispy_field }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Gold Loan Scheme Section -->
+                        <div class="card mb-4" id="gold-scheme-section">
+                            <div class="card-header bg-light" style="background-color: #fff3cd !important;">
+                                <h5 class="mb-0">Gold Loan Details</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <strong>Tiered Interest Rate System.</strong> This scheme uses a three-period loan structure with different interest rates based on when the customer repays the loan.
+                                </div>
+                                
+                                <!-- Three Period Loan Structure -->
+                                <div class="card mb-3">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">Tiered Interest Rate Structure</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="card mb-3 border-success">
+                                                    <div class="card-header bg-success text-white">
+                                                        <h6 class="mb-0"><i class="fas fa-clock me-2"></i>Early Period (Discounted Rate)</h6>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <div class="row">
+                                                            <div class="col-md-6">
+                                                                {{ form.early_period_months|as_crispy_field }}
+                                                                <div id="early-period-days" class="text-muted small mt-1">
+                                                                    <i class="fas fa-calendar-day me-1"></i> <span>0</span> days
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                {{ form.early_period_interest_rate|as_crispy_field }}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="card mb-3 border-primary">
+                                                    <div class="card-header bg-primary text-white">
+                                                        <h6 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Standard Period (Normal Rate)</h6>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <div class="row">
+                                                            <div class="col-md-6">
+                                                                {{ form.standard_period_months|as_crispy_field }}
+                                                                <div id="standard-period-days" class="text-muted small mt-1">
+                                                                    <i class="fas fa-calendar-day me-1"></i> <span>0</span> days
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                {{ form.gold_interest_rate|as_crispy_field }}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="card mb-3 border-danger">
+                                                    <div class="card-header bg-danger text-white">
+                                                        <h6 class="mb-0"><i class="fas fa-exclamation-circle me-2"></i>Late Period (Increased Rate)</h6>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <div id="late-period-info" class="mb-2">
+                                                            <small class="text-muted">Late period will be automatically calculated based on the total loan duration minus early and standard periods.</small>
+                                                        </div>
+                                                        <div id="late-period-days" class="text-muted small mt-1 mb-2">
+                                                            <i class="fas fa-calendar-day me-1"></i> <span>0</span> days
+                                                        </div>
+                                                        <div class="row">
+                                                            <div class="col-md-12">
+                                                                {{ form.late_period_interest_rate|as_crispy_field }}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="card mb-3 border-info">
+                                                    <div class="card-header bg-info text-white">
+                                                        <h6 class="mb-0"><i class="fas fa-hourglass-end me-2"></i>Total Loan Duration</h6>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <div class="alert alert-warning">
+                                                            <small>Total loan duration must be greater than early period + standard period.</small>
+                                                        </div>
+                                                        <div class="row">
+                                                            <div class="col-md-12">
+                                                                {{ form.expiry_period|as_crispy_field }}
+                                                                <div id="total-period-days" class="text-muted small mt-1">
+                                                                    <i class="fas fa-calendar-day me-1"></i> <span>0</span> days
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Additional Gold Loan Settings -->
+                                <div class="card mb-3">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">Additional Settings</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                {{ form.minimum_duration|as_crispy_field }}
+                                            </div>
+                                            <div class="col-md-4">
+                                                {{ form.late_payment_interest|as_crispy_field }}
+                                            </div>
+                                            <div class="col-md-4">
+                                                {{ form.payment_due_day|as_crispy_field }}
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row mt-3">
+                                            <div class="col-md-6">
+                                                {{ form.minimum_amount|as_crispy_field }}
+                                            </div>
+                                            <div class="col-md-6">
+                                                {{ form.maximum_amount|as_crispy_field }}
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row mt-3">
+                                            <div class="col-md-12">
+                                                {{ form.special_conditions|as_crispy_field }}
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row mt-3">
+                                            <div class="col-md-4">
+                                                {{ form.processing_fee_percentage|as_crispy_field }}
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="form-check">
+                                                    {{ form.is_fixed_interest }}
+                                                    <label class="form-check-label" for="{{ form.is_fixed_interest.id_for_label }}">
+                                                        Fixed Interest Rate (no additional charges)
+                                                    </label>
+                                                    <div class="form-text text-muted">{{ form.is_fixed_interest.help_text }}</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="form-check">
+                                                    {{ form.auction_on_expiry }}
+                                                    <label class="form-check-label" for="{{ form.auction_on_expiry.id_for_label }}">
+                                                        Auction gold if not redeemed by expiry
+                                                    </label>
+                                                    <div class="form-text text-muted">{{ form.auction_on_expiry.help_text }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Dates and Branch Section -->
+                        <div class="card mb-4">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">Dates & Branch</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        {{ form.start_date|as_crispy_field }}
+                                    </div>
+                                    <div class="col-md-4">
+                                        {{ form.end_date|as_crispy_field }}
+                                    </div>
+                                    <div class="col-md-4">
+                                        {{ form.branch|as_crispy_field }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end">
+                            <a href="{% if form.instance.pk %}{% url 'scheme_detail' form.instance.pk %}{% else %}{% url 'scheme_list' %}{% endif %}" class="btn btn-secondary me-2">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                            <button type="submit" id="submitButton" class="btn btn-primary">
+                                <i class="fas fa-save"></i> {% if form.instance.pk %}Update{% else %}Create{% endif %} Scheme
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Help Section -->
+        <div class="col-lg-3">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Help
+                </div>
+                <div class="card-body">
+                    <h5>Tiered Interest Rate System</h5>
+                    <p class="small text-muted">This scheme uses a three-period loan structure with different interest rates based on when the customer repays the loan:</p>
+                    <ul class="help-list">
+                        <li><strong>Early Period:</strong> If a customer repays within this initial period, they benefit from a reduced interest rate.</li>
+                        <li><strong>Standard Period:</strong> If repayment occurs during this middle period, the regular interest rate applies.</li>
+                        <li><strong>Late Period:</strong> If the customer delays beyond the standard period, a higher interest rate is applied.</li>
+                    </ul>
+                    
+                    <h5 class="mt-4">Interest Rate Details</h5>
+                    <ul class="help-list">
+                        <li><strong>Early Rate:</strong> Lower rate to incentivize quick repayment</li>
+                        <li><strong>Standard Rate:</strong> Normal interest rate for the scheme</li>
+                        <li><strong>Late Rate:</strong> Higher rate that applies to delayed repayments</li>
+                    </ul>
+                    
+                    <h5 class="mt-4">Setting Periods</h5>
+                    <ul class="help-list">
+                        <li><strong>Total Loan Duration:</strong> Must exceed the sum of early and standard periods</li>
+                        <li><strong>Minimum Duration:</strong> The minimum time a loan must remain active</li>
+                        <li><strong>Period Balance:</strong> Adjust periods to encourage timely repayment</li>
+                    </ul>
+                    
+                    <div class="alert alert-info mt-4">
+                        <i class="fas fa-lightbulb me-2"></i>
+                        <strong>Tip:</strong> Set the early period interest rate lower to incentivize quick repayment, and the late period rate higher to discourage defaults.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM loaded, initializing gold scheme functionality');
+        
+        // Always show the Gold Loan Details section since we're always creating gold schemes
+        const goldSchemeSection = document.getElementById('gold-scheme-section');
+        if (goldSchemeSection) {
+            goldSchemeSection.style.display = 'block';
+        }
+        
+        // Set today's date for start_date and end_date if empty
+        const today = new Date();
+        const nextYear = new Date(today);
+        nextYear.setFullYear(nextYear.getFullYear() + 1);
+        
+        const startDate = document.getElementById('id_start_date');
+        const endDate = document.getElementById('id_end_date');
+        
+        if (startDate && !startDate.value) {
+            startDate.value = today.toISOString().split('T')[0];
+        }
+        
+        if (endDate && !endDate.value) {
+            endDate.value = nextYear.toISOString().split('T')[0];
+        }
+        
+        // Set default values for minimum and maximum amounts
+        const minimumAmount = document.getElementById('id_minimum_amount');
+        const maximumAmount = document.getElementById('id_maximum_amount');
+        
+        if (minimumAmount && !minimumAmount.value) {
+            minimumAmount.value = '1000.00';
+        }
+        
+        if (maximumAmount && !maximumAmount.value) {
+            maximumAmount.value = '1000000.00';
+        }
+
+        // Three-period loan time validation and feedback
+        function updateLatePeriodInfo() {
+            const earlyPeriod = parseInt(document.getElementById('id_early_period_months').value) || 0;
+            const standardPeriod = parseInt(document.getElementById('id_standard_period_months').value) || 0;
+            const expiryPeriod = parseInt(document.getElementById('id_expiry_period').value) || 0;
+            
+            const latePeriod = expiryPeriod - (earlyPeriod + standardPeriod);
+            const latePeriodInfo = document.getElementById('late-period-info');
+            
+            if (latePeriodInfo) {
+                if (latePeriod <= 0) {
+                    latePeriodInfo.innerHTML = `<div class="alert alert-danger">
+                        <strong>Warning:</strong> The late period calculation is invalid. 
+                        Total loan duration (${expiryPeriod} months) must be greater than 
+                        early period (${earlyPeriod} months) + standard period (${standardPeriod} months).
+                    </div>`;
+                } else {
+                    latePeriodInfo.innerHTML = `<div class="alert alert-info">
+                        <strong>Late Period:</strong> ${latePeriod} months (automatically calculated as 
+                        total loan duration minus early and standard periods)
+                    </div>`;
+                }
+            }
+        }
+
+        // Update early period days display
+        function updateEarlyPeriodDays() {
+            const earlyPeriodMonths = parseInt(document.getElementById('id_early_period_months').value) || 0;
+            const earlyPeriodDays = earlyPeriodMonths * 30; // Approximation: 1 month = 30 days
+            const earlyPeriodDaysElement = document.getElementById('early-period-days').querySelector('span');
+            if (earlyPeriodDaysElement) {
+                earlyPeriodDaysElement.textContent = earlyPeriodDays;
+            }
+        }
+
+        // Update standard period days display
+        function updateStandardPeriodDays() {
+            const standardPeriodMonths = parseInt(document.getElementById('id_standard_period_months').value) || 0;
+            const standardPeriodDays = standardPeriodMonths * 30; // Approximation: 1 month = 30 days
+            const standardPeriodDaysElement = document.getElementById('standard-period-days').querySelector('span');
+            if (standardPeriodDaysElement) {
+                standardPeriodDaysElement.textContent = standardPeriodDays;
+            }
+        }
+
+        // Update late period days display
+        function updateLatePeriodDays() {
+            const earlyPeriodMonths = parseInt(document.getElementById('id_early_period_months').value) || 0;
+            const standardPeriodMonths = parseInt(document.getElementById('id_standard_period_months').value) || 0;
+            const expiryPeriodMonths = parseInt(document.getElementById('id_expiry_period').value) || 0;
+            const latePeriodMonths = expiryPeriodMonths - (earlyPeriodMonths + standardPeriodMonths);
+            const latePeriodDays = latePeriodMonths * 30; // Approximation: 1 month = 30 days
+            const latePeriodDaysElement = document.getElementById('late-period-days').querySelector('span');
+            if (latePeriodDaysElement) {
+                latePeriodDaysElement.textContent = latePeriodDays > 0 ? latePeriodDays : 0;
+            }
+        }
+
+        // Update total period days display
+        function updateTotalPeriodDays() {
+            const expiryPeriodMonths = parseInt(document.getElementById('id_expiry_period').value) || 0;
+            const totalPeriodDays = expiryPeriodMonths * 30; // Approximation: 1 month = 30 days
+            const totalPeriodDaysElement = document.getElementById('total-period-days').querySelector('span');
+            if (totalPeriodDaysElement) {
+                totalPeriodDaysElement.textContent = totalPeriodDays;
+            }
+        }
+        
+        // Attach event listeners to period fields
+        const periodFields = [
+            'id_early_period_months',
+            'id_standard_period_months',
+            'id_expiry_period'
+        ];
+        
+        periodFields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (field) {
+                field.addEventListener('input', updateLatePeriodInfo);
+                field.addEventListener('change', updateLatePeriodInfo);
+                if (fieldId === 'id_early_period_months') {
+                    field.addEventListener('input', updateEarlyPeriodDays);
+                    field.addEventListener('change', updateEarlyPeriodDays);
+                }
+                if (fieldId === 'id_standard_period_months') {
+                    field.addEventListener('input', updateStandardPeriodDays);
+                    field.addEventListener('change', updateStandardPeriodDays);
+                }
+                if (fieldId === 'id_expiry_period') {
+                    field.addEventListener('input', updateLatePeriodDays);
+                    field.addEventListener('change', updateLatePeriodDays);
+                    field.addEventListener('input', updateTotalPeriodDays);
+                    field.addEventListener('change', updateTotalPeriodDays);
+                }
+            }
+        });
+        
+        // Initialize the late period info and early period days on page load
+        updateLatePeriodInfo();
+        updateEarlyPeriodDays();
+        updateStandardPeriodDays();
+        updateLatePeriodDays();
+        updateTotalPeriodDays();
+
+        // Add custom form submission handler with visual feedback
+        const schemeForm = document.getElementById('schemeForm');
+        const submitButton = document.getElementById('submitButton');
+        const statusAlert = document.getElementById('formSubmissionStatus');
+
+        schemeForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Validate periods before submission
+            const earlyPeriod = parseInt(document.getElementById('id_early_period_months').value) || 0;
+            const standardPeriod = parseInt(document.getElementById('id_standard_period_months').value) || 0;
+            const expiryPeriod = parseInt(document.getElementById('id_expiry_period').value) || 0;
+            
+            if (expiryPeriod <= (earlyPeriod + standardPeriod)) {
+                statusAlert.innerHTML = '<strong>Error:</strong> Total loan duration must be greater than early period + standard period.';
+                statusAlert.className = 'alert alert-danger';
+                statusAlert.style.display = 'block';
+                document.getElementById('id_expiry_period').focus();
+                return;
+            }
+            
+            // Show processing status
+            statusAlert.textContent = 'Processing form submission...';
+            statusAlert.className = 'alert alert-info';
+            statusAlert.style.display = 'block';
+            submitButton.disabled = true;
+            
+            // Get the form data
+            const formData = new FormData(schemeForm);
+            
+            // Log form data for debugging
+            console.log('Form data being submitted:');
+            for (let [key, value] of formData.entries()) {
+                console.log(key + ': ' + value);
+            }
+            
+            // Submit the form with fetch API
+            fetch(window.location.href, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                if (response.redirected) {
+                    // If we got redirected, that usually means success
+                    statusAlert.textContent = 'Scheme created successfully! Redirecting...';
+                    statusAlert.className = 'alert alert-success';
+                    window.location.href = response.url;
+                    return null;
+                } else {
+                    // Otherwise, get the response content
+                    return response.text();
+                }
+            })
+            .then(html => {
+                if (html) {
+                    // Check if there are form errors in the HTML
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const errorList = doc.querySelectorAll('.invalid-feedback, .errorlist');
+                    
+                    if (errorList && errorList.length > 0) {
+                        // Collect all error messages
+                        let errorMessages = [];
+                        errorList.forEach(error => {
+                            errorMessages.push(error.textContent.trim());
+                        });
+                        
+                        // Display error messages
+                        statusAlert.innerHTML = '<strong>Please correct the following errors:</strong><ul>' + 
+                            errorMessages.map(msg => `<li>${msg}</li>`).join('') + '</ul>';
+                        statusAlert.className = 'alert alert-danger';
+                        
+                        // Replace the form with the new one that has error messages
+                        document.getElementById('schemeForm').innerHTML = doc.getElementById('schemeForm').innerHTML;
+                        
+                        // Re-initialize the period validation
+                        periodFields.forEach(fieldId => {
+                            const field = document.getElementById(fieldId);
+                            if (field) {
+                                field.addEventListener('input', updateLatePeriodInfo);
+                                field.addEventListener('change', updateLatePeriodInfo);
+                                if (fieldId === 'id_early_period_months') {
+                                    field.addEventListener('input', updateEarlyPeriodDays);
+                                    field.addEventListener('change', updateEarlyPeriodDays);
+                                }
+                                if (fieldId === 'id_standard_period_months') {
+                                    field.addEventListener('input', updateStandardPeriodDays);
+                                    field.addEventListener('change', updateStandardPeriodDays);
+                                }
+                                if (fieldId === 'id_expiry_period') {
+                                    field.addEventListener('input', updateLatePeriodDays);
+                                    field.addEventListener('change', updateLatePeriodDays);
+                                    field.addEventListener('input', updateTotalPeriodDays);
+                                    field.addEventListener('change', updateTotalPeriodDays);
+                                }
+                            }
+                        });
+                        updateLatePeriodInfo();
+                        updateEarlyPeriodDays();
+                        updateStandardPeriodDays();
+                        updateLatePeriodDays();
+                        updateTotalPeriodDays();
+                    } else {
+                        // No specific errors found, but form wasn't redirected
+                        statusAlert.textContent = 'An unexpected error occurred. Please try again.';
+                        statusAlert.className = 'alert alert-warning';
+                    }
+                }
+                submitButton.disabled = false;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                statusAlert.textContent = 'An error occurred while submitting the form: ' + error.message;
+                statusAlert.className = 'alert alert-danger';
+                submitButton.disabled = false;
+            });
+        });
+    });
+</script>
+{% endblock %}
+
+{% block styles %}
+<style>
+    .help-list {
+        padding-left: 1.25rem;
+    }
+    .help-list li {
+        margin-bottom: 0.5rem;
+    }
+</style>
+{% endblock %}

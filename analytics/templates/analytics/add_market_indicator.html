@@ -1,0 +1,214 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+
+{% block title %}Add Market Indicator{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0 text-gray-800">Add Market Indicator</h1>
+                <a href="{% url 'analytics:market_indicators' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Market Indicators
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Market Indicator Details</h6>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="indicator_type" class="form-label">Indicator Type</label>
+                                    <select class="form-control" id="indicator_type" name="indicator_type" required>
+                                        <option value="">Select Indicator Type</option>
+                                        <option value="gold_price">Gold Price (₹/gram)</option>
+                                        <option value="silver_price">Silver Price (₹/gram)</option>
+                                        <option value="inflation_rate">Inflation Rate (%)</option>
+                                        <option value="interest_rate">Interest Rate (%)</option>
+                                        <option value="currency_rate">Currency Exchange Rate</option>
+                                        <option value="market_volatility">Market Volatility Index</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="value" class="form-label">Value</label>
+                                    <input type="number" 
+                                           class="form-control" 
+                                           id="value" 
+                                           name="value" 
+                                           step="0.01" 
+                                           placeholder="Enter indicator value"
+                                           required>
+                                    <small class="form-text text-muted">Enter the numeric value for the indicator</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="date" class="form-label">Date</label>
+                                    <input type="date" 
+                                           class="form-control" 
+                                           id="date" 
+                                           name="date" 
+                                           value="{{ today|date:'Y-m-d' }}"
+                                           required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="source" class="form-label">Source</label>
+                                    <input type="text" 
+                                           class="form-control" 
+                                           id="source" 
+                                           name="source" 
+                                           placeholder="e.g., RBI, MCX, NSE, Manual Entry"
+                                           maxlength="100">
+                                    <small class="form-text text-muted">Optional: Source of the data</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="notes" class="form-label">Notes</label>
+                            <textarea class="form-control" 
+                                      id="notes" 
+                                      name="notes" 
+                                      rows="3" 
+                                      placeholder="Optional notes about this indicator..."></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Market Indicator
+                            </button>
+                            <a href="{% url 'analytics:market_indicators' %}" class="btn btn-secondary ml-2">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Quick Add Common Indicators</h6>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">Use these buttons to quickly add today's common market indicators:</p>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-outline-warning btn-sm" onclick="setIndicator('gold_price', 'Gold Price')">
+                            <i class="fas fa-coins"></i> Add Gold Price
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setIndicator('silver_price', 'Silver Price')">
+                            <i class="fas fa-medal"></i> Add Silver Price
+                        </button>
+                        <button type="button" class="btn btn-outline-info btn-sm" onclick="setIndicator('inflation_rate', 'Inflation Rate')">
+                            <i class="fas fa-chart-line"></i> Add Inflation Rate
+                        </button>
+                        <button type="button" class="btn btn-outline-success btn-sm" onclick="setIndicator('interest_rate', 'Interest Rate')">
+                            <i class="fas fa-percentage"></i> Add Interest Rate
+                        </button>
+                    </div>
+
+                    <hr>
+                    
+                    <h6 class="font-weight-bold text-primary">Sample Values</h6>
+                    <small class="text-muted">
+                        <strong>Gold Price:</strong> ₹6,200-6,800/gram<br>
+                        <strong>Silver Price:</strong> ₹75-85/gram<br>
+                        <strong>Inflation Rate:</strong> 4-7%<br>
+                        <strong>Interest Rate:</strong> 6-8%
+                    </small>
+                </div>
+            </div>
+
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">How Market Indicators Affect Risk</h6>
+                </div>
+                <div class="card-body">
+                    <div class="text-muted small">
+                        <p><strong>Gold Price:</strong> Higher prices may indicate market volatility and affect loan-to-value ratios.</p>
+                        <p><strong>Inflation Rate:</strong> High inflation (>6%) increases economic risk scoring.</p>
+                        <p><strong>Interest Rates:</strong> Changes affect customer borrowing capacity and repayment ability.</p>
+                        <p><strong>Market Volatility:</strong> Higher volatility increases overall portfolio risk assessment.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function setIndicator(type, name) {
+    document.getElementById('indicator_type').value = type;
+    
+    // Set today's date if not already set
+    const dateInput = document.getElementById('date');
+    if (!dateInput.value) {
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.value = today;
+    }
+    
+    // Set focus to value input
+    document.getElementById('value').focus();
+    
+    // Set source as Manual Entry if empty
+    const sourceInput = document.getElementById('source');
+    if (!sourceInput.value) {
+        sourceInput.value = 'Manual Entry';
+    }
+}
+
+// Set today's date as default when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    const dateInput = document.getElementById('date');
+    if (!dateInput.value) {
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.value = today;
+    }
+});
+
+// Form validation
+document.querySelector('form').addEventListener('submit', function(e) {
+    const value = document.getElementById('value').value;
+    const type = document.getElementById('indicator_type').value;
+    
+    if (!value || !type) {
+        e.preventDefault();
+        alert('Please fill in both Indicator Type and Value fields.');
+        return;
+    }
+    
+    // Basic validation for different indicator types
+    if (type === 'gold_price' && (parseFloat(value) < 1000 || parseFloat(value) > 20000)) {
+        if (!confirm('Gold price seems unusual (₹' + value + '/gram). Are you sure you want to continue?')) {
+            e.preventDefault();
+        }
+    }
+    
+    if ((type === 'inflation_rate' || type === 'interest_rate') && (parseFloat(value) < 0 || parseFloat(value) > 50)) {
+        if (!confirm('Rate value seems unusual (' + value + '%). Are you sure you want to continue?')) {
+            e.preventDefault();
+        }
+    }
+});
+</script>
+{% endblock %}

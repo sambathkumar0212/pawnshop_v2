@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+
+{% block title %}Branches - Pawnshop Management System{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2"><i class="fas fa-store-alt me-2"></i>Branch Management</h1>
+        {% if perms.branches.add_branch %}
+        <a href="{% url 'branch_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus-circle me-2"></i>Add Branch
+        </a>
+        {% endif %}
+    </div>
+
+    {% if branches %}
+    <div class="card shadow">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Name</th>
+                            <th>Location</th>
+                            <th>Manager</th>
+                            <th>Contact</th>
+                            <th>Staff</th>
+                            <th>Items</th>
+                            <th>Loans</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for branch in branches %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'branch_detail' branch.pk %}" class="text-decoration-none fw-bold">{{ branch.name }}</a>
+                            </td>
+                            <td>{{ branch.city }}, {{ branch.state }}</td>
+                            <td>
+                                {% if branch.manager %}
+                                    <span>{{ branch.manager.get_full_name }}</span>
+                                {% else %}
+                                    <span class="text-muted">Unassigned</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ branch.phone }}</td>
+                            <td>{{ branch.staff_count }}</td>
+                            <td>{{ branch.inventory_count }}</td>
+                            <td>{{ branch.active_loans }}</td>
+                            <td>
+                                {% if branch.is_active %}
+                                    <span class="badge bg-success">Active</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group">
+                                    <a href="{% url 'branch_detail' branch.pk %}" class="btn btn-sm btn-outline-secondary" data-bs-toggle="tooltip" title="View">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if perms.branches.change_branch %}
+                                    <a href="{% url 'branch_update' branch.pk %}" class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% endif %}
+                                    {% if perms.branches.delete_branch %}
+                                    <a href="{% url 'branch_delete' branch.pk %}" class="btn btn-sm btn-outline-danger" data-bs-toggle="tooltip" title="Delete">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>No branches found. 
+        {% if perms.branches.add_branch %}
+        <a href="{% url 'branch_create' %}" class="alert-link">Create your first branch</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        });
+    });
+</script>
+{% endblock %}

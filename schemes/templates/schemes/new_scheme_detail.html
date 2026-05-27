@@ -1,0 +1,264 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ scheme.name }} - Scheme Details{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mt-4 mb-0">Scheme Details</h1>
+        <div class="btn-group">
+            <a href="{% url 'new_scheme_list' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Schemes
+            </a>
+            {% if can_edit %}
+            <a href="{% url 'new_scheme_update' scheme.id %}" class="btn btn-primary">
+                <i class="fas fa-edit me-2"></i>Edit
+            </a>
+            {% endif %}
+            {% if can_delete %}
+            <a href="{% url 'new_scheme_delete' scheme.id %}" class="btn btn-danger">
+                <i class="fas fa-trash me-2"></i>Delete
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Alert Messages -->
+    {% if messages %}
+    <div class="mb-4">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <!-- Main Information -->
+        <div class="col-lg-8">
+            <!-- Basic Information Card -->
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center bg-primary text-white">
+                    <div>
+                        <i class="fas fa-info-circle me-1"></i>
+                        Basic Information
+                    </div>
+                    <div>
+                        {% if scheme.status == 'active' %}
+                        <span class="badge bg-success">Active</span>
+                        {% elif scheme.status == 'upcoming' %}
+                        <span class="badge bg-info">Upcoming</span>
+                        {% elif scheme.status == 'expired' %}
+                        <span class="badge bg-danger">Expired</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Inactive</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    <h2 class="card-title">{{ scheme.name }}</h2>
+                    <p class="card-text">{{ scheme.description }}</p>
+                    
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <table class="table table-sm">
+                                <tr>
+                                    <th class="text-nowrap">Scheme Type:</th>
+                                    <td>
+                                        {% if scheme.is_gold_scheme %}
+                                        <span class="badge bg-warning text-dark">Gold Loan</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Standard</span>
+                                        {% endif %}
+                                        
+                                        {% if scheme.is_default %}
+                                        <span class="badge bg-info ms-1">Default</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th class="text-nowrap">Branch:</th>
+                                    <td>{% if scheme.branch %}{{ scheme.branch.name }}{% else %}<span class="badge bg-secondary">Global</span>{% endif %}</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-nowrap">Valid Period:</th>
+                                    <td>{{ scheme.start_date }} to {% if scheme.end_date %}{{ scheme.end_date }}{% else %}Ongoing{% endif %}</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-nowrap">Created By:</th>
+                                    <td>{% if scheme.created_by %}{{ scheme.created_by.get_full_name|default:scheme.created_by.username }}{% else %}System{% endif %}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-sm">
+                                <tr>
+                                    <th class="text-nowrap">Interest Rate:</th>
+                                    <td>
+                                        {% if scheme.is_gold_scheme %}
+                                        {{ scheme.gold_interest_rate }} ₹ per month per ₹100<br>
+                                        <small class="text-muted">({{ scheme.interest_rate }}% annual equivalent)</small>
+                                        {% else %}
+                                        {{ scheme.interest_rate }}% per year
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th class="text-nowrap">Loan Duration:</th>
+                                    <td>
+                                        {% if scheme.is_gold_scheme and scheme.expiry_period %}
+                                        {{ scheme.expiry_period }} months<br>
+                                        <small class="text-muted">({{ scheme.loan_duration }} days)</small>
+                                        {% else %}
+                                        {{ scheme.loan_duration }} days
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th class="text-nowrap">Amount Range:</th>
+                                    <td>₹{{ scheme.minimum_amount|floatformat:0 }} - ₹{{ scheme.maximum_amount|floatformat:0 }}</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-nowrap">Last Updated:</th>
+                                    <td>{{ scheme.updated_at|date:"d M Y, h:i A" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gold Scheme Details Card -->
+            {% if scheme.is_gold_scheme %}
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    <i class="fas fa-coins me-1"></i>
+                    Gold Loan Details
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table">
+                                <tr>
+                                    <th>Processing Fee:</th>
+                                    <td>
+                                        {% if scheme.additional_conditions and scheme.additional_conditions.processing_fee_percentage != None %}
+                                        {{ scheme.additional_conditions.processing_fee_percentage }}% of loan amount
+                                        {% else %}
+                                        <span class="text-muted">Not specified</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Minimum Term:</th>
+                                    <td>
+                                        {% if scheme.minimum_duration %}
+                                        {{ scheme.minimum_duration }} months
+                                        {% else %}
+                                        <span class="text-muted">No minimum</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table">
+                                <tr>
+                                    <th>Special Conditions:</th>
+                                    <td>
+                                        {% if scheme.special_conditions %}
+                                        {{ scheme.special_conditions }}
+                                        {% else %}
+                                        <span class="text-muted">None specified</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Activity Log Card -->
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-secondary text-white">
+                    <i class="fas fa-history me-1"></i>
+                    Activity Log
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for log in audit_logs %}
+                        <div class="list-group-item">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">
+                                    {% if log.action == 'created' %}
+                                    <i class="fas fa-plus-circle text-success me-1"></i>
+                                    {% elif log.action == 'updated' %}
+                                    <i class="fas fa-edit text-primary me-1"></i>
+                                    {% elif log.action == 'deleted' %}
+                                    <i class="fas fa-trash text-danger me-1"></i>
+                                    {% endif %}
+                                    {{ log.action|title }}
+                                </h6>
+                                <small>{{ log.timestamp|date:"d M Y, h:i A" }}</small>
+                            </div>
+                            <p class="mb-1">By: {{ log.user.get_full_name|default:log.user.username }}</p>
+                            {% if log.changes %}
+                            <small class="text-muted">
+                                Changes: 
+                                {% for field, value in log.changes.items %}
+                                <span class="badge bg-light text-dark">{{ field }}</span>
+                                {% endfor %}
+                            </small>
+                            {% endif %}
+                        </div>
+                        {% empty %}
+                        <div class="list-group-item">
+                            <p class="mb-0 text-muted">No activity recorded yet.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="card-footer bg-light">
+                    <small class="text-muted">Created: {{ scheme.created_at|date:"d M Y" }}</small>
+                </div>
+            </div>
+
+            <!-- Usage Stats Card (placeholder) -->
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <i class="fas fa-chart-bar me-1"></i>
+                    Usage Statistics
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-light">
+                        <p class="mb-0">This scheme can be used for creating new gold loans in the loans section.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Auto-hide alerts after 5 seconds
+        setTimeout(function() {
+            const alerts = document.querySelectorAll('.alert-dismissible');
+            alerts.forEach(alert => {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            });
+        }, 5000);
+    });
+</script>
+{% endblock %}

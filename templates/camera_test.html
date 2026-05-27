@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Camera Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        #video { width: 100%; max-width: 640px; border: 2px solid #ccc; }
+        button { padding: 10px 20px; margin: 10px; font-size: 16px; }
+        .error { color: red; font-weight: bold; }
+        .success { color: green; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Camera Test Page</h1>
+    <p>This page tests if camera functionality works on your browser.</p>
+
+    <button id="startCamera">Start Camera</button>
+    <button id="stopCamera" disabled>Stop Camera</button>
+
+    <div id="status">Click "Start Camera" to test camera access</div>
+
+    <br><br>
+    <video id="video" autoplay playsinline muted style="display: none;"></video>
+
+    <script>
+        const video = document.getElementById('video');
+        const startBtn = document.getElementById('startCamera');
+        const stopBtn = document.getElementById('stopCamera');
+        const status = document.getElementById('status');
+
+        let stream = null;
+
+        function setStatus(message, className = '') {
+            status.textContent = message;
+            status.className = className;
+        }
+
+        async function getCameraStream() {
+            const constraintsToTry = [
+                {
+                    video: {
+                        facingMode: { ideal: 'environment' },
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
+                },
+                {
+                    video: {
+                        facingMode: { ideal: 'user' },
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
+                },
+                {
+                    video: true,
+                    audio: false
+                }
+            ];
+
+            let lastError = null;
+
+            for (const constraints of constraintsToTry) {
+                try {
+                    return await navigator.mediaDevices.getUserMedia(constraints);
+                } catch (error) {
+                    lastError = error;
+                    console.warn('Camera constraints failed:', constraints, error);
+                }
+            }
+
+            throw lastError || new Error('Unable to start any available camera');
+        }
+
+        startBtn.addEventListener('click', async function() {
+            try {
+                setStatus('Requesting camera access...');
+
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('Camera API not supported in this browser');
+                }
+
+                stream = await getCameraStream();
+                video.srcObject = stream;
+                video.style.display = 'block';
+                video.muted = true;
+                await video.play();
+
+                setStatus('Camera is working! You should see video above.', 'success');
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+            } catch (error) {
+                console.error('Camera error:', error);
+                setStatus(`Camera error: ${error.message}`, 'error');
+            }
+        });
+
+        stopBtn.addEventListener('click', function() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+                video.style.display = 'none';
+                stream = null;
+            }
+
+            setStatus('Camera stopped');
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+        });
+    </script>
+</body>
+</html>

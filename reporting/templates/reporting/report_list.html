@@ -1,0 +1,317 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Reports Management{% endblock %}
+
+{% block reports_active %}active{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h2>Reports Management</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+                    <li class="breadcrumb-item active">Reports</li>
+                </ol>
+            </nav>
+        </div>
+        <div class="col-md-6 text-end">
+            <a href="{% url 'report_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus-circle"></i> New Report
+            </a>
+        </div>
+    </div>
+
+    <!-- Report Categories -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex flex-wrap justify-content-between">
+                        <div class="card-hover p-3 text-center" onclick="window.location='{% url 'financial_report' %}'">
+                            <i class="fas fa-chart-line fa-3x mb-2 text-primary"></i>
+                            <h5>Financial Reports</h5>
+                        </div>
+                        <div class="card-hover p-3 text-center" onclick="window.location='{% url 'inventory_report' %}'">
+                            <i class="fas fa-box-open fa-3x mb-2 text-success"></i>
+                            <h5>Inventory Reports</h5>
+                        </div>
+                        <div class="card-hover p-3 text-center" onclick="window.location='{% url 'loan_report' %}'">
+                            <i class="fas fa-hand-holding-usd fa-3x mb-2 text-warning"></i>
+                            <h5>Loan Reports</h5>
+                        </div>
+                        <div class="card-hover p-3 text-center" onclick="window.location='{% url 'customer_report' %}'">
+                            <i class="fas fa-users fa-3x mb-2 text-info"></i>
+                            <h5>Customer Reports</h5>
+                        </div>
+                        <div class="card-hover p-3 text-center" onclick="window.location='{% url 'operational_report' %}'">
+                            <i class="fas fa-cogs fa-3x mb-2 text-secondary"></i>
+                            <h5>Operational Reports</h5>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label for="report_type" class="form-label">Report Type</label>
+                    <select name="report_type" id="report_type" class="form-select">
+                        <option value="">All Types</option>
+                        <option value="financial" {% if selected_type == 'financial' %}selected{% endif %}>Financial</option>
+                        <option value="inventory" {% if selected_type == 'inventory' %}selected{% endif %}>Inventory</option>
+                        <option value="loan" {% if selected_type == 'loan' %}selected{% endif %}>Loan</option>
+                        <option value="customer" {% if selected_type == 'customer' %}selected{% endif %}>Customer</option>
+                        <option value="operational" {% if selected_type == 'operational' %}selected{% endif %}>Operational</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="date_range" class="form-label">Date Range</label>
+                    <select name="date_range" id="date_range" class="form-select">
+                        <option value="">All Time</option>
+                        <option value="today" {% if selected_date_range == 'today' %}selected{% endif %}>Today</option>
+                        <option value="this_week" {% if selected_date_range == 'this_week' %}selected{% endif %}>This Week</option>
+                        <option value="this_month" {% if selected_date_range == 'this_month' %}selected{% endif %}>This Month</option>
+                        <option value="this_year" {% if selected_date_range == 'this_year' %}selected{% endif %}>This Year</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="search" class="form-label">Search</label>
+                    <input type="text" name="search" id="search" class="form-control" placeholder="Report name" value="{{ search_query }}">
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-filter"></i> Filter
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Recent Reports -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5><i class="fas fa-clock"></i> Recent Reports</h5>
+        </div>
+        <div class="card-body">
+            {% if reports %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Report Name</th>
+                                <th>Type</th>
+                                <th>Created</th>
+                                <th>Created By</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for report in reports %}
+                                <tr>
+                                    <td>{{ report.name }}</td>
+                                    <td>
+                                        {% if report.report_type == 'financial' %}
+                                            <span class="badge bg-primary">Financial</span>
+                                        {% elif report.report_type == 'inventory' %}
+                                            <span class="badge bg-success">Inventory</span>
+                                        {% elif report.report_type == 'loan' %}
+                                            <span class="badge bg-warning">Loan</span>
+                                        {% elif report.report_type == 'customer' %}
+                                            <span class="badge bg-info">Customer</span>
+                                        {% elif report.report_type == 'operational' %}
+                                            <span class="badge bg-secondary">Operational</span>
+                                        {% else %}
+                                            <span class="badge bg-dark">{{ report.report_type|title }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ report.created_at|date:"M d, Y H:i" }}</td>
+                                    <td>{{ report.created_by.username }}</td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{% url 'report_detail' report.id %}" class="btn btn-outline-primary" title="View">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{% url 'report_download' report.id %}" class="btn btn-outline-success" title="Download">
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                            <a href="{% url 'report_delete' report.id %}" class="btn btn-outline-danger" title="Delete">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                {% if is_paginated %}
+                <nav aria-label="Page navigation" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_type %}&report_type={{ selected_type }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}" aria-label="First">
+                                    <span aria-hidden="true">&laquo;&laquo;</span>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_type %}&report_type={{ selected_type }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#" aria-label="First">
+                                    <span aria-hidden="true">&laquo;&laquo;</span>
+                                </a>
+                            </li>
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                                <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_type %}&report_type={{ selected_type }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}">{{ num }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_type %}&report_type={{ selected_type }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_type %}&report_type={{ selected_type }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}" aria-label="Last">
+                                    <span aria-hidden="true">&raquo;&raquo;</span>
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#" aria-label="Last">
+                                    <span aria-hidden="true">&raquo;&raquo;</span>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> No reports found matching your criteria.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Generate New Report -->
+    <div class="card">
+        <div class="card-header">
+            <h5><i class="fas fa-file-alt"></i> Generate New Report</h5>
+        </div>
+        <div class="card-body">
+            <form action="{% url 'report_generate' %}" method="POST" class="row g-3">
+                {% csrf_token %}
+                <div class="col-md-4">
+                    <label for="new_report_type" class="form-label">Report Type</label>
+                    <select name="report_type" id="new_report_type" class="form-select" required>
+                        <option value="">Select Report Type</option>
+                        <option value="financial">Financial Report</option>
+                        <option value="inventory">Inventory Report</option>
+                        <option value="loan">Loan Report</option>
+                        <option value="customer">Customer Report</option>
+                        <option value="operational">Operational Report</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="report_period" class="form-label">Period</label>
+                    <select name="period" id="report_period" class="form-select" required>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly" selected>Monthly</option>
+                        <option value="quarterly">Quarterly</option>
+                        <option value="yearly">Yearly</option>
+                        <option value="custom">Custom Range</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="report_format" class="form-label">Format</label>
+                    <select name="format" id="report_format" class="form-select" required>
+                        <option value="pdf">PDF</option>
+                        <option value="excel">Excel</option>
+                        <option value="csv">CSV</option>
+                    </select>
+                </div>
+                <div class="col-md-6 date-range d-none">
+                    <label for="start_date" class="form-label">Start Date</label>
+                    <input type="date" name="start_date" id="start_date" class="form-control">
+                </div>
+                <div class="col-md-6 date-range d-none">
+                    <label for="end_date" class="form-label">End Date</label>
+                    <input type="date" name="end_date" id="end_date" class="form-control">
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-file-download"></i> Generate Report
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    $(document).ready(function() {
+        // Show/hide date range fields based on period selection
+        $('#report_period').change(function() {
+            if ($(this).val() === 'custom') {
+                $('.date-range').removeClass('d-none');
+            } else {
+                $('.date-range').addClass('d-none');
+            }
+        });
+
+        // Auto-submit filter form when select changes
+        $('#report_type, #date_range').change(function() {
+            $(this).closest('form').submit();
+        });
+        
+        // Add hover effect for report category cards
+        $('.card-hover').css('cursor', 'pointer');
+        $('.card-hover').hover(
+            function() {
+                $(this).css('background-color', '#f8f9fa');
+                $(this).css('transform', 'translateY(-5px)');
+                $(this).css('transition', 'all 0.3s ease');
+            },
+            function() {
+                $(this).css('background-color', '');
+                $(this).css('transform', '');
+                $(this).css('transition', 'all 0.3s ease');
+            }
+        );
+    });
+</script>
+{% endblock %}

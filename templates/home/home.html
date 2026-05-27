@@ -1,0 +1,678 @@
+{% extends 'base.html' %}
+
+{% block title %}Home - Pawnshop Management System{% endblock %}
+
+{% block dashboard_active %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stats-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+        height: 100%;
+    }
+    
+    .stats-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin: 0.5rem 0;
+    }
+    
+    .stat-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .stat-trend {
+        font-size: 0.8rem;
+        margin-top: 0.5rem;
+    }
+    
+    .quick-action-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+        border: none;
+        height: 100%;
+    }
+    
+    .quick-action-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        text-decoration: none;
+    }
+    
+    .action-icon {
+        font-size: 2.8rem;
+        margin-bottom: 1rem;
+        display: block;
+    }
+    
+    .module-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 1.5rem; /* Adjusted margin */
+    }
+    
+    .module-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+        border: none;
+        text-align: center;
+    }
+    
+    .module-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    
+    .module-icon {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        color: white;
+        height: 60px;
+        width: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        margin: 0 auto 1rem;
+    }
+    
+    .recent-activity {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    
+    .activity-item {
+        display: flex;
+        align-items: center;
+        padding: 0.8rem 0;
+        border-bottom: 1px solid #f1f3f4;
+    }
+    
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+    
+    .activity-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        font-size: 1.2rem;
+    }
+    
+    .welcome-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: black;
+        border-radius: 15px;
+        padding: 1.5rem; /* Reduced padding */
+        margin-bottom: 1.5rem; /* Reduced margin */
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    }
+    
+    .section-divider {
+        height: 2px;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        border: none;
+        margin: 1.5rem 0; /* Adjusted margin */
+        border-radius: 1px;
+    }
+    
+    /* Color variations for stats cards */
+    .stats-loans { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+    .stats-sales { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+    .stats-inventory { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+    .stats-customers { background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); color: #333; }
+    
+    /* Module color schemes */
+    .bg-loans { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+    .bg-customers { background: linear-gradient(135deg, #fa709a, #fee140); }
+    .bg-inventory { background: linear-gradient(135deg, #ffecd2, #fcb69f); }
+    .bg-sales { background: linear-gradient(135deg, #a8edea, #fed6e3); }
+    .bg-gst { background: linear-gradient(135deg, #d299c2, #fef9d7); }
+    .bg-schemes { background: linear-gradient(135deg, #89f7fe, #66a6ff); }
+    .bg-reports { background: linear-gradient(135deg, #fdbb2d, #22c1c3); }
+    .bg-analytics { background: linear-gradient(135deg, #667eea, #764ba2); }
+    
+    /* Chart containers */
+    .chart-container {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        margin-bottom: 1.5rem; /* Reduced margin */
+        min-height: 350px; /* Adjusted to a minimum height */
+        height: 100%; /* Ensure it takes full height of parent column */
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .chart-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="row mb-3">
+    <!-- Quick Actions -->
+    <div class="col-lg-12 mb-3">
+        <h4 class="mb-3"><i class="fas fa-bolt me-2"></i>Quick Actions</h4>
+        <div class="row">
+            <div class="col-md-3 col-6 mb-3">
+                <a href="{% url 'loan_create' %}" class="quick-action-card text-decoration-none">
+                    <i class="fas fa-plus-circle action-icon text-primary"></i>
+                    <h6 class="text-dark mb-0">New Loan</h6>
+                </a>
+            </div>
+            <div class="col-md-3 col-6 mb-3">
+                <a href="{% url 'sale_create' %}" class="quick-action-card text-decoration-none">
+                    <i class="fas fa-shopping-cart action-icon text-success"></i>
+                    <h6 class="text-dark mb-0">New Sale</h6>
+                </a>
+            </div>
+            <div class="col-md-3 col-6 mb-3">
+                <a href="{% url 'customer_create' %}" class="quick-action-card text-decoration-none">
+                    <i class="fas fa-user-plus action-icon text-info"></i>
+                    <h6 class="text-dark mb-0">Add Customer</h6>
+                </a>
+            </div>
+            <div class="col-md-3 col-6 mb-3">
+                <a href="{% url 'item_create' %}" class="quick-action-card text-decoration-none">
+                    <i class="fas fa-box-open action-icon text-warning"></i>
+                    <h6 class="text-dark mb-0">Add Inventory</h6>
+                </a>
+            </div>
+        </div>
+    </div>
+    
+</div>
+
+<!-- Key Performance Indicators -->
+<div class="row mb-3">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="stats-card stats-loans">
+            <div class="stat-label">Active Loans</div>
+            <div class="stat-value">{{ active_loans|default:"0" }}</div>
+            <div class="stat-trend">
+                <i class="fas fa-exclamation-triangle"></i> {{ overdue_loans|default:"0" }} overdue
+                • {{ loans_due_today|default:"0" }} due today
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="stats-card stats-sales">
+            <div class="stat-label">Today's Revenue</div>
+            <div class="stat-value">₹{{ total_sales|default:"0" }}</div>
+            <div class="stat-trend">
+                <i class="fas fa-arrow-up"></i> 3.48% vs yesterday
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="stats-card stats-inventory">
+            <div class="stat-label">Inventory Items</div>
+            <div class="stat-value">{{ total_items|default:"0" }}</div>
+            <div class="stat-trend">
+                {{ available_items|default:"0" }} available • {{ pawned_items|default:"0" }} pawned
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="stats-card stats-customers">
+            <div class="stat-label">Total Customers</div>
+            <div class="stat-value">{{ customer_count|default:"0" }}</div>
+            <div class="stat-trend">
+                <i class="fas fa-user-plus"></i> {{ new_customers_today|default:"0" }} new today
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Analytics Charts Section -->
+<div class="row mb-3">
+    <!-- Loan Status Distribution -->
+    <div class="col-lg-6 col-md-12 mb-3">
+        <div class="chart-container">
+            <div class="chart-title">
+                <i class="fas fa-hand-holding-usd text-primary"></i>
+                Loan Status Distribution
+            </div>
+            <canvas id="loanStatusChart" style="max-height: 300px;"></canvas>
+        </div>
+    </div>
+    
+    <!-- Sales Trend -->
+    <div class="col-lg-6 col-md-12 mb-3">
+        <div class="chart-container">
+            <div class="chart-title">
+                <i class="fas fa-chart-line text-success"></i>
+                Revenue Trend (Last 7 Days)
+            </div>
+            <canvas id="salesTrendChart" style="max-height: 300px;"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-3">
+    <!-- Customer Segments -->
+    <div class="col-lg-6 col-md-12 mb-3">
+        <div class="chart-container">
+            <div class="chart-title">
+                <i class="fas fa-users text-info"></i>
+                Customer Segments
+            </div>
+            <canvas id="customerSegmentChart" style="max-height: 300px;"></canvas>
+        </div>
+    </div>
+    
+    <!-- Profit & Loss Overview -->
+    <div class="col-lg-6 col-md-12 mb-3">
+        <div class="chart-container">
+            <div class="chart-title">
+                <i class="fas fa-chart-bar text-warning"></i>
+                Monthly Profit & Loss
+            </div>
+            <canvas id="profitLossChart" style="max-height: 300px;"></canvas>
+        </div>
+    </div>
+</div>
+
+<hr class="section-divider">
+
+<!-- Core Business Functions -->
+<h4 class="mb-4"><i class="fas fa-cogs me-2"></i>Business Operations</h4>
+<div class="module-grid">
+    <div class="module-card">
+        <div class="module-icon bg-loans">
+            <i class="fas fa-hand-holding-usd"></i>
+        </div>
+        <h5>Loan Management</h5>
+        <p class="text-muted small">Create, track, and manage pawn loans with automated calculations</p>
+        <a href="{% url 'loan_list' %}" class="btn btn-primary btn-sm">Manage Loans</a>
+    </div>
+    
+    <div class="module-card">
+        <div class="module-icon bg-customers">
+            <i class="fas fa-users"></i>
+        </div>
+        <h5>Customer Portal</h5>
+        <p class="text-muted small">Comprehensive customer profiles and transaction history</p>
+        <a href="{% url 'customer_list' %}" class="btn btn-danger btn-sm">Manage Customers</a>
+    </div>
+    
+    <div class="module-card">
+        <div class="module-icon bg-inventory">
+            <i class="fas fa-box-open"></i>
+        </div>
+        <h5>Inventory Control</h5>
+        <p class="text-muted small">Track pawned items, sales inventory, and stock levels</p>
+        <a href="{% url 'item_list' %}" class="btn btn-warning btn-sm">View Inventory</a>
+    </div>
+    
+    <div class="module-card">
+        <div class="module-icon bg-sales">
+            <i class="fas fa-shopping-cart"></i>
+        </div>
+        <h5>Sales & Transactions</h5>
+        <p class="text-muted small">Process sales and track all financial transactions</p>
+        <a href="{% url 'sale_list' %}" class="btn btn-success btn-sm">Manage Sales</a>
+    </div>
+    
+    <div class="module-card">
+        <div class="module-icon bg-gst">
+            <i class="fas fa-receipt"></i>
+        </div>
+        <h5>GST & Compliance</h5>
+        <p class="text-muted small">Automated GST calculations and regulatory compliance</p>
+        <a href="{% url 'gst_dashboard' %}" class="btn btn-purple btn-sm" style="background-color: #9b59b6; color: white;">GST Dashboard</a>
+    </div>
+    
+    <div class="module-card">
+        <div class="module-icon bg-schemes">
+            <i class="fas fa-percentage"></i>
+        </div>
+        <h5>Loan Schemes</h5>
+        <p class="text-muted small">Configure interest rates and loan product offerings</p>
+        <a href="{% url 'scheme_list' %}" class="btn btn-info btn-sm">Configure Schemes</a>
+    </div>
+    
+    <div class="module-card">
+        <div class="module-icon bg-reports">
+            <i class="fas fa-chart-bar"></i>
+        </div>
+        <h5>Reports & Analytics</h5>
+        <p class="text-muted small">Financial reports and business intelligence dashboards</p>
+        <a href="{% url 'report_list' %}" class="btn btn-secondary btn-sm">View Reports</a>
+    </div>
+    
+    <div class="module-card">
+        <div class="module-icon bg-analytics">
+            <i class="fas fa-chart-line"></i>
+        </div>
+        <h5>Advanced Analytics</h5>
+        <p class="text-muted small">Performance metrics and predictive analytics</p>
+        <a href="{% url 'dashboard_list' %}" class="btn btn-primary btn-sm">Analytics Hub</a>
+    </div>
+</div>
+
+<!-- System Administration (Collapsed by default) -->
+<div class="accordion mb-3" id="adminAccordion">
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#adminPanel">
+                <i class="fas fa-cog me-2"></i>System Administration
+            </button>
+        </h2>
+        <div id="adminPanel" class="accordion-collapse collapse" data-bs-parent="#adminAccordion">
+            <div class="accordion-body">
+                <div class="row">
+                    <div class="col-md-3 col-6 mb-3">
+                        <a href="{% url 'branch_list' %}" class="btn btn-outline-dark w-100">
+                            <i class="fas fa-store d-block mb-1"></i>Branches
+                        </a>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <a href="{% url 'user_list' %}" class="btn btn-outline-dark w-100">
+                            <i class="fas fa-user-shield d-block mb-1"></i>Users
+                        </a>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <a href="{% url 'role_list' %}" class="btn btn-outline-dark w-100">
+                            <i class="fas fa-user-tag d-block mb-1"></i>Roles
+                        </a>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <a href="{% url 'biometric_settings' %}" class="btn btn-outline-dark w-100">
+                            <i class="fas fa-fingerprint d-block mb-1"></i>Biometrics
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    $(document).ready(function() {
+        // Update time every second
+        function updateTime() {
+            const now = new Date();
+            const timeOptions = { 
+                hour: 'numeric', 
+                minute: 'numeric', 
+                second: 'numeric', 
+                hour12: true 
+            };
+            $('#current-time').text(now.toLocaleTimeString('en-US', timeOptions));
+        }
+        
+        updateTime();
+        setInterval(updateTime, 1000);
+        
+        // Initialize Charts
+        initializeDashboardCharts();
+        
+        // Add hover effects to cards
+        $('.quick-action-card, .module-card').hover(
+            function() {
+                $(this).css('transform', 'translateY(-3px)');
+            },
+            function() {
+                $(this).css('transform', 'translateY(0)');
+            }
+        );
+    });
+    
+    function initializeDashboardCharts() {
+        // Loan Status Distribution Chart
+        const loanCtx = document.getElementById('loanStatusChart').getContext('2d');
+        new Chart(loanCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Active', 'Repaid', 'Overdue', 'Extended'],
+                datasets: [{
+                    data: [
+                        {{ active_loans|default:"0" }},
+                        {{ active_loans|default:"0"|add:"-15" }}, // Mock repaid data
+                        {{ overdue_loans|default:"0" }},
+                        5 // Mock extended data
+                    ],
+                    backgroundColor: [
+                        'rgba(75, 192, 192, 0.8)',
+                        'rgba(54, 162, 235, 0.8)',
+                        'rgba(255, 99, 132, 0.8)',
+                        'rgba(255, 206, 86, 0.8)'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Sales Trend Chart
+        const salesCtx = document.getElementById('salesTrendChart').getContext('2d');
+        new Chart(salesCtx, {
+            type: 'line',
+            data: {
+                labels: getLast7Days(),
+                datasets: [{
+                    label: 'Daily Revenue',
+                    data: generateMockSalesData(),
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '₹' + value.toLocaleString();
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+        
+        // Customer Segments Chart
+        const customerCtx = document.getElementById('customerSegmentChart').getContext('2d');
+        new Chart(customerCtx, {
+            type: 'bar',
+            data: {
+                labels: ['New Customers', 'Regular Customers', 'Premium Customers'],
+                datasets: [{
+                    label: 'Customer Count',
+                    data: [
+                        {{ new_customers_today|default:"0"|add:"15" }}, // Mock data
+                        {{ customer_count|default:"0"|floatformat:"0"|add:"-20" }}, // Mock data
+                        Math.floor({{ customer_count|default:"0" }} * 0.1) // Mock premium customers
+                    ],
+                    backgroundColor: [
+                        'rgba(54, 162, 235, 0.8)',
+                        'rgba(255, 206, 86, 0.8)',
+                        'rgba(153, 102, 255, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 206, 86, 1)',
+                        'rgba(153, 102, 255, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+        
+        // Profit & Loss Chart
+        const profitCtx = document.getElementById('profitLossChart').getContext('2d');
+        new Chart(profitCtx, {
+            type: 'bar',
+            data: {
+                labels: getLast6Months(),
+                datasets: [{
+                    label: 'Revenue',
+                    data: generateMockRevenueData(),
+                    backgroundColor: 'rgba(75, 192, 192, 0.8)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
+                }, {
+                    label: 'Expenses',
+                    data: generateMockExpenseData(),
+                    backgroundColor: 'rgba(255, 99, 132, 0.8)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1
+                }, {
+                    label: 'Profit',
+                    data: generateMockProfitData(),
+                    backgroundColor: 'rgba(54, 162, 235, 0.8)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '₹' + value.toLocaleString();
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+    
+    // Helper functions for chart data
+    function getLast7Days() {
+        const days = [];
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            days.push(date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }));
+        }
+        return days;
+    }
+    
+    function getLast6Months() {
+        const months = [];
+        for (let i = 5; i >= 0; i--) {
+            const date = new Date();
+            date.setMonth(date.getMonth() - i);
+            months.push(date.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }));
+        }
+        return months;
+    }
+    
+    function generateMockSalesData() {
+        const baseSales = {{ total_sales|default:"5000" }};
+        return Array.from({length: 7}, () => 
+            Math.floor(baseSales * (0.7 + Math.random() * 0.6))
+        );
+    }
+    
+    function generateMockRevenueData() {
+        const baseRevenue = {{ total_sales|default:"50000" }} * 30; // Monthly estimate
+        return Array.from({length: 6}, () => 
+            Math.floor(baseRevenue * (0.8 + Math.random() * 0.4))
+        );
+    }
+    
+    function generateMockExpenseData() {
+        const baseExpense = {{ total_sales|default:"50000" }} * 18; // 60% of revenue
+        return Array.from({length: 6}, () => 
+            Math.floor(baseExpense * (0.9 + Math.random() * 0.2))
+        );
+    }
+    
+    function generateMockProfitData() {
+        const revenue = generateMockRevenueData();
+        const expenses = generateMockExpenseData();
+        return revenue.map((rev, index) => rev - expenses[index]);
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,341 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load analytics_filters %}
+
+{% block title %}Risk Analytics Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0 text-gray-800">Risk Analytics Dashboard</h1>
+                <div class="dropdown">
+                    <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-download fa-sm text-white-50"></i> Export Reports
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{% url 'analytics:export_risk_report' %}">Risk Analysis Report</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Portfolio Health Overview -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Portfolio Health Score</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ portfolio_metrics.portfolio_health_score|floatformat:1 }}%
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-chart-line fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Total Active Loans</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ portfolio_metrics.active_loans|intcomma }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Default Rate</div>
+                            <div class="row no-gutters align-items-center">
+                                <div class="col-auto">
+                                    <div class="h5 mb-0 mr-3 font-weight-bold text-gray-800">{{ portfolio_metrics.default_rate }}%</div>
+                                </div>
+                                <div class="col">
+                                    <div class="progress progress-sm mr-2">
+                                        <div class="progress-bar bg-info" role="progressbar"
+                                             style="width: {{ portfolio_metrics.default_rate }}%" 
+                                             aria-valuenow="{{ portfolio_metrics.default_rate }}" 
+                                             aria-valuemin="0" aria-valuemax="100"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clipboard-list fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Active Alerts</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ recent_alerts|length }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts and Analytics -->
+    <div class="row">
+        <!-- Seasonal Analysis Chart -->
+        <div class="col-xl-8 col-lg-7">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">Seasonal Lending Patterns</h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-area">
+                        <canvas id="seasonalChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Risk Distribution -->
+        <div class="col-xl-4 col-lg-5">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">Risk Distribution</h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-pie pt-4 pb-2">
+                        <canvas id="riskChart"></canvas>
+                    </div>
+                    <div class="mt-4 text-center small">
+                        {% for level, count in portfolio_metrics.risk_distribution.items %}
+                            <span class="mr-2">
+                                <i class="fas fa-circle text-{{ level|default:'secondary' }}"></i> {{ level|title }}: {{ count }}
+                            </span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Alerts and High-Risk Customers -->
+    <div class="row">
+        <!-- Recent Risk Alerts -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Recent Risk Alerts</h6>
+                </div>
+                <div class="card-body">
+                    {% if recent_alerts %}
+                        {% for alert in recent_alerts %}
+                            <div class="alert alert-{% if alert.severity == 'critical' %}danger{% elif alert.severity == 'high' %}warning{% else %}info{% endif %} alert-dismissible fade show" role="alert">
+                                <strong>{{ alert.get_alert_type_display }}</strong> - {{ alert.title }}
+                                <br><small>{{ alert.created_at|timesince }} ago</small>
+                                <a href="{% url 'analytics:risk_alert_detail' alert.pk %}" class="btn btn-sm btn-outline-primary float-end">View</a>
+                            </div>
+                        {% endfor %}
+                        <div class="text-center">
+                            <a href="{% url 'analytics:risk_alerts' %}" class="btn btn-primary">View All Alerts</a>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No active risk alerts.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- High-Risk Customers -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">High-Risk Customers</h6>
+                </div>
+                <div class="card-body">
+                    {% if high_risk_customers %}
+                        <div class="table-responsive">
+                            <table class="table table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Customer</th>
+                                        <th>Risk Score</th>
+                                        <th>Level</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for profile in high_risk_customers %}
+                                        <tr>
+                                            <td>{{ profile.customer.full_name }}</td>
+                                            <td>{{ profile.risk_score|floatformat:1 }}</td>
+                                            <td>
+                                                <span class="badge badge-{% if profile.risk_level == 'very_high' %}danger{% else %}warning{% endif %}">
+                                                    {{ profile.get_risk_level_display }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <a href="{% url 'analytics:customer_risk_analysis' profile.customer.id %}" 
+                                                   class="btn btn-sm btn-outline-primary">Analyze</a>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No high-risk customers identified.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Quick Actions</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <a href="{% url 'analytics:cash_flow_forecast' %}" class="btn btn-info btn-block">
+                                <i class="fas fa-chart-line"></i> Cash Flow Forecast
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{% url 'analytics:portfolio_analysis' %}" class="btn btn-success btn-block">
+                                <i class="fas fa-chart-pie"></i> Portfolio Analysis
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{% url 'analytics:market_indicators' %}" class="btn btn-warning btn-block">
+                                <i class="fas fa-chart-bar"></i> Market Indicators
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <button type="button" class="btn btn-primary btn-block" onclick="bulkRiskCalculation()">
+                                <i class="fas fa-calculator"></i> Bulk Risk Calculation
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript for Charts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Seasonal Analysis Chart
+const seasonalCtx = document.getElementById('seasonalChart').getContext('2d');
+const seasonalChart = new Chart(seasonalCtx, {
+    type: 'line',
+    data: {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+        datasets: [{
+            label: 'Loan Amount (₹)',
+            data: [
+                {% for month in "123456789012"|make_list %}
+                    {% with seasonal_analysis.monthly_patterns|get_item:month as month_data %}
+                        {{ month_data.total_amount|default:0 }}{% if not forloop.last %},{% endif %}
+                    {% endwith %}
+                {% endfor %}
+            ],
+            borderColor: 'rgb(75, 192, 192)',
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            tension: 0.1
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value, index, values) {
+                        return '₹' + value.toLocaleString();
+                    }
+                }
+            }
+        }
+    }
+});
+
+// Risk Distribution Chart
+const riskCtx = document.getElementById('riskChart').getContext('2d');
+const riskChart = new Chart(riskCtx, {
+    type: 'doughnut',
+    data: {
+        labels: [
+            {% for level, count in portfolio_metrics.risk_distribution.items %}
+                '{{ level|title }}'{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ],
+        datasets: [{
+            data: [
+                {% for level, count in portfolio_metrics.risk_distribution.items %}
+                    {{ count }}{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            ],
+            backgroundColor: ['#1cc88a', '#36b9cc', '#f6c23e', '#fd7e14', '#e74a3b'],
+            hoverBackgroundColor: ['#17a673', '#2c9faf', '#dda20a', '#e8650e', '#be2617'],
+            hoverBorderColor: "rgba(234, 236, 244, 1)",
+        }],
+    },
+    options: {
+        maintainAspectRatio: false,
+        tooltips: {
+            backgroundColor: "rgb(255,255,255)",
+            bodyFontColor: "#858796",
+            borderColor: '#dddfeb',
+            borderWidth: 1,
+            xPadding: 15,
+            yPadding: 15,
+            displayColors: false,
+            caretPadding: 10,
+        },
+        legend: {
+            display: false
+        },
+        cutoutPercentage: 80,
+    },
+});
+
+// Bulk Risk Calculation Function
+function bulkRiskCalculation() {
+    // This would open a modal or redirect to bulk calculation page
+    alert('Bulk risk calculation feature - implementation depends on your UI framework');
+}
+</script>
+{% endblock %}

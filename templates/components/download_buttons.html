@@ -1,0 +1,97 @@
+{% load static %}
+
+{% if download_enabled and available_download_formats %}
+<div class="download-section mb-3">
+    <div class="btn-group" role="group" aria-label="Download options">
+        <button type="button" class="btn btn-outline-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="fas fa-download"></i> Download Data
+        </button>
+        <ul class="dropdown-menu">
+            <li><h6 class="dropdown-header">Export Formats</h6></li>
+            {% for format in available_download_formats %}
+                {% if format.available %}
+                    <li>
+                        <a class="dropdown-item download-link" href="?download={{ format.key }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.filter %}&filter={{ request.GET.filter }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}">
+                            <i class="{{ format.icon }} text-{{ format.key|default:'primary' }}"></i>
+                            {{ format.name }}
+                            {% if format.key == 'csv' %}
+                                <small class="text-muted">(Excel compatible)</small>
+                            {% elif format.key == 'excel' %}
+                                <small class="text-muted">(Formatted spreadsheet)</small>
+                            {% elif format.key == 'pdf' %}
+                                <small class="text-muted">(Print ready)</small>
+                            {% elif format.key == 'json' %}
+                                <small class="text-muted">(API format)</small>
+                            {% endif %}
+                        </a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+            <li><hr class="dropdown-divider"></li>
+            <li>
+                <span class="dropdown-item-text">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle"></i>
+                        Downloads current filtered results
+                    </small>
+                </span>
+            </li>
+        </ul>
+    </div>
+    
+    <!-- Quick download buttons for common formats -->
+    <div class="btn-group ms-2" role="group" aria-label="Quick download">
+        {% for format in available_download_formats %}
+            {% if format.available and format.key in 'csv,excel' %}
+                <a href="?download={{ format.key }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.filter %}&filter={{ request.GET.filter }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}" 
+                   class="btn btn-sm btn-outline-secondary download-link" 
+                   title="Download as {{ format.name }}">
+                    <i class="{{ format.icon }}"></i>
+                </a>
+            {% endif %}
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+.download-section .dropdown-menu {
+    min-width: 250px;
+}
+
+.download-link:hover {
+    background-color: #f8f9fa;
+}
+
+.download-section .btn-group .btn {
+    border-color: #28a745;
+}
+
+.download-section .btn-group .btn:hover {
+    background-color: #28a745;
+    border-color: #28a745;
+    color: white;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add loading state to download links
+    document.querySelectorAll('.download-link').forEach(function(link) {
+        link.addEventListener('click', function(e) {
+            const icon = this.querySelector('i');
+            const originalClass = icon.className;
+            
+            // Show loading state
+            icon.className = 'fas fa-spinner fa-spin';
+            this.style.pointerEvents = 'none';
+            
+            // Reset after 3 seconds (download should start by then)
+            setTimeout(function() {
+                icon.className = originalClass;
+                link.style.pointerEvents = 'auto';
+            }, 3000);
+        });
+    });
+});
+</script>
+{% endif %}

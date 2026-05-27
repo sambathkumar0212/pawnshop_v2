@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+{% block title %}Delete Branch: {{ branch.name }} - Pawnshop Management System{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Delete Branch
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        <strong>Warning:</strong> This action cannot be undone. All data associated with this branch will be permanently deleted.
+                    </div>
+                    
+                    <h5 class="mb-3">Are you sure you want to delete the following branch?</h5>
+                    
+                    <div class="card bg-light mb-4">
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-sm-4 fw-bold">Branch Name:</div>
+                                <div class="col-sm-8">{{ branch.name }}</div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-sm-4 fw-bold">Location:</div>
+                                <div class="col-sm-8">{{ branch.address }}, {{ branch.city }}, {{ branch.state }} {{ branch.zip_code }}</div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-sm-4 fw-bold">Manager:</div>
+                                <div class="col-sm-8">{{ branch.manager.get_full_name|default:"Unassigned" }}</div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-sm-4 fw-bold">Staff:</div>
+                                <div class="col-sm-8">{{ branch.staff.count }} staff member(s)</div>
+                            </div>
+                            <div class="row">
+                                <div class="col-sm-4 fw-bold">Status:</div>
+                                <div class="col-sm-8">
+                                    {% if branch.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Inactive</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'branch_list' %}" class="btn btn-secondary me-md-2">
+                                <i class="fas fa-arrow-left me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash me-2"></i>Delete Branch
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,358 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% load loan_tags %}
+
+{% block title %}Foreclose Loan - Pawnshop Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>
+                    <i class="fas fa-gavel me-2"></i>
+                    Foreclose Loan
+                </h2>
+                <a href="{% url 'loan_detail' loan_number=object.loan_number %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Loan Details
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">Loan Foreclosure Confirmation</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Warning:</strong> Foreclosing a loan means the collateral will be transferred to the pawnshop
+                        as the borrower failed to repay the loan. This action cannot be undone.
+                    </div>
+
+                    <div class="loan-details mb-4">
+                        <h5>Loan Information</h5>
+                        <table class="table table-bordered">
+                            <tr>
+                                <th width="30%">Loan Number</th>
+                                <td>{{ object.loan_number }}</td>
+                            </tr>
+                            <tr>
+                                <th>Customer</th>
+                                <td>{{ object.customer }}</td>
+                            </tr>
+                            <tr>
+                                <th>Principal Amount</th>
+                                <td>₹{{ object.principal_amount }}</td>
+                            </tr>
+                            <tr>
+                                <th>Issue Date</th>
+                                <td>{{ object.issue_date }}</td>
+                            </tr>
+                            <tr>
+                                <th>Due Date</th>
+                                <td>{{ object.due_date }}</td>
+                            </tr>
+                            <tr>
+                                <th>Grace Period End</th>
+                                <td>{{ object.grace_period_end }}</td>
+                            </tr>
+                            <tr>
+                                <th>Current Status</th>
+                                <td>{{ object.get_status_display }}</td>
+                            </tr>
+                            <tr>
+                                <th>Days Elapsed</th>
+                                <td>{{ days_elapsed }} days</td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <!-- Payable Amount Section -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-dark text-white">
+                            <h5 class="mb-0">Payable Amount Breakdown</h5>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-bordered">
+                                <tr>
+                                    <th width="30%">Principal Amount</th>
+                                    <td>₹{{ principal_amount|floatformat:2 }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Interest Amount (till today)</th>
+                                    <td>₹{{ loan.total_payable_till_date|subtract:principal_amount|floatformat:0 }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Total Payable (Till Today)</th>
+                                    <td>₹{{ loan.total_payable_till_date|floatformat:0 }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Amount Already Paid</th>
+                                    <td>₹{{ amount_paid|floatformat:2 }}</td>
+                                </tr>
+                                <tr class="table-primary">
+                                    <th>Net Amount Due</th>
+                                    <td><strong>₹{{ loan.total_payable_till_date|subtract:amount_paid|floatformat:0 }}</strong></td>
+                                </tr>
+                                <tr class="table-secondary">
+                                    <th>Total Payable (At Maturity)</th>
+                                    <td>₹{{ total_payable_mature|floatformat:0 }}</td>
+                                </tr>
+                            </table>
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>Note:</strong> This amount represents the total payable as of today minus payments already made. This amount must be paid to redeem the collateral.
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Payment Method Section -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0"><i class="fas fa-money-bill-wave me-2"></i>Payment Details</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group mb-3">
+                                <label for="paid_amount" class="form-label">Amount Paid</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">₹</span>
+                                    <input type="number" step="0.01" min="0" name="paid_amount" id="paid_amount" 
+                                           class="form-control" value="{{ payable_amount }}">
+                                </div>
+                                <div class="form-text text-muted">
+                                    Enter the amount paid by the customer. Leave as 0 if no payment is made.
+                                </div>
+                            </div>
+                            
+                            <div class="form-group mb-3">
+                                <label for="payment_method" class="form-label required">Payment Method</label>
+                                <select name="payment_method" id="payment_method" class="form-select" required>
+                                    <option value="">Select payment method</option>
+                                    {% for value, text in payment_method_choices %}
+                                        <option value="{{ value }}">{{ text }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="reference_number" class="form-label">Reference Number</label>
+                                <input type="text" name="reference_number" id="reference_number" class="form-control">
+                                <div class="form-text text-muted">
+                                    Transaction ID, check number, or other reference (optional)
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="post" id="foreclosureForm" novalidate>
+                        {% csrf_token %}
+                        <input type="hidden" name="face_verification_status" id="faceVerificationStatus" value="">
+                        
+                        <!-- Customer Verification Section -->
+                        <div class="card mb-4">
+                            <div class="card-header bg-light">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="enableFaceVerification">
+                                    <label class="form-check-label" for="enableFaceVerification">
+                                        <i class="fas fa-face-viewfinder me-2"></i>Use Face Verification (Optional)
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="card-body" id="faceVerificationSection" style="display: none;">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div id="cameraContainer" class="border rounded mb-2" style="height: 240px; position: relative;">
+                                            <video id="cameraStream" style="width: 100%; height: 100%; object-fit: cover;" autoplay playsinline></video>
+                                            <canvas id="videoCanvas" style="display:none;"></canvas>
+                                        </div>
+                                        <div class="d-flex justify-content-center mb-3">
+                                            <button type="button" class="btn btn-primary" id="verifyFaceBtn">
+                                                <i class="fas fa-camera me-2"></i>Verify Face
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="border rounded p-3 h-100">
+                                            <h6 class="mb-3">Face Verification Instructions</h6>
+                                            <ol class="small">
+                                                <li>Ensure the customer's face is clearly visible</li>
+                                                <li>Good lighting is important for accurate verification</li>
+                                                <li>Click "Verify Face" to confirm customer identity</li>
+                                            </ol>
+                                            <div id="verificationStatus"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.status|as_crispy_field }}
+                            <div class="form-text text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Select "Foreclosed" to complete this process.
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <a href="{% url 'loan_detail' loan_number=object.loan_number %}" class="btn btn-outline-secondary me-md-2">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-danger" id="confirmBtn">
+                                <i class="fas fa-gavel me-2"></i>Confirm Foreclosure
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    $(document).ready(function() {
+        // Face verification functionality
+        const enableFaceVerification = document.getElementById('enableFaceVerification');
+        const faceVerificationSection = document.getElementById('faceVerificationSection');
+        const cameraStream = document.getElementById('cameraStream');
+        const videoCanvas = document.getElementById('videoCanvas');
+        const verifyFaceBtn = document.getElementById('verifyFaceBtn');
+        const verificationStatus = document.getElementById('verificationStatus');
+        const faceVerificationStatus = document.getElementById('faceVerificationStatus');
+        let stream = null;
+        let faceVerified = false;
+        
+        // Toggle face verification section
+        enableFaceVerification.addEventListener('change', function() {
+            if (this.checked) {
+                faceVerificationSection.style.display = 'block';
+                startCamera();
+            } else {
+                faceVerificationSection.style.display = 'none';
+                stopCamera();
+                faceVerified = false;
+                faceVerificationStatus.value = '';
+                showVerificationStatus('', '');
+            }
+        });
+        
+        // Start camera
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        facingMode: 'user'
+                    }
+                });
+                cameraStream.srcObject = stream;
+            } catch (err) {
+                console.error('Error accessing camera:', err);
+                showVerificationStatus('Could not access camera. Please check camera permissions.', 'danger');
+            }
+        }
+        
+        // Stop camera
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                cameraStream.srcObject = null;
+            }
+        }
+        
+        // Verify face
+        verifyFaceBtn.addEventListener('click', function() {
+            // Set canvas dimensions to match video
+            videoCanvas.width = cameraStream.videoWidth;
+            videoCanvas.height = cameraStream.videoHeight;
+            
+            // Draw current video frame to canvas
+            const ctx = videoCanvas.getContext('2d');
+            ctx.drawImage(cameraStream, 0, 0, videoCanvas.width, videoCanvas.height);
+            
+            // Get image data
+            const imageData = videoCanvas.toDataURL('image/jpeg');
+            
+            // In a real application, you would send this data to your server to compare with stored face data
+            // For this demo, we'll simulate a verification process
+            simulateFaceVerification(imageData);
+        });
+        
+        // Simulate face verification (replace with actual API call in production)
+        function simulateFaceVerification(imageData) {
+            showVerificationStatus('Verifying face...', 'info');
+            
+            // In a real system, you would make an API call to verify the face
+            setTimeout(function() {
+                // Simulate successful verification
+                faceVerified = true;
+                faceVerificationStatus.value = 'verified';
+                showVerificationStatus('Face verification successful!', 'success');
+                
+                // Update button state
+                verifyFaceBtn.disabled = true;
+                verifyFaceBtn.innerHTML = '<i class="fas fa-check-circle me-2"></i>Verified';
+                verifyFaceBtn.classList.remove('btn-primary');
+                verifyFaceBtn.classList.add('btn-success');
+            }, 1500);
+            
+            // In a real implementation, you would make an AJAX request like:
+            /*
+            $.ajax({
+                url: '/api/verify-face/',
+                type: 'POST',
+                data: {
+                    'face_image': imageData,
+                    'customer_id': {{ object.customer.id }},
+                    'csrfmiddlewaretoken': '{{ csrf_token }}'
+                },
+                success: function(response) {
+                    if (response.verified) {
+                        faceVerified = true;
+                        faceVerificationStatus.value = 'verified';
+                        showVerificationStatus('Face verification successful!', 'success');
+                    } else {
+                        showVerificationStatus('Face verification failed: ' + response.message, 'danger');
+                    }
+                },
+                error: function(xhr, textStatus, errorThrown) {
+                    showVerificationStatus('Error: ' + errorThrown, 'danger');
+                }
+            });
+            */
+        }
+        
+        // Show verification status message
+        function showVerificationStatus(message, type) {
+            if (!message) {
+                verificationStatus.innerHTML = '';
+                return;
+            }
+            
+            verificationStatus.innerHTML = `<div class="alert alert-${type} mt-3 mb-0">${message}</div>`;
+        }
+        
+        // Form submission validation
+        $('#foreclosureForm').on('submit', function(e) {
+            // If face verification is enabled but not completed, prevent form submission
+            if (enableFaceVerification.checked && !faceVerified) {
+                e.preventDefault();
+                showVerificationStatus('Please complete face verification before proceeding', 'warning');
+                return false;
+            }
+        });
+        
+        // Clean up camera when leaving page
+        $(window).on('beforeunload', function() {
+            stopCamera();
+        });
+    });
+</script>
+{% endblock %}

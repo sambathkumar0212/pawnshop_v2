@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}GST Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-3 col-lg-2 mb-4">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">GST Management</h5>
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{% url 'gst_dashboard' %}" class="list-group-item list-group-item-action {% if request.resolver_match.url_name == 'gst_dashboard' %}active{% endif %}">
+                        <i class="fas fa-tachometer-alt me-2"></i> Dashboard
+                    </a>
+                    <a href="{% url 'gst_transaction_list' %}" class="list-group-item list-group-item-action {% if 'transaction' in request.resolver_match.url_name %}active{% endif %}">
+                        <i class="fas fa-exchange-alt me-2"></i> Transactions
+                    </a>
+                    <a href="{% url 'gst_rate_list' %}" class="list-group-item list-group-item-action {% if 'rate' in request.resolver_match.url_name %}active{% endif %}">
+                        <i class="fas fa-percentage me-2"></i> GST Rates
+                    </a>
+                    <a href="{% url 'gst_report' %}" class="list-group-item list-group-item-action {% if 'report' in request.resolver_match.url_name %}active{% endif %}">
+                        <i class="fas fa-chart-bar me-2"></i> Reports
+                    </a>
+                    <a href="{% url 'company_gst_details_update' 0 %}" class="list-group-item list-group-item-action {% if 'company_gst_details' in request.resolver_match.url_name %}active{% endif %}">
+                        <i class="fas fa-building me-2"></i> Company Details
+                    </a>
+                </div>
+            </div>
+            
+            <!-- GST Information Card -->
+            <div class="card mt-3">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">GST Quick Info</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="rounded-circle bg-primary text-white p-2 me-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-info"></i>
+                        </div>
+                        <div>
+                            <small class="text-muted">Need Help?</small>
+                            <p class="mb-0 small">Check the GST portal at <a href="https://www.gst.gov.in" target="_blank">gst.gov.in</a></p>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <div class="rounded-circle bg-warning text-white p-2 me-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-calendar-alt"></i>
+                        </div>
+                        <div>
+                            <small class="text-muted">Filing Deadline</small>
+                            <p class="mb-0 small">GSTR-3B: 20th of next month</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Content Area -->
+        <div class="col-md-9 col-lg-10">
+            {% block gst_content %}{% endblock %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% endblock %}

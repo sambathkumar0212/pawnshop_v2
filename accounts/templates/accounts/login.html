@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+
+{% block title %}Login - Pawnshop Management System{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="fas fa-sign-in-alt me-2"></i>Login</h4>
+            </div>
+            <div class="card-body p-4">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    {% if form.errors %}
+                    <div class="alert alert-danger">
+                        <strong>Error:</strong> Please correct the errors below.
+                        <ul>
+                            {% for field in form %}
+                                {% for error in field.errors %}
+                                <li>{{ field.label }}: {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                            {% for error in form.non_field_errors %}
+                            <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mb-3">
+                        <label for="id_username" class="form-label">Username</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-user"></i></span>
+                            <input type="text" name="username" id="id_username" class="form-control" placeholder="Enter your username" required autofocus>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="id_password" class="form-label">Password</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                            <input type="password" name="password" id="id_password" class="form-control" placeholder="Enter your password" required>
+                            <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-sign-in-alt me-2"></i>Log In
+                        </button>
+                        <a href="{% url 'face_login' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-camera me-2"></i>Login with Face ID
+                        </a>
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer text-muted">
+                <div class="row">
+                    <div class="col-md-6 text-md-start">
+                        <a href="{% url 'password_reset' %}">Forgot Password?</a>
+                    </div>
+                    <div class="col-md-6 text-md-end">
+                        <a href="{% url 'organization_signup' %}" class="text-primary">New Organization? Sign Up</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- SaaS Marketing Section -->
+        <div class="card mt-4">
+            <div class="card-body">
+                <h5 class="card-title">Pawnshop Management System SaaS</h5>
+                <p class="card-text">Manage your pawnshop business in the cloud. Create your organization today and get access to:</p>
+                <ul class="mb-0">
+                    <li>Multiple branch management</li>
+                    <li>Staff role assignments</li>
+                    <li>Loan and inventory tracking</li>
+                    <li>Customer management</li>
+                    <li>Financial reporting</li>
+                </ul>
+            </div>
+            <div class="card-footer text-end">
+                <a href="{% url 'organization_signup' %}" class="btn btn-primary">
+                    <i class="fas fa-building me-2"></i>Create Organization
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Toggle password visibility
+document.addEventListener('DOMContentLoaded', function() {
+    const togglePasswordBtn = document.getElementById('togglePassword');
+    const passwordInput = document.getElementById('id_password');
+    
+    if (togglePasswordBtn) {
+        togglePasswordBtn.addEventListener('click', function() {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            
+            // Toggle icon
+            const icon = this.querySelector('i');
+            if (type === 'password') {
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+                this.title = 'Show password';
+            } else {
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+                this.title = 'Hide password';
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

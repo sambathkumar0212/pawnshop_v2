@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}Debug Branch Information{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h2>Branch Debug Information</h2>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Tamil Branches Found</h5>
+                </div>
+                <div class="card-body">
+                    {% if tamil_branches %}
+                        <ul class="list-group">
+                        {% for branch in tamil_branches %}
+                            <li class="list-group-item">
+                                <strong>{{ branch.name }}</strong>
+                                <br><small>ID: {{ branch.id }} | Active: {{ branch.is_active }} | Organization: {{ branch.organization.name }}</small>
+                            </li>
+                        {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted">No branches found with 'Tamil' in the name.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Specific Branch: Tamil_R_Gold_Loans_Sam</h5>
+                </div>
+                <div class="card-body">
+                    {% if specific_branch %}
+                        <p><strong>Name:</strong> {{ specific_branch.name }}</p>
+                        <p><strong>ID:</strong> {{ specific_branch.id }}</p>
+                        <p><strong>Active:</strong> {{ specific_branch.is_active }}</p>
+                        <p><strong>Organization:</strong> {{ specific_branch.organization.name }}</p>
+                        <p><strong>Customers in this branch:</strong> {{ customers_in_specific_branch.count }}</p>
+                    {% else %}
+                        <p class="text-danger">Branch "Tamil_R_Gold_Loans_Sam" not found!</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Customers with Tamil Branches</h5>
+                </div>
+                <div class="card-body">
+                    {% if customers_with_tamil_branch %}
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Customer ID</th>
+                                        <th>Name</th>
+                                        <th>Branch Name</th>
+                                        <th>Branch ID</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                {% for customer in customers_with_tamil_branch %}
+                                    <tr>
+                                        <td>{{ customer.id }}</td>
+                                        <td>{{ customer.first_name }} {{ customer.last_name }}</td>
+                                        <td>{{ customer.branch.name|default:"No Branch" }}</td>
+                                        <td>{{ customer.branch.id|default:"N/A" }}</td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No customers found with Tamil branches.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% if customers_without_branch %}
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Customers Without Branches ({{ customers_without_branch.count }})</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Customer ID</th>
+                                    <th>Name</th>
+                                    <th>Phone</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            {% for customer in customers_without_branch|slice:":20" %}
+                                <tr>
+                                    <td>{{ customer.id }}</td>
+                                    <td>{{ customer.first_name }} {{ customer.last_name }}</td>
+                                    <td>{{ customer.phone|mobile_format }}</td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% if customers_without_branch.count > 20 %}
+                        <p><small class="text-muted">Showing first 20 of {{ customers_without_branch.count }} customers without branches.</small></p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

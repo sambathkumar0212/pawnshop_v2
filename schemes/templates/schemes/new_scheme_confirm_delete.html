@@ -1,0 +1,173 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Delete Scheme - {{ scheme.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mt-4 mb-0">Delete Scheme</h1>
+        <a href="{% url 'new_scheme_detail' scheme.id %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Details
+        </a>
+    </div>
+
+    <!-- Alert Messages -->
+    {% if messages %}
+    <div class="mb-4">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header {% if can_delete %}bg-danger{% else %}bg-warning{% endif %} text-white">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    {% if can_delete %}Confirm Deletion{% else %}Cannot Delete Scheme{% endif %}
+                </div>
+                <div class="card-body">
+                    {% if can_delete %}
+                        <h5 class="card-title mb-4">Are you sure you want to delete this scheme?</h5>
+                        
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            <strong>Warning:</strong> This action cannot be undone. All data associated with this scheme will be permanently removed.
+                        </div>
+                    {% else %}
+                        <h5 class="card-title mb-4">This scheme cannot be deleted</h5>
+                        
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            <strong>Error:</strong> This scheme is currently in use by {{ related_loans.count }} loan(s) and cannot be deleted.
+                            <p class="mb-0 mt-2">You can choose to deactivate the scheme instead, which will prevent it from being used for new loans while preserving existing data.</p>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="card mb-3 bg-light">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ scheme.name }}</h5>
+                            <p class="card-text">{{ scheme.description|truncatechars:100 }}</p>
+                            <ul class="list-unstyled">
+                                <li>
+                                    <strong>Interest Rate:</strong> 
+                                    {% if scheme.is_gold_scheme %}
+                                    {{ scheme.gold_interest_rate }} ₹ per month per ₹100
+                                    {% else %}
+                                    {{ scheme.interest_rate }}% per year
+                                    {% endif %}
+                                </li>
+                                <li>
+                                    <strong>Status:</strong> 
+                                    {% if scheme.status == 'active' %}
+                                    <span class="badge bg-success">Active</span>
+                                    {% elif scheme.status == 'upcoming' %}
+                                    <span class="badge bg-info">Upcoming</span>
+                                    {% elif scheme.status == 'expired' %}
+                                    <span class="badge bg-danger">Expired</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Inactive</span>
+                                    {% endif %}
+                                </li>
+                                <li><strong>Branch:</strong> {% if scheme.branch %}{{ scheme.branch.name }}{% else %}Global{% endif %}</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    {% if related_loans %}
+                        <div class="card mb-4">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0">Loans Using This Scheme</h6>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-hover mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Loan Number</th>
+                                                <th>Customer</th>
+                                                <th>Status</th>
+                                                <th>Due Date</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for loan in related_loans|slice:":10" %}
+                                            <tr>
+                                                <td>{{ loan.loan_number }}</td>
+                                                <td>{{ loan.customer.full_name }}</td>
+                                                <td>
+                                                    {% if loan.status == 'active' %}
+                                                        {% if loan.is_overdue %}
+                                                        <span class="badge bg-danger">Overdue</span>
+                                                        {% else %}
+                                                        <span class="badge bg-success">Active</span>
+                                                        {% endif %}
+                                                    {% elif loan.status == 'repaid' %}
+                                                        <span class="badge bg-info">Repaid</span>
+                                                    {% elif loan.status == 'defaulted' %}
+                                                        <span class="badge bg-warning">Defaulted</span>
+                                                    {% elif loan.status == 'extended' %}
+                                                        <span class="badge bg-primary">Extended</span>
+                                                    {% else %}
+                                                        <span class="badge bg-secondary">{{ loan.status }}</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>{{ loan.due_date }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {% if related_loans.count > 10 %}
+                                <div class="p-3 text-center">
+                                    <small class="text-muted">Showing 10 of {{ related_loans.count }} loans</small>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endif %}
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-end">
+                            <a href="{% url 'new_scheme_detail' scheme.id %}" class="btn btn-secondary me-2">
+                                <i class="fas fa-arrow-left"></i> Back
+                            </a>
+                            
+                            {% if can_delete %}
+                                <button type="submit" class="btn btn-danger">
+                                    <i class="fas fa-trash"></i> Delete Scheme
+                                </button>
+                            {% else %}
+                                <button type="submit" name="deactivate" class="btn btn-warning">
+                                    <i class="fas fa-ban"></i> Deactivate Scheme
+                                </button>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Auto-hide alerts after 5 seconds
+        setTimeout(function() {
+            const alerts = document.querySelectorAll('.alert-dismissible');
+            alerts.forEach(alert => {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            });
+        }, 5000);
+    });
+</script>
+{% endblock %}

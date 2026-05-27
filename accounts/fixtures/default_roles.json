@@ -1,0 +1,112 @@
+[
+    {
+        "model": "accounts.role",
+        "pk": 1,
+        "fields": {
+            "name": "Branch Manager",
+            "role_type": "branch_manager",
+            "category": "management",
+            "description": "Manages branch operations, staff, and has full control over branch-level activities"
+        }
+    },
+    {
+        "model": "accounts.role",
+        "pk": 2,
+        "fields": {
+            "name": "Regional Manager",
+            "role_type": "regional_manager",
+            "category": "management",
+            "description": "Oversees multiple branches in a region, manages branch managers, and regional policies"
+        }
+    },
+    {
+        "model": "accounts.role",
+        "pk": 3,
+        "fields": {
+            "name": "Loan Officer",
+            "role_type": "loan_officer",
+            "category": "frontline",
+            "description": "Handles loan applications, appraisals, and customer interactions for pawning"
+        }
+    },
+    {
+        "model": "accounts.role",
+        "pk": 4,
+        "fields": {
+            "name": "Senior Appraiser",
+            "role_type": "appraiser",
+            "category": "frontline",
+            "description": "Expert in valuation of items, particularly jewelry and precious metals"
+        }
+    },
+    {
+        "model": "accounts.role",
+        "pk": 5,
+        "fields": {
+            "name": "Cashier",
+            "role_type": "cashier",
+            "category": "frontline",
+            "description": "Handles cash transactions, payments, and basic customer service"
+        }
+    },
+    {
+        "model": "accounts.role",
+        "pk": 6,
+        "fields": {
+            "name": "Inventory Manager",
+            "role_type": "inventory_manager",
+            "category": "support",
+            "description": "Manages and tracks pawned items, maintains inventory records"
+        }
+    },
+    {
+        "model": "accounts.role",
+        "pk": 7,
+        "fields": {
+            "name": "Customer Service Representative",
+            "role_type": "customer_service",
+            "category": "frontline",
+            "description": "Handles customer inquiries, complaints, and general assistance"
+        }
+    },
+    {
+        "model": "accounts.role",
+        "pk": 8,
+        "fields": {
+            "name": "Security Officer",
+            "role_type": "security",
+            "category": "support",
+            "description": "Maintains security of premises, staff, customers, and valuable items"
+        }
+    },
+    {
+        "model": "accounts.role",
+        "pk": 9,
+        "fields": {
+            "name": "Finance Manager",
+            "role_type": "finance_manager",
+            "category": "headoffice",
+            "description": "Manages financial operations, reporting, and compliance"
+        }
+    },
+    {
+        "model": "accounts.role",
+        "pk": 10,
+        "fields": {
+            "name": "IT Administrator",
+            "role_type": "it_admin",
+            "category": "headoffice",
+            "description": "Manages system access, technical infrastructure, and software maintenance"
+        }
+    },
+    {
+        "model": "accounts.role",
+        "pk": 11,
+        "fields": {
+            "name": "Compliance Officer",
+            "role_type": "compliance_officer",
+            "category": "headoffice",
+            "description": "Ensures regulatory compliance, audits operations, and maintains policies"
+        }
+    }
+]

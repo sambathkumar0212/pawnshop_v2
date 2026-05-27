@@ -1,0 +1,751 @@
+﻿{% load i18n %}
+<!DOCTYPE html>
+{% get_current_language as LANGUAGE_CODE %}
+<html lang="{{ LANGUAGE_CODE }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Pawnshop Management System{% endblock %}</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Google Fonts - Noto Sans Tamil for Tamil language support -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Custom CSS -->
+    <style>
+        /* Support for Tamil and other Indic scripts */
+        html {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans Tamil', 'Noto Sans', Helvetica, Arial, sans-serif;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans Tamil', 'Noto Sans', Helvetica, Arial, sans-serif;
+        }
+        
+        /* Ensure Tamil text displays correctly */
+        [lang="ta"], .tamil-text, .lang-ta {
+            font-family: 'Noto Sans Tamil', 'Noto Sans', sans-serif;
+        }
+
+        .app-shell {
+            flex-grow: 1; /* Allow container-fluid to take available height */
+            display: flex; /* Make it a flex container */
+            flex-direction: column; /* Stack children vertically */
+            overflow: hidden; /* Hide overflow of the container-fluid itself */
+        }
+
+        .app-shell > .row { /* Target the direct row child */
+            flex-grow: 1; /* Make the row take remaining vertical space */
+            overflow: hidden; /* Hide its overflow for controlled scrolling of children */
+        }
+
+        /* Adjust sidebar and main-content to scroll independently */
+        .sidebar {
+            background-color: var(--secondary-color);
+            /* min-height: 100vh; - No longer needed, handled by flex/sticky */
+            height: 100%; /* Ensure sidebar takes full height within its parent */
+            display: flex; /* Make sidebar a flex container */
+            flex-direction: column; /* Stack children vertically */
+        }
+        
+        /* The offcanvas-body inside the sidebar will handle its own scrolling */
+        .sidebar .offcanvas-body {
+            flex-grow: 1; /* Allow it to take up remaining vertical space */
+            overflow-y: auto; /* Enable vertical scrolling */
+            overflow-x: hidden; /* Prevent horizontal scrolling */
+            -ms-overflow-style: none; /* Hide scrollbar for IE/Edge */
+            scrollbar-width: none; /* Hide scrollbar for Firefox */
+        }
+
+        .sidebar .offcanvas-body::-webkit-scrollbar {
+            display: none; /* Hide scrollbar for Chrome/Safari */
+        }
+
+        .main-content {
+            padding: 20px;
+            flex-grow: 1; /* Allow main content to take up remaining vertical space */
+            overflow-y: auto; /* Enable vertical scrolling for main content */
+            overflow-x: hidden; /* Prevent horizontal scrolling */
+            min-height: 0; /* Crucial for flex items to correctly constrain height and enable scrolling */
+        }
+
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2c3e50;
+            --accent-color: #f39c12;
+            --success-color: #2ecc71;
+            --danger-color: #e74c3c;
+            --warning-color: #f1c40f;
+            --info-color: #3498db;
+        }
+        
+        .sidebar .nav-link {
+            color: #fff;
+            border-radius: 0;
+            padding: 0.75rem 1rem;
+            position: relative;
+            transition: all 0.3s ease;
+            margin: 2px 0;
+        }
+        
+        .sidebar .nav-link {
+            color: #fff;
+            border-radius: 0;
+            padding: 0.75rem 1rem;
+            position: relative;
+            transition: all 0.3s ease;
+            margin: 2px 0;
+        }
+        
+        .sidebar .nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .sidebar .nav-link.active {
+            background-color: var(--primary-color);
+            color: #fff !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transform: translateX(2px);
+        }
+        
+        .sidebar .nav-link.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background-color: var(--accent-color);
+        }
+        
+        .sidebar .nav-link i {
+            margin-right: 10px;
+            width: 20px;
+            text-align: center;
+        }
+        
+        .main-content {
+            padding: 20px;
+        }
+        
+        .navbar {
+            background-color: #fff;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .card {
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border-radius: 0.5rem;
+            border: none;
+        }
+        
+        .card-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            padding: 0.75rem 1.25rem;
+            border-top-left-radius: 0.5rem;
+            border-top-right-radius: 0.5rem;
+        }
+        
+        .table-hover tbody tr:hover {
+            background-color: rgba(52, 152, 219, 0.05);
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        
+        .btn-primary:hover {
+            background-color: #2980b9;
+            border-color: #2980b9;
+        }
+        
+        .badge {
+            font-weight: 500;
+            padding: 0.4em 0.7em;
+        }
+        
+        .footer {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-top: 1px solid #e9ecef;
+            text-align: center;
+            position: relative;
+            bottom: 0;
+            width: 100%;
+        }
+        
+        /* Custom styles for dashboard stats */
+        .stat-card {
+            border-radius: 0.5rem;
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+            border: none;
+            transition: transform 0.2s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stat-card .card-body {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .stat-card .icon {
+            font-size: 3rem;
+            opacity: 0.7;
+        }
+        
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        /* Fix for datetime display color (assuming it's in a specific element or general text) */
+        .datetime-display, .card-text.text-muted { /* Targeting common elements for date/time */
+            color: #333 !important; /* Darker text for readability */
+        }
+
+        /* Specific styles for the sidebar's navigation list to enable scrolling */
+        /* Reverting these styles to allow parent to handle scrolling */
+
+        /* Offcanvas for mobile sidebar - styles for larger screens (md and up) */
+        .sidebar.offcanvas-md {
+            position: sticky; /* Keep it sticky on desktop */
+            top: 0;
+            height: 100vh; /* Full height on desktop */
+            z-index: 999; /* Below navbar for larger screens */
+            border-right: 1px solid rgba(0,0,0,.05); /* Restore border on desktop */
+            /* Removed !important here, relies on bg-secondary utility class on <nav> */
+        }
+        
+        /* Offcanvas specific styles for mobile (less than md breakpoint) */
+        @media (max-width: 767.98px) {
+            .sidebar.offcanvas-md {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 250px; /* Specific width for mobile offcanvas */
+                height: 100vh;
+                z-index: 1045; /* Above navbar on mobile */
+                background-color: var(--secondary-color) !important; /* Force dark background on mobile offcanvas */
+                border-right: 1px solid rgba(0,0,0,.175);
+                transform: translateX(-100%); /* Hidden by default */
+                transition: transform .3s ease-in-out;
+            }
+            .sidebar.offcanvas-md.show {
+                transform: translateX(0%); /* Visible state for mobile */
+            }
+            /* Ensure text color is white in mobile offcanvas */
+            .sidebar.offcanvas-md .nav-link {
+                color: #fff !important;
+            }
+            .sidebar.offcanvas-md .offcanvas-title {
+                color: #fff !important;
+            }
+            .sidebar.offcanvas-md .text-light { /* For "Super Admin" header */
+                color: rgba(255, 255, 255, 0.7) !important;
+            }
+            /* Explicitly set color for all text within the offcanvas body for mobile */
+            .sidebar.offcanvas-md .offcanvas-body {
+                background-color: var(--secondary-color) !important; /* Ensure dark background */
+                color: #000 !important; /* Default text color to white */
+            }
+            .sidebar.offcanvas-md .offcanvas-body h3 {
+                color: #fff !important; /* Force logo text to be white */
+            }
+            .sidebar.offcanvas-md .offcanvas-body hr {
+                border-color: rgba(255, 255, 255, 0.25) !important; /* Ensure divider is visible */
+            }
+            .main-content {
+                margin-left: 0 !important; /* Reset margin for mobile */
+            }
+            /* Add backdrop for mobile offcanvas */
+            .offcanvas-backdrop.show {
+                opacity: 0.5;
+            }
+        }
+        
+        /* DateTime Widget Styles */
+        .datetime-widget {
+            background: #dc3545;
+            border-radius: 0.375rem;
+            color: white;
+            min-width: 160px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .datetime-display {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        #dateTimeDisplay {
+            font-size: 0.95rem;
+            line-height: 1.2;
+            color: white;
+            font-weight: 600;
+        }
+        
+        #dayDisplay {
+            font-size: 0.85rem;
+            color: white !important;
+            text-transform: capitalize;
+            font-weight: 500;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="container-fluid app-shell">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 p-0 sidebar d-none d-md-block">
+                <div class="py-4 px-3 mb-4 text-center">
+                    <h3 class="text-white">Pawnshop MS</h3>
+                </div>
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a href="{% url 'dashboard' %}" class="nav-link {% block dashboard_active %}{% endblock %}">
+                            <i class="fas fa-tachometer-alt"></i> {% trans "Dashboard" %}
+                        </a>
+                    </li>
+                    
+                    {% if user.is_superuser %}
+                    <!-- Super Admin Section -->
+                    <li class="nav-item">
+                        <div class="px-3 py-2">
+                            <small class="text-light text-uppercase fw-bold">Super Admin</small>
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'superadmin_dashboard' %}" class="nav-link {% block superadmin_dashboard_active %}{% endblock %}">
+                            <i class="fas fa-user-shield"></i> Admin Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'superadmin_organization_list' %}" class="nav-link {% block superadmin_organizations_active %}{% endblock %}">
+                            <i class="fas fa-building"></i> Manage Organizations
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'admin:index' %}" class="nav-link" target="_blank">
+                            <i class="fas fa-cogs"></i> Django Admin
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <div class="px-3 py-2">
+                            <hr class="text-light">
+                        </div>
+                    </li>
+                    {% endif %}
+                    
+                    <!-- Core Business Navigation -->
+                    <li class="nav-item">
+                        <a href="{% url 'customer_list' %}" class="nav-link {% block customers_active %}{% endblock %}">
+                            <i class="fas fa-users"></i> {% trans "Customers" %}
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'loan_list' %}" class="nav-link {% block loans_active %}{% endblock %}">
+                            <i class="fas fa-hand-holding-usd"></i> {% trans "Loans" %}
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'payment_list' %}" class="nav-link {% block interest_paid_active %}{% endblock %}">
+                            <i class="fas fa-dollar-sign"></i> {% trans "Interest Paid" %}
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'item_list' %}" class="nav-link {% block inventory_active %}{% endblock %}">
+                            <i class="fas fa-box-open"></i> Inventory
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'sale_list' %}" class="nav-link {% block sales_active %}{% endblock %}">
+                            <i class="fas fa-shopping-cart"></i> Sales
+                        </a>
+                    </li>
+                    
+                    <!-- Financial & Compliance -->
+                    <li class="nav-item">
+                        <a href="{% url 'gst_dashboard' %}" class="nav-link {% block gst_active %}{% endblock %}">
+                            <i class="fas fa-receipt"></i> GST
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'analytics:dashboard' %}" class="nav-link {% block risk_analytics_active %}{% endblock %}">
+                            <i class="fas fa-chart-pie"></i> Risk Analytics Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'scheme_list' %}" class="nav-link {% block schemes_active %}{% endblock %}">
+                            <i class="fas fa-percentage"></i> Loan Schemes
+                        </a>
+                    </li>
+                    
+                    <!-- Management & Administration -->
+                    <li class="nav-item">
+                        <a href="{% url 'branch_list' %}" class="nav-link {% block branches_active %}{% endblock %}">
+                            <i class="fas fa-store"></i> Branches
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'report_list' %}" class="nav-link {% block reports_active %}{% endblock %}">
+                            <i class="fas fa-chart-bar"></i> Reports
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'dashboard_list' %}" class="nav-link {% block dashboards_active %}{% endblock %}">
+                            <i class="fas fa-chart-line"></i> Analytics
+                        </a>
+                    </li>
+                    
+                    <!-- User & Security Management -->
+                    <li class="nav-item">
+                        <a href="{% url 'role_list' %}" class="nav-link {% block roles_active %}{% endblock %}">
+                            <i class="fas fa-user-tag"></i> Roles
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'user_list' %}" class="nav-link {% block users_active %}{% endblock %}">
+                            <i class="fas fa-user-shield"></i> Users
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'biometric_settings' %}" class="nav-link {% block biometrics_active %}{% endblock %}">
+                            <i class="fas fa-fingerprint"></i> Biometrics
+                        </a>
+                    </li>
+                    
+                    <!-- System Integration & Subscription -->
+                    <li class="nav-item">
+                        <a href="{% url 'integration_list' %}" class="nav-link {% block integrations_active %}{% endblock %}">
+                            <i class="fas fa-plug"></i> Integrations
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'subscription_plans' %}" class="nav-link {% block subscription_active %}{% endblock %}">
+                            <i class="fas fa-crown"></i> Subscription Plans
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- Main Content -->
+            <div class="col-md-9 col-lg-10 ml-sm-auto px-4 main-content">
+                <!-- Top Navigation Bar -->
+                <nav class="navbar navbar-expand-lg navbar-light sticky-top mb-4">
+                    <div class="container">
+                        <!-- Toggle button for offcanvas sidebar on mobile -->
+                        <button class="navbar-toggler d-md-none me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas" aria-controls="sidebarOffcanvas" aria-label="Toggle navigation">
+                            <span class="navbar-toggler-icon"></span>
+                        </button>
+                        
+                        <a class="navbar-brand d-md-none" href="#">Pawnshop MS</a>
+
+                        <div class="collapse navbar-collapse" id="navbarNav">
+                            <ul class="navbar-nav me-auto">
+                                <!-- Quick Search Form -->
+                                <li class="nav-item">
+                                    <form class="d-flex" action="{% url 'inventory_search' %}" method="GET">
+                                        <div class="input-group">
+                                            <input class="form-control" type="search" name="q" placeholder="Search inventory..." aria-label="Search">
+                                            <button class="btn btn-outline-primary" type="submit">
+                                                <i class="fas fa-search"></i>
+                                            </button>
+                                        </div>
+                                    </form>
+                                </li>
+                            </ul>
+                            
+                            <!-- Date & Time Widget -->
+                            <div class="datetime-widget me-3 p-2" id="datetimeWidget">
+                                <div class="datetime-display">
+                                    <div id="dateTimeDisplay" class="fw-bold">--/--/---- --:--:--</div>
+                                    <div id="dayDisplay" class="text-muted small">---</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Language Switcher Dropdown -->
+                            <div class="dropdown me-3">
+                                <button class="btn btn-primary btn-sm dropdown-toggle" type="button" id="languageDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fas fa-language me-1"></i>
+                                    {% if LANGUAGE_CODE|slice:':2' == 'ta' %}தமிழ்{% else %}English{% endif %}
+                                </button>
+                                <ul class="dropdown-menu" aria-labelledby="languageDropdown">
+                                    <li>
+                                        <form action="{% url 'set_language' %}" method="post" class="m-0">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                            <input type="hidden" name="language" value="en">
+                                            <button type="submit" class="dropdown-item">English</button>
+                                        </form>
+                                    </li>
+                                    <li>
+                                        <form action="{% url 'set_language' %}" method="post" class="m-0">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                            <input type="hidden" name="language" value="ta">
+                                            <button type="submit" class="dropdown-item">தமிழ்</button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            {% if user.is_authenticated %}
+                                <form action="{% url 'logout' %}" method="post" class="me-2 mb-0">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                                        <i class="fas fa-sign-out-alt me-1"></i>{% trans "Logout" %}
+                                    </button>
+                                </form>
+                            {% endif %}
+                            
+                            <!-- User Dropdown Menu -->
+                            <div class="dropdown">
+                                <a class="btn btn-outline-secondary dropdown-toggle" href="#" role="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fas fa-user-circle"></i>
+                                    {% if user.is_authenticated %}
+                                        {{ user.get_full_name|default:user.username }}
+                                    {% else %}
+                                        Guest
+                                    {% endif %}
+                                </a>
+                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                                    {% if user.is_authenticated %}
+                                        <li><a class="dropdown-item" href="{% url 'profile' %}">{% trans "Profile" %}</a></li>
+                                        {% if user.is_superuser %}
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li><h6 class="dropdown-header">Super Admin</h6></li>
+                                            <li><a class="dropdown-item" href="{% url 'superadmin_dashboard' %}">
+                                                <i class="fas fa-user-shield me-2"></i>Admin Dashboard
+                                            </a></li>
+                                            <li><a class="dropdown-item" href="{% url 'superadmin_organization_list' %}">
+                                                <i class="fas fa-building me-2"></i>Manage Organizations
+                                            </a></li>
+                                            <li><a class="dropdown-item" href="{% url 'admin:index' %}" target="_blank">
+                                                <i class="fas fa-cogs me-2"></i>Django Admin
+                                            </a></li>
+                                        {% endif %}
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <form action="{% url 'logout' %}" method="post">
+                                                {% csrf_token %}
+                                                <button type="submit" class="dropdown-item w-100 text-start">
+                                                    <i class="fas fa-sign-out-alt"></i> {% trans "Logout" %}
+                                                </button>
+                                            </form>
+                                        </li>
+                                    {% else %}
+                                        <li><a class="dropdown-item" href="{% url 'login' %}">{% trans "Login" %}</a></li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </nav>
+                
+                <!-- Messages Area -->
+                {% if messages %}
+                    <div class="messages">
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                
+                <!-- Main Content Block -->
+                {% block content %}{% endblock %}
+                
+                <!-- Footer -->
+                <footer class="footer mt-5">
+                    <div class="container-fluid">
+                        <span class="text-muted">&copy; {% now "Y" %} Pawnshop Management System. All rights reserved.</span>
+                    </div>
+                </footer>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Custom Scripts -->
+    {% block extra_scripts %}{% endblock %}
+    {% block extra_js %}{% endblock %}
+    
+    <!-- Navigation Highlighting Script -->
+    <script>
+        // Navigation highlighting functionality
+        $(document).ready(function() {
+            highlightActiveNavigation();
+            
+            // Re-highlight on browser back/forward navigation
+            window.addEventListener('popstate', function() {
+                setTimeout(highlightActiveNavigation, 100);
+            });
+            
+            // Handle immediate visual feedback on clicks
+            $('.sidebar .nav-link').on('click', function(e) {
+                // Don't prevent default navigation
+                $('.sidebar .nav-link').removeClass('active');
+                $(this).addClass('active');
+                console.log('Navigation clicked:', $(this).attr('href'));
+                
+                // Force visual update immediately
+                $(this).css('background-color', 'var(--primary-color)');
+            });
+        });
+        
+        function highlightActiveNavigation() {
+            const currentPath = window.location.pathname;
+            const sidebarLinks = $('.sidebar .nav-link');
+            
+            // Remove existing active classes
+            sidebarLinks.removeClass('active');
+            
+            console.log('Checking navigation for path:', currentPath);
+            
+            // Enhanced matching logic
+            let bestMatch = null;
+            let bestScore = 0;
+            
+            sidebarLinks.each(function() {
+                const $link = $(this);
+                const href = $link.attr('href');
+                
+                if (!href || href.startsWith('http') || href.includes('admin:index')) {
+                    return; // Skip external links
+                }
+                
+                let score = 0;
+                
+                // Exact match gets highest score
+                if (currentPath === href) {
+                    score = 1000;
+                    console.log(`Exact match: ${currentPath} = ${href}, score: ${score}`);
+                }
+                // Partial match for sub-pages
+                else if (href !== '/' && currentPath.startsWith(href)) {
+                    score = 500 + href.length; // Longer paths get higher scores
+                    console.log(`Partial match: ${currentPath} starts with ${href}, score: ${score}`);
+                }
+                // Special cases for specific navigation items
+                else {
+                    // Dashboard special case
+                    if ((currentPath === '/' || currentPath === '/dashboard/') && 
+                        (href.includes('/dashboard') || href === '/')) {
+                        score = 400;
+                        console.log(`Dashboard match: ${currentPath} matches ${href}, score: ${score}`);
+                    }
+                    // Inventory special case
+                    else if (currentPath.startsWith('/inventory/') && href.includes('/item')) {
+                        score = 450;
+                        console.log(`Inventory match: ${currentPath} matches item href ${href}, score: ${score}`);
+                    }
+                    // Reports special case
+                    else if (currentPath.startsWith('/reporting/reports/') && href.includes('/report')) {
+                        score = 450;
+                        console.log(`Reports match: ${currentPath} matches report href ${href}, score: ${score}`);
+                    }
+                    // Analytics special case
+                    else if (currentPath.startsWith('/reporting/dashboards/') && href.includes('/dashboard_list')) {
+                        score = 450;
+                        console.log(`Analytics match: ${currentPath} matches dashboard_list href ${href}, score: ${score}`);
+                    }
+                    // Biometrics special case
+                    else if (currentPath.startsWith('/biometrics/') && href.includes('/biometric')) {
+                        score = 450;
+                        console.log(`Biometrics match: ${currentPath} matches biometric href ${href}, score: ${score}`);
+                    }
+                    // Integrations special case
+                    else if (currentPath.startsWith('/integrations/') && href.includes('/integration')) {
+                        score = 450;
+                        console.log(`Integrations match: ${currentPath} matches integration href ${href}, score: ${score}`);
+                    }
+                    // Subscription special case
+                    else if (currentPath.startsWith('/dashboard/subscription') && href.includes('/subscription')) {
+                        score = 450;
+                        console.log(`Subscription match: ${currentPath} matches subscription href ${href}, score: ${score}`);
+                    }
+                }
+                
+                if (score > bestScore) {
+                    bestMatch = $link;
+                    bestScore = score;
+                }
+            });
+            
+            // Apply the best match
+            if (bestMatch) {
+                bestMatch.addClass('active');
+                console.log(`Applied highlighting to: ${bestMatch.attr('href')} - "${bestMatch.text().trim()}" (Score: ${bestScore})`);
+            } else {
+                console.log('No match found for:', currentPath);
+            }
+            
+            // Debug output
+            const activeLinks = $('.sidebar .nav-link.active');
+            console.log(`Total active links: ${activeLinks.length}`);
+        }
+        
+        // Force re-highlight after page transitions
+        $(document).on('DOMContentLoaded', highlightActiveNavigation);
+        
+        // Close alerts automatically after 5 seconds
+        window.setTimeout(function() {
+            $(".alert").fadeTo(500, 0).slideUp(500, function() {
+                $(this).remove();
+            });
+        }, 5000);
+        
+        // DateTime Widget Update Function
+        function updateDateTime() {
+            const now = new Date();
+            
+            // Format: DD/MM/YYYY HH:MM:SS
+            const day = String(now.getDate()).padStart(2, '0');
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const year = now.getFullYear();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            
+            const dateTimeStr = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+            
+            // Get day name in English and Tamil
+            const daysEn = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const daysTa = ['ஞாயிற்றுக்கிழமை', 'திங்கட்கிழமை', 'செவ்வாய்க்கிழமை', 'புதன்கிழமை', 'வியாழக்கிழமை', 'வெள்ளிக்கிழமை', 'சனிக்கிழமை'];
+            
+            const dayIndex = now.getDay();
+            const languageCode = document.documentElement.lang || 'en';
+            const dayName = languageCode.startsWith('ta') ? daysTa[dayIndex] : daysEn[dayIndex];
+            
+            // Update the display
+            document.getElementById('dateTimeDisplay').textContent = dateTimeStr;
+            document.getElementById('dayDisplay').textContent = dayName;
+        }
+        
+        // Update on page load
+        updateDateTime();
+        
+        // Update every second
+        setInterval(updateDateTime, 1000);
+    </script>
+</body>
+</html>
+
+
+

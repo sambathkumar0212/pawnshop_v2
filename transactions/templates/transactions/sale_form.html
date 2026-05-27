@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% if form.instance.pk %}Edit Sale{% else %}New Sale{% endif %} - Pawnshop Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>
+                    <i class="fas fa-shopping-cart me-2"></i>
+                    {% if form.instance.pk %}Edit Sale{% else %}New Sale{% endif %}
+                </h2>
+                <a href="{% url 'sale_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Sales
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-body">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        {% crispy form %}
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'sale_list' %}" class="btn btn-outline-secondary me-md-2">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>
+                                {% if form.instance.pk %}Update{% else %}Create{% endif %} Sale
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        function setupBidirectionalTransliteration(sourceSelector, targetSelector, direction) {
+            const source = document.querySelector(sourceSelector);
+            const target = document.querySelector(targetSelector);
+
+            if (!source || !target) {
+                return;
+            }
+
+            const syncText = debounce(function() {
+                if (source.dataset.syncLock === 'true') {
+                    delete source.dataset.syncLock;
+                    return;
+                }
+
+                const text = (source.value || '').trim();
+                if (!text) {
+                    target.value = '';
+                    return;
+                }
+
+                const params = new URLSearchParams({
+                    text: text,
+                    direction: direction
+                });
+
+                fetch(`{% url "transliterate_between_english_tamil" %}?${params.toString()}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        target.dataset.syncLock = 'true';
+                        target.value = data.result || '';
+                    })
+                    .catch(error => console.error('Transliteration error:', error));
+            }, 350);
+
+            source.addEventListener('input', syncText);
+        }
+
+        function updateSaleCustomerTamilPreview() {
+            const customerField = document.getElementById('id_customer');
+            const tamilPreview = document.getElementById('saleCustomerTamilPreview');
+
+            if (!customerField || !tamilPreview) {
+                return;
+            }
+
+            const selectedText = (customerField.options[customerField.selectedIndex]?.text || '').trim();
+            if (!selectedText || selectedText.toLowerCase() === '---------') {
+                tamilPreview.value = '';
+                return;
+            }
+
+            const params = new URLSearchParams({
+                text: selectedText,
+                direction: 'to_tamil'
+            });
+
+            fetch(`{% url "transliterate_between_english_tamil" %}?${params.toString()}`)
+                .then(response => response.json())
+                .then(data => {
+                    tamilPreview.value = data.result || '';
+                })
+                .catch(error => console.error('Customer transliteration error:', error));
+        }
+
+        setupBidirectionalTransliteration('#id_item_name', '#id_item_name_tamil', 'to_tamil');
+        setupBidirectionalTransliteration('#id_item_name_tamil', '#id_item_name', 'to_english');
+        setupBidirectionalTransliteration('#id_place_of_supply', '#id_place_of_supply_tamil', 'to_tamil');
+        setupBidirectionalTransliteration('#id_place_of_supply_tamil', '#id_place_of_supply', 'to_english');
+
+        const customerField = document.getElementById('id_customer');
+        if (customerField) {
+            customerField.addEventListener('change', updateSaleCustomerTamilPreview);
+            updateSaleCustomerTamilPreview();
+        }
+    });
+</script>
+{% endblock %}

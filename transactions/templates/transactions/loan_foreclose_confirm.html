@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Confirm Loan Foreclosure - {{ loan.loan_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Confirm Loan Foreclosure
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <h5><i class="fas fa-warning me-2"></i>Warning</h5>
+                        <p class="mb-0">You are about to foreclose loan <strong>{{ loan.loan_number }}</strong>. This action cannot be undone.</p>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Loan Details</h6>
+                            <table class="table table-sm">
+                                <tr>
+                                    <td><strong>Loan Number:</strong></td>
+                                    <td>{{ loan.loan_number }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Customer:</strong></td>
+                                    <td>{{ loan.customer.full_name }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Principal Amount:</strong></td>
+                                    <td>₹{{ loan.principal_amount|floatformat:0 }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Issue Date:</strong></td>
+                                    <td>{{ loan.issue_date|date:"d/m/Y" }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Due Date:</strong></td>
+                                    <td>{{ loan.due_date|date:"d/m/Y" }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Current Status:</strong></td>
+                                    <td>
+                                        <span class="badge bg-{{ loan.status|lower }}">
+                                            {{ loan.get_status_display }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Foreclosure Information</h6>
+                            <div class="alert alert-info">
+                                <p><strong>What happens when you foreclose this loan?</strong></p>
+                                <ul class="mb-0">
+                                    <li>The loan status will be changed to "Foreclosed"</li>
+                                    <li>The foreclosure date will be recorded as today</li>
+                                    <li>You will be recorded as the foreclosing officer</li>
+                                    <li>The pledged gold items will be available for auction/sale</li>
+                                    <li>No further payments can be accepted for this loan</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between">
+                                <a href="{% url 'loan_detail' loan.loan_number %}" class="btn btn-secondary">
+                                    <i class="fas fa-arrow-left me-1"></i>
+                                    Cancel
+                                </a>
+                                
+                                <form method="post" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-danger" onclick="return confirm('Are you absolutely sure you want to foreclose this loan? This action cannot be undone.')">
+                                        <i class="fas fa-gavel me-1"></i>
+                                        Confirm Foreclosure
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

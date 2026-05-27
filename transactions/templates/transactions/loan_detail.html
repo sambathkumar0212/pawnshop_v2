@@ -1,0 +1,605 @@
+﻿{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load loan_tags %}
+{% load custom_filters %}
+{% load loan_filters %}
+{% load loan_interest %}
+
+{% block title %}Loan #{{ loan.loan_number }} - Pawnshop Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2><i class="fas fa-hand-holding-usd me-2"></i>Loan Details</h2>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'loan_list' %}">Loans</a></li>
+                            <li class="breadcrumb-item active">{{ loan.loan_number }}</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div class="btn-group">
+                    {% if loan.status == 'active' %}
+                        <a href="{% url 'payment_create' loan.loan_number %}" class="btn btn-success me-2">
+                            <i class="fas fa-dollar-sign"></i> Make Payment
+                        </a>
+                        <a href="{% url 'loan_extend' loan.loan_number %}" class="btn btn-info me-2">
+                            <i class="fas fa-calendar-plus"></i> Extend Loan
+                        </a>
+                        <a href="{% url 'loan_foreclose' loan.loan_number %}" class="btn btn-warning me-2">
+                            <i class="fas fa-gavel"></i> Foreclose Loan
+                        </a>
+                    {% endif %}
+                    
+                    <!-- Edit Loan - Available only for authorized users -->
+                    {% if user.is_superuser or user.role and user.role.name|lower in 'manager,admin,director,supervisor,head'|split:',' %}
+                        <a href="{% url 'loan_update' loan.loan_number %}" class="btn btn-outline-primary me-2">
+                            <i class="fas fa-edit"></i> Edit Loan
+                        </a>
+                        <a href="{% url 'loan_delete' loan.loan_number %}" class="btn btn-outline-danger me-2">
+                            <i class="fas fa-trash"></i> Delete Loan
+                        </a>
+                    {% endif %}
+                    
+                    <!-- Download Agreement - Available for all loan statuses -->
+                    <a href="{% url 'loan_document' loan.loan_number %}" class="btn btn-outline-secondary me-2" target="_blank">
+                        <i class="fas fa-file-pdf"></i> Download Agreement
+                    </a>
+                    {% if loan.status == 'defaulted' %}
+                        <a href="{% url 'loan_expiry_notice' loan.loan_number %}" class="btn btn-outline-danger me-2" target="_blank">
+                            <i class="fas fa-file-alt"></i> Expiry Notice
+                        </a>
+                    {% elif loan.status == 'active' and loan.is_overdue %}
+                        <a href="{% url 'loan_expiry_notice' loan.loan_number %}" class="btn btn-outline-danger me-2" target="_blank">
+                            <i class="fas fa-file-alt"></i> Expiry Notice
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Loan Summary</h5>
+                        <span class="badge bg-{% if loan.status == 'active' %}success
+                            {% elif loan.status == 'repaid' %}info
+                            {% elif loan.status == 'defaulted' %}danger
+                            {% elif loan.status == 'extended' %}warning
+                            {% else %}secondary{% endif %} fs-6">
+                            {{ loan.status|title }}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Compact Customer Details -->
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center">
+                                {% if loan.customer_face_capture %}
+                                <div class="position-relative">
+                                    <img src="{{ loan.customer_face_capture }}" 
+                                         alt="Customer Photo" 
+                                         class="rounded-circle me-3 customer-photo"
+                                         style="width: 64px; height: 64px; object-fit: cover; cursor: pointer;"
+                                         data-bs-toggle="modal" 
+                                         data-bs-target="#customerPhotoModal">
+                                    <div class="position-absolute bottom-0 end-0">
+                                        <span class="badge bg-primary rounded-circle">
+                                            <i class="fas fa-search-plus"></i>
+                                        </span>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <div class="rounded-circle bg-light d-flex align-items-center justify-content-center me-3" 
+                                     style="width: 64px; height: 64px;">
+                                    <i class="fas fa-user fa-2x text-secondary"></i>
+                                </div>
+                                {% endif %}
+                                <div>
+                                    <h6 class="mb-1">{{ loan.customer.first_name }} {{ loan.customer.last_name }}</h6>
+                                    <p class="small text-muted mb-0">
+                                        <i class="fas fa-phone me-1"></i>{{ loan.customer.phone|mobile_format|default:"No phone" }}<br>
+                                        <a href="{% url 'customer_detail' loan.customer.id %}" class="text-primary">
+                                            <i class="fas fa-id-card me-1"></i>View Profile
+                                        </a>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Key Loan Details -->
+                        <div class="col-md-9">
+                            <div class="row">
+                                <div class="col-md-3 mb-2">
+                                    <label class="small text-muted">Loan Number</label>
+                                    <p class="mb-0 fw-bold">{{ loan.loan_number|truncatechars:10 }}</p>
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <label class="small text-muted">Branch</label>
+                                    <p class="mb-0">{{ loan.branch.name }}</p>
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <label class="small text-muted">Scheme</label>
+                                    <p class="mb-0">
+                                        <span class="badge bg-info">{{ loan.scheme.name }}</span>
+                                        {% if loan.scheme.no_interest_period_days %}
+                                            <small class="text-muted"> - no interest if paid within {{ loan.scheme.no_interest_period_days }} days</small>
+                                        {% endif %}
+                                    </p>
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <label class="small text-muted">Days Remaining</label>
+                                    <p class="mb-0">{{ loan.days_remaining }} days</p>
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <label class="small text-muted">Principal Amount</label>
+                                    <p class="mb-0 rupee-symbol">₹{{ loan.principal_amount|floatformat:2 }}</p>
+                                    <small class="text-muted" id="principalAmountWords" style="font-size: 0.75em;">
+                                        {{ loan.principal_amount|number_to_words|title }} Rupees Only
+                                    </small>
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <label class="small text-muted">Total Payable (Till Today)</label>
+                                    <p class="mb-0 rupee-symbol">₹{{ loan.total_payable_till_date|floatformat:0 }}</p>
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <label class="small text-muted">Total Payable (Maturity)</label>
+                                    <p class="mb-0 rupee-symbol">₹{{ loan.total_payable_mature|floatformat:0 }}</p>
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <label class="small text-muted">Amount Already Paid</label>
+                                    <p class="mb-0 rupee-symbol">₹{{ loan.amount_paid|floatformat:2 }}</p>
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <label class="small text-muted">Net Payable (Still Due)</label>
+                                    <p class="mb-0 fw-bold text-danger rupee-symbol">₹{{ loan.net_payable_still_due|floatformat:0 }}</p>
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <label class="small text-muted">Remaining Balance</label>
+                                    <p class="mb-0 rupee-symbol">₹{{ loan.remaining_balance|floatformat:0 }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Loan Information -->
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-money-bill-wave me-2"></i>Loan Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="text-muted">Processing Fee</label>
+                            <p class="mb-0 rupee-symbol">₹{{ loan.processing_fee }}</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="text-muted">Distribution Amount</label>
+                            <p class="mb-0 rupee-symbol">₹{{ loan.distribution_amount|floatformat:2 }}</p>
+                            <small class="text-muted" id="distributionAmountWords" style="font-size: 0.65rem;">
+                                {{ loan.distribution_amount|number_to_words|title }} Rupees Only
+                            </small>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="text-muted">Interest Rate</label>
+                            <p class="mb-0">{{ loan.interest_rate }}% p.a.</p>
+                        </div>
+                        
+                        <!-- Monthly Interest Section -->
+                        <div class="col-md-12 mb-3">
+                            <div class="card bg-light">
+                                <div class="card-body p-2">
+                                    <h6 class="card-title small"><i class="fas fa-chart-line me-2"></i>Monthly Interest Details</h6>
+                                    <div class="row g-2">
+                                        <div class="col-md-4">
+                                            <label class="text-muted small">Monthly Rate</label>
+                                            <p class="mb-0 small">{{ loan|monthly_interest_rate }}%</p>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="text-muted small">Monthly Interest</label>
+                                            <p class="mb-0 rupee-symbol small">₹{{ loan|monthly_interest_amount|floatformat:2 }}</p>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="text-muted small">Interest Till Date</label>
+                                            <p class="mb-0 rupee-symbol small">₹{{ loan.monthly_interest_till_date|floatformat:2 }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- No Interest End Date section -->
+                        {% if loan.scheme.no_interest_period_days %}
+                        <div class="col-md-4 mb-3">
+                            <label class="text-muted small">No Interest End Date</label>
+                            <p class="mb-0 small">
+                                <strong>{{ loan.issue_date|date_add_days:loan.scheme.no_interest_period_days|date:'d M, Y' }}</strong>
+                                {% if loan.days_since_issue <= loan.scheme.no_interest_period_days %}
+                                    <span class="badge bg-success ms-1 small">{{ loan.scheme.no_interest_period_days|subtract:loan.days_since_issue }}d left</span>
+                                {% else %}
+                                    <span class="badge bg-secondary ms-1 small">Expired</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="col-md-{% if loan.scheme.no_interest_period_days %}8{% else %}12{% endif %} mb-3">
+                            <label class="text-muted">Loan Scheme Details</label>
+                            <p class="mb-0">
+                                <small class="text-muted d-block" style="font-size: 0.75rem;">{{ loan.scheme.description }}</small>
+                                
+                                {% if loan.scheme.no_interest_period_days %}
+                                    {% if loan.days_since_issue <= loan.scheme.no_interest_period_days %}
+                                        <small class="text-success d-block" style="font-size: 0.75rem;">
+                                            <i class="fas fa-check-circle me-1"></i>
+                                            No interest if repaid today! ({{ loan.scheme.no_interest_period_days|subtract:loan.days_since_issue }} days remaining)
+                                        </small>
+                                        <small class="text-muted d-block" style="font-size: 0.75rem;">
+                                            <i class="fas fa-calendar-day me-1"></i>
+                                            Zero interest period ends on {{ loan.issue_date|date_add_days:loan.scheme.no_interest_period_days|date:'d M, Y' }}
+                                        </small>
+                                    {% else %}
+                                        <small class="text-muted d-block" style="font-size: 0.75rem;">
+                                            <i class="fas fa-calendar-times me-1"></i>
+                                            No interest period ended on {{ loan.issue_date|date_add_days:loan.scheme.no_interest_period_days|date:'d M, Y' }}
+                                        </small>
+                                    {% endif %}
+                                {% endif %}
+                                
+                                {% if loan.scheme.additional_conditions %}
+                                    <div class="scheme-conditions mt-1" style="font-size: 0.75rem;">
+                                    {% for key, value in loan.scheme.additional_conditions.items %}
+                                        <small class="text-muted d-block">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            <span class="text-secondary">{{ key|title|replace_underscore }}:</span> 
+                                            <span class="text-dark">{{ value }}</span>
+                                        </small>
+                                    {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="text-muted small">Loan Date</label>
+                            <p class="mb-0 small">{{ loan.issue_date|date:"M d, Y" }}</p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="text-muted small">Due Date</label>
+                            <p class="mb-0 small">{{ loan.due_date|date:"M d, Y" }}</p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="text-muted small">Grace Period End</label>
+                            <p class="mb-0 small">{{ loan.grace_period_end|date:"M d, Y" }}</p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="text-muted small">Days Remaining</label>
+                            <p class="mb-0 small fw-bold">{{ loan.days_remaining }} days</p>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="text-muted">Payment Progress</label>
+                            <div class="progress mb-1" style="height: 20px;">
+                                {% if loan.total_payable > 0 %}
+                                    {% with payment_percentage=loan.amount_paid|percentage:loan.total_payable_till_date %}
+                                    <div class="progress-bar {% if payment_percentage < 30 %}bg-danger{% elif payment_percentage < 70 %}bg-warning{% else %}bg-success{% endif %}" 
+                                        role="progressbar" 
+                                        style="width: {{ payment_percentage }}%;" 
+                                        aria-valuenow="{{ payment_percentage }}" 
+                                        aria-valuemin="0" 
+                                        aria-valuemax="100">
+                                        {{ payment_percentage|floatformat:1 }}%
+                                    </div>
+                                    {% endwith %}
+                                {% else %}
+                                    <div class="progress-bar bg-success" role="progressbar" style="width: 0%;" 
+                                        aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                                {% endif %}
+                            </div>
+                            <div class="d-flex justify-content-between mt-1">
+                                <small class="text-muted">₹{{ loan.amount_paid|floatformat:2 }} paid</small>
+                                <small class="text-muted">₹{{ loan.total_payable_till_date|floatformat:0 }} total</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment History -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <h5 class="mb-0"><i class="fas fa-history me-2"></i>Payment History</h5>
+                    {% if payments %}
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" id="downloadPaymentDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-download me-1"></i> {% trans "Download" %}
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="downloadPaymentDropdown">
+                            <li><h6 class="dropdown-header">{% trans "Export Payment History" %}</h6></li>
+                            <li><a class="dropdown-item" href="{% url 'loan_payment_history_download' loan.loan_number %}?format=pdf&lang=en"><i class="fas fa-file-pdf text-danger me-2"></i> PDF ({% trans "English" %})</a></li>
+                            <li><a class="dropdown-item" href="{% url 'loan_payment_history_download' loan.loan_number %}?format=csv&lang=en"><i class="fas fa-file-csv text-success me-2"></i> CSV ({% trans "English" %})</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'loan_payment_history_download' loan.loan_number %}?format=pdf&lang=ta"><i class="fas fa-file-pdf text-danger me-2"></i> PDF (à®¤à®®à®¿à®´à¯)</a></li>
+                            <li><a class="dropdown-item" href="{% url 'loan_payment_history_download' loan.loan_number %}?format=csv&lang=ta"><i class="fas fa-file-csv text-success me-2"></i> CSV (à®¤à®®à®¿à®´à¯)</a></li>
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if payments %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Amount</th>
+                                    <th>Method</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payment in payments %}
+                                <tr>
+                                    <td>{{ payment.payment_date|date:"M d, Y" }}</td>
+                                    <td>₹{{ payment.amount|floatformat:2 }}</td>
+                                    <td>{{ payment.get_payment_method_display }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">No payments recorded yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Pawned Items and Extension History -->
+        <div class="col-lg-4">
+            <!-- Pawned Items -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-box me-2"></i>Pawned Items</h5>
+                    
+                    <!-- Calculate total items from all items -->
+                    {% with total_count=0 %}
+                        {% for item in loan_items %}
+                            {% with item_count=item.item.name|calculate_total_items %}
+                                {% if item_count > 0 %}
+                                    <!-- Calculate new total -->
+                                    {% with new_total=total_count|add:item_count %}
+                                        <!-- Reassign total_count -->
+                                        {% with total_count=new_total %}{% endwith %}
+                                        
+                                        <!-- Show the aggregated count for the last item -->
+                                        {% if forloop.last %}
+                                            <span class="badge bg-success fs-6">Total Items: {{ new_total }}</span>
+                                        {% endif %}
+                                    {% endwith %}
+                                {% endif %}
+                            {% endwith %}
+                        {% endfor %}
+                    {% endwith %}
+                </div>
+                <div class="card-body">
+                    {% if loan.item_photos %}
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <h6 class="text-muted small mb-2">Item Photos</h6>
+                            <div class="item-photos-gallery d-flex flex-wrap">
+                                {% try %}
+                                    {% if item_photos_list %}
+                                        {% for photo in item_photos_list %}
+                                            <div class="item-photo-thumbnail me-2 mb-2 position-relative" data-bs-toggle="modal" data-bs-target="#photoModal" data-photo-url="{{ photo }}" data-photo-index="{{ forloop.counter }}">
+                                                <img src="{{ photo }}" class="rounded border" alt="Item Photo {{ forloop.counter }}" 
+                                                     style="width: 80px; height: 80px; object-fit: cover; cursor: pointer;">
+                                                <div class="position-absolute bottom-0 start-0 end-0 bg-dark bg-opacity-50 text-white small text-center">
+                                                    Photo {{ forloop.counter }}
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    {% elif loan.item_photos|is_base64 %}
+                                        <div class="item-photo-thumbnail me-2 mb-2 position-relative" data-bs-toggle="modal" data-bs-target="#photoModal" data-photo-url="{{ loan.item_photos }}" data-photo-index="1">
+                                            <img src="{{ loan.item_photos }}" class="rounded border" alt="Item Photo" 
+                                                 style="width: 80px; height: 80px; object-fit: cover; cursor: pointer;">
+                                            <div class="position-absolute bottom-0 start-0 end-0 bg-dark bg-opacity-50 text-white small text-center">
+                                                Photo 1
+                                            </div>
+                                        </div>
+                                    {% elif loan.item_photos|is_empty_photo_list %}
+                                        <div class="alert alert-light small py-2">
+                                            <i class="fas fa-camera me-2"></i>No photos available
+                                            <a href="{% url 'loan_update' loan.loan_number %}" class="btn btn-sm btn-outline-secondary ms-2">
+                                                <i class="fas fa-plus me-1"></i>Add Photos
+                                            </a>
+                                        </div>
+                                    {% else %}
+                                        <div class="alert alert-warning small py-2">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>
+                                            <a href="{% url 'loan_update' loan.loan_number %}" class="btn btn-sm btn-warning">
+                                                <i class="fas fa-sync-alt me-1"></i>Reprocess Photos
+                                            </a>
+                                        </div>
+                                    {% endif %}
+                                {% except %}
+                                    <!-- Handle the case when item_photos is empty or cannot be processed -->
+                                    {% if loan.item_photos|is_empty_photo_list %}
+                                        <div class="alert alert-light small py-2">
+                                            <i class="fas fa-camera me-2"></i>No photos available
+                                            <a href="{% url 'loan_update' loan.loan_number %}" class="btn btn-sm btn-outline-secondary ms-2">
+                                                <i class="fas fa-plus me-1"></i>Add Photos
+                                            </a>
+                                        </div>
+                                    {% else %}
+                                        <div class="alert alert-warning small py-2">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>Photos need to be reprocessed. 
+                                            <a href="{% url 'loan_update' loan.loan_number %}" class="btn btn-sm btn-warning">
+                                                <i class="fas fa-sync-alt me-1"></i>Edit Loan to Fix
+                                            </a>
+                                        </div>
+                                    {% endif %}
+                                {% endtry %}
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-light py-2 small mb-3">
+                        <i class="fas fa-camera me-2"></i>No item photos available
+                    </div>
+                    {% endif %}
+                    
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Gold Karat</th>
+                                    <th>Gross Weight</th>
+                                    <th>Net Weight</th>
+                                    <th>Market Price</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in loan_items %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'item_detail' item.item.id %}">{{ item.item.name }}</a>
+                                        <small class="d-block text-muted">{{ item.item.description|truncatechars:30 }}</small>
+                                    </td>
+                                    <td>{{ item.gold_karat }}K</td>
+                                    <td>{{ item.gross_weight }}g</td>
+                                    <td>{{ item.net_weight }}g</td>
+                                    <td>₹{{ item.market_price_22k|floatformat:2 }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-3">
+                                        <i class="fas fa-exclamation-circle me-2"></i>No item details available
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Extension History -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-calendar-plus me-2"></i>Extension History</h5>
+                </div>
+                <div class="card-body">
+                    {% if extensions %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Fee</th>
+                                    <th>New Due Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for extension in extensions %}
+                                <tr>
+                                    <td>{{ extension.extension_date|date:"M d, Y" }}</td>
+                                    <td>₹{{ extension.fee|floatformat:2 }}</td>
+                                    <td>{{ extension.new_due_date|date:"M d, Y" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">No extensions recorded.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Photo Modal -->
+<div class="modal fade" id="photoModal" tabindex="-1" aria-labelledby="photoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="photoModalLabel">Item Photo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="modalPhotoImg" src="" class="img-fluid" alt="Item Photo">
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Customer Photo Modal -->
+<div class="modal fade" id="customerPhotoModal" tabindex="-1" aria-labelledby="customerPhotoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="customerPhotoModalLabel">Customer Photo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                {% if loan.customer_face_capture %}
+                <img src="{{ loan.customer_face_capture }}" class="img-fluid rounded-circle" alt="Customer Photo" style="max-width: 100%; height: auto;">
+                {% else %}
+                <i class="fas fa-user fa-5x text-secondary"></i>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log("Loan detail page loaded, initializing photo handlers");
+        
+        // Handle item photo click to show in modal
+        const photoThumbnails = document.querySelectorAll('.item-photo-thumbnail');
+        const modalPhotoImg = document.getElementById('modalPhotoImg');
+        
+        photoThumbnails.forEach(thumbnail => {
+            thumbnail.addEventListener('click', function() {
+                const photoUrl = this.getAttribute('data-photo-url');
+                console.log("Opening photo in modal:", photoUrl.substring(0, 30) + "...");
+                modalPhotoImg.src = photoUrl;
+            });
+        });
+        
+        // Debug the item photos data
+        const photoContainer = document.querySelector('.item-photos-gallery');
+        if (photoContainer) {
+            const photoCount = photoContainer.querySelectorAll('.item-photo-thumbnail').length;
+            console.log(`Found ${photoCount} photos in the gallery`);
+        } else {
+            console.log("Photo container not found");
+        }
+    });
+</script>
+{% endblock %}
+
+<!-- Add consistent rupee symbol styles -->
+<style>
+    .rupee-symbol {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Arial Unicode MS', 'Noto Sans', sans-serif;
+    }
+</style>
+
+
+

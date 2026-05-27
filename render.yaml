@@ -1,0 +1,32 @@
+services:
+  # Web service
+  - type: web
+    name: pawnshop
+    env: python
+    buildCommand: ./build.sh
+    startCommand: ./start.sh
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.11
+      - key: RENDER
+        value: true
+      - key: DJANGO_SETTINGS_MODULE
+        value: pawnshop_management.settings
+      - key: PORT
+        sync: false
+
+    # Database connection - using Render internal connection
+    # The DATABASE_URL should be set in the Render dashboard Environment section
+    # and Render will automatically inject it as an environment variable
+
+    # Pre-deployment command to run migrations before the application starts
+    preDeployCommand: "python manage.py migrate --noinput"
+    
+    # Configure post-deployment script to run migrations and setup roles
+    postDeployCommand: ./scripts/post_deploy.sh
+    
+    # Specify healthcheck to ensure the app is running correctly
+    healthCheckPath: /login/
+    
+    # Autoscaling configuration (optional)
+    autoDeploy: true

@@ -1,0 +1,389 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% load custom_filters %}
+{% load loan_interest %}
+
+{% block title %}Record Payment - Loan #{{ loan.loan_number }} - Pawnshop Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2><i class="fas fa-dollar-sign me-2"></i>Record Payment</h2>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'loan_list' %}">Loans</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'loan_detail' loan.loan_number %}">{{ loan.loan_number }}</a></li>
+                            <li class="breadcrumb-item active">Record Payment</li>
+                        </ol>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if new_payment_id %}
+    <!-- Success message with receipt button when payment is recorded -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="alert alert-success">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <h5 class="alert-heading mb-1"><i class="fas fa-check-circle me-2"></i>Payment Successfully Recorded!</h5>
+                        <p class="mb-0">The payment has been recorded successfully. You can now print a receipt for the customer.</p>
+                    </div>
+                    <a href="{% url 'payment_receipt' new_payment_id %}" target="_blank" class="btn btn-primary">
+                        <i class="fas fa-print me-2"></i>Print Receipt
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Payment Details</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Loan Summary with Payment Breakdown -->
+                    <div class="loan-summary bg-info bg-opacity-10 p-3 rounded mb-4">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>Customer:</strong> {{ loan.customer.first_name }} {{ loan.customer.last_name }}
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Loan Number:</strong> {{ loan.loan_number }}
+                            </div>
+                        </div>
+                        
+                        <!-- Payment Breakdown Table -->
+                        <div class="mt-3">
+                            <h6 class="mb-3">Payment Breakdown</h6>
+                            <table class="table table-sm">
+                                <tr>
+                                    <td>Principal Amount</td>
+                                    <td class="text-end">₹{{ loan.principal_amount|floatformat:2 }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Monthly Interest Rate</td>
+                                    <td class="text-end">{{ loan|monthly_interest_rate }}%</td>
+                                </tr>
+                                <tr>
+                                    <td>Monthly Interest Amount</td>
+                                    <td class="text-end">₹{{ loan|monthly_interest_amount|floatformat:2 }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Interest Accumulated (Complete Months)</td>
+                                    <td class="text-end">₹{{ loan.monthly_interest_till_date|floatformat:2 }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Interest (till today)</td>
+                                    <td class="text-end">₹{{ loan.total_payable_till_date|subtract:loan.principal_amount|floatformat:2 }}</td>
+                                </tr>
+                                <tr class="text-primary">
+                                    <td>Total Payable (Till Today)</td>
+                                    <td class="text-end">₹{{ loan.total_payable_till_date|floatformat:0 }}</td>
+                                </tr>
+                                <tr class="text-success">
+                                    <td>Amount Already Paid</td>
+                                    <td class="text-end">₹{{ loan.amount_paid|floatformat:2 }}</td>
+                                </tr>
+                                <tr class="table-primary fw-bold">
+                                    <td>Net Amount Due</td>
+                                    <td class="text-end">₹{{ loan.total_payable_till_date|subtract:loan.amount_paid|floatformat:0 }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Total Payable (Maturity)</td>
+                                    <td class="text-end">₹{{ loan.total_payable_mature|floatformat:0 }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Remaining Balance</td>
+                                    <td class="text-end">₹{{ loan.remaining_balance|floatformat:0 }}</td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <!-- Payment Progress Bar -->
+                        <div class="mt-4 mb-2">
+                            <h6 class="mb-2">Payment Progress</h6>
+                            {% with payment_percentage=loan.amount_paid|percentage:loan.total_payable_till_date %}
+                            <div class="progress" style="height: 25px;">
+                                <div class="progress-bar {% if payment_percentage < 30 %}bg-danger{% elif payment_percentage < 70 %}bg-warning{% else %}bg-success{% endif %}" 
+                                     role="progressbar" 
+                                     style="width: {{ payment_percentage }}%;" 
+                                     aria-valuenow="{{ payment_percentage }}" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100">
+                                    {{ payment_percentage|floatformat:1 }}%
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between mt-1">
+                                <small class="text-muted">₹{{ loan.amount_paid|floatformat:2 }} paid</small>
+                                <small class="text-muted">₹{{ loan.total_payable_till_date|floatformat:0 }} total</small>
+                            </div>
+                            {% endwith %}
+                        </div>
+
+                        <!-- Payment History -->
+                        {% if payments %}
+                        <div class="mt-3">
+                            <h6 class="mb-3">Payment History</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th class="text-end">Amount</th>
+                                            <th>Method</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for payment in payments %}
+                                        <tr>
+                                            <td>{{ payment.payment_date|date:"M d, Y" }}</td>
+                                            <td class="text-end">₹{{ payment.amount|floatformat:2 }}</td>
+                                            <td>{{ payment.get_payment_method_display }}</td>
+                                            <td>
+                                                <a href="{% url 'payment_receipt' payment.id %}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-print"></i> Receipt
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Loan Scheme Information -->
+                    {% if loan.scheme == 'standard' %}
+                        <div class="alert alert-info mb-4">
+                            <h5 class="alert-heading"><i class="fas fa-info-circle me-2"></i>Standard Loan Scheme</h5>
+                            <p>Interest rate: <strong>12%</strong> per annum</p>
+                            
+                            {% if scheme_restriction %}
+                                <div class="alert alert-warning mb-0">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    <strong>Restriction:</strong> {{ scheme_restriction.message }}
+                                    <div class="mt-1">Minimum duration: 3 months ({{ scheme_restriction.days_remaining }} days remaining)</div>
+                                </div>
+                            {% else %}
+                                <p class="mb-0">This loan can now be fully repaid as it has passed the 3-month minimum term.</p>
+                            {% endif %}
+                        </div>
+                    {% elif loan.scheme == 'flexible' %}
+                        <div class="alert alert-warning mb-4">
+                            <h5 class="alert-heading"><i class="fas fa-info-circle me-2"></i>Flexible Loan Scheme</h5>
+                            <p>Interest rate: <strong>24%</strong> per annum</p>
+                            
+                            {% if scheme_benefit %}
+                                <div class="alert alert-success mb-0">
+                                    <i class="fas fa-check-circle me-2"></i>
+                                    <strong>Early Repayment Benefit:</strong> {{ scheme_benefit.message }}
+                                    <div class="mt-1">Days remaining for zero interest: {{ scheme_benefit.days_remaining }}</div>
+                                </div>
+                            {% else %}
+                                <p class="mb-0">The 23-day zero interest period has passed. Standard 24% interest rate applies.</p>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+
+                    <!-- Payment Form -->
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        
+                        <!-- Payment Type Selection -->
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label for="payment_type" class="form-label">Payment Type</label>
+                                    <select id="payment_type" name="payment_type" class="form-select">
+                                        <option value="partial">Partial Payment</option>
+                                        <option value="full">Full Payment (Principal + Interest till date)</option>
+                                    </select>
+                                    <div class="form-text text-muted">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        Full payment will close the loan and mark the gold items as returned to the customer.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.amount|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.payment_method|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.payment_date|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.reference_number|as_crispy_field }}
+                            </div>
+                            <div class="col-12 mb-3">
+                                {{ form.notes|as_crispy_field }}
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'loan_detail' loan.loan_number %}" class="btn btn-outline-secondary me-md-2">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Record Payment
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    $(document).ready(function() {
+        // Set default payment date to today
+        if (!$('#id_payment_date').val()) {
+            $('#id_payment_date').val(new Date().toISOString().split('T')[0]);
+        }
+        
+        // Get the remaining balance amount from the context
+        const remainingBalance = {{ remaining_balance|floatformat:2 }};
+        
+        // Handle payment type change
+        $('#payment_type').on('change', function() {
+            if ($(this).val() === 'full') {
+                // For full payment, use the remaining balance amount
+                $('#id_amount').val(remainingBalance);
+                $('#id_amount').prop('readonly', true);
+                $('#id_amount').parents('.form-group').find('.form-text').html(
+                    '<i class="fas fa-info-circle me-1 text-success"></i>' +
+                    'Full payment amount (principal + interest till today, minus payments already made). <strong>This will automatically close the loan.</strong>'
+                );
+            } else {
+                // For partial payment, enable the amount field
+                $('#id_amount').prop('readonly', false);
+                $('#id_amount').parents('.form-group').find('.form-text').html(
+                    '<i class="fas fa-info-circle me-1"></i>' +
+                    'Enter payment amount'
+                );
+                $('#id_amount').val(''); // Clear the field
+            }
+        });
+        
+        // Handle form submission with confirmation popup for full payments
+        $('form').on('submit', function(e) {
+            const paymentAmount = parseFloat($('#id_amount').val()) || 0;
+            const paymentType = $('#payment_type').val();
+            
+            // Check if this payment will fully settle the loan
+            const willCloseLoan = paymentAmount >= remainingBalance && remainingBalance > 0;
+            
+            if (willCloseLoan || paymentType === 'full') {
+                e.preventDefault(); // Stop the form submission
+                
+                // Show confirmation modal
+                showLoanClosureConfirmation(paymentAmount, remainingBalance, $(this));
+            }
+        });
+        
+        // Function to show loan closure confirmation modal
+        function showLoanClosureConfirmation(paymentAmount, remainingBalance, form) {
+            const modalHtml = `
+                <div class="modal fade" id="loanClosureModal" tabindex="-1" aria-labelledby="loanClosureModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header bg-success text-white">
+                                <h5 class="modal-title" id="loanClosureModalLabel">
+                                    <i class="fas fa-check-circle me-2"></i>Confirm Loan Closure
+                                </h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="alert alert-info">
+                                    <h6><i class="fas fa-info-circle me-2"></i>Payment will fully settle this loan</h6>
+                                    <p class="mb-0">This payment will cover the complete outstanding amount and automatically close the loan.</p>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>Payment Details</h6>
+                                        <table class="table table-sm">
+                                            <tr>
+                                                <td><strong>Payment Amount:</strong></td>
+                                                <td class="text-success">₹${paymentAmount.toFixed(2)}</td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Outstanding Balance:</strong></td>
+                                                <td class="text-danger">₹${remainingBalance.toFixed(2)}</td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Excess Amount:</strong></td>
+                                                <td class="text-info">₹${Math.max(0, paymentAmount - remainingBalance).toFixed(2)}</td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6>What happens next?</h6>
+                                        <ul class="list-unstyled">
+                                            <li><i class="fas fa-check text-success me-2"></i>Payment will be recorded</li>
+                                            <li><i class="fas fa-check text-success me-2"></i>Loan status will change to "Closed"</li>
+                                            <li><i class="fas fa-check text-success me-2"></i>Gold items will be marked as returned</li>
+                                            <li><i class="fas fa-check text-success me-2"></i>Payment receipt will be generated</li>
+                                            ${paymentAmount > remainingBalance ? '<li><i class="fas fa-info text-warning me-2"></i>Excess amount will be noted in receipt</li>' : ''}
+                                        </ul>
+                                    </div>
+                                </div>
+                                
+                                <div class="alert alert-warning mt-3">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    <strong>Important:</strong> Once the loan is closed, no further payments can be accepted and the gold items should be returned to the customer.
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                    <i class="fas fa-times me-2"></i>Cancel
+                                </button>
+                                <button type="button" class="btn btn-success" id="confirmLoanClosure">
+                                    <i class="fas fa-check me-2"></i>Confirm Payment & Close Loan
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Remove existing modal if any
+            $('#loanClosureModal').remove();
+            
+            // Add modal to body
+            $('body').append(modalHtml);
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('loanClosureModal'));
+            modal.show();
+            
+            // Handle confirmation
+            $('#confirmLoanClosure').on('click', function() {
+                modal.hide();
+                // Submit the form after confirmation
+                form.off('submit'); // Remove the event handler to prevent infinite loop
+                form.submit();
+            });
+        }
+    });
+</script>
+{% endblock %}

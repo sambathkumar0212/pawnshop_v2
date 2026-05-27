@@ -1,0 +1,306 @@
+﻿{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% get_current_language as LANGUAGE_CODE %}
+
+{% block title %}
+{% if LANGUAGE_CODE|slice:':2' == 'ta' %}à®µà®Ÿà¯à®Ÿà®¿ à®šà¯†à®²à¯à®¤à¯à®¤à®¿à®¯à®¤à¯{% else %}Interest Paid{% endif %}
+{% endblock %}
+
+{% block interest_paid_active %}active{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="row mb-4">
+        <div class="col-md-6">
+            {% if LANGUAGE_CODE|slice:':2' == 'ta' %}
+                <h2>à®µà®Ÿà¯à®Ÿà®¿ à®šà¯†à®²à¯à®¤à¯à®¤à®¿à®¯à®¤à¯</h2>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">à®Ÿà®¾à®·à¯à®ªà¯‹à®°à¯à®Ÿà¯</a></li>
+                        <li class="breadcrumb-item active">à®µà®Ÿà¯à®Ÿà®¿ à®šà¯†à®²à¯à®¤à¯à®¤à®¿à®¯à®¤à¯</li>
+                    </ol>
+                </nav>
+            {% else %}
+                <h2>Interest Paid</h2>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+                        <li class="breadcrumb-item active">Interest Paid</li>
+                    </ol>
+                </nav>
+            {% endif %}
+        </div>
+        <div class="col-md-6 text-end">
+            <div class="btn-group">
+                <div class="dropdown">
+                    <button class="btn btn-outline-success dropdown-toggle" type="button" id="downloadDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-download"></i>
+                        {% if LANGUAGE_CODE|slice:':2' == 'ta' %}
+                            à®¤à®°à®µà®¿à®±à®•à¯à®•à®®à¯
+                        {% else %}
+                            Download
+                        {% endif %}
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="downloadDropdown">
+                        <li>
+                            <a class="dropdown-item" href="?export=pdf">
+                                <i class="fas fa-file-pdf"></i>
+                                {% if LANGUAGE_CODE|slice:':2' == 'ta' %}
+                                    PDF à®‡à®²à¯ à®¤à®°à®µà®¿à®±à®•à¯à®•à®®à¯
+                                {% else %}
+                                    Download as PDF
+                                {% endif %}
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="?export=csv">
+                                <i class="fas fa-file-csv"></i>
+                                {% if LANGUAGE_CODE|slice:':2' == 'ta' %}
+                                    CSV à®‡à®²à¯ à®¤à®°à®µà®¿à®±à®•à¯à®•à®®à¯
+                                {% else %}
+                                    Download as CSV
+                                {% endif %}
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Date Filter -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label for="start_date" class="form-label">
+                        {% if LANGUAGE_CODE|slice:':2' == 'ta' %}
+                            à®†à®°à®®à¯à®ª à®¤à¯‡à®¤à®¿
+                        {% else %}
+                            Start Date
+                        {% endif %}
+                    </label>
+                    <input type="date" class="form-control" id="start_date" name="start_date" value="{{ request.GET.start_date }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="end_date" class="form-label">
+                        {% if LANGUAGE_CODE|slice:':2' == 'ta' %}
+                            à®‡à®±à¯à®¤à®¿ à®¤à¯‡à®¤à®¿
+                        {% else %}
+                            End Date
+                        {% endif %}
+                    </label>
+                    <input type="date" class="form-control" id="end_date" name="end_date" value="{{ request.GET.end_date }}">
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-filter"></i>
+                        {% if LANGUAGE_CODE|slice:':2' == 'ta' %}
+                            à®µà®Ÿà®¿à®•à®Ÿà¯à®Ÿ
+                        {% else %}
+                            Filter
+                        {% endif %}
+                    </button>
+                </div>
+                <div class="col-md-3">
+                    <a href="{% url 'payment_list' %}" class="btn btn-secondary w-100">
+                        <i class="fas fa-redo"></i>
+                        {% if LANGUAGE_CODE|slice:':2' == 'ta' %}
+                            à®®à¯€à®Ÿà¯à®Ÿà®®à¯ˆ
+                        {% else %}
+                            Reset
+                        {% endif %}
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Summary Card -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>
+                        {% if LANGUAGE_CODE|slice:':2' == 'ta' %}
+                            à®®à¯Šà®¤à¯à®¤ à®šà¯†à®²à¯à®¤à¯à®¤à¯à®¤à®²à¯
+                        {% else %}
+                            Total Payments
+                        {% endif %}
+                    </h5>
+                    <h3 class="text-primary" id="total-amount">₹ 0.00</h3>
+                </div>
+                <div class="col-md-6">
+                    <h5>
+                        {% if LANGUAGE_CODE|slice:':2' == 'ta' %}
+                            à®®à¯Šà®¤à¯à®¤ à®ªà®¤à®¿à®µà¯à®•à®³à¯
+                        {% else %}
+                            Total Records
+                        {% endif %}
+                    </h5>
+                    <h3 class="text-success">{{ payments|length }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover table-sm mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>#</th>
+                        {% if LANGUAGE_CODE|slice:':2' == 'ta' %}
+                            <th>à®µ.à®Žà®£à¯</th>
+                            <th>à®µà®¾à®Ÿà®¿à®•à¯à®•à¯ˆà®¯à®¾à®³à®°à¯ à®ªà¯†à®¯à®°à¯</th>
+                            <th>à®•à®Ÿà®©à¯ à®Žà®£à¯</th>
+                            <th>à®šà¯†à®²à¯à®¤à¯à®¤à®¿à®¯ à®¤à¯Šà®•à¯ˆ</th>
+                            <th>à®šà¯†à®²à¯à®¤à¯à®¤à®¿à®¯ à®¤à¯‡à®¤à®¿</th>
+                            <th>à®šà¯†à®²à¯à®¤à¯à®¤à®¿à®¯ à®®à¯à®±à¯ˆ</th>
+                            <th>à®•à¯à®±à®¿à®ªà¯à®ªà¯à®•à¯à®•à®³à¯</th>
+                            <th>à®ªâ€à¯†â€à®±à¯à®±à¯à®•à¯ à®•à¯Šà®£à¯à®Ÿà®µà®°à¯</th>
+                        {% else %}
+                            <th>S.No</th>
+                            <th>Customer Name</th>
+                            <th>Loan Number</th>
+                            <th>Amount Paid</th>
+                            <th>Payment Date</th>
+                            <th>Payment Method</th>
+                            <th>Notes</th>
+                            <th>Received By</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payment in payments %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>
+                            <span class="badge bg-info">{{ forloop.counter }}</span>
+                        </td>
+                        <td>
+                            <strong>
+                                {% if LANGUAGE_CODE|slice:':2' == 'ta' %}
+                                    {{ payment.loan.customer.full_name_tamil|default:"N/A" }}
+                                {% else %}
+                                    {{ payment.loan.customer.full_name|default:"N/A" }}
+                                {% endif %}
+                            </strong>
+                        </td>
+                        <td>
+                            <a href="{% url 'loan_detail' payment.loan.loan_number %}" class="text-decoration-none">
+                                {{ payment.loan.loan_number }}
+                            </a>
+                        </td>
+                        <td>
+                            <span class="badge bg-success">₹{{ payment.amount|floatformat:2 }}</span>
+                        </td>
+                        <td>
+                            <small class="text-muted">{{ payment.payment_date|date:"d-m-Y" }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ payment.get_payment_method_display|default:payment.payment_method }}</span>
+                        </td>
+                        <td>
+                            <small>{{ payment.notes|truncatewords:5|default:"â€”" }}</small>
+                        </td>
+                        <td>
+                            <small>{{ payment.received_by.username|default:"N/A" }}</small>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-4">
+                            <i class="fas fa-inbox text-muted" style="font-size: 2rem;"></i>
+                            <p class="text-muted mt-2">
+                                {% if LANGUAGE_CODE|slice:':2' == 'ta' %}
+                                    à®µà®Ÿà¯à®Ÿà®¿ à®šà¯†à®²à¯à®¤à¯à®¤à¯à®¤à®²à¯ à®ªà®¤à®¿à®µà¯à®•à®³à¯ à®‡à®²à¯à®²à¯ˆ
+                                {% else %}
+                                    No interest payments found
+                                {% endif %}
+                            </p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <nav aria-label="Page navigation" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1">
+                        {% if LANGUAGE_CODE|slice:':2' == 'ta' %}à®®à¯à®¤à®²à¯{% else %}First{% endif %}
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+                        {% if LANGUAGE_CODE|slice:':2' == 'ta' %}à®®à¯à®¨à¯à®¤à¯ˆà®¯à®¤à¯{% else %}Previous{% endif %}
+                    </a>
+                </li>
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                {% else %}
+                    <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+                        {% if LANGUAGE_CODE|slice:':2' == 'ta' %}à®…à®Ÿà¯à®¤à¯à®¤à®¤à¯{% else %}Next{% endif %}
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">
+                        {% if LANGUAGE_CODE|slice:':2' == 'ta' %}à®•à®Ÿà¯ˆà®šà®¿{% else %}Last{% endif %}
+                    </a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+
+<style>
+    .stat-card {
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+    }
+    .stat-card:hover {
+        transform: translateY(-2px);
+    }
+    .table-hover tbody tr:hover {
+        background-color: #f5f5f5;
+    }
+    .badge {
+        padding: 0.4rem 0.6rem;
+        font-size: 0.8rem;
+    }
+</style>
+
+<script>
+    // Calculate total amount
+    document.addEventListener('DOMContentLoaded', function() {
+        let total = 0;
+        const amounts = document.querySelectorAll('span.badge.bg-success');
+        amounts.forEach(function(el) {
+            const text = el.textContent.replace('₹', '').trim();
+            total += parseFloat(text) || 0;
+        });
+        document.getElementById('total-amount').textContent = '₹ ' + total.toFixed(2);
+    });
+</script>
+{% endblock %}
+

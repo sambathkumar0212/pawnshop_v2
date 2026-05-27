@@ -1,0 +1,251 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Customer Risk Analysis - {{ customer.full_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0 text-gray-800">Risk Analysis: {{ customer.full_name }}</h1>
+                <div>
+                    <a href="{% url 'analytics:dashboard' %}" class="btn btn-secondary mr-2">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                    <button class="btn btn-primary" onclick="recalculateRisk()">
+                        <i class="fas fa-sync"></i> Recalculate Risk
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Risk Score Overview -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body text-center">
+                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Overall Risk Score</div>
+                    <div class="h2 mb-0 font-weight-bold text-gray-800">{{ risk_data.risk_score|floatformat:1 }}</div>
+                    <span class="badge badge-{% if risk_data.risk_level == 'very_high' %}danger{% elif risk_data.risk_level == 'high' %}warning{% elif risk_data.risk_level == 'medium' %}info{% else %}success{% endif %} mt-2">
+                        {{ risk_data.risk_level|title }} Risk
+                    </span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Risk Components Breakdown</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="small font-weight-bold">Payment History (35%)</label>
+                                <div class="progress">
+                                    <div class="progress-bar bg-info" style="width: {{ risk_data.components.payment_history }}%">
+                                        {{ risk_data.components.payment_history|floatformat:1 }}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="small font-weight-bold">Loan-to-Value (25%)</label>
+                                <div class="progress">
+                                    <div class="progress-bar bg-warning" style="width: {{ risk_data.components.loan_to_value }}%">
+                                        {{ risk_data.components.loan_to_value|floatformat:1 }}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="small font-weight-bold">Demographics (15%)</label>
+                                <div class="progress">
+                                    <div class="progress-bar bg-success" style="width: {{ risk_data.components.demographic }}%">
+                                        {{ risk_data.components.demographic|floatformat:1 }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="small font-weight-bold">Economic Indicators (15%)</label>
+                                <div class="progress">
+                                    <div class="progress-bar bg-primary" style="width: {{ risk_data.components.economic_indicator }}%">
+                                        {{ risk_data.components.economic_indicator|floatformat:1 }}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="small font-weight-bold">Behavioral (10%)</label>
+                                <div class="progress">
+                                    <div class="progress-bar bg-secondary" style="width: {{ risk_data.components.behavioral }}%">
+                                        {{ risk_data.components.behavioral|floatformat:1 }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recommendation -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-{% if risk_data.risk_level == 'very_high' %}danger{% elif risk_data.risk_level == 'high' %}warning{% elif risk_data.risk_level == 'medium' %}info{% else %}success{% endif %}">
+                <h5 class="alert-heading">
+                    <i class="fas fa-lightbulb"></i> Recommendation
+                </h5>
+                {{ risk_data.recommendation }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Customer Information and Loan History -->
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card shadow mb-4">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Customer Information</h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <td><strong>Name:</strong></td>
+                            <td>{{ customer.full_name }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Phone:</strong></td>
+                            <td>{{ customer.phone_number }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Email:</strong></td>
+                            <td>{{ customer.email|default:"Not provided" }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>City:</strong></td>
+                            <td>{{ customer.city|default:"Not provided" }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>State:</strong></td>
+                            <td>{{ customer.state|default:"Not provided" }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Customer Since:</strong></td>
+                            <td>{{ customer.created_at|date:"M d, Y" }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card shadow mb-4">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Loan History</h6>
+                </div>
+                <div class="card-body">
+                    {% if loans %}
+                        <div class="table-responsive">
+                            <table class="table table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Loan ID</th>
+                                        <th>Amount</th>
+                                        <th>Status</th>
+                                        <th>Issue Date</th>
+                                        <th>Due Date</th>
+                                        <th>Days</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for loan in loans|slice:":10" %}
+                                        <tr>
+                                            <td>{{ loan.loan_number }}</td>
+                                            <td>₹{{ loan.principal_amount|intcomma }}</td>
+                                            <td>
+                                                <span class="badge badge-{% if loan.status == 'active' %}success{% elif loan.status == 'defaulted' %}danger{% else %}secondary{% endif %}">
+                                                    {{ loan.get_status_display }}
+                                                </span>
+                                            </td>
+                                            <td>{{ loan.issue_date }}</td>
+                                            <td>{{ loan.due_date }}</td>
+                                            <td>
+                                                {% with days_diff=loan.due_date|timesince:loan.issue_date %}
+                                                    {{ loan.duration_days }} days
+                                                {% endwith %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% if loans.count > 10 %}
+                            <p class="text-muted">Showing 10 most recent loans out of {{ loans.count }} total loans.</p>
+                        {% endif %}
+                    {% else %}
+                        <p class="text-muted">No loan history available for this customer.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Risk Alerts -->
+    {% if alerts %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Risk Alerts</h6>
+                </div>
+                <div class="card-body">
+                    {% for alert in alerts %}
+                        <div class="alert alert-{% if alert.severity == 'critical' %}danger{% elif alert.severity == 'high' %}warning{% else %}info{% endif %} alert-dismissible">
+                            <h6 class="alert-heading">{{ alert.title }}</h6>
+                            <p>{{ alert.description }}</p>
+                            <hr>
+                            <p class="mb-0">
+                                <small>
+                                    <strong>Created:</strong> {{ alert.created_at|timesince }} ago
+                                    {% if alert.status != 'active' %}
+                                        | <strong>Status:</strong> {{ alert.get_status_display }}
+                                    {% endif %}
+                                </small>
+                            </p>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function recalculateRisk() {
+    fetch('{% url "analytics:api_calculate_risk" customer.id %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error: ' + data.error);
+        } else {
+            // Reload the page to show updated risk data
+            window.location.reload();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while recalculating risk.');
+    });
+}
+</script>
+{% endblock %}

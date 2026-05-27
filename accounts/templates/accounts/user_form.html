@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if form.instance.pk %}Edit User{% else %}Add User{% endif %} - Pawnshop Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>
+                    <i class="fas fa-user me-2"></i>
+                    {% if form.instance.pk %}Edit User{% else %}Add New User{% endif %}
+                </h2>
+                <a href="{% url 'user_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Users
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.username.id_for_label }}" class="form-label">Username*</label>
+                                {{ form.username.errors }}
+                                <input type="text" name="{{ form.username.name }}" 
+                                       class="form-control {% if form.username.errors %}is-invalid{% endif %}"
+                                       id="{{ form.username.id_for_label }}" 
+                                       value="{{ form.username.value|default:'' }}"
+                                       required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="{{ form.password.id_for_label }}" class="form-label">Password*</label>
+                                {{ form.password.errors }}
+                                <input type="password" name="{{ form.password.name }}" 
+                                       class="form-control {% if form.password.errors %}is-invalid{% endif %}"
+                                       id="{{ form.password.id_for_label }}" 
+                                       {% if not form.instance.pk %}required{% endif %}>
+                                {% if form.instance.pk %}
+                                <small class="text-muted">Leave blank to keep current password</small>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.first_name.id_for_label }}" class="form-label">First Name*</label>
+                                {{ form.first_name.errors }}
+                                <input type="text" name="{{ form.first_name.name }}" 
+                                       class="form-control {% if form.first_name.errors %}is-invalid{% endif %}"
+                                       id="{{ form.first_name.id_for_label }}" 
+                                       value="{{ form.first_name.value|default:'' }}"
+                                       required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="{{ form.last_name.id_for_label }}" class="form-label">Last Name*</label>
+                                {{ form.last_name.errors }}
+                                <input type="text" name="{{ form.last_name.name }}" 
+                                       class="form-control {% if form.last_name.errors %}is-invalid{% endif %}"
+                                       id="{{ form.last_name.id_for_label }}" 
+                                       value="{{ form.last_name.value|default:'' }}"
+                                       required>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.email.id_for_label }}" class="form-label">Email</label>
+                                {{ form.email.errors }}
+                                <input type="email" name="{{ form.email.name }}" 
+                                       class="form-control {% if form.email.errors %}is-invalid{% endif %}"
+                                       id="{{ form.email.id_for_label }}" 
+                                       value="{{ form.email.value|default:'' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="{{ form.phone.id_for_label }}" class="form-label">Phone</label>
+                                {{ form.phone.errors }}
+                                <input type="tel" name="{{ form.phone.name }}" 
+                                       class="form-control {% if form.phone.errors %}is-invalid{% endif %}"
+                                       id="{{ form.phone.id_for_label }}" 
+                                       value="{{ form.phone.value|default:'' }}">
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.role.id_for_label }}" class="form-label">Role*</label>
+                                {{ form.role.errors }}
+                                <select name="{{ form.role.name }}" 
+                                        class="form-select {% if form.role.errors %}is-invalid{% endif %}"
+                                        id="{{ form.role.id_for_label }}" 
+                                        required>
+                                    <option value="">Select a role</option>
+                                    {% for value, label in form.role.field.choices %}
+                                        <option value="{{ value }}" {% if value == form.role.value|stringformat:"s" %}selected{% endif %}>
+                                            {{ label }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="{{ form.branch.id_for_label }}" class="form-label">Branch</label>
+                                {{ form.branch.errors }}
+                                <select name="{{ form.branch.name }}" 
+                                        class="form-select {% if form.branch.errors %}is-invalid{% endif %}"
+                                        id="{{ form.branch.id_for_label }}">
+                                    <option value="">Select a branch</option>
+                                    {% for value, label in form.branch.field.choices %}
+                                        <option value="{{ value }}" {% if value == form.branch.value|stringformat:"s" %}selected{% endif %}>
+                                            {{ label }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input type="checkbox" name="{{ form.is_active.name }}"
+                                           class="form-check-input {% if form.is_active.errors %}is-invalid{% endif %}"
+                                           id="{{ form.is_active.id_for_label }}"
+                                           {% if form.is_active.value %}checked{% endif %}>
+                                    <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                        Active User
+                                    </label>
+                                    {% if form.is_active.errors %}
+                                        <div class="invalid-feedback">{{ form.is_active.errors }}</div>
+                                    {% endif %}
+                                    <small class="form-text text-muted d-block">Inactive users cannot log in to the system</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="text-end">
+                            <a href="{% url 'user_list' %}" class="btn btn-outline-secondary me-2">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                {% if form.instance.pk %}Save Changes{% else %}Create User{% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Help</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Username:</strong> Choose a unique username for login.</p>
+                    <p><strong>Password:</strong> Must be secure and meet minimum requirements.</p>
+                    <p><strong>Role:</strong> Determines user permissions and access levels.</p>
+                    <p><strong>Branch:</strong> Optional. Assign user to a specific branch.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

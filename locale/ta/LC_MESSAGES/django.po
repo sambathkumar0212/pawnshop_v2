@@ -1,0 +1,275 @@
+# Tamil translations for Pawnshop
+# Copyright (C) 2026
+# This file is distributed under the same license as the pawnshop project.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: pawnshop\n"
+"PO-Revision-Date: 2026-02-27 00:00+0000\n"
+"Last-Translator: Automated Patch <dev@local>\n"
+"Language-Team: Tamil <lang@local>\n"
+"Language: ta\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Payment Receipt"
+msgstr "கட்டண ரசீது"
+
+msgid "Receipt No:"
+msgstr "ரசீது எண்:"
+
+msgid "Date:"
+msgstr "தேதி:"
+
+msgid "Customer:"
+msgstr "வாடிக்கையாளர்:"
+
+msgid "Loan No:"
+msgstr "கடன் எண்:"
+
+msgid "Payment Method:"
+msgstr "கட்டண முறை:"
+
+msgid "Reference No:"
+msgstr "குறிப்பு எண்:"
+
+msgid "Description"
+msgstr "விளக்கம்"
+
+msgid "Amount (₹)"
+msgstr "தொகை (₹)"
+
+msgid "Payment towards Loan"
+msgstr "கடன் செலுத்துதல்"
+
+msgid "Full settlement (Principal + Interest)"
+msgstr "முழு சரக்கை (முதன்மை + வட்டி)"
+
+msgid "Partial payment"
+msgstr "பகுதி கட்டணம்"
+
+msgid "Dashboard"
+msgstr "பணிமுகப்பு"
+
+msgid "Customers"
+msgstr "வாடிக்கையாளர்கள்"
+
+msgid "Loans"
+msgstr "கடன்கள்"
+
+msgid "Inventory"
+msgstr "சரக்கு"
+
+msgid "Sales"
+msgstr "விற்பனை"
+
+msgid "GST"
+msgstr "GST"
+
+msgid "Branches"
+msgstr "கிளைகள்"
+
+msgid "Reports"
+msgstr "அறிக்கைகள்"
+
+msgid "Users"
+msgstr "பயனர்கள்"
+
+msgid "Profile"
+msgstr "சுயவிவரம்"
+
+msgid "Logout"
+msgstr "வெளியேறு"
+
+msgid "Login"
+msgstr "உள்நுழைக"
+
+msgid "English"
+msgstr "English"
+
+msgid "தமிழ்"
+msgstr "தமிழ்"
+
+msgid "Total Amount Paid:"
+msgstr "செலுத்தப்பட்ட மொத்த தொகை:"
+
+msgid "Principal Amount:"
+msgstr "முதன்மை தொகை:"
+
+msgid "Interest Accrued:"
+msgstr "கட்டமான வட்டி:"
+
+msgid "Total Paid Till Date:"
+msgstr "இன்றுவரை செலுத்தப்பட்ட மொத்தம்:"
+
+msgid "Remaining Balance:"
+msgstr "மீதமுள்ள நிலுவை:"
+
+msgid "Status:"
+msgstr "நிலை:"
+
+msgid "FULLY PAID"
+msgstr "முழுவதும் செலுத்தப்பட்டது"
+
+msgid "Amount in words:"
+msgstr "எண்ணில் தொகை:"
+
+msgid "Notes:"
+msgstr "குறிப்புகள்:"
+
+msgid "Customer Signature"
+msgstr "வாடிக்கையாளர் கையொப்பம்"
+
+msgid "For"
+msgstr "காக"
+
+msgid "Thank you for your business. This receipt is computer generated and serves as proof of payment."
+msgstr "உங்கள் வணிகத்திற்கு நன்றி. இந்த ரசீது கணினியால் உருவாக்கப்பட்டதும் செலுத்தலுக்கான சான்றாகும்."
+
+# Sale invoice translations
+msgid "Sale Invoice"
+msgstr "விற்பனை ரசீது"
+
+msgid "Invoice No:"
+msgstr "ரசீது எண்:"
+
+msgid "Item:"
+msgstr "பொருள்:"
+
+msgid "Sale of"
+msgstr "விற்பனை:"
+
+msgid "Discount"
+msgstr "தள்ளுபடி"
+
+msgid "Tax"
+msgstr "வரி"
+
+msgid "Subtotal:"
+msgstr "முடிசெய்த மொத்தம்:"
+
+msgid "Total Tax:"
+msgstr "மொத்த வரி:"
+
+msgid "Total Amount:"
+msgstr "மொத்த தொகை:"
+
+msgid "Thank you for your business. This invoice is computer generated."
+msgstr "உங்கள் வணிகத்திற்கு நன்றி. இந்த ரசீது கணினியால் உருவாக்கப்பட்டது."
+
+msgid "TERMS AND CONDITIONS"
+msgstr "விதிமுறைகள் மற்றும் நிபந்தனைகள்"
+
+msgid "Loan Scheme Details:"
+msgstr "கடன் திட்ட விவரங்கள்:"
+
+msgid "Purpose of Loan:"
+msgstr "கடனின் நோக்கம்:"
+
+msgid "Gold Recovery Timing:"
+msgstr "தங்கம் மீட்டெடுப்பு நேரம்:"
+
+msgid "KYC Compliance:"
+msgstr "KYC இணக்கத்தன்மை:"
+
+msgid "Fair Practices Code:"
+msgstr "நியாய நடைமுறைகள் குறியீடு:"
+
+msgid "Grievance Redressal:"
+msgstr "சரிக்கட்ட முறை:"
+
+msgid "Receipt Requirement:"
+msgstr "ரசீது தேவை:"
+
+msgid "Declaration:"
+msgstr "அறிக்கை:"
+
+msgid "Download"
+msgstr "பதிவிறக்கம்"
+
+msgid "Export Payment History"
+msgstr "கட்டண வரலாறு ஏற்றுமதி"
+
+msgid "PAYMENT HISTORY REPORT"
+msgstr "கட்டண வரலாறு அறிக்கை"
+
+msgid "LOAN INFORMATION"
+msgstr "கடன் தகவல்"
+
+msgid "Loan Number:"
+msgstr "கடன் எண்:"
+
+msgid "Customer Name:"
+msgstr "வாடிக்கையாளர் பெயர்:"
+
+msgid "Customer Phone:"
+msgstr "வாடிக்கையாளர் போன்:"
+
+msgid "Issue Date:"
+msgstr "வழங்கிய தேதி:"
+
+msgid "Due Date:"
+msgstr "வாய்ப்பு தேதி:"
+
+msgid "Loan Status:"
+msgstr "கடன் நிலை:"
+
+msgid "PAYMENT SUMMARY"
+msgstr "கட்டண சுருக்கம்"
+
+msgid "Total Payments Made:"
+msgstr "செலுத்திய மொத்த கட்டணங்கள்:"
+
+msgid "PAYMENT DETAILS"
+msgstr "கட்டண விவரங்கள்"
+
+msgid "S.No."
+msgstr "இ.எண்"
+
+msgid "Amount (Rs)"
+msgstr "தொகை (₹)"
+
+msgid "Method"
+msgstr "முறை"
+
+msgid "Reference No."
+msgstr "குறிப்பு எண்"
+
+msgid "Received By"
+msgstr "பெற்ற வ்யக்தி"
+
+msgid "No payments recorded for this loan."
+msgstr "இந்தக் கடனுக்கு எந்த கட்டணமும் பதிவுசெய்யப்படவில்லை."
+
+msgid "Generated on:"
+msgstr "உருவாக்கப்பட்ட தேதி:"
+
+msgid "This is a computer-generated document and does not require a signature."
+msgstr "இது கணினி உருவாக்கப்பட்ட ஆவணம் மற்றும் கையொப்பம் தேவைப்படாது."
+
+=======
+>>>>>>> 0e3cd087fb65cf3a248c296f3ec593b2ce5393bd
+=======
+msgid "Amount"
+msgstr "தொகை"
+
+msgid "Email"
+msgstr "மின்னஞ்சல்"
+
+msgid "Generated:"
+msgstr "உருவாக்கப்பட்டது:"
+
+msgid "PAID"
+msgstr "செலுத்தப்பட்டது"
+
+msgid "Phone"
+msgstr "தொலைபேசி"
+
+msgid "Walk-in Customer"
+msgstr "நேரடி வாடிக்கையாளர்"
+
+msgid "This loan has been fully repaid. All pawned items have been returned to the customer."
+msgstr "இந்தக் கடன் முழுவதுமாக மீட்டுக்கொள்ளப்பட்டுவிட்டது. எல்லா அடகு வைக்கப்பட்ட பொருட்களும் வாடிக்கையாளர்க்கு திருப்பியளிக்கப்பட்டுவிட்டது."
+
+>>>>>>> 5a01413d0c7a9007e1c55385aa9bbcad7db2db3d

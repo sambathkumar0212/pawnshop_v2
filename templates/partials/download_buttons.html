@@ -1,0 +1,28 @@
+{% load static %}
+
+<div class="download-section mb-3">
+    <div class="card">
+        <div class="card-header bg-light">
+            <h6 class="mb-0">
+                <i class="fas fa-download me-2"></i>
+                Download Options
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="btn-group" role="group" aria-label="Download options">
+                {% for format in download_formats %}
+                    <a href="?download={{ format.format }}" 
+                       class="btn btn-outline-primary btn-sm" 
+                       title="Download as {{ format.label }}">
+                        <i class="fas {{ format.icon }} me-1"></i>
+                        {{ format.label }}
+                    </a>
+                {% endfor %}
+            </div>
+            <small class="text-muted d-block mt-2">
+                <i class="fas fa-info-circle me-1"></i>
+                Download current filtered results
+            </small>
+        </div>
+    </div>
+</div>

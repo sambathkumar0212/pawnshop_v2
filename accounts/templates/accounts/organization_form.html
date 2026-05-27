@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit Organization - Pawnshop Management System{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Organization Form Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-0">Edit Organization</h3>
+                            <p class="text-muted mb-0">Update your organization details</p>
+                        </div>
+                        <div>
+                            <a href="{% url 'organization_dashboard' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Organization Form -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <strong>Error:</strong> Please correct the errors below.
+                            <ul>
+                                {% for field in form %}
+                                    {% for error in field.errors %}
+                                    <li>{{ field.label }}: {{ error }}</li>
+                                    {% endfor %}
+                                {% endfor %}
+                                {% for error in form.non_field_errors %}
+                                <li>{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="border-bottom pb-2 mb-3">Organization Details</h5>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="id_name" class="form-label">Organization Name*</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-building"></i></span>
+                                    <input type="text" name="name" id="id_name" class="form-control" value="{{ form.name.value|default:'' }}" required>
+                                </div>
+                                <small class="text-muted">The name of your organization</small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="id_contact_email" class="form-label">Contact Email*</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                    <input type="email" name="contact_email" id="id_contact_email" class="form-control" value="{{ form.contact_email.value|default:'' }}" required>
+                                </div>
+                                <small class="text-muted">Primary email address for organization communications</small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="id_contact_phone" class="form-label">Contact Phone</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-phone"></i></span>
+                                    <input type="text" name="contact_phone" id="id_contact_phone" class="form-control" value="{{ form.contact_phone.value|default:'' }}">
+                                </div>
+                                <small class="text-muted">Primary phone number for organization communications</small>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info mb-4">
+                            <div class="d-flex">
+                                <div class="me-3">
+                                    <i class="fas fa-info-circle fa-2x"></i>
+                                </div>
+                                <div>
+                                    <h5 class="alert-heading">Organization Information</h5>
+                                    <p class="mb-0">Your organization details are used for administrative purposes and communications. To manage your subscription or change your plan, please visit the <a href="{% url 'subscription_plans' %}">Subscription Management</a> page.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'organization_dashboard' %}" class="btn btn-outline-secondary me-md-2">
+                                Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

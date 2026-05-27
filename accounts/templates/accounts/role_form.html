@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if form.instance.pk %}Edit Role{% else %}Add Role{% endif %} - Pawnshop Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>
+                    <i class="fas fa-user-shield me-2"></i>
+                    {% if form.instance.pk %}Edit Role{% else %}Add New Role{% endif %}
+                </h2>
+                <a href="{% url 'role_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Roles
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.name.id_for_label }}" class="form-label">Role Name*</label>
+                            {{ form.name.errors }}
+                            <input type="text" name="{{ form.name.name }}" 
+                                   class="form-control {% if form.name.errors %}is-invalid{% endif %}"
+                                   id="{{ form.name.id_for_label }}" 
+                                   value="{{ form.name.value|default:form.instance.name|default:'' }}"
+                                   required>
+                            <div class="form-text">A unique name for this role</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.role_type.id_for_label }}" class="form-label">Role Type*</label>
+                            {{ form.role_type.errors }}
+                            <select name="{{ form.role_type.name }}"
+                                    class="form-select {% if form.role_type.errors %}is-invalid{% endif %}"
+                                    id="{{ form.role_type.id_for_label }}"
+                                    required>
+                                <option value="">Select Role Type</option>
+                                {% for value, label in form.role_type.field.choices %}
+                                    <option value="{{ value }}" {% if value == form.role_type.value|default:form.instance.role_type %}selected{% endif %}>
+                                        {{ label }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.category.id_for_label }}" class="form-label">Category*</label>
+                            {{ form.category.errors }}
+                            <select name="{{ form.category.name }}"
+                                    class="form-select {% if form.category.errors %}is-invalid{% endif %}"
+                                    id="{{ form.category.id_for_label }}"
+                                    required>
+                                <option value="">Select Category</option>
+                                {% for value, label in form.category.field.choices %}
+                                    <option value="{{ value }}" {% if value == form.category.value|default:form.instance.category %}selected{% endif %}>
+                                        {{ label }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
+                            {{ form.description.errors }}
+                            <textarea name="{{ form.description.name }}" 
+                                    class="form-control {% if form.description.errors %}is-invalid{% endif %}"
+                                    id="{{ form.description.id_for_label }}" 
+                                    rows="3">{{ form.description.value|default:form.instance.description|default:'' }}</textarea>
+                            <div class="form-text">A brief description of this role's purpose and responsibilities</div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">Permissions*</label>
+                            {{ form.permissions.errors }}
+                            <div class="border p-3 rounded {% if form.permissions.errors %}border-danger{% endif %}">
+                                {% regroup form.permissions.field.queryset|dictsort:"content_type.app_label" by content_type.app_label as app_list %}
+                                {% for app in app_list %}
+                                <div class="permissions-group">
+                                    <h6 class="text-capitalize" title="Click to toggle all permissions in this group">
+                                        <i class="fas fa-layer-group me-2"></i>{{ app.grouper }} Permissions
+                                    </h6>
+                                    <div class="row">
+                                        {% for permission in app.list %}
+                                        <div class="col-md-6">
+                                            <div class="permission-item">
+                                                <div class="form-check">
+                                                    <input type="checkbox" 
+                                                           name="permissions" 
+                                                           value="{{ permission.pk }}"
+                                                           id="permission_{{ permission.pk }}"
+                                                           class="form-check-input"
+                                                           {% if permission in form.instance.permissions.all %}checked{% endif %}>
+                                                    <label class="form-check-label" for="permission_{{ permission.pk }}">
+                                                        {{ permission.name|capfirst }}
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <div class="form-text">Select the permissions this role should have</div>
+                        </div>
+
+                        <div class="text-end">
+                            <a href="{% url 'role_list' %}" class="btn btn-outline-secondary me-2">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                {% if form.instance.pk %}Save Changes{% else %}Create Role{% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Help</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Role Name:</strong> Choose a descriptive name for the role (e.g., "Branch Manager", "Loan Officer").</p>
+                    <p><strong>Role Type:</strong> Select the type of role which determines basic permissions.</p>
+                    <p><strong>Category:</strong> Select the category this role belongs to.</p>
+                    <p><strong>Description:</strong> Explain the role's responsibilities and scope.</p>
+                    <p><strong>Permissions:</strong> Select all the actions this role should be able to perform in the system.</p>
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Permissions are grouped by app/module to make selection easier. Click on group headers to toggle all permissions in that group.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+$(document).ready(function() {
+    // Add tooltips to permission labels
+    $('.permission-item label').each(function() {
+        var permissionName = $(this).text().trim();
+        var tooltip = permissionName.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+        $(this).attr('title', tooltip);
+    });
+
+    // Select all permissions in a group
+    $('.permissions-group h6').on('click', function() {
+        var group = $(this).closest('.permissions-group');
+        var checkboxes = group.find('input[type="checkbox"]');
+        var allChecked = checkboxes.length === checkboxes.filter(':checked').length;
+        checkboxes.prop('checked', !allChecked);
+    });
+});
+</script>
+{% endblock %}

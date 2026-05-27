@@ -1,0 +1,2042 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% if form.instance.pk %}Edit Loan{% else %}New Loan{% endif %} - Pawnshop Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-2">
+    <div class="row mb-2">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>
+                    <i class="fas fa-hand-holding-usd me-2"></i>
+                    {% if form.instance.pk %}Edit Loan{% else %}New Loan{% endif %}
+                </h2>
+                <a href="{% url 'loan_list' %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Loans
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add debugging information and error messages in a collapsible panel -->
+    {% if messages or form.errors %}
+    <div class="row mb-2">
+        <div class="col-12">
+            <div class="accordion" id="accordionMessages">
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="headingMessages">
+                        <button class="accordion-button p-2 {% if not messages and not form.errors %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMessages" aria-expanded="{% if messages or form.errors %}true{% else %}false{% endif %}" aria-controls="collapseMessages">
+                            <i class="fas fa-exclamation-triangle me-2 text-warning"></i>Messages & Errors
+                        </button>
+                    </h2>
+                    <div id="collapseMessages" class="accordion-collapse collapse {% if messages or form.errors %}show{% endif %}" aria-labelledby="headingMessages" data-bs-parent="#accordionMessages">
+                        <div class="accordion-body p-2">
+                            {% if messages %}
+                                {% for message in messages %}
+                                <div class="alert alert-{{ message.tags }} alert-dismissible fade show py-2 mb-2" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                                {% endfor %}
+                            {% endif %}
+                            
+                            {% if form.errors %}
+                            <div class="alert alert-danger py-2 mb-2">
+                                <h6 class="alert-heading">Please correct the following errors:</h6>
+                                <ul class="mb-0 small">
+                                    {% for field in form %}
+                                        {% for error in field.errors %}
+                                        <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                                        {% endfor %}
+                                    {% endfor %}
+                                    {% for error in form.non_field_errors %}
+                                    <li>{{ error }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Alert container for dynamic notifications -->
+    <div class="row mb-2">
+        <div class="col-12">
+            <div id="alertContainer"></div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-12">
+            <form method="post" id="loanForm" enctype="multipart/form-data" novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="customer_face_capture" id="customerFaceCapture" value="{% if form.instance.customer_face_capture %}{{ form.instance.customer_face_capture|escapejs }}{% endif %}">
+                <input type="hidden" name="item_photos" id="itemPhotosData" value="">
+                <input type="hidden" name="interest_rate" id="id_interest_rate" value="12.00">
+                
+                <div class="card shadow mb-3">
+                    <div class="card-body p-2">
+                        <div class="row g-2">
+                            <!-- Left column - essential information -->
+                            <div class="col-md-8">
+                                <!-- Primary Loan Info Section -->
+                                <div class="card mb-2 h-auto">
+                                    <div class="card-header bg-light py-1 d-flex justify-content-between align-items-center">
+                                        <h6 class="card-title mb-0">
+                                            <i class="fas fa-info-circle me-1"></i>Primary Loan Info
+                                        </h6>
+                                    </div>
+                                    <div class="card-body p-2">
+                                        <div class="row g-2">
+                                            <div class="col-md-6">
+                                                {{ form.customer|as_crispy_field }}
+                                                <div class="mt-1">
+                                                    <label for="customerTamilPreview" class="form-label mb-1">Customer Name (Tamil)</label>
+                                                    <input type="text" id="customerTamilPreview" class="form-control" readonly>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                {{ form.branch|as_crispy_field }}
+                                            </div>
+                                            <div class="col-md-6">
+                                                {{ form.scheme|as_crispy_field }}
+                                                <div class="mt-1">
+                                                    <label for="schemeTamilInput" class="form-label mb-1">Scheme Name (Tamil)</label>
+                                                    <input type="text" id="schemeTamilInput" class="form-control" placeholder="Type scheme in Tamil">
+                                                </div>
+                                                <div id="scheme-info" class="alert alert-info py-1 px-2 small mb-0 mt-1" style="display: none;">
+                                                    <span id="scheme-details"></span>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                {{ form.issue_date|as_crispy_field }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Gold Item Details Section -->
+                                <div class="card h-auto">
+                                    <div class="card-header bg-light py-1 d-flex justify-content-between align-items-center">
+                                        <h6 class="card-title mb-0">
+                                            <i class="fas fa-gem me-1"></i>Gold Item Details
+                                        </h6>
+                                    </div>
+                                    <div class="card-body p-2">
+                                        <!-- Hidden field for item_category -->
+                                        <div style="display: none;">
+                                            {{ form.item_category|as_crispy_field }}
+                                        </div>
+                                        
+                                        <div class="row g-2">
+                                            <!-- First row: English item fields -->
+                                            <div class="col-md-6">
+                                                {{ form.item_name|as_crispy_field }}
+                                            </div>
+                                            <div class="col-md-6">
+                                                {{ form.item_description|as_crispy_field }}
+                                            </div>
+
+                                            <!-- Second row: Tamil item fields -->
+                                            <div class="col-md-6">
+                                                {{ form.item_name_tamil|as_crispy_field }}
+                                            </div>
+                                            <div class="col-md-6">
+                                                {{ form.item_description_tamil|as_crispy_field }}
+                                            </div>
+                                            
+                                            <!-- Third row: Today's 22K Gold Price (left) and Gold Karat (right) -->
+                                            <div class="col-md-6">
+                                                {{ form.market_price_22k|as_crispy_field }}
+                                            </div>
+                                            <div class="col-md-6">
+                                                {{ form.gold_karat|as_crispy_field }}
+                                            </div>
+                                            
+                                            <!-- Fourth row: Weight fields -->
+                                            <div class="col-md-4">
+                                                {{ form.gross_weight|as_crispy_field }}
+                                            </div>
+                                            <div class="col-md-4">
+                                                {{ form.stone_weight|as_crispy_field }}
+                                            </div>
+                                            <div class="col-md-4">
+                                                {{ form.net_weight|as_crispy_field }}
+                                            </div>
+                                            
+                                            <!-- Total Items Count Display -->
+                                            <div class="col-md-12">
+                                                <div id="totalItemsDisplay" style="display: none;">
+                                                    <div class="d-flex align-items-center justify-content-end">
+                                                        <small class="text-muted me-2">Total Items:</small>
+                                                        <div class="input-group input-group-sm" style="max-width: 120px;">
+                                                            <span class="input-group-text bg-success text-white py-0">
+                                                                <i class="fas fa-list-ol"></i>
+                                                            </span>
+                                                            <input type="text" class="form-control form-control-sm py-0" id="calculatedTotalItems" readonly>
+                                                        </div>
+                                                        <small class="ms-2 text-muted fst-italic" style="font-size: 0.7rem;">
+                                                            (from "ring-6, chain-1")
+                                                        </small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Right column - photos, biometrics, gold items, financial details -->
+                            <div class="col-md-4">
+                                <!-- Biometric Authentication Section -->
+                                <div class="card mb-2">
+                                    <div class="card-header bg-light py-1">
+                                        <div class="form-check form-switch mb-0">
+                                            <input class="form-check-input" type="checkbox" id="enableBiometricAuth">
+                                            <label class="form-check-label small" for="enableBiometricAuth">
+                                                <i class="fas fa-fingerprint me-1"></i>Use Biometric Authentication
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="card-body p-2" id="biometricAuthSection" style="display: none;">
+                                        <div id="biometricStatus"></div>
+                                        <div class="text-center mb-1">
+                                            <button type="button" class="btn btn-sm btn-outline-primary" id="verifyBiometricBtn">
+                                                <i class="fas fa-fingerprint me-1"></i>Verify Customer Biometric
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Customer Photo Section -->
+                                <div class="card mb-2">
+                                    <div class="card-header bg-light py-1">
+                                        <small><strong><i class="fas fa-user-circle me-1"></i>Customer Photo</strong></small>
+                                    </div>
+                                    <div class="card-body p-2">
+                                        <div class="row g-1">
+                                            <div class="col-6">
+                                                <div id="cameraView" class="border rounded" style="height: 120px; position: relative;">
+                                                    <video id="cameraStream" style="width: 100%; height: 100%; object-fit: cover;" autoplay playsinline muted></video>
+                                                    <canvas id="photoCanvas" style="display:none;"></canvas>
+                                                </div>
+                                                <div class="d-grid gap-1 mt-1">
+                                                    <button type="button" class="btn btn-xs btn-primary" id="captureBtn">
+                                                        <i class="fas fa-camera me-1"></i>Capture
+                                                    </button>
+                                                    <label for="customerPhotoUpload" class="btn btn-xs btn-outline-primary mb-0">
+                                                        <i class="fas fa-upload me-1"></i>Upload
+                                                    </label>
+                                                    <input type="file" id="customerPhotoUpload" class="d-none" accept="image/*">
+                                                    <button type="button" class="btn btn-xs btn-outline-success" id="saveCustomerUploadBtn" disabled>
+                                                        <i class="fas fa-save me-1"></i>Save Upload
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div id="photoPreview" class="border rounded d-flex align-items-center justify-content-center bg-light" style="height: 120px;">
+                                                    {% if form.instance.pk and form.instance.customer_face_capture %}
+                                                        <img id="capturedPhoto" class="img-fluid" style="max-height: 120px;" src="{{ form.instance.customer_face_capture }}">
+                                                    {% else %}
+                                                        <span id="noCaptureText" class="small text-muted">{% if form.instance.pk %}No photo{% else %}{% endif %}</span>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="d-grid gap-1 mt-1">
+                                                    <button type="button" class="btn btn-xs btn-outline-secondary" id="retakeBtn">
+                                                        <i class="fas fa-redo me-1"></i>Retake
+                                                    </button>
+                                                    <a href="#" class="btn btn-xs btn-outline-info disabled" id="downloadCustomerPhotoBtn" download="borrower-photo.jpg" aria-disabled="true">
+                                                        <i class="fas fa-download me-1"></i>Download
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Gold Item Photos Section -->
+                                <div class="card mb-2">
+                                    <div class="card-header bg-light py-1 d-flex justify-content-between align-items-center">
+                                        <small><strong><i class="fas fa-camera me-1"></i>Gold Item Photos</strong> <span class="badge bg-danger" id="photoCountBadge">0</span></small>
+                                    </div>
+                                    <div class="card-body p-2">
+                                        <div class="row g-1">
+                                            <div class="col-6">
+                                                <div id="itemCameraView" class="border rounded" style="height: 120px; position: relative;">
+                                                    <video id="itemCameraStream" style="width: 100%; height: 100%; object-fit: cover;" autoplay playsinline></video>
+                                                    <canvas id="itemPhotoCanvas" style="display:none;"></canvas>
+                                                </div>
+                                                <div class="d-grid gap-1 mt-1">
+                                                    <button type="button" class="btn btn-xs btn-primary" id="captureItemBtn">
+                                                        <i class="fas fa-camera me-1"></i>Capture Item
+                                                    </button>
+                                                    <label for="itemPhotoUpload" class="btn btn-xs btn-outline-primary mb-0">
+                                                        <i class="fas fa-upload me-1"></i>Upload Item
+                                                    </label>
+                                                    <input type="file" id="itemPhotoUpload" class="d-none" accept="image/*" multiple>
+                                                    <button type="button" class="btn btn-xs btn-outline-success" id="saveItemUploadBtn" disabled>
+                                                        <i class="fas fa-save me-1"></i>Save Upload
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="border rounded p-1 bg-light position-relative" style="height: 120px; overflow-y: auto;">
+                                                    <div id="noItemPhotosText" class="text-center text-muted p-1 small">
+                                                        <small>No photos</small>
+                                                    </div>
+                                                    <div id="itemPhotosContainer" class="row g-1" style="display: none;"></div>
+                                                    <button type="button" class="btn btn-xs btn-outline-success position-absolute bottom-0 start-0 m-1" id="downloadItemPhotosBtn" disabled title="Download all item photos">
+                                                        <i class="fas fa-download"></i>
+                                                    </button>
+                                                    <button type="button" class="btn btn-xs btn-outline-danger position-absolute bottom-0 end-0 m-1" id="clearItemPhotosBtn" disabled>
+                                                        <i class="fas fa-trash-alt"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="col-12 pt-1">
+                                                <p class="mb-0 small text-muted" style="font-size: 0.7rem;"><i class="fas fa-info-circle"></i> Take photos from different angles</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Financial Details Section - Improved layout -->
+                                <div class="card mb-2">
+                                    <div class="card-header bg-light py-1 d-flex justify-content-between align-items-center">
+                                        <h6 class="card-title mb-0">
+                                            <i class="fas fa-money-bill-wave me-1"></i>Financial Details
+                                        </h6>
+                                    </div>
+                                    <div class="card-body p-2">
+                                        <div class="row g-2">
+                                            <!-- First row: Principal and Distribution side by side -->
+                                            <div class="col-12">
+                                                <div class="row g-2">
+                                                    <div class="col-6">
+                                                        {{ form.principal_amount|as_crispy_field }}
+                                                        <small id="principalAmountWords" class="text-muted d-block mt-0 mb-1" style="font-size: 0.7rem; font-style: italic; height: 22px; overflow: hidden; text-overflow: ellipsis;"></small>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        {{ form.distribution_amount|as_crispy_field }}
+                                                        <small id="distributionAmountWords" class="text-muted d-block mt-0 mb-1" style="font-size: 0.7rem; font-style: italic; height: 22px; overflow: hidden; text-overflow: ellipsis;"></small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Second row: Processing Fee and Due Date side by side -->
+                                            <div class="col-12">
+                                                <div class="row g-2">
+                                                    <div class="col-6">
+                                                        {{ form.processing_fee|as_crispy_field }}
+                                                        <div class="text-success small" style="font-size: 0.7rem;">
+                                                            <i class="fas fa-info-circle"></i> <span id="processingFeePercentDisplay">1%</span> of Principal
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        {{ form.due_date|as_crispy_field }}
+                                                        <div class="small text-muted" style="font-size: 0.7rem;">
+                                                            <i class="fas fa-calendar-alt"></i> Loan term end date
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Submit Button Row -->
+                        <div class="row mt-2">
+                            <div class="col-12">
+                                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                    <a href="{% url 'loan_list' %}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-times me-1"></i>Cancel
+                                    </a>
+                                    <button type="submit" class="btn btn-sm btn-primary" id="submitLoanBtn">
+                                        <i class="fas fa-save me-1"></i>
+                                        {% if form.instance.pk %}Update{% else %}Create{% endif %} Loan
+                                    </button>
+                                    {% if not form.instance.pk %}
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="continueIterateBtn">
+                                        <i class="fas fa-plus-circle me-1"></i>Save & Create Another
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<!-- JSZip library for creating ZIP files -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<!-- FileSaver library for downloading files -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<!-- Load the loan calculator script -->
+<script src="{% static 'js/loan-calculator.js' %}"></script>
+
+<script>
+    $(document).ready(function() {
+        // Convert a number to words function
+        function numberToWords(num) {
+            if (num === 0) return 'Zero';
+            
+            const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+                'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+            const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+            
+            const convertLessThanOneThousand = (num) => {
+                if (num === 0) return '';
+                if (num < 20) return ones[num];
+                
+                const ten = Math.floor(num / 10);
+                const unit = num % 10;
+                
+                return tens[ten] + (unit !== 0 ? '-' + ones[unit] : '');
+            };
+            
+            // Handle decimals
+            const numStr = num.toString();
+            const decimalIndex = numStr.indexOf('.');
+            let wholeNum = num;
+            let decimalNum = 0;
+            
+            if (decimalIndex !== -1) {
+                wholeNum = parseInt(numStr.substring(0, decimalIndex));
+                // Get decimal part and convert to cents (up to 2 decimal places)
+                const decimalStr = numStr.substring(decimalIndex + 1, decimalIndex + 3).padEnd(2, '0');
+                decimalNum = parseInt(decimalStr);
+            }
+            
+            // Convert the whole number part
+            const billion = Math.floor(wholeNum / 1000000000);
+            const million = Math.floor((wholeNum % 1000000000) / 1000000);
+            const thousand = Math.floor((wholeNum % 1000000) / 1000);
+            const remainder = wholeNum % 1000;
+            
+            let result = '';
+            
+            if (billion) result += convertLessThanOneThousand(billion) + ' Billion ';
+            if (million) result += convertLessThanOneThousand(million) + ' Million ';
+            if (thousand) result += convertLessThanOneThousand(thousand) + ' Thousand ';
+            if (remainder || result === '') result += convertLessThanOneThousand(remainder);
+            
+            // Add decimal part if exists
+            if (decimalNum > 0) {
+                result += ' and ' + convertLessThanOneThousand(decimalNum) + ' Cents';
+            } else {
+                result += ' Only';
+            }
+            
+            return result;
+        }
+        
+        // Function to update the amount in words
+        function updateAmountInWords() {
+            // Remove this function entirely as we'll use the AJAX call exclusively
+            // The AJAX call will handle this functionality
+        }
+        
+        // Add input event listener to principal amount field
+        $('#id_principal_amount').on('input', function() {
+            // Don't call updateAmountInWords here
+            // The calculateDistributionAmount function will handle this
+        });
+        
+        // Initialize on page load
+        // updateAmountInWords(); // Remove this line
+        
+        // Add showAlert function to window object so it can be called from loan-calculator.js
+        window.showAlert = function(message, type) {
+            const alertContainer = document.getElementById('alertContainer');
+            if (!alertContainer) return;
+            
+            // Create alert element
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type || 'info'} alert-dismissible fade show`;
+            alertDiv.role = 'alert';
+            
+            // Add message and close button
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            
+            // Add to container
+            alertContainer.appendChild(alertDiv);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.classList.remove('show');
+                    setTimeout(() => {
+                        if (alertDiv.parentNode) alertDiv.parentNode.removeChild(alertDiv);
+                    }, 150);
+                }
+            }, 5000);
+        };
+
+        // Auto-update due date and grace period when issue date changes
+        $('#id_issue_date').on('change', function() {
+            // Get the scheme to determine loan period
+            const selectedScheme = $('#id_scheme').val();
+            const issueDate = new Date($(this).val());
+            
+            if (issueDate && !isNaN(issueDate.getTime())) {
+                // If scheme is selected, the loan-calculator.js will handle the date calculations
+                if (selectedScheme) {
+                    return;
+                }
+                
+                // If no scheme is selected, use default values
+                let loanPeriodMonths = 3;
+                let gracePeriodDays = 30;
+                
+                // Calculate due date (loan period months from issue date)
+                const dueDate = new Date(issueDate);
+                dueDate.setMonth(dueDate.getMonth() + loanPeriodMonths);
+                
+                // Calculate grace period end (grace period days after due date)
+                const gracePeriodEnd = new Date(dueDate);
+                gracePeriodEnd.setDate(gracePeriodEnd.getDate() + gracePeriodDays);
+                
+                // Format dates as YYYY-MM-DD for input fields
+                const formatDate = (date) => {
+                    const year = date.getFullYear();
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const day = String(date.getDate()).padStart(2, '0');
+                    return `${year}-${month}-${day}`;
+                };
+                
+                // Update the due date and grace period end fields
+                $('#id_due_date').val(formatDate(dueDate));
+                
+                // Show notification that dates were updated
+                showAlert('Due date and grace period end date have been automatically updated based on loan date', 'info');
+            }
+        });
+        
+        // Also update dates when scheme changes, if issue date is already set
+        $('#id_scheme').on('change', function() {
+            const issueDate = $('#id_issue_date').val();
+            if (issueDate) {
+                // Trigger the issue date change event to update due date and grace period
+                $('#id_issue_date').trigger('change');
+            }
+        });
+
+        // Set up customer change event to update branch field
+        $('#id_customer').on('change', function() {
+            const customerId = $(this).val();
+            updateCustomerDownloadButton(customerFaceCapture ? customerFaceCapture.value : '');
+            refreshItemDownloadFilenames();
+            
+            if (customerId) {
+                // Fetch customer data to get the branch
+                $.get(`/accounts/customer/${customerId}/json/`, function(data) {
+                    if (data.branch_id) {
+                        $('#id_branch').val(data.branch_id);
+                        showAlert('Branch automatically set based on customer\'s branch', 'info');
+                    }
+                }).fail(function() {
+                    console.error('Failed to fetch customer data');
+                });
+            }
+        });
+        
+        // Initialize loan calculator
+        // The calculator is automatically initialized by the loan-calculator.js file
+        
+        // Show the scheme-info div that's hidden by default
+        $('#scheme-info').removeClass('d-none');
+        
+        // Camera functionality
+        const cameraStream = document.getElementById('cameraStream');
+        const photoCanvas = document.getElementById('photoCanvas');
+        const capturedPhoto = document.getElementById('capturedPhoto') || document.createElement('img');
+        capturedPhoto.id = 'capturedPhoto';
+        capturedPhoto.className = 'img-fluid';
+        capturedPhoto.style.maxHeight = '120px';
+        capturedPhoto.style.display = 'none';
+        
+        const captureBtn = document.getElementById('captureBtn');
+        const retakeBtn = document.getElementById('retakeBtn');
+        const customerPhotoUpload = document.getElementById('customerPhotoUpload');
+        const saveCustomerUploadBtn = document.getElementById('saveCustomerUploadBtn');
+        const downloadCustomerPhotoBtn = document.getElementById('downloadCustomerPhotoBtn');
+        const noCaptureText = document.getElementById('noCaptureText');
+        const customerFaceCapture = document.getElementById('customerFaceCapture');
+        const photoPreview = document.getElementById('photoPreview');
+        let pendingCustomerUpload = '';
+        
+        // Make sure photoPreview contains capturedPhoto
+        if (photoPreview && !document.getElementById('capturedPhoto')) {
+            photoPreview.appendChild(capturedPhoto);
+        }
+        
+        let stream = null;
+        let cameraInitialized = false;
+
+        function browserSupportsCamera() {
+            return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+        }
+
+        async function getPreferredCameraStream(cameraPreferences) {
+            let lastError = null;
+
+            for (const videoConstraints of cameraPreferences) {
+                try {
+                    return await navigator.mediaDevices.getUserMedia({
+                        video: videoConstraints,
+                        audio: false
+                    });
+                } catch (error) {
+                    lastError = error;
+                    console.warn('Camera constraints failed:', videoConstraints, error);
+                }
+            }
+
+            throw lastError || new Error('Unable to start any available camera');
+        }
+
+        function getCameraErrorMessage(err, fallbackMessage) {
+            if (!browserSupportsCamera()) {
+                return 'Camera is not supported in this browser/device.';
+            }
+
+            if (!window.isSecureContext && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                return 'Camera works only on HTTPS or localhost. Open this site in a secure URL.';
+            }
+
+            if (!err) {
+                return fallbackMessage;
+            }
+
+            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                return 'Camera permission denied. Please allow camera access in the browser and retry.';
+            }
+
+            if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                return 'No camera device found.';
+            }
+
+            if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+                return 'Camera is already being used by another app. Close other camera apps and retry.';
+            }
+
+            if (err.name === 'OverconstrainedError' || err.name === 'ConstraintNotSatisfiedError') {
+                return 'Requested camera mode is not available on this device.';
+            }
+
+            return fallbackMessage;
+        }
+
+        function setCustomerCameraReady(isReady) {
+            cameraInitialized = isReady;
+            if (captureBtn) {
+                captureBtn.innerHTML = isReady
+                    ? '<i class="fas fa-camera me-1"></i>Capture'
+                    : '<i class="fas fa-video me-1"></i>Start Camera';
+            }
+        }
+
+        function getBorrowerFileBaseName() {
+            const customerSelect = document.getElementById('id_customer');
+            const selectedText = customerSelect && customerSelect.selectedOptions && customerSelect.selectedOptions[0]
+                ? (customerSelect.selectedOptions[0].textContent || '').trim()
+                : '';
+            const rawName = (selectedText && !selectedText.toLowerCase().includes('select')) ? selectedText : 'borrower';
+            const firstWord = (rawName.split(/\s+/).find(Boolean) || 'borrower');
+            const normalized = firstWord
+                .replace(/[\\/:*?"<>|]+/g, ' ')
+                .replace(/\s+/g, '-')
+                .replace(/-+/g, '-')
+                .replace(/^-|-$/g, '')
+                .toLowerCase();
+            return normalized || 'borrower';
+        }
+
+        function getLoanNumberFilePart() {
+            const savedLoanNumber = ('{{ form.instance.loan_number|default:"" }}' || '').trim();
+            if (savedLoanNumber) {
+                const parts = savedLoanNumber.split('-');
+                if (parts.length >= 2) {
+                    return `${parts[0]}-${parts[1]}`.replace(/[\\/:*?"<>|]+/g, '').trim();
+                }
+                return savedLoanNumber.replace(/[\\/:*?"<>|]+/g, '').trim() || 'loan';
+            }
+
+            const branchSelect = document.getElementById('id_branch');
+            const branchText = branchSelect && branchSelect.selectedOptions && branchSelect.selectedOptions[0]
+                ? (branchSelect.selectedOptions[0].textContent || '').trim()
+                : '';
+            const branchCode = (branchText.match(/[A-Za-z]/g) || []).join('').slice(0, 3).toUpperCase() || 'LOA';
+            const now = new Date();
+            const datePart = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+            return `${branchCode}-${datePart}`;
+        }
+
+        function updateCustomerDownloadButton(photoDataUrl) {
+            if (!downloadCustomerPhotoBtn) {
+                return;
+            }
+
+            if (photoDataUrl) {
+                downloadCustomerPhotoBtn.href = photoDataUrl;
+                downloadCustomerPhotoBtn.download = `${getBorrowerFileBaseName()} ${getLoanNumberFilePart()}.jpg`;
+                downloadCustomerPhotoBtn.classList.remove('disabled');
+                downloadCustomerPhotoBtn.removeAttribute('aria-disabled');
+            } else {
+                downloadCustomerPhotoBtn.href = '#';
+                downloadCustomerPhotoBtn.download = 'borrower-photo.jpg';
+                downloadCustomerPhotoBtn.classList.add('disabled');
+                downloadCustomerPhotoBtn.setAttribute('aria-disabled', 'true');
+            }
+        }
+
+        function refreshItemDownloadFilenames() {
+            const baseName = getBorrowerFileBaseName();
+            const loanPart = getLoanNumberFilePart().replace(/-/g, '');
+            document.querySelectorAll('#itemPhotosContainer a[download]').forEach((link, index) => {
+                link.download = `${baseName} Items ${loanPart}-${index + 1}.jpg`;
+            });
+        }
+
+        setCustomerCameraReady(false);
+        if (retakeBtn) {
+            retakeBtn.disabled = !customerFaceCapture || !customerFaceCapture.value;
+        }
+        if (saveCustomerUploadBtn) {
+            saveCustomerUploadBtn.disabled = true;
+        }
+        
+        // Initialize customer face capture from existing data if available
+        {% if form.instance.customer_face_capture %}
+            console.log("Initializing existing customer photo");
+            if (customerFaceCapture) {
+                customerFaceCapture.value = "{{ form.instance.customer_face_capture|escapejs }}";
+            }
+            if (capturedPhoto) {
+                capturedPhoto.src = "{{ form.instance.customer_face_capture|escapejs }}";
+                capturedPhoto.style.display = 'block';
+                if (noCaptureText) noCaptureText.style.display = 'none';
+                if (retakeBtn) retakeBtn.disabled = false;
+                updateCustomerDownloadButton("{{ form.instance.customer_face_capture|escapejs }}");
+            }
+        {% endif %}
+        
+        // Start the camera with retry mechanism
+        async function startCamera(retryCount = 0) {
+            try {
+                if (!browserSupportsCamera()) {
+                    showAlert(getCameraErrorMessage(null, 'Camera is not available.'), 'danger');
+                    return;
+                }
+
+                if (!window.isSecureContext && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                    showAlert(getCameraErrorMessage(null, 'Camera requires a secure connection.'), 'danger');
+                    return;
+                }
+
+                if (retryCount > 3) {
+                    console.error('Failed to start camera after multiple attempts');
+                    showAlert('Could not access camera. Please check camera permissions or try using a different browser.', 'danger');
+                    return;
+                }
+                
+                stream = await getPreferredCameraStream([
+                    {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        facingMode: { ideal: 'user' }
+                    },
+                    {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        facingMode: { ideal: 'environment' }
+                    },
+                    true
+                ]);
+                
+                cameraStream.muted = true;
+                cameraStream.srcObject = stream;
+                cameraStream.onloadedmetadata = function() {
+                    cameraStream.play()
+                        .then(() => {
+                            console.log('Camera started successfully');
+                            setCustomerCameraReady(true);
+                        })
+                        .catch(err => {
+                            console.error('Error playing camera stream:', err);
+                            setCustomerCameraReady(false);
+                            // Try to recover
+                            setTimeout(() => startCamera(retryCount + 1), 1000);
+                        });
+                };
+                
+            } catch (err) {
+                console.error('Error accessing camera:', err);
+                setCustomerCameraReady(false);
+                showAlert(
+                    getCameraErrorMessage(
+                        err,
+                        `Could not access camera. ${err && err.message ? err.message : 'Please ensure you have granted camera permissions.'}`
+                    ),
+                    'danger'
+                );
+                
+                // Try again with a delay
+                if (retryCount < 3) {
+                    console.log(`Retrying camera initialization (attempt ${retryCount + 1})...`);
+                    setTimeout(() => startCamera(retryCount + 1), 1000);
+                }
+            }
+        }
+        
+        // Retry button for camera access
+        const addRetryButton = () => {
+            const retryButton = document.createElement('button');
+            retryButton.className = 'btn btn-sm btn-warning mt-1';
+            retryButton.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Retry Camera';
+            retryButton.onclick = () => {
+                retryButton.disabled = true;
+                retryButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Retrying...';
+                setCustomerCameraReady(false);
+                startCamera();
+                setTimeout(() => {
+                    retryButton.disabled = false;
+                    retryButton.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Retry Camera';
+                }, 3000);
+            };
+            
+            const cameraContainer = document.getElementById('cameraView');
+            if (cameraContainer && !document.getElementById('retry-camera-btn')) {
+                retryButton.id = 'retry-camera-btn';
+                cameraContainer.appendChild(retryButton);
+            }
+        };
+        
+        // Add retry button after a delay if camera doesn't load
+        setTimeout(() => {
+            if (!cameraInitialized) {
+                addRetryButton();
+            }
+        }, 3000);
+        
+        // Capture photo function
+        captureBtn.addEventListener('click', function() {
+            if (!cameraStream.srcObject || !cameraInitialized) {
+                showAlert('Starting camera. If prompted, allow camera permission and tap Capture again.', 'info');
+                setCustomerCameraReady(false);
+                startCamera();
+                addRetryButton();
+                return;
+            }
+            
+            try {
+                // Set the canvas dimensions to match the video
+                photoCanvas.width = cameraStream.videoWidth || 640;
+                photoCanvas.height = cameraStream.videoHeight || 480;
+                
+                if (photoCanvas.width === 0 || photoCanvas.height === 0) {
+                    console.error('Invalid canvas dimensions:', photoCanvas.width, photoCanvas.height);
+                    showAlert('Cannot capture photo. Camera stream not properly initialized.', 'danger');
+                    return;
+                }
+                
+                // Draw the current video frame to the canvas
+                const context = photoCanvas.getContext('2d');
+                context.drawImage(cameraStream, 0, 0, photoCanvas.width, photoCanvas.height);
+                
+                // Convert the canvas to a data URL and display the captured photo
+                const photoDataUrl = photoCanvas.toDataURL('image/jpeg');
+                capturedPhoto.src = photoDataUrl;
+                capturedPhoto.style.display = 'block';
+                if (noCaptureText) noCaptureText.style.display = 'none';
+                
+                // Save the photo data in the hidden input
+                customerFaceCapture.value = photoDataUrl;
+                updateCustomerDownloadButton(photoDataUrl);
+                
+                // Enable the retake button
+                if (retakeBtn) retakeBtn.disabled = false;
+                
+                // Show success message
+                showAlert('Customer photo captured successfully!', 'success');
+            } catch (err) {
+                console.error('Error capturing photo:', err);
+                showAlert(`Failed to capture photo. ${err && err.message ? err.message : 'Please try again.'}`, 'danger');
+            }
+        });
+        
+        // Retake photo function
+        retakeBtn.addEventListener('click', function() {
+            // Just hide the preview but don't clear the value
+            capturedPhoto.style.display = 'none';
+            if (noCaptureText) noCaptureText.style.display = 'block';
+            
+            // Important: Don't clear the customerFaceCapture value yet
+            // This ensures the original photo is still submitted if no new photo is taken
+            
+            // Show alert that a new photo should be captured
+            showAlert('Ready to capture new customer photo. Click the Capture button.', 'info');
+        });
+
+        if (customerPhotoUpload) {
+            customerPhotoUpload.addEventListener('change', function() {
+                const file = this.files && this.files[0];
+                if (!file) {
+                    pendingCustomerUpload = '';
+                    if (saveCustomerUploadBtn) saveCustomerUploadBtn.disabled = true;
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    pendingCustomerUpload = e.target.result || '';
+                    if (capturedPhoto && pendingCustomerUpload) {
+                        capturedPhoto.src = pendingCustomerUpload;
+                        capturedPhoto.style.display = 'block';
+                        updateCustomerDownloadButton(pendingCustomerUpload);
+                    }
+                    if (noCaptureText) noCaptureText.style.display = 'none';
+                    if (saveCustomerUploadBtn) saveCustomerUploadBtn.disabled = !pendingCustomerUpload;
+                    showAlert('Borrower photo selected. Click Save Upload to keep it.', 'info');
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        if (saveCustomerUploadBtn) {
+            saveCustomerUploadBtn.addEventListener('click', function() {
+                if (!pendingCustomerUpload) {
+                    showAlert('Please choose a borrower photo first.', 'warning');
+                    return;
+                }
+
+                customerFaceCapture.value = pendingCustomerUpload;
+                if (retakeBtn) retakeBtn.disabled = false;
+                saveCustomerUploadBtn.disabled = true;
+                if (customerPhotoUpload) customerPhotoUpload.value = '';
+                updateCustomerDownloadButton(pendingCustomerUpload);
+                showAlert('Borrower photo uploaded and saved.', 'success');
+            });
+        }
+        
+        // Biometric verification functionality
+        const enableBiometricAuth = document.getElementById('enableBiometricAuth');
+        const biometricAuthSection = document.getElementById('biometricAuthSection');
+        const verifyBiometricBtn = document.getElementById('verifyBiometricBtn');
+        const biometricStatus = document.getElementById('biometricStatus');
+        let biometricVerified = false;
+        
+        // Toggle biometric authentication
+        enableBiometricAuth.addEventListener('change', function() {
+            if (this.checked) {
+                biometricAuthSection.style.display = 'block';
+            } else {
+                biometricAuthSection.style.display = 'none';
+                biometricVerified = true; // Skip verification if disabled
+            }
+        });
+        
+        // Biometric verification function
+        verifyBiometricBtn.addEventListener('click', function() {
+            const customerId = $('#id_customer').val();
+            
+            if (!customerId) {
+                showBiometricStatus('Please select a customer first', 'warning');
+                return;
+            }
+            
+            // Simulate biometric verification (in a real app, this would call your biometric verification API)
+            simulateBiometricVerification(customerId);
+        });
+        
+        // Simulate biometric verification (replace with actual API call in production)
+        function simulateBiometricVerification(customerId) {
+            showBiometricStatus('Verifying biometrics...', 'info');
+            
+            // Simulated verification - in production, replace with actual API call
+            setTimeout(function() {
+                // Successfully verified (for demo)
+                biometricVerified = true;
+                showBiometricStatus('Biometric verification successful!', 'success');
+                verifyBiometricBtn.disabled = true;
+                verifyBiometricBtn.innerHTML = '<i class="fas fa-check-circle me-2"></i>Verified';
+                verifyBiometricBtn.classList.remove('btn-outline-primary');
+                verifyBiometricBtn.classList.add('btn-success');
+            }, 1500);
+        }
+        
+        // Display biometric status
+        function showBiometricStatus(message, type) {
+            biometricStatus.innerHTML = `<div class="alert alert-${type} mb-3">${message}</div>`;
+        }
+        
+        // Function to display alert message
+        function showAlert(message, type) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            
+            // Use the dedicated alert container added in the HTML
+            let alertContainer = document.getElementById('alertContainer');
+            
+            // Add the alert to the container
+            alertContainer.appendChild(alertDiv);
+            
+            // Auto dismiss after 5 seconds
+            setTimeout(() => {
+                alertDiv.classList.remove('show');
+                setTimeout(() => {
+                    if (alertDiv.parentNode === alertContainer) {
+                        alertContainer.removeChild(alertDiv);
+                    }
+                }, 150);
+            }, 5000);
+        }
+
+        // Gold Item Photo Capture Functionality
+        const itemCameraStream = document.getElementById('itemCameraStream');
+        const itemPhotoCanvas = document.getElementById('itemPhotoCanvas');
+        const captureItemBtn = document.getElementById('captureItemBtn');
+        const itemPhotosContainer = document.getElementById('itemPhotosContainer');
+        const noItemPhotosText = document.getElementById('noItemPhotosText') || document.createElement('div');
+        const clearItemPhotosBtn = document.getElementById('clearItemPhotosBtn') || document.createElement('button');
+        const itemPhotoUpload = document.getElementById('itemPhotoUpload');
+        const saveItemUploadBtn = document.getElementById('saveItemUploadBtn');
+        const photoCountBadge = document.getElementById('photoCountBadge');
+        const itemPhotosData = document.getElementById('itemPhotosData');
+        let itemStream = null;
+        let itemPhotos = [];
+        let pendingItemUploads = [];
+        
+        // Initialize item photos from existing data if available
+        {% if item_photos_list %}
+            console.log("Initializing existing item photos - preventing duplication");
+            
+            try {
+                // Clear any existing photos first to prevent duplication
+                itemPhotos = [];
+                
+                // Clear the container that was populated by server-side rendering
+                if (itemPhotosContainer) {
+                    itemPhotosContainer.innerHTML = '';
+                }
+                
+                // Now add photos properly through JavaScript
+                {% for photo in item_photos_list %}
+                    itemPhotos.push({
+                        id: 'existing-item-photo-{{ forloop.counter }}',
+                        dataUrl: '{{ photo|escapejs }}'
+                    });
+                {% endfor %}
+                
+                // Re-render all photos through JavaScript to avoid duplication
+                itemPhotos.forEach((photo, index) => {
+                    addExistingItemPhoto(photo.dataUrl, index + 1);
+                });
+                
+                // Update the hidden input with the existing photos
+                updateItemPhotosData();
+                
+                // Update the display
+                if (itemPhotos.length > 0 && noItemPhotosText) {
+                    noItemPhotosText.style.display = 'none';
+                }
+                
+                if (clearItemPhotosBtn) {
+                    clearItemPhotosBtn.disabled = false;
+                }
+                
+                // Update the photo count badge
+                if (photoCountBadge) {
+                    photoCountBadge.textContent = `${itemPhotos.length} Photos`;
+                    photoCountBadge.className = 'badge me-2 ' + 
+                        (itemPhotos.length < 2 ? 'bg-danger' : 'bg-success');
+                }
+            } catch (error) {
+                console.error("Error initializing item photos:", error);
+            }
+        {% endif %}
+        
+        // Start the item camera
+        async function startItemCamera() {
+            try {
+                if (!browserSupportsCamera()) {
+                    showAlert('Camera is not supported in this browser/device for item photos.', 'danger');
+                    return;
+                }
+
+                if (!window.isSecureContext && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                    showAlert('Item photo camera works only on HTTPS or localhost.', 'danger');
+                    return;
+                }
+
+                itemStream = await getPreferredCameraStream([
+                    {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        facingMode: { ideal: 'environment' }
+                    },
+                    {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        facingMode: { ideal: 'user' }
+                    },
+                    true
+                ]);
+                itemCameraStream.muted = true;
+                itemCameraStream.srcObject = itemStream;
+            } catch (err) {
+                console.error('Error accessing camera for item photos:', err);
+                showAlert(getCameraErrorMessage(err, 'Could not access camera for item photos. Please check camera permissions.'), 'danger');
+            }
+        }
+        
+        // Capture item photo function
+        captureItemBtn.addEventListener('click', function() {
+            if (!itemCameraStream.srcObject || !itemCameraStream.videoWidth || !itemCameraStream.videoHeight) {
+                showAlert('Starting item camera. If prompted, allow camera permission and tap Capture Item Photo again.', 'info');
+                startItemCamera();
+                return;
+            }
+
+            // Set the canvas dimensions to match the video
+            itemPhotoCanvas.width = itemCameraStream.videoWidth;
+            itemPhotoCanvas.height = itemCameraStream.videoHeight;
+            
+            // Draw the current video frame to the canvas
+            const context = itemPhotoCanvas.getContext('2d');
+            context.drawImage(itemCameraStream, 0, 0, itemPhotoCanvas.width, itemPhotoCanvas.height);
+            
+            // Convert the canvas to a data URL
+            const photoDataUrl = itemPhotoCanvas.toDataURL('image/jpeg');
+            
+            // Add the photo to the collection
+            addItemPhoto(photoDataUrl);
+            
+            // Update the photos data in the hidden input
+            updateItemPhotosData();
+            
+            // Enable the clear button
+            if (clearItemPhotosBtn) clearItemPhotosBtn.disabled = false;
+
+            // Show success message without affecting the photos
+            showAlert('Item photo captured successfully!', 'success');
+        });
+        
+        // Add an item photo to the collection
+        function addItemPhoto(photoDataUrl) {
+            const photoId = 'item-photo-' + Date.now();
+            itemPhotos.push({ id: photoId, dataUrl: photoDataUrl });
+            
+            // Hide the "no photos" text if this is the first photo
+            if (itemPhotos.length === 1 && noItemPhotosText) {
+                noItemPhotosText.style.display = 'none';
+            }
+            
+            // Ensure the photos container is visible
+            if (itemPhotosContainer) {
+                itemPhotosContainer.style.display = 'flex';
+    
+                // Create a thumbnail element
+                const thumbnailCol = document.createElement('div');
+                thumbnailCol.className = 'col-6';
+                thumbnailCol.innerHTML = `
+                    <div class="position-relative">
+                        <img src="${photoDataUrl}" class="img-thumbnail" alt="Item photo ${itemPhotos.length}">
+                        <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 delete-photo" data-photo-id="${photoId}">
+                            <i class="fas fa-times"></i>
+                        </button>
+                        <a href="${photoDataUrl}" download="${getBorrowerFileBaseName()} Items ${getLoanNumberFilePart().replace(/-/g, '')}-${itemPhotos.length}.jpg" class="btn btn-sm btn-info position-absolute top-0 start-0 m-1">
+                            <i class="fas fa-download"></i>
+                        </a>
+                        <div class="bg-dark bg-opacity-50 text-white position-absolute bottom-0 start-0 end-0 small text-center">
+                            Photo ${itemPhotos.length}
+                        </div>
+                    </div>
+                `;
+                itemPhotosContainer.appendChild(thumbnailCol);
+                
+                // Add event listener to delete button
+                const deleteBtn = thumbnailCol.querySelector('.delete-photo');
+                deleteBtn.addEventListener('click', function() {
+                    const photoId = this.getAttribute('data-photo-id');
+                    deleteItemPhoto(photoId, this.closest('.col-6'));
+                });
+            }
+            
+            // Update the photo count badge
+            updatePhotoCountBadge();
+            refreshItemDownloadFilenames();
+        }
+
+        function addUploadedItemPhotos(photoDataUrls) {
+            photoDataUrls.forEach(photoDataUrl => addItemPhoto(photoDataUrl));
+            updateItemPhotosData();
+            if (clearItemPhotosBtn) clearItemPhotosBtn.disabled = itemPhotos.length === 0;
+            refreshItemDownloadFilenames();
+        }
+        
+        // Add an existing item photo to the collection (for edit mode)
+        function addExistingItemPhoto(photoDataUrl, photoNumber) {
+            const photoId = 'existing-item-photo-' + photoNumber;
+            
+            // Hide the "no photos" text if this is the first photo
+            if (itemPhotos.length === 1 && noItemPhotosText) {
+                noItemPhotosText.style.display = 'none';
+            }
+            
+            // Ensure the photos container is visible
+            if (itemPhotosContainer) {
+                itemPhotosContainer.style.display = 'flex';
+    
+                // Create a thumbnail element for existing photo
+                const thumbnailCol = document.createElement('div');
+                thumbnailCol.className = 'col-6';
+                thumbnailCol.innerHTML = `
+                    <div class="position-relative">
+                        <img src="${photoDataUrl}" class="img-thumbnail" alt="Item photo ${photoNumber}">
+                        <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 delete-photo" data-photo-id="${photoId}">
+                            <i class="fas fa-times"></i>
+                        </button>
+                        <a href="${photoDataUrl}" download="${getBorrowerFileBaseName()} Items ${getLoanNumberFilePart().replace(/-/g, '')}-${photoNumber}.jpg" class="btn btn-sm btn-info position-absolute top-0 start-0 m-1">
+                            <i class="fas fa-download"></i>
+                        </a>
+                        <div class="bg-dark bg-opacity-50 text-white position-absolute bottom-0 start-0 end-0 small text-center">
+                            #${photoNumber}
+                        </div>
+                    </div>
+                `;
+                itemPhotosContainer.appendChild(thumbnailCol);
+                
+                // Add event listener to delete button
+                const deleteBtn = thumbnailCol.querySelector('.delete-photo');
+                deleteBtn.addEventListener('click', function() {
+                    const photoId = this.getAttribute('data-photo-id');
+                    deleteItemPhoto(photoId, this.closest('.col-6'));
+                });
+            }
+        }
+        
+        // Delete an item photo
+        function deleteItemPhoto(photoId, element) {
+            // Remove from the DOM
+            element.remove();
+            
+            // Remove from the array
+            itemPhotos = itemPhotos.filter(photo => photo.id !== photoId);
+            
+            // Show the "no photos" text if this was the last photo
+            if (itemPhotos.length === 0 && noItemPhotosText) {
+                noItemPhotosText.style.display = 'block';
+                if (clearItemPhotosBtn) clearItemPhotosBtn.disabled = true;
+            }
+            
+            // Update the photos data in the hidden input
+            updateItemPhotosData();
+            
+            // Update the photo count badge
+            updatePhotoCountBadge();
+            refreshItemDownloadFilenames();
+        }
+        
+        // Update the item photos data in the hidden input
+        function updateItemPhotosData() {
+            // Store only the data URLs to save space
+            const dataUrls = itemPhotos.map(photo => photo.dataUrl);
+            itemPhotosData.value = JSON.stringify(dataUrls);
+        }
+
+        if (itemPhotoUpload) {
+            itemPhotoUpload.addEventListener('change', function() {
+                const files = Array.from(this.files || []);
+                if (!files.length) {
+                    pendingItemUploads = [];
+                    if (saveItemUploadBtn) saveItemUploadBtn.disabled = true;
+                    return;
+                }
+
+                Promise.all(files.map(file => new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = e => resolve(e.target.result || '');
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                })))
+                    .then(results => {
+                        pendingItemUploads = results.filter(Boolean);
+                        if (saveItemUploadBtn) saveItemUploadBtn.disabled = pendingItemUploads.length === 0;
+                        showAlert(`${pendingItemUploads.length} item photo(s) selected. Click Save Upload to keep them.`, 'info');
+                    })
+                    .catch(error => {
+                        console.error('Error reading item photo uploads:', error);
+                        pendingItemUploads = [];
+                        if (saveItemUploadBtn) saveItemUploadBtn.disabled = true;
+                        showAlert('Failed to read selected item photos.', 'danger');
+                    });
+            });
+        }
+
+        if (saveItemUploadBtn) {
+            saveItemUploadBtn.addEventListener('click', function() {
+                if (!pendingItemUploads.length) {
+                    showAlert('Please choose item photo files first.', 'warning');
+                    return;
+                }
+
+                addUploadedItemPhotos(pendingItemUploads);
+                pendingItemUploads = [];
+                saveItemUploadBtn.disabled = true;
+                if (itemPhotoUpload) itemPhotoUpload.value = '';
+                showAlert('Item photos uploaded and saved.', 'success');
+            });
+        }
+        
+        // Update the photo count badge
+        function updatePhotoCountBadge() {
+            if (photoCountBadge) {
+                photoCountBadge.textContent = `${itemPhotos.length} Photos`;
+                photoCountBadge.className = 'badge me-2 ' + 
+                    (itemPhotos.length < 2 ? 'bg-danger' : 'bg-success');
+            }
+            
+            // Enable/disable download button based on photo count
+            const downloadBtn = document.getElementById('downloadItemPhotosBtn');
+            if (downloadBtn) {
+                downloadBtn.disabled = itemPhotos.length === 0;
+            }
+        }
+        
+        // Download all item photos as ZIP
+        const downloadItemPhotosBtn = document.getElementById('downloadItemPhotosBtn');
+        if (downloadItemPhotosBtn) {
+            downloadItemPhotosBtn.addEventListener('click', function() {
+                if (itemPhotos.length === 0) {
+                    alert('No item photos to download');
+                    return;
+                }
+                
+                downloadItemPhotosAsZip();
+            });
+        }
+        
+        // Function to download all item photos as a ZIP file
+        function downloadItemPhotosAsZip() {
+            if (typeof JSZip === 'undefined') {
+                alert('Download library not loaded. Please refresh the page.');
+                return;
+            }
+            
+            const zip = new JSZip();
+            const folder = zip.folder('Item_Photos');
+            
+            // Add each photo to the ZIP
+            itemPhotos.forEach((photo, index) => {
+                const base64Data = photo.dataUrl.split(',')[1];
+                const filename = `Item_Photo_${index + 1}.jpg`;
+                folder.file(filename, base64Data, {base64: true});
+            });
+            
+            // Generate the ZIP file
+            zip.generateAsync({type: 'blob'}).then(function(content) {
+                // Get borrower name and loan number for filename
+                const borrowerName = getBorrowerFileBaseName ? getBorrowerFileBaseName() : 'Items';
+                const loanNumberPart = getLoanNumberFilePart ? getLoanNumberFilePart().replace(/-/g, '') : 'Loan';
+                const timestamp = new Date().toISOString().split('T')[0];
+                const zipFilename = `${borrowerName}_${loanNumberPart}_ItemPhotos_${timestamp}.zip`;
+                
+                // Download the ZIP file
+                saveAs(content, zipFilename);
+            }).catch(function(err) {
+                alert('Error creating ZIP file: ' + err.message);
+                console.error(err);
+            });
+        }
+        
+        // Clear all item photos
+        if (clearItemPhotosBtn) {
+            clearItemPhotosBtn.addEventListener('click', function() {
+                // Confirm before clearing
+                if (confirm('Are you sure you want to clear all item photos?')) {
+                    // Clear the photos container
+                    if (itemPhotosContainer) itemPhotosContainer.innerHTML = '';
+                    
+                    // Reset the photos array
+                    itemPhotos = [];
+                    pendingItemUploads = [];
+                    
+                    // Show the "no photos" text
+                    if (noItemPhotosText) noItemPhotosText.style.display = 'block';
+                    
+                    // Clear the hidden input
+                    itemPhotosData.value = '';
+                    if (itemPhotoUpload) itemPhotoUpload.value = '';
+                    
+                    // Disable the clear button and download button
+                    clearItemPhotosBtn.disabled = true;
+                    downloadItemPhotosBtn.disabled = true;
+                    if (saveItemUploadBtn) saveItemUploadBtn.disabled = true;
+                    
+                    // Update the photo count badge
+                    updatePhotoCountBadge();
+                }
+            });
+        }
+        
+        // Calculate and display Total Items count from item name
+        function updateTotalItemsCount() {
+            // Show the total items section by default
+            $('#totalItemsDisplay').show();
+            
+            const itemName = $('#id_item_name').val() || '';
+            let totalItems = 0;
+            
+            // Pattern to match formats like "ring-6" or "earrings-2"
+            const pattern = /(\w+)-(\d+)/g;
+            let match;
+            let itemsFound = false;
+            
+            // Find all matches in the item name
+            while ((match = pattern.exec(itemName)) !== null) {
+                const count = parseInt(match[2], 10);
+                if (!isNaN(count)) {
+                    totalItems += count;
+                    itemsFound = true;
+                }
+            }
+            
+            // If no pattern matches found, default to 1
+            if (!itemsFound) {
+                totalItems = 1;
+            }
+            
+            // Update the field with the calculated value
+            $('#calculatedTotalItems').val(totalItems);
+            
+            return totalItems;
+        }
+        
+        // Set initial value and attach event listener
+        updateTotalItemsCount();
+        $('#id_item_name').on('input', updateTotalItemsCount);
+
+        // Original loan form JS code
+        const KARAT_PURITY = {
+            '24': 0.999,
+            '22': 0.916,
+            '21': 0.875,
+            '20': 0.833,
+            '18': 0.750,
+            '14': 0.583
+        };
+
+        // Debounce function to prevent multiple rapid updates
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            }
+        }
+
+        function setupBidirectionalTransliteration(sourceSelector, targetSelector, direction) {
+            const $source = $(sourceSelector);
+            const $target = $(targetSelector);
+
+            if (!$source.length || !$target.length) {
+                return;
+            }
+
+            const syncText = debounce(function() {
+                if ($source.data('syncLock')) {
+                    $source.removeData('syncLock');
+                    return;
+                }
+
+                const text = ($source.val() || '').trim();
+                if (!text) {
+                    $target.val('');
+                    return;
+                }
+
+                $.get('{% url "transliterate_between_english_tamil" %}', {
+                    text: text,
+                    direction: direction
+                }).done(function(response) {
+                    $target.data('syncLock', true);
+                    $target.val(response.result || '');
+                });
+            }, 350);
+
+            $source.on('input', syncText);
+        }
+
+        function updateCustomerTamilPreview() {
+            const $customerField = $('#id_customer');
+            const selectedText = ($customerField.find('option:selected').text() || '').trim();
+
+            if (!selectedText || selectedText.toLowerCase() === '---------' || selectedText.toLowerCase() === 'select') {
+                $('#customerTamilPreview').val('');
+                return;
+            }
+
+            $.get('{% url "transliterate_between_english_tamil" %}', {
+                text: selectedText,
+                direction: 'to_tamil'
+            }).done(function(response) {
+                $('#customerTamilPreview').val(response.result || '');
+            });
+        }
+
+        function getSelectedSchemeText() {
+            const selectedText = ($('#id_scheme').find('option:selected').text() || '').trim();
+            if (!selectedText || selectedText.toLowerCase() === '---------' || selectedText.toLowerCase().includes('select a loan scheme')) {
+                return '';
+            }
+            return selectedText;
+        }
+
+        function syncSchemeTamilFromEnglish(englishText) {
+            if (!englishText) {
+                $('#schemeTamilInput').val('');
+                return;
+            }
+
+            $.get('{% url "transliterate_between_english_tamil" %}', {
+                text: englishText,
+                direction: 'to_tamil'
+            }).done(function(response) {
+                $('#schemeTamilInput').data('syncLock', true);
+                $('#schemeTamilInput').val(response.result || '');
+            });
+        }
+
+        function trySelectSchemeByEnglishText(englishText) {
+            const normalizedInput = (englishText || '').trim().toLowerCase();
+            if (!normalizedInput) {
+                return;
+            }
+
+            let selectedValue = '';
+
+            $('#id_scheme option').each(function() {
+                const optionValue = $(this).val();
+                const optionText = ($(this).text() || '').trim().toLowerCase();
+
+                if (!optionValue || optionText.includes('select a loan scheme')) {
+                    return;
+                }
+
+                if (optionText === normalizedInput) {
+                    selectedValue = optionValue;
+                    return false;
+                }
+
+                if (!selectedValue && optionText.includes(normalizedInput)) {
+                    selectedValue = optionValue;
+                }
+            });
+
+            if (selectedValue && $('#id_scheme').val() !== selectedValue) {
+                $('#id_scheme').val(selectedValue).trigger('change');
+            }
+        }
+
+        function updateSchemePreviewFromSelection() {
+            const selectedText = getSelectedSchemeText();
+            syncSchemeTamilFromEnglish(selectedText);
+        }
+
+        const handleSchemeTamilInput = debounce(function() {
+            const $source = $('#schemeTamilInput');
+            if ($source.data('syncLock')) {
+                $source.removeData('syncLock');
+                return;
+            }
+
+            const tamilText = ($source.val() || '').trim();
+            if (!tamilText) {
+                return;
+            }
+
+            $.get('{% url "transliterate_between_english_tamil" %}', {
+                text: tamilText,
+                direction: 'to_english'
+            }).done(function(response) {
+                const englishText = response.result || '';
+                trySelectSchemeByEnglishText(englishText);
+            });
+        }, 350);
+
+        // Calculate net weight when gross weight or stone weight changes
+        const calculateNetWeight = function() {
+            const grossWeight = parseFloat($('#id_gross_weight').val()) || 0;
+            const stoneWeight = parseFloat($('#id_stone_weight').val()) || 0;
+            const netWeight = Math.max(0, grossWeight - stoneWeight);
+            $('#id_net_weight').val(netWeight.toFixed(3));
+            
+            // Auto-recalculate principal amount whenever net weight changes
+            calculateGoldValue();
+        };
+
+        // Function to clean numeric input
+        function cleanNumericInput(value) {
+            // Remove all non-numeric characters except decimal point
+            return value.replace(/[^0-9.]/g, '');
+        }
+
+        // Format number inputs to handle string values
+        $('#id_market_price_22k, #id_principal_amount').on('input', function() {
+            const cleanedValue = cleanNumericInput($(this).val());
+            $(this).val(cleanedValue);
+        });
+
+        // Calculate gold value and suggest principal amount
+        const calculateGoldValue = debounce(function() {
+            const marketPriceStr = cleanNumericInput($('#id_market_price_22k').val());
+            const marketPrice = parseFloat(marketPriceStr) || 0;
+            const selectedKarat = $('#id_gold_karat').val();
+            const netWeight = parseFloat($('#id_net_weight').val()) || 0;
+            
+            // Remove any existing suggestion messages
+            $('.gold-value-message').remove();
+            
+            if (marketPrice && selectedKarat && netWeight > 0) {
+                const purityRatio = KARAT_PURITY[selectedKarat] / KARAT_PURITY['22'];
+                const goldValue = marketPrice * netWeight * purityRatio;
+                
+                // Calculate standard principal (75% of gold value)
+                const standardPrincipal = goldValue * 0.75;
+                
+                // Round to nearest multiple of 500
+                let suggestedPrincipal = Math.round(standardPrincipal / 500) * 500;
+                
+                // Calculate minimum (73%) and maximum (78%) allowed values
+                const minPrincipal = goldValue * 0.73;
+                const maxPrincipal = goldValue * 0.78;
+                
+                // Ensure the rounded amount stays between 73% and 78%
+                if (suggestedPrincipal < minPrincipal) {
+                    suggestedPrincipal = Math.ceil(minPrincipal / 500) * 500;
+                } else if (suggestedPrincipal > maxPrincipal) {
+                    suggestedPrincipal = Math.floor(maxPrincipal / 500) * 500;
+                }
+
+                // Set the suggested principal amount
+                $('#id_principal_amount').val(suggestedPrincipal);
+                
+                // Trigger the distribution amount calculation
+                calculateDistributionAmount();
+                
+                // Calculate actual percentage of rounded principal
+                const actualPercentage = (suggestedPrincipal / goldValue) * 100;
+                
+                // Calculate min and max principal values to display
+                const minPrincipalValue = Math.round(goldValue * 0.5);
+                const maxPrincipalValue = Math.round(goldValue * 0.90);
+                
+                // Updated help text showing min and max percentages with their values
+                const helpText = `<i class="fas fa-info-circle"></i> Gold Value: ₹${goldValue.toFixed(0)} | Principal: ₹${suggestedPrincipal} (${actualPercentage.toFixed(1)}%) | Min Principal (50%): ₹${minPrincipalValue} - Max Principal (90%): ₹${maxPrincipalValue}`;
+                
+                // Update the form-text element or create it if it doesn't exist
+                let formText = $('#div_id_principal_amount .form-text');
+                if (formText.length === 0) {
+                    formText = $('<div class="form-text gold-value-message small"></div>');
+                    formText.appendTo('#div_id_principal_amount');
+                } else {
+                    formText.addClass('gold-value-message');
+                }
+                formText.html(helpText);
+            }
+        }, 300);
+
+        // Calculate distribution amount when principal changes
+        const calculateDistributionAmount = function() {
+            const principalStr = cleanNumericInput($('#id_principal_amount').val());
+            const principal = Math.round(parseFloat(principalStr)) || 0;
+            
+            // Calculate processing fee as 1% of principal amount, rounded to nearest integer
+            const processingFeeAmount = Math.round(principal * 0.01);
+            
+            // Set the processing fee amount as an integer
+            $('#id_processing_fee').val(Math.round(processingFeeAmount));
+            
+            // Calculate and set distribution amount as integer
+            const distributionAmount = principal - processingFeeAmount;
+            $('#id_distribution_amount').val(Math.round(distributionAmount));
+
+            // Update distribution amount in words
+            $.get(`/transactions/number_to_words/${Math.round(distributionAmount)}`, function(response) {
+                $('#distributionAmountWords').text(response.words + ' Rupees Only');
+            });
+            
+            // Also update the principal amount in words
+            if (principal > 0) {
+                $.get(`/transactions/number_to_words/${Math.round(principal)}`, function(response) {
+                    $('#principalAmountWords').text(response.words + ' Rupees Only');
+                });
+            } else {
+                $('#principalAmountWords').text('');
+            }
+        };
+
+        // Set up event handlers
+        $('#id_gross_weight, #id_stone_weight').on('input', calculateNetWeight);
+        $('#id_market_price_22k, #id_gold_karat, #id_net_weight').on('input', calculateGoldValue);
+        setupBidirectionalTransliteration('#id_item_name', '#id_item_name_tamil', 'to_tamil');
+        setupBidirectionalTransliteration('#id_item_name_tamil', '#id_item_name', 'to_english');
+        setupBidirectionalTransliteration('#id_item_description', '#id_item_description_tamil', 'to_tamil');
+        setupBidirectionalTransliteration('#id_item_description_tamil', '#id_item_description', 'to_english');
+        $('#id_customer').on('change', updateCustomerTamilPreview);
+        $('#id_scheme').on('change', updateSchemePreviewFromSelection);
+        $('#schemeTamilInput').on('input', handleSchemeTamilInput);
+        updateCustomerTamilPreview();
+        updateSchemePreviewFromSelection();
+        $('#id_principal_amount')
+            .on('input', calculateDistributionAmount)
+            .trigger('input'); // Trigger on page load
+
+        // Validate principal amount against min/max
+        $('#id_principal_amount').on('change', function() {
+            const marketPrice = parseFloat($('#id_market_price_22k').val()) || 0;
+            const selectedKarat = $('#id_gold_karat').val();
+            const netWeight = parseFloat($('#id_net_weight').val()) || 0;
+            const principal = parseFloat($(this).val()) || 0;
+            
+            // Remove any existing error messages
+            $('.principal-error').remove();
+            
+            if (marketPrice && selectedKarat && netWeight > 0) {
+                const purityRatio = KARAT_PURITY[selectedKarat] / KARAT_PURITY['22'];
+                const goldValue = marketPrice * netWeight * purityRatio;
+                const minPrincipal = Math.round(goldValue * 0.5);
+                const maxPrincipal = Math.round(goldValue * 0.90);
+                
+                if (principal < minPrincipal || principal > maxPrincipal) {
+                    const errorMsg = $('<div class="principal-error text-danger small mt-1"></div>')
+                        .text(principal < minPrincipal 
+                            ? `Principal must be at least ₹${minPrincipal} (50% of gold value)`
+                            : `Principal cannot exceed ₹${maxPrincipal} (90% of gold value)`);
+                    errorMsg.insertAfter('#div_id_principal_amount .form-text');
+                }
+            }
+            
+            // Update amount in words
+            $.get(`/transactions/number_to_words/${principal}`, function(response) {
+                $('#principalAmountWords').text(response.words + ' Rupees Only');
+            });
+        });
+
+        // Add amount in words display for distribution amount
+        $('#id_distribution_amount').on('change', function() {
+            const amount = parseFloat($(this).val()) || 0;
+            $.get(`/transactions/number_to_words/${amount}`, function(response) {
+                $('#distributionAmountWords').text(response.words + ' Rupees Only');
+            });
+        });
+
+        // Add help text containers after the input fields
+        $('#div_id_principal_amount').append('<small id="principalAmountWords" class="text-muted d-block mt-1"></small>');
+        $('#div_id_distribution_amount').append('<small id="distributionAmountWords" class="text-muted d-block mt-1" style="font-size: 0.65rem;"></small>');
+        
+        // Add form submission handling
+        $('#loanForm').on('submit', function(event) {
+            // Store current photos in localStorage before submit
+            if (itemPhotos.length > 0) {
+                localStorage.setItem('tempItemPhotos', JSON.stringify(itemPhotos));
+            }
+            if (customerFaceCapture.value) {
+                localStorage.setItem('tempCustomerPhoto', customerFaceCapture.value);
+            }
+        });
+
+        // Restore photos after page load if form had errors
+        $(document).ready(function() {
+            // Check if we have stored photos from a previous submission
+            const storedItemPhotos = localStorage.getItem('tempItemPhotos');
+            const storedCustomerPhoto = localStorage.getItem('tempCustomerPhoto');
+
+            if (storedItemPhotos) {
+                try {
+                    const parsedPhotos = JSON.parse(storedItemPhotos);
+                    parsedPhotos.forEach(photo => {
+                        addItemPhoto(photo.dataUrl);
+                    });
+                    // Clear stored photos after restoring
+                    localStorage.removeItem('tempItemPhotos');
+                } catch (e) {
+                    console.error('Error restoring item photos:', e);
+                }
+            }
+
+            if (storedCustomerPhoto && !customerFaceCapture.value) {
+                capturedPhoto.src = storedCustomerPhoto;
+                capturedPhoto.style.display = 'block';
+                customerFaceCapture.value = storedCustomerPhoto;
+                updateCustomerDownloadButton(storedCustomerPhoto);
+                if (noCaptureText) noCaptureText.style.display = 'none';
+                if (retakeBtn) retakeBtn.disabled = false;
+                // Clear stored customer photo after restoring
+                localStorage.removeItem('tempCustomerPhoto');
+            }
+        });
+        
+        // Continue to iterate button functionality
+        const continueIterateBtn = document.getElementById('continueIterateBtn');
+        if (continueIterateBtn) {
+            continueIterateBtn.addEventListener('click', function() {
+                // Store current form data in sessionStorage
+                const formData = {
+                    branch: $('#id_branch').val(),
+                    customer: $('#id_customer').val(),
+                    item_name: $('#id_item_name').val(),
+                    item_name_tamil: $('#id_item_name_tamil').val(),
+                    item_description: $('#id_item_description').val(),
+                    item_description_tamil: $('#id_item_description_tamil').val(),
+                    item_category: $('#id_item_category').val(),
+                    market_price_22k: $('#id_market_price_22k').val(),
+                    gold_karat: $('#id_gold_karat').val(),
+                    scheme: $('#id_scheme').val()
+                };
+                
+                // Store photos in sessionStorage
+                if (itemPhotos.length > 0) {
+                    sessionStorage.setItem('tempItemPhotos', JSON.stringify(itemPhotos));
+                }
+                if (customerFaceCapture.value) {
+                    sessionStorage.setItem('tempCustomerPhoto', customerFaceCapture.value);
+                }
+                
+                // Store form data in sessionStorage
+                sessionStorage.setItem('loanFormData', JSON.stringify(formData));
+                sessionStorage.setItem('continueIteration', 'true');
+                
+                // Redirect to create a new loan
+                window.location.href = '{% url "loan_create" %}';
+            });
+        }
+        
+        // Check if we're continuing an iteration
+        $(document).ready(function() {
+            if (sessionStorage.getItem('continueIteration') === 'true') {
+                try {
+                    // Restore form data
+                    const formData = JSON.parse(sessionStorage.getItem('loanFormData') || '{}');
+                    
+                    // Set form field values
+                    if (formData.branch) $('#id_branch').val(formData.branch);
+                    if (formData.customer) $('#id_customer').val(formData.customer);
+                    if (formData.item_name) $('#id_item_name').val(formData.item_name);
+                    if (formData.item_name_tamil) $('#id_item_name_tamil').val(formData.item_name_tamil);
+                    if (formData.item_description) $('#id_item_description').val(formData.item_description);
+                    if (formData.item_description_tamil) $('#id_item_description_tamil').val(formData.item_description_tamil);
+                    if (formData.item_category) $('#id_item_category').val(formData.item_category);
+                    if (formData.market_price_22k) $('#id_market_price_22k').val(formData.market_price_22k);
+                    if (formData.gold_karat) $('#id_gold_karat').val(formData.gold_karat);
+                    if (formData.scheme) $('#id_scheme').val(formData.scheme);
+                    
+                    // Trigger the scheme info update if scheme is selected
+                    if (formData.scheme) {
+                        $('#id_scheme').trigger('change');
+                    }
+                    
+                    // Show a notification that we're continuing from previous entry
+                    showAlert('Continuing with similar loan entry. You can modify the details as needed.', 'info');
+                    
+                    // Clear the flag
+                    sessionStorage.removeItem('continueIteration');
+                } catch (e) {
+                    console.error('Error restoring form data:', e);
+                    sessionStorage.removeItem('loanFormData');
+                    sessionStorage.removeItem('continueIteration');
+                }
+            }
+        });
+
+        // Clear photos when creating a new loan - IMPROVED VERSION
+        {% if not form.instance.pk %}
+        $(document).ready(function() {
+            // Only clear if there are NO form errors and NOT continuing iteration
+            const hasFormErrors = {{ form.errors|yesno:"true,false" }};
+            const isContinuingIteration = sessionStorage.getItem('continueIteration') === 'true';
+            
+            if (!hasFormErrors && !isContinuingIteration) {
+                console.log("Clearing photos for new loan creation");
+                
+                // Clear customer photo completely
+                if (capturedPhoto) {
+                    capturedPhoto.src = '';
+                    capturedPhoto.style.display = 'none';
+                }
+                if (customerFaceCapture) {
+                    customerFaceCapture.value = '';
+                }
+                updateCustomerDownloadButton('');
+                if (noCaptureText) {
+                    noCaptureText.style.display = 'block';
+                    noCaptureText.textContent = 'No photo captured';
+                }
+                if (retakeBtn) {
+                    retakeBtn.disabled = true;
+                }
+
+                // Clear item photos completely
+                itemPhotos = [];
+                if (itemPhotosData) {
+                    itemPhotosData.value = '';
+                }
+                if (photoCountBadge) {
+                    photoCountBadge.textContent = '0 Photos';
+                    photoCountBadge.className = 'badge bg-danger';
+                }
+                if (noItemPhotosText) {
+                    noItemPhotosText.style.display = 'block';
+                    noItemPhotosText.textContent = 'No photos';
+                }
+                if (itemPhotosContainer) {
+                    itemPhotosContainer.innerHTML = '';
+                    itemPhotosContainer.style.display = 'none';
+                }
+                if (clearItemPhotosBtn) {
+                    clearItemPhotosBtn.disabled = true;
+                }
+                
+                // Clear any stored photos from previous sessions
+                localStorage.removeItem('tempItemPhotos');
+                localStorage.removeItem('tempCustomerPhoto');
+                sessionStorage.removeItem('tempItemPhotos');
+                sessionStorage.removeItem('tempCustomerPhoto');
+                
+                console.log("Photo clearing completed for new loan");
+            } else {
+                console.log("Skipping photo clearing - form has errors or continuing iteration");
+            }
+        });
+        {% endif %}
+
+        // Additional clearing function for navigation to new loan
+        function clearAllPhotosForNewLoan() {
+            console.log("Explicitly clearing all photos for new loan");
+            
+            // Clear customer photo
+            if (capturedPhoto) {
+                capturedPhoto.src = '';
+                capturedPhoto.style.display = 'none';
+            }
+            if (customerFaceCapture) {
+                customerFaceCapture.value = '';
+            }
+            updateCustomerDownloadButton('');
+            if (noCaptureText) {
+                noCaptureText.style.display = 'block';
+                noCaptureText.textContent = 'No photo captured';
+            }
+            if (retakeBtn) {
+                retakeBtn.disabled = true;
+            }
+
+            // Clear item photos
+            itemPhotos = [];
+            if (itemPhotosData) {
+                itemPhotosData.value = '';
+            }
+            if (photoCountBadge) {
+                photoCountBadge.textContent = '0 Photos';
+                photoCountBadge.className = 'badge bg-danger';
+            }
+            if (noItemPhotosText) {
+                noItemPhotosText.style.display = 'block';
+            }
+            if (itemPhotosContainer) {
+                itemPhotosContainer.innerHTML = '';
+                itemPhotosContainer.style.display = 'none';
+            }
+            if (clearItemPhotosBtn) {
+                clearItemPhotosBtn.disabled = true;
+            }
+            
+            // Clear storage
+            localStorage.removeItem('tempItemPhotos');
+            localStorage.removeItem('tempCustomerPhoto');
+            sessionStorage.removeItem('tempItemPhotos');
+            sessionStorage.removeItem('tempCustomerPhoto');
+        }
+
+        // Call clear function when arriving at new loan page (not continuing iteration)
+        $(document).ready(function() {
+            {% if not form.instance.pk %}
+            // Only clear if we're NOT continuing an iteration
+            if (sessionStorage.getItem('continueIteration') !== 'true') {
+                clearAllPhotosForNewLoan();
+            }
+            {% endif %}
+        });
+
+        let processingFeePercent = 1; // Default to 1%
+
+        function updateProcessingFeePercentFromScheme() {
+            const selectedSchemeId = $('#id_scheme').val();
+            if (selectedSchemeId) {
+                $.get(`/schemes/${selectedSchemeId}/json/`, function(data) {
+                    if (data.additional_conditions && data.additional_conditions.processing_fee_percentage) {
+                        processingFeePercent = parseFloat(data.additional_conditions.processing_fee_percentage);
+                        console.log(`Processing fee percentage from scheme: ${processingFeePercent}%`);
+                    } else {
+                        processingFeePercent = 1;
+                        console.log("Using default processing fee: 1%");
+                    }
+                    recalculateProcessingFee();
+                }).fail(function(error) {
+                    console.error("Error fetching scheme details:", error);
+                    processingFeePercent = 1;
+                    recalculateProcessingFee();
+                });
+            } else {
+                processingFeePercent = 1;
+                recalculateProcessingFee();
+            }
+        }
+
+        function recalculateProcessingFee() {
+            const principal = parseFloat($('#id_principal_amount').val()) || 0;
+            const processingFee = Math.round(principal * (processingFeePercent / 100));
+            console.log(`Calculated processing fee: ${processingFee} (${processingFeePercent}% of ${principal})`);
+            $('#id_processing_fee').val(processingFee);
+            $('#id_distribution_amount').val(principal - processingFee);
+        }
+
+        $('#id_principal_amount').on('input', recalculateProcessingFee);
+        $('#id_distribution_amount').on('input', function() {
+            const distribution = parseFloat($(this).val()) || 0;
+            const principal = Math.round(distribution / (1 - (processingFeePercent / 100)));
+            $('#id_principal_amount').val(principal);
+            recalculateProcessingFee();
+        });
+        $('#id_scheme').on('change', updateProcessingFeePercentFromScheme);
+
+        // On page load, initialize the correct percentage
+        $(document).ready(updateProcessingFeePercentFromScheme);
+    });
+</script>
+{% endblock %}

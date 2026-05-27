@@ -1,0 +1,267 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Analytics Dashboards{% endblock %}
+
+{% block dashboards_active %}active{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h2>Analytics Dashboards</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+                    <li class="breadcrumb-item active">Analytics</li>
+                </ol>
+            </nav>
+        </div>
+        <div class="col-md-6 text-end">
+            <a href="{% url 'dashboard_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus-circle"></i> New Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Dashboard Categories -->
+    <div class="row mb-4">
+        <div class="col-md-4 mb-4">
+            <div class="card dashboard-card h-100" onclick="window.location='{% url 'financial_dashboard' %}'">
+                <div class="card-body text-center py-5">
+                    <div class="icon-container mb-3">
+                        <i class="fas fa-chart-line fa-4x text-primary"></i>
+                    </div>
+                    <h4>Financial Analytics</h4>
+                    <p class="text-muted">Track revenue, expenses, and profitability metrics</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+            <div class="card dashboard-card h-100" onclick="window.location='{% url 'inventory_dashboard' %}'">
+                <div class="card-body text-center py-5">
+                    <div class="icon-container mb-3">
+                        <i class="fas fa-box-open fa-4x text-success"></i>
+                    </div>
+                    <h4>Inventory Analytics</h4>
+                    <p class="text-muted">Monitor stock levels, turnover rates, and product performance</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+            <div class="card dashboard-card h-100" onclick="window.location='{% url 'loan_dashboard' %}'">
+                <div class="card-body text-center py-5">
+                    <div class="icon-container mb-3">
+                        <i class="fas fa-hand-holding-usd fa-4x text-warning"></i>
+                    </div>
+                    <h4>Loan Analytics</h4>
+                    <p class="text-muted">Analyze loan performance, default rates, and interest income</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+            <div class="card dashboard-card h-100" onclick="window.location='{% url 'customer_dashboard' %}'">
+                <div class="card-body text-center py-5">
+                    <div class="icon-container mb-3">
+                        <i class="fas fa-users fa-4x text-info"></i>
+                    </div>
+                    <h4>Customer Analytics</h4>
+                    <p class="text-muted">Understand customer behavior, retention, and demographics</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+            <div class="card dashboard-card h-100" onclick="window.location='{% url 'branch_dashboard' %}'">
+                <div class="card-body text-center py-5">
+                    <div class="icon-container mb-3">
+                        <i class="fas fa-store fa-4x text-secondary"></i>
+                    </div>
+                    <h4>Branch Performance</h4>
+                    <p class="text-muted">Compare performance metrics across multiple branches</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+            <div class="card dashboard-card h-100" onclick="window.location='{% url 'executive_dashboard' %}'">
+                <div class="card-body text-center py-5">
+                    <div class="icon-container mb-3">
+                        <i class="fas fa-chart-pie fa-4x text-danger"></i>
+                    </div>
+                    <h4>Executive Dashboard</h4>
+                    <p class="text-muted">High-level metrics and KPIs for management decisions</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Dashboards -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5><i class="fas fa-tachometer-alt"></i> Custom Dashboards</h5>
+            <a href="{% url 'dashboard_create' %}" class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-plus"></i> Create New
+            </a>
+        </div>
+        <div class="card-body">
+            {% if dashboards %}
+                <div class="row">
+                    {% for dashboard in dashboards %}
+                        <div class="col-md-6 col-lg-4 mb-4">
+                            <div class="card dashboard-item h-100">
+                                <div class="card-header">
+                                    <h6 class="mb-0">{{ dashboard.name }}</h6>
+                                </div>
+                                <div class="card-body">
+                                    <p>{{ dashboard.description|truncatechars:100 }}</p>
+                                    <div class="badge bg-secondary mb-2">{{ dashboard.dashboard_type|title }}</div>
+                                    <p class="text-muted small mb-0">
+                                        <i class="fas fa-calendar-alt"></i> Created on {{ dashboard.created_at|date:"M d, Y" }}
+                                    </p>
+                                </div>
+                                <div class="card-footer bg-transparent">
+                                    <div class="btn-group btn-group-sm w-100">
+                                        <a href="{% url 'dashboard_detail' dashboard.id %}" class="btn btn-outline-primary">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                        <a href="{% url 'dashboard_edit' dashboard.id %}" class="btn btn-outline-secondary">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </a>
+                                        <a href="{% url 'dashboard_delete' dashboard.id %}" class="btn btn-outline-danger">
+                                            <i class="fas fa-trash"></i> Delete
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- Pagination -->
+                {% if is_paginated %}
+                <nav aria-label="Page navigation" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page=1" aria-label="First">
+                                    <span aria-hidden="true">&laquo;&laquo;</span>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#" aria-label="First">
+                                    <span aria-hidden="true">&laquo;&laquo;</span>
+                                </a>
+                            </li>
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                                <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}" aria-label="Last">
+                                    <span aria-hidden="true">&raquo;&raquo;</span>
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#" aria-label="Last">
+                                    <span aria-hidden="true">&raquo;&raquo;</span>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> No custom dashboards found. <a href="{% url 'dashboard_create' %}">Create your first custom dashboard</a> to get started.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    $(document).ready(function() {
+        // Dashboard card hover effects
+        $('.dashboard-card').css('cursor', 'pointer');
+        $('.dashboard-card').hover(
+            function() {
+                $(this).css('transform', 'translateY(-10px)');
+                $(this).css('box-shadow', '0 15px 30px rgba(0,0,0,0.1)');
+                $(this).css('transition', 'all 0.3s ease');
+            },
+            function() {
+                $(this).css('transform', '');
+                $(this).css('box-shadow', '');
+                $(this).css('transition', 'all 0.3s ease');
+            }
+        );
+    });
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-card {
+        border-radius: 12px;
+        border: none;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+    }
+    
+    .dashboard-card:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .icon-container {
+        display: inline-block;
+        padding: 20px;
+        border-radius: 50%;
+        background-color: rgba(0,0,0,0.03);
+    }
+    
+    .dashboard-item {
+        transition: all 0.3s ease;
+    }
+    
+    .dashboard-item:hover {
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+</style>
+{% endblock %}

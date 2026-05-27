@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Biometric Settings{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h2>Biometric Settings</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+                    <li class="breadcrumb-item active">Biometric Settings</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Global Biometric Settings -->
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-cogs me-2"></i>Global Settings</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <h6 class="mb-3">Face Recognition</h6>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="face_recognition_enabled" name="face_recognition_enabled" {% if settings.face_recognition_enabled %}checked{% endif %}>
+                                    <label class="form-check-label" for="face_recognition_enabled">Enable Face Recognition</label>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="face_recognition_staff" name="face_recognition_required_for_staff" {% if settings.face_recognition_required_for_staff %}checked{% endif %}>
+                                    <label class="form-check-label" for="face_recognition_staff">Required for Staff</label>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="face_recognition_customers" name="face_recognition_required_for_customers" {% if settings.face_recognition_required_for_customers %}checked{% endif %}>
+                                    <label class="form-check-label" for="face_recognition_customers">Required for Customers</label>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="face_recognition_threshold" class="form-label">Recognition Threshold</label>
+                                    <input type="range" class="form-range" id="face_recognition_threshold" name="face_recognition_threshold" min="0.1" max="1.0" step="0.1" value="{{ settings.face_recognition_threshold }}">
+                                    <div class="d-flex justify-content-between">
+                                        <small>More Permissive</small>
+                                        <small>More Strict</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="mb-3">Fingerprint Authentication</h6>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="fingerprint_enabled" name="fingerprint_enabled" {% if settings.fingerprint_enabled %}checked{% endif %}>
+                                    <label class="form-check-label" for="fingerprint_enabled">Enable Fingerprint Authentication</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="text-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Save Settings
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Branch-specific Settings -->
+            <div class="card shadow">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-store me-2"></i>Branch Settings</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Branch</th>
+                                    <th>Face Recognition</th>
+                                    <th>Fingerprint</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for branch in branches %}
+                                <tr>
+                                    <td>{{ branch.name }}</td>
+                                    <td>
+                                        {% with settings=branch.biometric_settings.all|first %}
+                                            {% if settings and settings.face_recognition_enabled %}
+                                                <span class="badge bg-success">Enabled</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Disabled</span>
+                                            {% endif %}
+                                    </td>
+                                    <td>
+                                            {% if settings and settings.fingerprint_enabled %}
+                                                <span class="badge bg-success">Enabled</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Disabled</span>
+                                            {% endif %}
+                                        {% endwith %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'branch_biometric_settings' branch.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-cog"></i> Configure
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Card -->
+        <div class="col-lg-4">
+            <div class="card shadow mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Biometric Usage</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <h6>Face Recognition</h6>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Staff Enrolled:</span>
+                            <span>{{ staff_enrolled }}/{{ total_staff }}</span>
+                        </div>
+                        <div class="progress mb-3">
+                            <div class="progress-bar bg-primary" role="progressbar" style="width: {{ staff_enrolled_percentage }}%"></div>
+                        </div>
+
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Customers Enrolled:</span>
+                            <span>{{ customers_enrolled }}/{{ total_customers }}</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ customers_enrolled_percentage }}%"></div>
+                        </div>
+                    </div>
+
+                    <div class="text-center mt-4">
+                        <a href="{% url 'biometric_logs' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-history me-2"></i>View Logs
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    $(document).ready(function() {
+        // Update threshold value display
+        $('#face_recognition_threshold').on('input', function() {
+            $(this).attr('title', $(this).val());
+        });
+    });
+</script>
+{% endblock %}

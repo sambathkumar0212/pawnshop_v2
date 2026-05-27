@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% if form.instance.pk %}Edit{% else %}Add New{% endif %} Inventory Item{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/select2.min.css' %}">
+<style>
+    .form-section {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    .form-section h5 {
+        margin-bottom: 15px;
+        color: #495057;
+        border-bottom: 1px solid #dee2e6;
+        padding-bottom: 10px;
+    }
+    .help-text {
+        font-size: 0.85em;
+        color: #6c757d;
+        margin-top: 2px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-3">
+        <div class="col">
+            <h2>{% if form.instance.pk %}Edit{% else %}Add New{% endif %} Inventory Item</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'item_list' %}">Inventory</a></li>
+                    {% if form.instance.pk %}
+                    <li class="breadcrumb-item"><a href="{% url 'item_detail' form.instance.pk %}">{{ form.instance.name }}</a></li>
+                    <li class="breadcrumb-item active">Edit</li>
+                    {% else %}
+                    <li class="breadcrumb-item active">Add New Item</li>
+                    {% endif %}
+                </ol>
+            </nav>
+        </div>
+    </div>
+    
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                
+                <div class="form-section">
+                    <h5>Basic Information</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.name|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.tamil_name|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.category|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.branch|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.description|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.tamil_description|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.customer|as_crispy_field }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-section">
+                    <h5>Item Details</h5>
+                    <div class="row">
+                        <div class="col-md-4">
+                            {{ form.serial_number|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.brand|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.tamil_brand|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            {{ form.model|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.tamil_model|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.condition|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            {{ form.year|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.tags|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.tamil_tags|as_crispy_field }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-section">
+                    <h5>Pricing & Status</h5>
+                    <div class="row">
+                        <div class="col-md-4">
+                            {{ form.purchase_price|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.appraised_value|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.sale_price|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            {{ form.status|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check mt-4">
+                                {{ form.featured }}
+                                <label class="form-check-label" for="{{ form.featured.id_for_label }}">
+                                    Featured Item
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-section">
+                    <h5>Additional Notes</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.notes|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.tamil_notes|as_crispy_field }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4 d-flex justify-content-between">
+                    <a href="{% url 'item_list' %}" class="btn btn-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary">
+                        {% if form.instance.pk %}Update{% else %}Create{% endif %} Item
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/select2.min.js' %}"></script>
+<script>
+    $(document).ready(function() {
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        function setupBidirectionalTransliteration(sourceSelector, targetSelector, direction) {
+            const $source = $(sourceSelector);
+            const $target = $(targetSelector);
+
+            if (!$source.length || !$target.length) {
+                return;
+            }
+
+            const syncText = debounce(function() {
+                if ($source.data('syncLock')) {
+                    $source.removeData('syncLock');
+                    return;
+                }
+
+                const text = ($source.val() || '').trim();
+                if (!text) {
+                    $target.val('');
+                    return;
+                }
+
+                $.get('{% url "transliterate_between_english_tamil" %}', {
+                    text: text,
+                    direction: direction
+                }).done(function(response) {
+                    $target.data('syncLock', true);
+                    $target.val(response.result || '');
+                });
+            }, 350);
+
+            $source.on('input', syncText);
+        }
+
+        // Initialize Select2 for dropdown fields
+        $('#id_category').select2({
+            placeholder: "Select a category",
+            width: '100%'
+        });
+        
+        $('#id_customer').select2({
+            placeholder: "Select a customer (optional)",
+            width: '100%',
+            allowClear: true
+        });
+        
+        // Show/hide sale price based on status
+        $('#id_status').change(function() {
+            if ($(this).val() === 'sold') {
+                $('#div_id_sale_price').show();
+            } else {
+                $('#div_id_sale_price').hide();
+            }
+        });
+        
+        setupBidirectionalTransliteration('#id_name', '#id_tamil_name', 'to_tamil');
+        setupBidirectionalTransliteration('#id_tamil_name', '#id_name', 'to_english');
+        setupBidirectionalTransliteration('#id_description', '#id_tamil_description', 'to_tamil');
+        setupBidirectionalTransliteration('#id_tamil_description', '#id_description', 'to_english');
+        setupBidirectionalTransliteration('#id_brand', '#id_tamil_brand', 'to_tamil');
+        setupBidirectionalTransliteration('#id_tamil_brand', '#id_brand', 'to_english');
+        setupBidirectionalTransliteration('#id_model', '#id_tamil_model', 'to_tamil');
+        setupBidirectionalTransliteration('#id_tamil_model', '#id_model', 'to_english');
+        setupBidirectionalTransliteration('#id_tags', '#id_tamil_tags', 'to_tamil');
+        setupBidirectionalTransliteration('#id_tamil_tags', '#id_tags', 'to_english');
+        setupBidirectionalTransliteration('#id_notes', '#id_tamil_notes', 'to_tamil');
+        setupBidirectionalTransliteration('#id_tamil_notes', '#id_notes', 'to_english');
+
+        // Trigger the change event on page load
+        $('#id_status').trigger('change');
+    });
+</script>
+{% endblock %}

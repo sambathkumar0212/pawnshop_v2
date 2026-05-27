@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <div class="container">
+    <h1>{{ title|default:'Loan Report' }}</h1>
+    <p class="lead">This report view is a placeholder. Add report filters and table rendering as needed.</p>
+
+    <!-- Example table placeholder -->
+    <table class="table table-sm table-bordered">
+      <thead>
+        <tr>
+          <th>Loan Number</th>
+          <th>Customer</th>
+          <th>Branch</th>
+          <th>Status</th>
+          <th>Outstanding</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% comment %} Replace with actual loan rows when implemented {% endcomment %}
+        <tr>
+          <td colspan="5" class="text-muted">No data — this template was generated to avoid TemplateDoesNotExist.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

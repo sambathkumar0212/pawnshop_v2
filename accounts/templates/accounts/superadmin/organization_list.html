@@ -1,0 +1,248 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Manage Organizations - Super Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2 class="mb-0"><i class="fas fa-building me-2"></i>Organization Management</h2>
+                            <p class="text-muted mb-0">Manage all organizations in the system</p>
+                        </div>
+                        <div>
+                            <a href="{% url 'superadmin_dashboard' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h4>{{ total_organizations }}</h4>
+                    <p class="mb-0">Total Organizations</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h4>{{ active_organizations }}</h4>
+                    <p class="mb-0">Active</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body text-center">
+                    <h4>{{ suspended_organizations }}</h4>
+                    <p class="mb-0">Suspended</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <h4>{{ pending_organizations }}</h4>
+                    <p class="mb-0">Pending</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="search" class="form-label">Search</label>
+                            <input type="text" class="form-control" id="search" name="search" 
+                                   value="{{ search_query }}" placeholder="Search organizations, owners, emails...">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="status" class="form-label">Status</label>
+                            <select class="form-select" id="status" name="status">
+                                <option value="">All Statuses</option>
+                                {% for value, display in status_choices %}
+                                <option value="{{ value }}" {% if current_status == value %}selected{% endif %}>
+                                    {{ display }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="plan" class="form-label">Plan</label>
+                            <select class="form-select" id="plan" name="plan">
+                                <option value="">All Plans</option>
+                                {% for value, display in plan_choices %}
+                                <option value="{{ value }}" {% if current_plan == value %}selected{% endif %}>
+                                    {{ display }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">Filter</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Organizations Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Organizations ({{ organizations|length }} results)</h5>
+                </div>
+                <div class="card-body">
+                    {% if organizations %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Organization</th>
+                                    <th>Owner</th>
+                                    <th>Plan</th>
+                                    <th>Status</th>
+                                    <th>Users</th>
+                                    <th>Branches</th>
+                                    <th>Customers</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for org in organizations %}
+                                <tr>
+                                    <td>
+                                        <div>
+                                            <strong>{{ org.name }}</strong>
+                                            <br><small class="text-muted">{{ org.contact_email }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <strong>{{ org.owner.get_full_name }}</strong>
+                                            <br><small class="text-muted">{{ org.owner.username }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ org.get_plan_display }}</span>
+                                    </td>
+                                    <td>
+                                        {% if org.status == 'active' %}
+                                            <span class="badge bg-success">{{ org.get_status_display }}</span>
+                                        {% elif org.status == 'suspended' %}
+                                            <span class="badge bg-danger">{{ org.get_status_display }}</span>
+                                        {% elif org.status == 'pending' %}
+                                            <span class="badge bg-warning">{{ org.get_status_display }}</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ org.get_status_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ org.user_count }}</td>
+                                    <td>{{ org.branch_count }}</td>
+                                    <td>{{ org.customer_count }}</td>
+                                    <td>{{ org.created_at|date:"M d, Y" }}</td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="{% url 'superadmin_organization_detail' org.pk %}" 
+                                               class="btn btn-outline-primary" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            
+                                            {% if org.status == 'active' %}
+                                            <form method="post" action="{% url 'superadmin_organization_suspend' org.pk %}" 
+                                                  style="display: inline;" 
+                                                  onsubmit="return confirm('Are you sure you want to suspend {{ org.name }}? All users will be deactivated.')">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-outline-warning" title="Suspend">
+                                                    <i class="fas fa-pause"></i>
+                                                </button>
+                                            </form>
+                                            {% elif org.status == 'suspended' %}
+                                            <form method="post" action="{% url 'superadmin_organization_reactivate' org.pk %}" 
+                                                  style="display: inline;"
+                                                  onsubmit="return confirm('Are you sure you want to reactivate {{ org.name }}?')">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-outline-success" title="Reactivate">
+                                                    <i class="fas fa-play"></i>
+                                                </button>
+                                            </form>
+                                            {% endif %}
+                                            
+                                            <a href="{% url 'superadmin_organization_delete' org.pk %}" 
+                                               class="btn btn-outline-danger" title="Delete Organization"
+                                               onclick="return confirm('Are you sure you want to delete {{ org.name }}? This action cannot be undone!')">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if is_paginated %}
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_plan %}&plan={{ current_plan }}{% endif %}">First</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_plan %}&plan={{ current_plan }}{% endif %}">Previous</a>
+                                </li>
+                            {% endif %}
+
+                            <li class="page-item active">
+                                <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                            </li>
+
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_plan %}&plan={{ current_plan }}{% endif %}">Next</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_plan %}&plan={{ current_plan }}{% endif %}">Last</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-building fa-4x text-muted mb-3"></i>
+                        <h4>No Organizations Found</h4>
+                        <p class="text-muted">No organizations match your current filters.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

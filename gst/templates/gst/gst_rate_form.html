@@ -1,0 +1,148 @@
+{% extends "gst/base_gst.html" %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block title %}
+    {% if form.instance.pk %}Edit GST Rate{% else %}Add GST Rate{% endif %}
+{% endblock %}
+
+{% block gst_content %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">{% if form.instance.pk %}Edit GST Rate{% else %}Add GST Rate{% endif %}</h5>
+    </div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="row">
+                <div class="col-md-6">
+                    {{ form.name|as_crispy_field }}
+                </div>
+                <div class="col-md-6">
+                    {{ form.hsn_code|as_crispy_field }}
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-4">
+                    {{ form.cgst_rate|as_crispy_field }}
+                </div>
+                <div class="col-md-4">
+                    {{ form.sgst_rate|as_crispy_field }}
+                </div>
+                <div class="col-md-4">
+                    {{ form.igst_rate|as_crispy_field }}
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-12">
+                    {{ form.description|as_crispy_field }}
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-12">
+                    {{ form.is_active|as_crispy_field }}
+                </div>
+            </div>
+            
+            <div class="mt-3">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-1"></i> Save GST Rate
+                </button>
+                <a href="{% url 'gst_rate_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-times me-1"></i> Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header bg-info text-white">
+        <h5 class="mb-0">GST Rate Information</h5>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i> CGST and SGST rates are typically equal, and together they equal the IGST rate. For example, if CGST is 9% and SGST is 9%, the IGST rate should be 18%.
+        </div>
+        
+        <p><strong>HSN Code:</strong> Harmonized System of Nomenclature (HSN) is a 6-digit uniform code that classifies goods and services for taxation. It helps in standardizing GST applications across India.</p>
+        
+        <div class="table-responsive">
+            <table class="table table-sm table-bordered">
+                <thead>
+                    <tr>
+                        <th>Common GST Rate</th>
+                        <th>CGST</th>
+                        <th>SGST</th>
+                        <th>IGST</th>
+                        <th>Applicable For</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>0%</td>
+                        <td>0%</td>
+                        <td>0%</td>
+                        <td>0%</td>
+                        <td>Essential goods and services</td>
+                    </tr>
+                    <tr>
+                        <td>5%</td>
+                        <td>2.5%</td>
+                        <td>2.5%</td>
+                        <td>5%</td>
+                        <td>Items of mass consumption</td>
+                    </tr>
+                    <tr>
+                        <td>12%</td>
+                        <td>6%</td>
+                        <td>6%</td>
+                        <td>12%</td>
+                        <td>Standard goods and services</td>
+                    </tr>
+                    <tr>
+                        <td>18%</td>
+                        <td>9%</td>
+                        <td>9%</td>
+                        <td>18%</td>
+                        <td>Most manufactured items</td>
+                    </tr>
+                    <tr>
+                        <td>28%</td>
+                        <td>14%</td>
+                        <td>14%</td>
+                        <td>28%</td>
+                        <td>Luxury and sin goods</td>
+                    </tr>
+                    <tr>
+                        <td>3%</td>
+                        <td>1.5%</td>
+                        <td>1.5%</td>
+                        <td>3%</td>
+                        <td>Gold, silver, and precious metals</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Auto-calculate IGST from CGST and SGST
+        $('#id_cgst_rate, #id_sgst_rate').on('input', function() {
+            let cgstRate = parseFloat($('#id_cgst_rate').val()) || 0;
+            let sgstRate = parseFloat($('#id_sgst_rate').val()) || 0;
+            let igstRate = cgstRate + sgstRate;
+            
+            $('#id_igst_rate').val(igstRate.toFixed(2));
+        });
+    });
+</script>
+{% endblock %}

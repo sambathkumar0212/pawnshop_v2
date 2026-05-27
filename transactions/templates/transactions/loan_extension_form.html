@@ -1,0 +1,341 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Extend Loan - Pawnshop Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>
+                    <i class="fas fa-calendar-plus me-2"></i>
+                    Extend Loan
+                </h2>
+                <a href="{% url 'loan_detail' loan_number=loan.loan_number %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Loan Details
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Loan Extension Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Note:</strong> Extending a loan will create a new due date based on the extension period. 
+                        Additional fees may apply.
+                    </div>
+
+                    <div class="loan-details mb-4">
+                        <h5>Current Loan Information</h5>
+                        <table class="table table-bordered">
+                            <tr>
+                                <th width="30%">Loan Number</th>
+                                <td>{{ loan.loan_number }}</td>
+                            </tr>
+                            <tr>
+                                <th>Customer</th>
+                                <td>{{ loan.customer }}</td>
+                            </tr>
+                            <tr>
+                                <th>Principal Amount</th>
+                                <td class="rupee">₹{{ loan.principal_amount }}</td>
+                            </tr>
+                            <tr>
+                                <th>Item</th>
+                                <td>{{ loan.item_name }}</td>
+                            </tr>
+                            <tr>
+                                <th>Current Due Date</th>
+                                <td>{{ loan.due_date }}</td>
+                            </tr>
+                            <tr>
+                                <th>Grace Period End</th>
+                                <td>{{ loan.grace_period_end }}</td>
+                            </tr>
+                            <tr>
+                                <th>Current Status</th>
+                                <td>{{ loan.get_status_display }}</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <form method="post" id="extensionForm" novalidate>
+                        {% csrf_token %}
+                        <input type="hidden" name="face_verification_status" id="faceVerificationStatus" value="">
+                        
+                        <!-- Customer Verification Section -->
+                        <div class="card mb-4">
+                            <div class="card-header bg-light">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="enableFaceVerification">
+                                    <label class="form-check-label" for="enableFaceVerification">
+                                        <i class="fas fa-face-viewfinder me-2"></i>Use Face Verification (Optional)
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="card-body" id="faceVerificationSection" style="display: none;">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div id="cameraContainer" class="border rounded mb-2" style="height: 240px; position: relative;">
+                                            <video id="cameraStream" style="width: 100%; height: 100%; object-fit: cover;" autoplay playsinline></video>
+                                            <canvas id="videoCanvas" style="display:none;"></canvas>
+                                        </div>
+                                        <div class="d-flex justify-content-center mb-3">
+                                            <button type="button" class="btn btn-primary" id="verifyFaceBtn">
+                                                <i class="fas fa-camera me-2"></i>Verify Face
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="border rounded p-3 h-100">
+                                            <h6 class="mb-3">Face Verification Instructions</h6>
+                                            <ol class="small">
+                                                <li>Ensure the customer's face is clearly visible</li>
+                                                <li>Good lighting is important for accurate verification</li>
+                                                <li>Click "Verify Face" to confirm customer identity</li>
+                                            </ol>
+                                            <div id="verificationStatus"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.extension_period|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.extension_fee|as_crispy_field }}
+                                <small class="text-muted d-block">Current Fee: ₹{{ extension_fee }}</small>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.new_due_date|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.new_grace_period_end|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            {{ form.notes|as_crispy_field }}
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <a href="{% url 'loan_detail' loan_number=loan.loan_number %}" class="btn btn-outline-secondary me-md-2">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-info text-white" id="confirmBtn">
+                                <i class="fas fa-calendar-plus me-2"></i>Confirm Extension
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    $(document).ready(function() {
+        // Face verification functionality
+        const enableFaceVerification = document.getElementById('enableFaceVerification');
+        const faceVerificationSection = document.getElementById('faceVerificationSection');
+        const cameraStream = document.getElementById('cameraStream');
+        const videoCanvas = document.getElementById('videoCanvas');
+        const verifyFaceBtn = document.getElementById('verifyFaceBtn');
+        const verificationStatus = document.getElementById('verificationStatus');
+        const faceVerificationStatus = document.getElementById('faceVerificationStatus');
+        let stream = null;
+        let faceVerified = false;
+        
+        // Extension date calculation
+        const extensionPeriodField = document.getElementById('id_extension_period');
+        const newDueDateField = document.getElementById('id_new_due_date');
+        const newGracePeriodEndField = document.getElementById('id_new_grace_period_end');
+        
+        // Listen for changes in extension period
+        if (extensionPeriodField) {
+            extensionPeriodField.addEventListener('change', function() {
+                calculateNewDates();
+            });
+        }
+        
+        // Calculate new dates based on extension period
+        function calculateNewDates() {
+            const extensionPeriod = parseInt(extensionPeriodField.value) || 0;
+            const currentDueDate = new Date('{{ loan.due_date|date:"Y-m-d" }}');
+            
+            if (extensionPeriod > 0) {
+                // Calculate new due date
+                const newDueDate = new Date(currentDueDate);
+                newDueDate.setDate(newDueDate.getDate() + extensionPeriod);
+                
+                // Calculate new grace period (usually 7 days after due date)
+                const newGracePeriod = new Date(newDueDate);
+                newGracePeriod.setDate(newGracePeriod.getDate() + 7);
+                
+                // Format dates for input fields (YYYY-MM-DD)
+                newDueDateField.value = formatDate(newDueDate);
+                newGracePeriodEndField.value = formatDate(newGracePeriod);
+            }
+        }
+        
+        // Format date as YYYY-MM-DD
+        function formatDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+        
+        // Toggle face verification section
+        enableFaceVerification.addEventListener('change', function() {
+            if (this.checked) {
+                faceVerificationSection.style.display = 'block';
+                startCamera();
+            } else {
+                faceVerificationSection.style.display = 'none';
+                stopCamera();
+                faceVerified = false;
+                faceVerificationStatus.value = '';
+                showVerificationStatus('', '');
+            }
+        });
+        
+        // Start camera
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        facingMode: 'user'
+                    }
+                });
+                cameraStream.srcObject = stream;
+            } catch (err) {
+                console.error('Error accessing camera:', err);
+                showVerificationStatus('Could not access camera. Please check camera permissions.', 'danger');
+            }
+        }
+        
+        // Stop camera
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                cameraStream.srcObject = null;
+            }
+        }
+        
+        // Verify face
+        verifyFaceBtn.addEventListener('click', function() {
+            // Set canvas dimensions to match video
+            videoCanvas.width = cameraStream.videoWidth;
+            videoCanvas.height = cameraStream.videoHeight;
+            
+            // Draw current video frame to canvas
+            const ctx = videoCanvas.getContext('2d');
+            ctx.drawImage(cameraStream, 0, 0, videoCanvas.width, videoCanvas.height);
+            
+            // Get image data
+            const imageData = videoCanvas.toDataURL('image/jpeg');
+            
+            // In a real application, you would send this data to your server to compare with stored face data
+            // For this demo, we'll simulate a verification process
+            simulateFaceVerification(imageData);
+        });
+        
+        // Simulate face verification (replace with actual API call in production)
+        function simulateFaceVerification(imageData) {
+            showVerificationStatus('Verifying face...', 'info');
+            
+            // In a real system, you would make an API call to verify the face
+            setTimeout(function() {
+                // Simulate successful verification
+                faceVerified = true;
+                faceVerificationStatus.value = 'verified';
+                showVerificationStatus('Face verification successful!', 'success');
+                
+                // Update button state
+                verifyFaceBtn.disabled = true;
+                verifyFaceBtn.innerHTML = '<i class="fas fa-check-circle me-2"></i>Verified';
+                verifyFaceBtn.classList.remove('btn-primary');
+                verifyFaceBtn.classList.add('btn-success');
+            }, 1500);
+            
+            // In a real implementation, you would make an AJAX request like:
+            /*
+            $.ajax({
+                url: '/api/verify-face/',
+                type: 'POST',
+                data: {
+                    'face_image': imageData,
+                    'customer_id': {{ loan.customer.id }},
+                    'csrfmiddlewaretoken': '{{ csrf_token }}'
+                },
+                success: function(response) {
+                    if (response.verified) {
+                        faceVerified = true;
+                        faceVerificationStatus.value = 'verified';
+                        showVerificationStatus('Face verification successful!', 'success');
+                    } else {
+                        showVerificationStatus('Face verification failed: ' + response.message, 'danger');
+                    }
+                },
+                error: function(xhr, textStatus, errorThrown) {
+                    showVerificationStatus('Error: ' + errorThrown, 'danger');
+                }
+            });
+            */
+        }
+        
+        // Show verification status message
+        function showVerificationStatus(message, type) {
+            if (!message) {
+                verificationStatus.innerHTML = '';
+                return;
+            }
+            
+            verificationStatus.innerHTML = `<div class="alert alert-${type} mt-3 mb-0">${message}</div>`;
+        }
+        
+        // Form submission validation
+        $('#extensionForm').on('submit', function(e) {
+            // If face verification is enabled but not completed, prevent form submission
+            if (enableFaceVerification.checked && !faceVerified) {
+                e.preventDefault();
+                showVerificationStatus('Please complete face verification before proceeding', 'warning');
+                return false;
+            }
+        });
+        
+        // Calculate initial dates
+        calculateNewDates();
+        
+        // Clean up camera when leaving page
+        $(window).on('beforeunload', function() {
+            stopCamera();
+        });
+    });
+</script>
+
+<!-- Add rupee symbol font styles -->
+<style>
+    .rupee {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Arial Unicode MS', 'Noto Sans', sans-serif;
+    }
+</style>
+{% endblock %}
