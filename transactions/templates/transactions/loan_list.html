@@ -11,6 +11,23 @@
 
 {% block content %}
 {% get_current_language as LANGUAGE_CODE %}
+<style>
+    .download-submenu {
+        position: relative;
+    }
+    .download-submenu > .dropdown-menu {
+        position: absolute;
+        top: 0;
+        right: 100%;
+        margin-top: -1px;
+        max-height: 260px;
+        overflow-y: auto;
+        z-index: 1055;
+    }
+    .download-submenu > .dropdown-menu.show {
+        display: block;
+    }
+</style>
 <div class="container-fluid py-3">
     <div class="row mb-4">
         <div class="col-md-6">
@@ -29,20 +46,49 @@
                         <i class="fas fa-download"></i> {% if LANGUAGE_CODE == 'ta' %}பதிவிறக்கு{% else %}Download{% endif %}
                     </button>
                     <ul class="dropdown-menu" aria-labelledby="downloadDropdown">
-                        <li>
-                            <a class="dropdown-item" href="?download=pdf{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
+                        <li class="download-submenu">
+                            <a class="dropdown-item dropdown-toggle download-submenu-toggle" href="#">
                                 <i class="fas fa-file-pdf"></i> {% if LANGUAGE_CODE == 'ta' %}PDF ஆக பதிவிறக்கு{% else %}Download as PDF{% endif %}
                             </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="?download=pdf&status=active{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Active Loans</a></li>
+                                <li><a class="dropdown-item" href="?download=pdf&status=foreclosed{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Foreclosed Loans</a></li>
+                                <li><a class="dropdown-item" href="?download=pdf&status=closed{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Closed Loans</a></li>
+                                <li><a class="dropdown-item" href="?download=pdf&status=repaid{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Repaid Loans</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="?download=pdf&full=1{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Full Details</a></li>
+                            </ul>
                         </li>
                         <li>
-                            <a class="dropdown-item" href="?download=excel{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
+                            <a class="dropdown-item" href="?download=pdf&preview=1{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}" target="_blank">
+                                <i class="fas fa-eye"></i> {% if LANGUAGE_CODE == 'ta' %}PDF முன்னோட்டம்{% else %}PDF Preview{% endif %}
+                            </a>
+                        </li>
+                        <li class="download-submenu">
+                            <a class="dropdown-item dropdown-toggle download-submenu-toggle" href="#">
                                 <i class="fas fa-file-excel"></i> {% if LANGUAGE_CODE == 'ta' %}Excel ஆக பதிவிறக்கு{% else %}Download as Excel{% endif %}
                             </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="?download=excel&status=active{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Active Loans</a></li>
+                                <li><a class="dropdown-item" href="?download=excel&status=foreclosed{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Foreclosed Loans</a></li>
+                                <li><a class="dropdown-item" href="?download=excel&status=closed{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Closed Loans</a></li>
+                                <li><a class="dropdown-item" href="?download=excel&status=repaid{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Repaid Loans</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="?download=excel{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Full Details</a></li>
+                            </ul>
                         </li>
-                        <li>
-                            <a class="dropdown-item" href="?download=csv{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
+                        <li class="download-submenu">
+                            <a class="dropdown-item dropdown-toggle download-submenu-toggle" href="#">
                                 <i class="fas fa-file-csv"></i> {% if LANGUAGE_CODE == 'ta' %}CSV ஆக பதிவிறக்கு{% else %}Download as CSV{% endif %}
                             </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="?download=csv&status=active{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Active Loans</a></li>
+                                <li><a class="dropdown-item" href="?download=csv&status=foreclosed{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Foreclosed Loans</a></li>
+                                <li><a class="dropdown-item" href="?download=csv&status=closed{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Closed Loans</a></li>
+                                <li><a class="dropdown-item" href="?download=csv&status=repaid{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Repaid Loans</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="?download=csv{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Full Details</a></li>
+                            </ul>
                         </li>
                         <li><hr class="dropdown-divider"></li>
                         <li>
@@ -66,7 +112,12 @@
                 <div class="card-body">
                     <h5 class="card-title">Active Loans</h5>
                     <div class="d-flex justify-content-between align-items-center">
-                        <span class="value">{{ active_loans_count }}</span>
+                        <div>
+                            <div class="value">{{ active_loans_count|default:0 }}</div>
+                            {% if show_total_outstanding %}
+                                <small class="d-block">Outstanding: ₹{{ active_outstanding|default:0.00|floatformat:2 }}</small>
+                            {% endif %}
+                        </div>
                         <span class="icon"><i class="fas fa-money-bill-wave"></i></span>
                     </div>
                 </div>
@@ -77,7 +128,12 @@
                 <div class="card-body">
                     <h5 class="card-title">Due Today</h5>
                     <div class="d-flex justify-content-between align-items-center">
-                        <span class="value">{{ due_today_count }}</span>
+                        <div>
+                            <div class="value">{{ due_today_count|default:0 }}</div>
+                            {% if show_total_outstanding %}
+                                <small class="d-block">Due: ₹{{ due_today_outstanding|default:0.00|floatformat:2 }}</small>
+                            {% endif %}
+                        </div>
                         <span class="icon"><i class="fas fa-calendar-day"></i></span>
                     </div>
                 </div>
@@ -88,7 +144,12 @@
                 <div class="card-body">
                     <h5 class="card-title">Overdue</h5>
                     <div class="d-flex justify-content-between align-items-center">
-                        <span class="value">{{ overdue_count }}</span>
+                        <div>
+                            <div class="value">{{ overdue_count|default:0 }}</div>
+                            {% if show_total_outstanding %}
+                                <small class="d-block">Overdue: ₹{{ overdue_outstanding|default:0.00|floatformat:2 }}</small>
+                            {% endif %}
+                        </div>
                         <span class="icon"><i class="fas fa-exclamation-circle"></i></span>
                     </div>
                 </div>
@@ -145,9 +206,35 @@
                     <a href="{% url 'loan_list' %}?filter_type=overdue{% if search_query %}&search={{ search_query }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}" 
                        class="btn btn-danger w-100 {% if selected_filter_type == 'overdue' %}active{% endif %}">
                         <i class="fas fa-exclamation-circle"></i> Overdue 
-                        <span class="badge text-bg-light rounded-pill ms-1">{{ overdue_count }}</span>
+                        <span class="badge text-bg-light rounded-pill ms-1">{{ overdue_count|default:0 }}</span>
                     </a>
                 </div>
+                {% if selected_filter_type == 'overdue' %}
+                <div class="col-md-2">
+                    <div class="dropdown w-100">
+                        <button class="btn btn-outline-danger dropdown-toggle w-100" type="button" id="overdueDownloadDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-download"></i> {% if LANGUAGE_CODE == 'ta' %}நிலுவை பதிவிறக்கு{% else %}Download dues{% endif %}
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="overdueDownloadDropdown">
+                            <li>
+                                <a class="dropdown-item" href="?download=pdf&filter_type=overdue{% if search_query %}&search={{ search_query }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
+                                    <i class="fas fa-file-pdf"></i> {% if LANGUAGE_CODE == 'ta' %}PDF ஆக பதிவிறக்கு{% else %}Download as PDF{% endif %}
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="?download=excel&filter_type=overdue{% if search_query %}&search={{ search_query }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
+                                    <i class="fas fa-file-excel"></i> {% if LANGUAGE_CODE == 'ta' %}Excel ஆக பதிவிறக்கு{% else %}Download as Excel{% endif %}
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="?download=csv&filter_type=overdue{% if search_query %}&search={{ search_query }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
+                                    <i class="fas fa-file-csv"></i> {% if LANGUAGE_CODE == 'ta' %}CSV ஆக பதிவிறக்கு{% else %}Download as CSV{% endif %}
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                {% endif %}
                 <div class="col-md-2">
                     <a href="{% url 'loan_list' %}" class="btn btn-outline-secondary w-100">
                         <i class="fas fa-times-circle"></i> Clear
@@ -396,15 +483,6 @@
                                                 <a href="{% url 'loan_document' loan.loan_number %}" class="btn btn-outline-secondary" title="Download Agreement" target="_blank">
                                                     <i class="fas fa-file-pdf"></i>
                                                 </a>
-                                                {% if loan.status == 'defaulted' %}
-                                                    <a href="{% url 'loan_expiry_notice' loan.loan_number %}" class="btn btn-outline-danger" title="Expiry Notice" target="_blank">
-                                                        <i class="fas fa-file-alt"></i>
-                                                    </a>
-                                                {% elif loan.status == 'active' and loan.is_overdue %}
-                                                    <a href="{% url 'loan_expiry_notice' loan.loan_number %}" class="btn btn-outline-danger" title="Expiry Notice" target="_blank">
-                                                        <i class="fas fa-file-alt"></i>
-                                                    </a>
-                                                {% endif %}
                                                 {% if loan.status == 'active' %}
                                                     <a href="{% url 'payment_create' loan.loan_number %}" class="btn btn-outline-success" title="Make Payment">
                                                         <i class="fas fa-dollar-sign"></i>
@@ -431,7 +509,7 @@
                         <ul class="pagination justify-content-center mb-0">
                             {% if page_obj.has_previous %}
                                 <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if selected_filter_type %}&filter_type={{ selected_filter_type }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
                                         <i class="fas fa-chevron-left"></i> Previous
                                     </a>
                                 </li>
@@ -451,7 +529,7 @@
                             
                             {% if page_obj.has_next %}
                                 <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if selected_filter_type %}&filter_type={{ selected_filter_type }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
                                         Next <i class="fas fa-chevron-right"></i>
                                     </a>
                                 </li>
@@ -689,6 +767,27 @@ document.getElementById('deselectAllBtn').addEventListener('click', function() {
     });
 });
 
+document.querySelectorAll('.download-submenu-toggle').forEach(toggle => {
+    toggle.addEventListener('click', function(event) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const submenu = this.closest('.download-submenu').querySelector('.dropdown-menu');
+        document.querySelectorAll('.download-submenu > .dropdown-menu.show').forEach(openMenu => {
+            if (openMenu !== submenu) {
+                openMenu.classList.remove('show');
+            }
+        });
+        submenu.classList.toggle('show');
+    });
+});
+
+document.getElementById('downloadDropdown').addEventListener('hidden.bs.dropdown', function() {
+    document.querySelectorAll('.download-submenu > .dropdown-menu.show').forEach(openMenu => {
+        openMenu.classList.remove('show');
+    });
+});
+
 function downloadWithColumns(event) {
     event.preventDefault();
     const selectedColumns = [];
@@ -711,4 +810,3 @@ function downloadWithColumns(event) {
 </script>
 
 {% endblock %}
-

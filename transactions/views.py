@@ -6,7 +6,6 @@ from django.contrib import messages
 from django.utils import timezone
 from django.http import Http404, HttpResponse, JsonResponse
 from django.template.loader import get_template
-from xhtml2pdf import pisa
 from io import BytesIO
 import csv
 from .models import Loan, Payment, LoanExtension, Sale
@@ -25,24 +24,23 @@ import subprocess
 import tempfile
 import re
 from django.conf import settings
+from django.db.utils import OperationalError, ProgrammingError
 from urllib.parse import urlparse
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
 from utils.download_utils import DownloadMixin
 from utils.translation import translate_text
 
 
-def translate_text_for_pdf(text, target_lang='ta'):
-    """Translate a short piece of text for PDF output, with safe fallbacks."""
+def translate_text_for_pdf(text, target_lang='ta', timeout=5):
+    """Translate a short piece of text for PDF output with timeout and fallback."""
     if not text:
         return ''
 
     if target_lang == 'en':
         return text
 
+    # Skip translation if requests would take too long
     try:
         import requests
-
         response = requests.get(
             'https://translate.googleapis.com/translate_a/single',
             params={
@@ -56,7 +54,7 @@ def translate_text_for_pdf(text, target_lang='ta'):
                 'User-Agent': 'Mozilla/5.0',
                 'Accept': 'application/json,text/plain,*/*',
             },
-            timeout=10,
+            timeout=timeout,
         )
         response.raise_for_status()
         payload = json.loads(response.content.decode('utf-8', errors='replace'))
@@ -66,9 +64,12 @@ def translate_text_for_pdf(text, target_lang='ta'):
     except Exception:
         pass
 
-    translated = translate_text(text, target_lang=target_lang)
-    if translated:
-        return translated
+    try:
+        translated = translate_text(text, target_lang=target_lang)
+        if translated:
+            return translated
+    except Exception:
+        pass
 
     return text
 
@@ -79,6 +80,139 @@ def format_mobile_number(value):
     if len(digits) >= 10:
         digits = digits[-10:]
     return f"{digits[:5]} {digits[5:]}" if len(digits) == 10 else digits
+
+
+def get_branch_bill_header_phones(branch):
+    """Return formatted bill-header phone numbers from branch settings or fallback phone."""
+    if not branch:
+        return ''
+
+    try:
+        settings_obj = getattr(branch, 'settings', None)
+    except (OperationalError, ProgrammingError):
+        settings_obj = None
+    raw_numbers = getattr(settings_obj, 'bill_header_mobile_numbers', '') if settings_obj else ''
+
+    def _extract_numbers(text):
+        extracted = []
+        if not text:
+            return extracted
+        normalized = str(text).replace('\n', ',').replace('/', ',').replace('|', ',').replace(';', ',')
+        for part in normalized.split(','):
+            chunk = part.strip()
+            if not chunk:
+                continue
+            digits = ''.join(ch for ch in chunk if ch.isdigit())
+            if len(digits) >= 10:
+                # Support pasted groups: pick each 10-digit slice from right.
+                while len(digits) >= 10:
+                    extracted.append(format_mobile_number(digits[-10:]))
+                    digits = digits[:-10]
+        return list(dict.fromkeys(extracted))
+
+    numbers = _extract_numbers(raw_numbers)
+
+    if numbers:
+        return ', '.join(numbers)
+
+    fallback_numbers = _extract_numbers(getattr(branch, 'phone', ''))
+    if fallback_numbers:
+        return ', '.join(fallback_numbers)
+    return ''
+
+
+def get_branch_bill_details(branch):
+    """Return branch-wise bill header details with custom override support."""
+    if not branch:
+        return {
+            'shop_name': 'Pawnshop Management System',
+            'address': '',
+            'phone': '',
+            'email': '',
+            'logo_url': '',
+            'color_customer_name': '#000000',
+            'color_issue_date': '#8B0000',
+            'color_due_date': '#CC0000',
+            'color_terms': '#111111',
+            'color_items': '#000000',
+            'color_header_title': '#002f6c',
+            'color_header_subtitle': '#003f91',
+            'color_header_text': '#444444',
+            'color_field_label': '#333333',
+            'color_field_value': '#000000',
+            'color_table_header': '#222222',
+        }
+
+    default_address_parts = [branch.address, branch.city, branch.state, branch.zip_code]
+    default_address = ', '.join([p for p in default_address_parts if p])
+
+    details = {
+        'shop_name': branch.name or 'Pawnshop Management System',
+        'address': default_address,
+        'phone': get_branch_bill_header_phones(branch),
+        'email': branch.email or '',
+        'logo_url': '',
+        'color_customer_name': '#000000',
+        'color_issue_date': '#8B0000',
+        'color_due_date': '#CC0000',
+        'color_terms': '#111111',
+        'color_items': '#000000',
+        'color_header_title': '#002f6c',
+        'color_header_subtitle': '#003f91',
+        'color_header_text': '#444444',
+        'color_field_label': '#333333',
+        'color_field_value': '#000000',
+        'color_table_header': '#222222',
+    }
+
+    try:
+        settings_obj = getattr(branch, 'settings', None)
+    except (OperationalError, ProgrammingError):
+        settings_obj = None
+
+    if not settings_obj or not getattr(settings_obj, 'use_custom_bill_details', False):
+        return details
+
+    custom_shop_name = (getattr(settings_obj, 'bill_shop_name', '') or '').strip()
+    custom_address = (getattr(settings_obj, 'bill_address', '') or '').strip()
+    custom_email = (getattr(settings_obj, 'bill_email', '') or '').strip()
+    custom_phone = (getattr(settings_obj, 'bill_header_mobile_numbers', '') or '').strip()
+
+    if custom_shop_name:
+        details['shop_name'] = custom_shop_name
+    if custom_address:
+        details['address'] = custom_address
+    if custom_email:
+        details['email'] = custom_email
+    if custom_phone:
+        numbers = []
+        for part in custom_phone.replace('\n', ',').split(','):
+            cleaned = part.strip()
+            if cleaned:
+                numbers.append(format_mobile_number(cleaned))
+        if numbers:
+            details['phone'] = ', '.join(numbers)
+
+    logo = getattr(settings_obj, 'bill_logo', None)
+    if logo:
+        try:
+            details['logo_url'] = logo.url
+        except Exception:
+            details['logo_url'] = ''
+
+    details['color_customer_name'] = (getattr(settings_obj, 'bill_color_customer_name', '') or details['color_customer_name']).strip()
+    details['color_issue_date'] = (getattr(settings_obj, 'bill_color_issue_date', '') or details['color_issue_date']).strip()
+    details['color_due_date'] = (getattr(settings_obj, 'bill_color_due_date', '') or details['color_due_date']).strip()
+    details['color_terms'] = (getattr(settings_obj, 'bill_color_terms', '') or details['color_terms']).strip()
+    details['color_items'] = (getattr(settings_obj, 'bill_color_items', '') or details['color_items']).strip()
+    details['color_header_title'] = (getattr(settings_obj, 'bill_color_header_title', '') or details['color_header_title']).strip()
+    details['color_header_subtitle'] = (getattr(settings_obj, 'bill_color_header_subtitle', '') or details['color_header_subtitle']).strip()
+    details['color_header_text'] = (getattr(settings_obj, 'bill_color_header_text', '') or details['color_header_text']).strip()
+    details['color_field_label'] = (getattr(settings_obj, 'bill_color_field_label', '') or details['color_field_label']).strip()
+    details['color_field_value'] = (getattr(settings_obj, 'bill_color_field_value', '') or details['color_field_value']).strip()
+    details['color_table_header'] = (getattr(settings_obj, 'bill_color_table_header', '') or details['color_table_header']).strip()
+
+    return details
 
 
 def build_loan_pdf_language_context(loan, current_language):
@@ -136,7 +270,8 @@ def build_loan_pdf_language_context(loan, current_language):
     branch_address_en = ', '.join([part for part in branch_address_parts if part])
     branch_address_ta = branch_address_en
     customer_phone_display = format_mobile_number(customer.phone) if customer and getattr(customer, 'phone', None) else ''
-    branch_phone_display = format_mobile_number(branch.phone) if branch and getattr(branch, 'phone', None) else ''
+    branch_phone_display = get_branch_bill_header_phones(branch)
+    bill_details = get_branch_bill_details(branch)
 
     localized_items = []
     for loan_item in loan_items:
@@ -302,6 +437,22 @@ def build_loan_pdf_language_context(loan, current_language):
         'customer_id_type_display': customer_id_label_ta if use_tamil else customer_id_label_en,
         'branch_address_display': branch_address_ta if use_tamil else branch_address_en,
         'branch_phone_display': branch_phone_display,
+        'bill_shop_name': bill_details.get('shop_name', ''),
+        'bill_address_display': bill_details.get('address', ''),
+        'bill_phone_display': bill_details.get('phone', ''),
+        'bill_email_display': bill_details.get('email', ''),
+        'bill_logo_url': bill_details.get('logo_url', ''),
+        'bill_color_customer_name': bill_details.get('color_customer_name', '#000000'),
+        'bill_color_issue_date': bill_details.get('color_issue_date', '#8B0000'),
+        'bill_color_due_date': bill_details.get('color_due_date', '#CC0000'),
+        'bill_color_terms': bill_details.get('color_terms', '#111111'),
+        'bill_color_items': bill_details.get('color_items', '#000000'),
+        'bill_color_header_title': bill_details.get('color_header_title', '#002f6c'),
+        'bill_color_header_subtitle': bill_details.get('color_header_subtitle', '#003f91'),
+        'bill_color_header_text': bill_details.get('color_header_text', '#444444'),
+        'bill_color_field_label': bill_details.get('color_field_label', '#333333'),
+        'bill_color_field_value': bill_details.get('color_field_value', '#000000'),
+        'bill_color_table_header': bill_details.get('color_table_header', '#222222'),
         'terms_list': terms,
     }
 
@@ -571,47 +722,6 @@ def get_item_photos_count(item_photos):
     return len(photos)
 
 
-class LoanExpiryNoticeView(LoginRequiredMixin, View):
-    """Render a printable A4 expiry/auction notice for a loan.
-
-    - Renders HTML suitable for printing (A4) and for PDF conversion.
-    - Only shows for loans that are overdue or defaulted; other loans will show a simple page explaining status.
-    """
-    def get(self, request, loan_number, *args, **kwargs):
-        loan = get_object_or_404(Loan, loan_number=loan_number)
-        # Determine if eligible for notice
-        from django.utils import timezone
-        today = timezone.now().date()
-        gp_end = getattr(loan, 'grace_period_end', None)
-        show_notice = False
-        if loan.status == 'defaulted' or (loan.status == 'active' and loan.is_overdue and gp_end and gp_end <= today):
-            show_notice = True
-
-        # company details (if configured via gst app)
-        company = None
-        try:
-            from gst.models import CompanyGSTDetails
-            company = CompanyGSTDetails.objects.first()
-        except Exception:
-            company = None
-
-        # language selection
-        current_language = getattr(request, 'LANGUAGE_CODE', None) or ''
-        use_tamil = str(current_language).startswith('ta')
-
-        context = {
-            'loan': loan,
-            'show_notice': show_notice,
-            'today': today,
-            'company': company,
-            'use_tamil': use_tamil,
-        }
-
-        # Render HTML (printable A4). Frontend can print via browser or we can convert to PDF.
-        return render(request, 'transactions/loan_expiry_notice.html', context)
-
-
-
 # Basic placeholder views for the transactions app
 # These will need to be implemented properly with the correct models
 
@@ -697,7 +807,10 @@ class LoanListView(LoginRequiredMixin, DownloadMixin, ListView):
     def get_download_filename(self, format_type='csv'):
         """Generate download filename for loans export"""
         timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
-        return f'loans_export_{timestamp}.{format_type}'
+        status = (self.request.GET.get('status') or 'all').strip().lower()
+        # Normalize status to safe filename fragment
+        status = re.sub(r'[^a-z0-9_\-]', '_', status)
+        return f'loans_export_{status}_{timestamp}.{format_type}'
 
     def get_download_headers(self):
         """Return headers for download export"""
@@ -708,7 +821,7 @@ class LoanListView(LoginRequiredMixin, DownloadMixin, ListView):
             ('phone', 'Customer Phone'),
             ('email', 'Customer Email'), 
             ('branch', 'Branch'),
-            ('item_images', 'Item Images'),
+            ('item_images', 'Image Count'),
             ('principal_amount', 'Principal Amount (₹)'),
             ('distribution_amount', 'Distribution Amount (₹)'),
             ('interest_rate', 'Interest Rate (%)'),
@@ -820,7 +933,7 @@ class LoanListView(LoginRequiredMixin, DownloadMixin, ListView):
                 loan.customer.phone if loan.customer and hasattr(loan.customer, 'phone') else '',
                 loan.customer.email if loan.customer and hasattr(loan.customer, 'email') else '',
                 loan.branch.name if loan.branch else '',
-                ', '.join(loan.item_photo_list) if hasattr(loan, 'item_photo_list') and loan.item_photo_list else '',
+                str(len(loan.item_photo_list)) if hasattr(loan, 'item_photo_list') and loan.item_photo_list else '0',
                 float(loan.principal_amount) if loan.principal_amount else 0,
                 float(loan.distribution_amount) if hasattr(loan, 'distribution_amount') and loan.distribution_amount else 0,
                 float(loan.interest_rate) if loan.interest_rate else 0,
@@ -842,6 +955,182 @@ class LoanListView(LoginRequiredMixin, DownloadMixin, ListView):
             data.append(row)
         
         return data
+
+    def get_download_data_for_index(self, loan, index):
+        """Return data row for a single loan (used by PDF export)."""
+        try:
+            monthly_interest = 0
+            if hasattr(loan, 'monthly_interest_amount'):
+                monthly_interest = float(loan.monthly_interest_amount())
+
+            total_payable = 0
+            if hasattr(loan, 'total_payable_till_date'):
+                total_payable = float(loan.total_payable_till_date)
+
+            amount_paid = 0
+            if hasattr(loan, 'amount_paid'):
+                amount_paid = float(loan.amount_paid)
+
+            remaining_balance = total_payable - amount_paid
+        except Exception:
+            monthly_interest = 0
+            total_payable = 0
+            amount_paid = 0
+            remaining_balance = 0
+
+        try:
+            days_since_issue = (timezone.now().date() - loan.issue_date).days if loan.issue_date else 0
+            days_remaining = (loan.due_date - timezone.now().date()).days if loan.due_date else 0
+        except Exception:
+            days_since_issue = 0
+            days_remaining = 0
+
+        loan_items = loan.loanitem_set.all()
+        item_names = [li.item.name for li in loan_items if li.item]
+
+        return [
+            index,
+            loan.loan_number or '',
+            f"{loan.customer.first_name} {loan.customer.last_name}" if loan.customer else '',
+            loan.customer.phone if loan.customer and hasattr(loan.customer, 'phone') else '',
+            loan.customer.email if loan.customer and hasattr(loan.customer, 'email') else '',
+            loan.branch.name if loan.branch else '',
+            str(len(getattr(loan, 'item_photo_list', []))) if getattr(loan, 'item_photo_list', None) else '0',
+            float(loan.principal_amount) if loan.principal_amount else 0,
+            float(loan.distribution_amount) if hasattr(loan, 'distribution_amount') and loan.distribution_amount else 0,
+            float(loan.interest_rate) if loan.interest_rate else 0,
+            loan.issue_date.strftime('%Y-%m-%d') if loan.issue_date else '',
+            loan.due_date.strftime('%Y-%m-%d') if loan.due_date else '',
+            loan.get_status_display() if hasattr(loan, 'get_status_display') else (loan.status or ''),
+            days_since_issue,
+            days_remaining,
+            ', '.join(item_names) if item_names else '',
+            0,
+            '',
+            monthly_interest,
+            total_payable,
+            amount_paid,
+            remaining_balance,
+            loan.created_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(loan, 'created_at') and loan.created_at else '',
+            f"{loan.created_by.first_name} {loan.created_by.last_name}" if hasattr(loan, 'created_by') and loan.created_by else ''
+        ]
+
+    
+    def download_csv(self):
+        return self.export_csv()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['search_query'] = self.request.GET.get('search', '')
+        context['selected_status'] = self.request.GET.get('status', '')
+        context['selected_date_range'] = self.request.GET.get('date_range', '')
+        context['selected_filter_type'] = self.request.GET.get('filter_type', '')
+        context['current_sort'] = self.request.GET.get('sort', '-issue_date')
+        
+        # Calculate loan statistics for the cards - optimized with aggregation
+        user = self.request.user
+        base_queryset = Loan.objects.all()
+        
+        # Apply same organization and branch filtering as in get_queryset
+        if user.organization:
+            base_queryset = base_queryset.filter(branch__organization=user.organization)
+        
+        if not user.is_superuser and user.branch:
+            if not hasattr(user, 'role') or not user.role or not user.role.name.lower() == 'regional manager':
+                base_queryset = base_queryset.filter(branch=user.branch)
+        
+        # Calculate statistics efficiently - SINGLE QUERY with annotations
+        from django.utils import timezone
+        from django.db.models import Count, Q, Sum, F, Case, When
+        from decimal import Decimal
+        
+        today = timezone.now().date()
+        
+        # Get all statistics in a single aggregation query, including outstanding sums
+        from django.db.models import Sum, F, Value as V
+        from django.db.models.functions import Coalesce
+
+        # Expression for outstanding per loan: use total_payable_till_date if present else principal_amount, minus amount_paid
+        outstanding_expr = (Coalesce(F('total_payable_till_date'), F('principal_amount'), V(0)) - Coalesce(F('amount_paid'), V(0)))
+
+        # Only aggregate simple count metrics via the database; monetary
+        # totals rely on model properties and are calculated in Python below.
+        stats = base_queryset.aggregate(
+            active_count=Count('id', filter=Q(status='active')),
+            due_today_count=Count('id', filter=Q(status='active', due_date=today)),
+            overdue_count=Count('id', filter=Q(status='active', due_date__lt=today)),
+        )
+
+        # Debug logging to help trace incorrect zeros in the UI
+        try:
+            import logging
+            logger = logging.getLogger('transactions.views')
+            logger.info(f"LoanListView.get_context_data called for user={getattr(user,'username',None)}; stats={stats}")
+        except Exception:
+            pass
+        # Also print to stdout for dev server visibility
+        try:
+            print(f"[DEBUG] LoanListView.stats for user={getattr(user,'username',None)}: {stats}")
+        except Exception:
+            pass
+
+        context['active_loans_count'] = stats.get('active_count') or 0
+        context['due_today_count'] = stats.get('due_today_count') or 0
+        context['overdue_count'] = stats.get('overdue_count') or 0
+
+        # Monetary summaries (Decimal) - coerce None to 0
+        # Compute monetary summaries in Python using model properties (accurate
+        # even when values are computed via methods). Prefetch payments to avoid
+        # N+1 queries.
+        loans_iter = base_queryset.select_related('customer', 'branch').prefetch_related('payments')
+
+        def loan_outstanding(ln):
+            try:
+                tp = getattr(ln, 'total_payable_till_date', None)
+                if callable(tp):
+                    tp = tp()
+                if tp is None:
+                    tp = getattr(ln, 'principal_amount', 0) or 0
+
+                ap = getattr(ln, 'amount_paid', None)
+                if callable(ap):
+                    ap = ap()
+                if ap is None:
+                    try:
+                        ap = sum(p.amount for p in (ln.payments.all() if hasattr(ln, 'payments') else []))
+                    except Exception:
+                        ap = 0
+
+                out = Decimal(tp or 0) - Decimal(ap or 0)
+                return out if out > 0 else Decimal('0.00')
+            except Exception:
+                return Decimal('0.00')
+
+        active_sum = Decimal('0.00')
+        due_today_sum = Decimal('0.00')
+        overdue_sum = Decimal('0.00')
+        total_sum = Decimal('0.00')
+
+        for ln in loans_iter:
+            o = loan_outstanding(ln)
+            total_sum += o
+            if getattr(ln, 'status', '') == 'active':
+                active_sum += o
+                if getattr(ln, 'due_date', None) == today:
+                    due_today_sum += o
+                if getattr(ln, 'due_date', None) and getattr(ln, 'due_date') < today:
+                    overdue_sum += o
+
+        context['active_outstanding'] = active_sum
+        context['due_today_outstanding'] = due_today_sum
+        context['overdue_outstanding'] = overdue_sum
+        context['total_outstanding'] = total_sum
+
+        # Visibility controls: show financial summary only for admin users
+        is_admin_user = bool((user.username == 'admin') or user.is_staff or user.is_superuser or getattr(user, 'is_pawnshop_admin', False) or getattr(user, 'is_organization_admin', False))
+        context['show_total_outstanding'] = is_admin_user
+        context['show_total_loan_lists'] = is_admin_user
+        return context
 
     def get(self, request, *args, **kwargs):
         # Check if download is requested
@@ -930,139 +1219,211 @@ class LoanListView(LoginRequiredMixin, DownloadMixin, ListView):
         from reportlab.lib.pagesizes import letter, A4, landscape
         from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT
         from reportlab.lib import colors
         from reportlab.lib.units import inch
         from datetime import datetime
         
         response = HttpResponse(content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="loans_export_{datetime.now().strftime("%Y%m%d")}.pdf"'
+        disposition = 'inline' if self.request.GET.get('preview') == '1' else 'attachment'
+        response['Content-Disposition'] = f'{disposition}; filename="{self.get_download_filename("pdf")}"'
         
         doc = SimpleDocTemplate(
             response,
             pagesize=landscape(A4),
-            rightMargin=0.5*inch,
-            leftMargin=0.5*inch,
-            topMargin=0.75*inch,
-            bottomMargin=0.75*inch
+            rightMargin=0.3*inch,
+            leftMargin=0.3*inch,
+            topMargin=0.6*inch,
+            bottomMargin=0.6*inch
         )
         elements = []
         styles = getSampleStyleSheet()
         
         # Title
-        title_style = styles['Heading1']
-        title_style.alignment = 1
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=14,
+            textColor=colors.HexColor('#2C3E50'),
+            spaceAfter=12,
+            alignment=1
+        )
         elements.append(Paragraph("LOANS EXPORT", title_style))
-        elements.append(Spacer(1, 20))
+        elements.append(Spacer(1, 12))
+
+        header_cell_style = ParagraphStyle(
+            'LoanExportHeaderCell',
+            parent=styles['Normal'],
+            fontName='Helvetica-Bold',
+            fontSize=7.5,
+            leading=9,
+            textColor=colors.whitesmoke,
+            alignment=TA_CENTER,
+            splitLongWords=1,
+        )
+        body_cell_style = ParagraphStyle(
+            'LoanExportBodyCell',
+            parent=styles['Normal'],
+            fontName='Helvetica',
+            fontSize=7,
+            leading=8.5,
+            alignment=TA_LEFT,
+            splitLongWords=1,
+        )
         
-        # Create table with loan data
-        headers = self.get_download_headers()
-        table_data = [headers]
+        # PDF Export - Show only 10 key columns for clarity
+        pdf_headers = [
+            'Roll Number',
+            'Loan Number',
+            'Customer Name',
+            'Customer Phone',
+            'Branch',
+            'Distribution Amount (₹)',
+            'Issue Date',
+            'Due Date',
+            'Status',
+            'Item Names'
+        ]
         
-        selected_columns = self.get_selected_columns()
-        for row in self.get_download_data():
-            filtered_row = self.filter_row_data(row, selected_columns)
-            table_data.append(filtered_row)
+        # Map header names to row indices
+        all_headers = self.get_download_headers()
+        header_indices = {
+            'Roll Number': 0,
+            'Loan Number': 1,
+            'Customer Name': 2,
+            'Customer Phone': 3,
+            'Branch': 5,
+            'Distribution Amount (₹)': 8,
+            'Issue Date': 10,
+            'Due Date': 11,
+            'Status': 12,
+            'Item Names': 15
+        }
         
-        # Create table
-        table = Table(table_data)
-        table.setStyle(TableStyle([
-            # Header style
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498DB')),
+        if self.request.GET.get('full') == '1':
+            pdf_headers = self.get_download_headers()
+            header_indices = {header: index for index, header in enumerate(pdf_headers)}
+
+        # Build table with only selected columns
+        table_data = [[Paragraph(str(header), header_cell_style) for header in pdf_headers]]
+        queryset = self.get_queryset()
+        
+        for index, loan in enumerate(queryset, start=1):
+            row = self.get_download_data_for_index(loan, index)
+            pdf_row = [
+                Paragraph(str(row[header_indices[h]]) if row[header_indices[h]] is not None else '', body_cell_style)
+                for h in pdf_headers
+            ]
+            table_data.append(pdf_row)
+        
+        # Column widths for 10 columns on landscape A4
+        # Available width: 11.69 - 0.6 = 11.09 inches
+        col_widths = [
+            0.65 * inch,  # Roll Number
+            1.05 * inch,  # Loan Number
+            1.25 * inch,  # Customer Name
+            0.95 * inch,  # Customer Phone
+            1.35 * inch,  # Branch
+            0.95 * inch,  # Distribution Amount
+            0.8 * inch,   # Issue Date
+            0.8 * inch,   # Due Date
+            0.65 * inch,  # Status
+            2.0 * inch,   # Item Names
+        ]
+        
+        if self.request.GET.get('full') == '1':
+            col_widths = [0.45 * inch] * len(pdf_headers)
+
+        # Create table with specified column widths
+        table = Table(table_data, colWidths=col_widths, repeatRows=1)
+        
+        # Define table style with better formatting
+        table_style = TableStyle([
+            # Header style - blue background with white text
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2C3E50')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
             ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, 0), 5),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 5),
             
-            # Data rows
-            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            # Data rows - larger font for readability
             ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
             ('VALIGN', (0, 1), (-1, -1), 'MIDDLE'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 5),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 5),
-            ('TOPPADDING', (0, 0), (-1, -1), 4),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('LEFTPADDING', (0, 0), (-1, -1), 3),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
             
-            # Grid
-            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#BDC3C7')),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8F9FA')]),
-        ]))
+            # Grid lines - darker and thicker for visibility
+            ('GRID', (0, 0), (-1, -1), 1.5, colors.HexColor('#34495E')),
+            
+            # Alternating row colors
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#ECF0F1')]),
+            
+            # Right align numeric columns
+            ('ALIGN', (0, 1), (0, -1), 'CENTER'),  # Roll Number
+            ('ALIGN', (5, 1), (5, -1), 'RIGHT'),   # Distribution Amount
+            ('ALIGN', (6, 1), (8, -1), 'CENTER'),  # Dates, Status
+        ])
         
+        table.setStyle(table_style)
         elements.append(table)
-        elements.append(Spacer(1, 20))
+        elements.append(Spacer(1, 12))
         
-        # Footer
-        footer_style = styles['Normal']
-        footer_style.alignment = 1
-        footer_style.fontSize = 8
+        # Footer with timestamp
+        footer_style = ParagraphStyle(
+            'Footer',
+            parent=styles['Normal'],
+            fontSize=8,
+            textColor=colors.HexColor('#7F8C8D'),
+            alignment=1
+        )
         elements.append(Paragraph(f"Generated on: {datetime.now().strftime('%d %B %Y at %I:%M %p')}", footer_style))
         
         # Build PDF
         doc.build(elements)
         return response
 
-    def download_csv(self):
-        return self.export_csv()
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['search_query'] = self.request.GET.get('search', '')
-        context['selected_status'] = self.request.GET.get('status', '')
-        context['selected_date_range'] = self.request.GET.get('date_range', '')
-        context['selected_filter_type'] = self.request.GET.get('filter_type', '') # Add this for the new filter
-        context['current_sort'] = self.request.GET.get('sort', '-issue_date')
-        
-        # Calculate loan statistics for the cards
-        user = self.request.user
-        base_queryset = Loan.objects.all()
-        
-        # Apply same organization and branch filtering as in get_queryset
-        if user.organization:
-            base_queryset = base_queryset.filter(branch__organization=user.organization)
-        
-        if not user.is_superuser and user.branch:
-            if not hasattr(user, 'role') or not user.role or not user.role.name.lower() == 'regional manager':
-                base_queryset = base_queryset.filter(branch=user.branch)
-        
-        # Calculate statistics
-        from django.utils import timezone
-        from django.db.models import Sum
-        from decimal import Decimal
-        
+class LoanExpiryNoticeView(LoginRequiredMixin, View):
+    def get(self, request, loan_number):
+        loan = get_object_or_404(Loan, loan_number=loan_number)
         today = timezone.now().date()
-        
-        # Active loans count
-        context['active_loans_count'] = base_queryset.filter(status='active').count()
-        
-        # Due today count
-        context['due_today_count'] = base_queryset.filter(
-            status='active',
-            due_date=today
-        ).count()
-        
-        # Overdue count
-        context['overdue_count'] = base_queryset.filter(
-            status='active',
-            due_date__lt=today
-        ).count()
-        
-        # Total outstanding amount
-        outstanding_loans = base_queryset.filter(status='active')
-        total_outstanding = Decimal('0.00')
-        for loan in outstanding_loans:
-            try:
-                if hasattr(loan, 'total_payable_till_date'):
-                    total_outstanding += loan.total_payable_till_date - loan.amount_paid
-            except:
-                pass
-        context['total_outstanding'] = total_outstanding
 
-        # Visibility controls: show financial summary only for admin users
-        is_admin_user = bool((user.username == 'admin') or user.is_staff or user.is_superuser or getattr(user, 'is_pawnshop_admin', False) or getattr(user, 'is_organization_admin', False))
-        context['show_total_outstanding'] = is_admin_user
-        context['show_total_loan_lists'] = is_admin_user
-        return context
+        # Determine if an expiry/auction notice should be shown
+        show_notice = False
+        try:
+            if getattr(loan, 'due_date', None) and loan.due_date <= today:
+                show_notice = True
+            elif getattr(loan, 'grace_period_end', None) and loan.grace_period_end <= today:
+                show_notice = True
+        except Exception:
+            show_notice = False
 
+        # Compute a best-effort remaining balance for display
+        remaining = None
+        try:
+            remaining = getattr(loan, 'remaining_balance', None)
+            if remaining is None:
+                total_payable = getattr(loan, 'total_payable_till_date', None) or 0
+                paid = sum(p.amount for p in loan.payments.all()) if hasattr(loan, 'payments') else 0
+                remaining = max(0, total_payable - paid) if total_payable else getattr(loan, 'principal_amount', 0)
+        except Exception:
+            remaining = getattr(loan, 'principal_amount', 0)
+
+        # Attach for template convenience
+        loan.remaining_balance = remaining
+
+        use_tamil = str(getattr(request, 'LANGUAGE_CODE', '')).startswith('ta')
+
+        context = {
+            'loan': loan,
+            'today': today,
+            'show_notice': show_notice,
+            'use_tamil': use_tamil,
+        }
+        return render(request, 'transactions/loan_expiry_notice.html', context)
 
 class LoanDetailView(LoginRequiredMixin, DetailView):
     model = Loan
@@ -1205,6 +1566,9 @@ class LoanUpdateView(LoginRequiredMixin, UpdateView):
             form.instance.item_photos = item_photos_data
         if customer_face_capture:
             form.instance.customer_face_capture = customer_face_capture
+        
+        # Track who is editing the loan
+        form.instance._edited_by = self.request.user
             
         messages.success(self.request, 'Loan updated successfully!')
         return super().form_valid(form)
@@ -1224,6 +1588,26 @@ class LoanDeleteView(LoginRequiredMixin, ManagerPermissionMixin, DeleteView):
         response = super().delete(request, *args, **kwargs)
         messages.success(request, f'Loan {loan_number} has been deleted successfully.')
         return response
+
+
+class LoanEditLogsView(LoginRequiredMixin, DetailView):
+    """Display edit history for a loan"""
+    model = Loan
+    template_name = 'transactions/loan_edit_logs.html'
+    slug_field = 'loan_number'
+    slug_url_kwarg = 'loan_number'
+    context_object_name = 'loan'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        from accounts.models import LoanEditLog
+        
+        # Get all edit logs for this loan, ordered by date descending
+        edit_logs = LoanEditLog.objects.filter(loan=self.object).order_by('-edited_at')
+        context['edit_logs'] = edit_logs
+        context['total_edits'] = edit_logs.count()
+        
+        return context
 
 
 class PaymentCreateView(LoginRequiredMixin, CreateView):
@@ -1832,8 +2216,9 @@ class LoanPaymentHistoryDownloadView(LoginRequiredMixin, View):
             
             # Add contact details
             contact_parts = []
-            if hasattr(branch_info, 'phone') and branch_info.phone:
-                contact_parts.append(f"Phone: {branch_info.phone}")
+            branch_header_phones = get_branch_bill_header_phones(branch_info)
+            if branch_header_phones:
+                contact_parts.append(f"Phone: {branch_header_phones}")
             if hasattr(branch_info, 'email') and branch_info.email:
                 contact_parts.append(f"Email: {branch_info.email}")
                 
@@ -2018,6 +2403,7 @@ class PaymentReceiptView(LoginRequiredMixin, View):
     def get(self, request, payment_id):
         payment = get_object_or_404(Payment, id=payment_id)
         loan = payment.loan
+        bill_details = get_branch_bill_details(getattr(loan, 'branch', None))
         
         # Prepare amount in words (English) and Tamil
         amount_in_words = amount_to_english_words(payment.amount)
@@ -2029,7 +2415,13 @@ class PaymentReceiptView(LoginRequiredMixin, View):
         context = {
             'payment': payment,
             'loan': loan,
-            'branch_phone_display': format_mobile_number(getattr(loan.branch, 'phone', '')) if getattr(loan, 'branch', None) else '',
+            'branch_phone_display': get_branch_bill_header_phones(getattr(loan, 'branch', None)),
+            'branch_address_display': bill_details.get('address', ''),
+            'bill_shop_name': bill_details.get('shop_name', ''),
+            'bill_address_display': bill_details.get('address', ''),
+            'bill_phone_display': bill_details.get('phone', ''),
+            'bill_email_display': bill_details.get('email', ''),
+            'bill_logo_url': bill_details.get('logo_url', ''),
             'total_items_count': get_loan_total_items_count(loan),
             'amount_in_words': amount_in_words,
             'amount_in_words_tamil': amount_in_words_tamil,
@@ -2111,6 +2503,7 @@ class SaleCompleteView(LoginRequiredMixin, View):
 class SaleReceiptView(LoginRequiredMixin, View):
     def get(self, request, pk):
         sale = get_object_or_404(Sale, pk=pk)
+        bill_details = get_branch_bill_details(getattr(sale, 'branch', None))
         
         # Compute English and Tamil amount-in-words for the sale total
         try:
@@ -2123,7 +2516,13 @@ class SaleReceiptView(LoginRequiredMixin, View):
 
         context = {
             'sale': sale,
-            'branch_phone_display': format_mobile_number(getattr(sale.branch, 'phone', '')) if getattr(sale, 'branch', None) else '',
+            'branch_phone_display': get_branch_bill_header_phones(getattr(sale, 'branch', None)),
+            'branch_address_display': bill_details.get('address', ''),
+            'bill_shop_name': bill_details.get('shop_name', ''),
+            'bill_address_display': bill_details.get('address', ''),
+            'bill_phone_display': bill_details.get('phone', ''),
+            'bill_email_display': bill_details.get('email', ''),
+            'bill_logo_url': bill_details.get('logo_url', ''),
             'total_items_count': 1,
             'now': timezone.now(),
             'tamil_font_file_uri': f"file:///{str((settings.BASE_DIR / 'static' / 'fonts' / 'NotoSansTamil-Regular.ttf')).replace(os.sep, '/')}",
@@ -2150,9 +2549,4 @@ def number_to_words(request, number):
         return JsonResponse({'words': words})
     except (ValueError, TypeError):
         return JsonResponse({'words': 'Invalid number'}, status=400)
-
-
-
-
-
 
