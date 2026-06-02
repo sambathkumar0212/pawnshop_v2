@@ -156,7 +156,22 @@
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card stat-card bg-success text-white">
+            <div class="card stat-card bg-warning text-dark">
+                <div class="card-body">
+                    <h5 class="card-title">Due in 30 Days</h5>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="value">{{ due_soon_count|default:0 }}</div>
+                            {% if show_total_outstanding %}
+                                <small class="d-block">Due Soon: ₹{{ due_soon_outstanding|default:0.00|floatformat:2 }}</small>
+                            {% endif %}
+                        </div>
+                        <span class="icon"><i class="fas fa-calendar-alt"></i></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
                 <div class="card-body">
                     <h5 class="card-title">Total Outstanding</h5>
                     <div class="d-flex justify-content-between align-items-center">
@@ -209,6 +224,13 @@
                         <span class="badge text-bg-light rounded-pill ms-1">{{ overdue_count|default:0 }}</span>
                     </a>
                 </div>
+                <div class="col-md-2">
+                    <a href="{% url 'loan_list' %}?filter_type=due_soon{% if search_query %}&search={{ search_query }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}" 
+                       class="btn btn-warning w-100 {% if selected_filter_type == 'due_soon' %}active{% endif %}">
+                        <i class="fas fa-calendar-alt"></i> Next 30 Days 
+                        <span class="badge text-bg-light rounded-pill ms-1">{{ due_soon_count|default:0 }}</span>
+                    </a>
+                </div>
                 {% if selected_filter_type == 'overdue' %}
                 <div class="col-md-2">
                     <div class="dropdown w-100">
@@ -228,6 +250,32 @@
                             </li>
                             <li>
                                 <a class="dropdown-item" href="?download=csv&filter_type=overdue{% if search_query %}&search={{ search_query }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
+                                    <i class="fas fa-file-csv"></i> {% if LANGUAGE_CODE == 'ta' %}CSV ஆக பதிவிறக்கு{% else %}Download as CSV{% endif %}
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                {% endif %}
+                {% if selected_filter_type == 'due_soon' %}
+                <div class="col-md-2">
+                    <div class="dropdown w-100">
+                        <button class="btn btn-outline-warning dropdown-toggle w-100" type="button" id="dueSoonDownloadDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-download"></i> {% if LANGUAGE_CODE == 'ta' %}பதிவிறக்கு{% else %}Download{% endif %}
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="dueSoonDownloadDropdown">
+                            <li>
+                                <a class="dropdown-item" href="?download=pdf&filter_type=due_soon{% if search_query %}&search={{ search_query }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
+                                    <i class="fas fa-file-pdf"></i> {% if LANGUAGE_CODE == 'ta' %}PDF ஆக பதிவிறக்கு{% else %}Download as PDF{% endif %}
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="?download=excel&filter_type=due_soon{% if search_query %}&search={{ search_query }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
+                                    <i class="fas fa-file-excel"></i> {% if LANGUAGE_CODE == 'ta' %}Excel ஆக பதிவிறக்கு{% else %}Download as Excel{% endif %}
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="?download=csv&filter_type=due_soon{% if search_query %}&search={{ search_query }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
                                     <i class="fas fa-file-csv"></i> {% if LANGUAGE_CODE == 'ta' %}CSV ஆக பதிவிறக்கு{% else %}Download as CSV{% endif %}
                                 </a>
                             </li>
@@ -455,7 +503,7 @@
                                         <small class="d-block text-muted">Monthly Amount: ₹{{ loan|monthly_interest_amount|floatformat:2 }}</small>
                                     </td>
                                     <td class="px-3 py-3">{{ loan.issue_date }}</td>
-                                    <td class="px-3 py-3">{{ loan.due_date }}</td>
+                                    <td class="px-3 py-3" style="{{ loan|due_date_bg_color }}; border-radius: 4px; font-weight: 500;">{{ loan.due_date }}</td>
                                     <td class="px-3 py-3">
                                         <div class="d-flex flex-column align-items-start">
                                             <span class="badge bg-{{ loan.status|status_color }} mb-1">

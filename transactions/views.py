@@ -779,6 +779,8 @@ class LoanListView(LoginRequiredMixin, DownloadMixin, ListView):
         filter_type = self.request.GET.get('filter_type')
         if filter_type == 'overdue':
             queryset = queryset.filter(status='active', due_date__lt=today)
+        elif filter_type == 'due_soon':
+            queryset = queryset.filter(status='active', due_date__gte=today, due_date__lte=today + timezone.timedelta(days=30))
 
         # Sorting
         sort_by = self.request.GET.get('sort', '-issue_date')  # Default sort by newest first
@@ -1059,6 +1061,7 @@ class LoanListView(LoginRequiredMixin, DownloadMixin, ListView):
             active_count=Count('id', filter=Q(status='active')),
             due_today_count=Count('id', filter=Q(status='active', due_date=today)),
             overdue_count=Count('id', filter=Q(status='active', due_date__lt=today)),
+            due_soon_count=Count('id', filter=Q(status='active', due_date__gte=today, due_date__lte=today + timezone.timedelta(days=30))),
         )
 
         # Debug logging to help trace incorrect zeros in the UI
@@ -1077,6 +1080,7 @@ class LoanListView(LoginRequiredMixin, DownloadMixin, ListView):
         context['active_loans_count'] = stats.get('active_count') or 0
         context['due_today_count'] = stats.get('due_today_count') or 0
         context['overdue_count'] = stats.get('overdue_count') or 0
+        context['due_soon_count'] = stats.get('due_soon_count') or 0
 
         # Monetary summaries (Decimal) - coerce None to 0
         # Compute monetary summaries in Python using model properties (accurate
@@ -1108,8 +1112,11 @@ class LoanListView(LoginRequiredMixin, DownloadMixin, ListView):
 
         active_sum = Decimal('0.00')
         due_today_sum = Decimal('0.00')
+        due_soon_sum = Decimal('0.00')
         overdue_sum = Decimal('0.00')
         total_sum = Decimal('0.00')
+        
+        thirty_days_later = today + timezone.timedelta(days=30)
 
         for ln in loans_iter:
             o = loan_outstanding(ln)
@@ -1120,9 +1127,12 @@ class LoanListView(LoginRequiredMixin, DownloadMixin, ListView):
                     due_today_sum += o
                 if getattr(ln, 'due_date', None) and getattr(ln, 'due_date') < today:
                     overdue_sum += o
+                if getattr(ln, 'due_date', None) and today <= getattr(ln, 'due_date') <= thirty_days_later:
+                    due_soon_sum += o
 
         context['active_outstanding'] = active_sum
         context['due_today_outstanding'] = due_today_sum
+        context['due_soon_outstanding'] = due_soon_sum
         context['overdue_outstanding'] = overdue_sum
         context['total_outstanding'] = total_sum
 
@@ -1412,16 +1422,15 @@ class LoanExpiryNoticeView(LoginRequiredMixin, View):
         except Exception:
             remaining = getattr(loan, 'principal_amount', 0)
 
-        # Attach for template convenience
-        loan.remaining_balance = remaining
-
         use_tamil = str(getattr(request, 'LANGUAGE_CODE', '')).startswith('ta')
 
         context = {
             'loan': loan,
+            'remaining_balance': remaining,
             'today': today,
             'show_notice': show_notice,
             'use_tamil': use_tamil,
+            'branch_phone_display': get_branch_bill_header_phones(getattr(loan, 'branch', None)),
         }
         return render(request, 'transactions/loan_expiry_notice.html', context)
 

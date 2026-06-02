@@ -28,7 +28,7 @@
     <header>
         {% if loan.branch %}
             <div class="title">{{ loan.branch.name }}</div>
-            <div class="sub">{% if loan.branch.address %}{{ loan.branch.address }}{% endif %}{% if loan.branch.phone %} | Tel: {{ loan.branch.phone }}{% endif %}</div>
+            <div class="sub">{% if loan.branch.address %}{{ loan.branch.address }}{% endif %}{% if branch_phone_display %} | Tel: {{ branch_phone_display }}{% elif loan.branch.phone %} | Tel: {{ loan.branch.phone }}{% endif %}</div>
             <hr style="margin:10px 0;" />
         {% else %}
             <div class="title">Pawnshop Management System</div>

@@ -114,7 +114,11 @@
                     </div>
                     <div class="row mb-3">
                         <div class="col-sm-4 branch-info-label">Phone:</div>
-                        <div class="col-sm-8">{{ branch.phone }}</div>
+                        <div class="col-sm-8">{{ branch_phone_display|default:branch.phone }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-4 branch-info-label">Personal Mobile:</div>
+                        <div class="col-sm-8">{{ settings.personal_mobile_number|default:"Not set" }}</div>
                     </div>
                     <div class="row mb-3">
                         <div class="col-sm-4 branch-info-label">Email:</div>
