@@ -528,6 +528,34 @@ class PasswordChangeHistory(models.Model):
         return f"{self.user.username} - {self.change_type} - {self.timestamp}"
 
 
+class LoanEditLog(models.Model):
+    """Track edits made to Loan objects for history and auditing."""
+    CHANGE_CHOICES = [
+        ('create', 'Create'),
+        ('update', 'Update'),
+        ('delete', 'Delete'),
+        ('foreclose', 'Foreclose'),
+        ('payment', 'Payment'),
+        ('other', 'Other'),
+    ]
+
+    loan = models.ForeignKey('transactions.Loan', on_delete=models.CASCADE, related_name='edit_logs')
+    edited_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='loan_edits_made')
+    edited_at = models.DateTimeField(auto_now_add=True)
+    change_type = models.CharField(max_length=20, choices=CHANGE_CHOICES, default='update')
+    description = models.TextField(blank=True)
+    # Field-level changes stored as JSON: {"field_name": {"old": "...", "new": "..."}, ...}
+    changes = models.JSONField(null=True, blank=True, help_text='Field-level old/new values')
+
+    class Meta:
+        verbose_name = _('loan edit log')
+        verbose_name_plural = _('loan edit logs')
+        ordering = ['-edited_at']
+
+    def __str__(self):
+        return f"{self.loan} - {self.change_type} by {self.edited_by} at {self.edited_at}"
+
+
 class StaffDeletion(models.Model):
     """Track deleted staff accounts"""
     staff_user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, 

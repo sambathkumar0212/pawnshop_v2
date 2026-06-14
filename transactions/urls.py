@@ -15,6 +15,7 @@ urlpatterns = [
     path('loans/<str:loan_number>/expiry-notice/', views.LoanExpiryNoticeView.as_view(), name='loan_expiry_notice'),
     path('loans/<str:loan_number>/payment-history/', views.LoanPaymentHistoryDownloadView.as_view(), name='loan_payment_history_download'),
     path('loans/<str:loan_number>/schedule/', views.LoanScheduleView.as_view(), name='loan_schedule'),
+    path('loans/<str:loan_number>/edit-logs/', views.LoanEditLogsView.as_view(), name='loan_edit_logs'),
     
     # Payments
     path('payments/', views.PaymentListView.as_view(), name='payment_list'),

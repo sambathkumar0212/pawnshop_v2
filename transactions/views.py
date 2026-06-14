@@ -1547,8 +1547,26 @@ class LoanCreateView(LoginRequiredMixin, RoleBranchAccessMixin, CreateView):
             # Last fallback: Use default value from model
             form.instance.interest_rate = Decimal('12.00')
         
+        response = super().form_valid(form)
+        try:
+            from accounts.models import LoanEditLog
+            # Capture initial snapshot for created loan
+            try:
+                from django.forms.models import model_to_dict
+                new_data = model_to_dict(self.object)
+            except Exception:
+                new_data = None
+            LoanEditLog.objects.create(
+                loan=self.object,
+                edited_by=self.request.user,
+                change_type='create',
+                description=f'Loan created by {self.request.user.get_full_name() or self.request.user.username}',
+                changes={'new': new_data} if new_data is not None else None
+            )
+        except Exception:
+            pass
         messages.success(self.request, 'Loan created successfully!')
-        return super().form_valid(form)
+        return response
 
 
 class LoanUpdateView(LoginRequiredMixin, RoleBranchAccessMixin, UpdateView):
@@ -1582,8 +1600,55 @@ class LoanUpdateView(LoginRequiredMixin, RoleBranchAccessMixin, UpdateView):
         # Track who is editing the loan
         form.instance._edited_by = self.request.user
             
+        # Capture previous state for description and field diffs
+        try:
+            orig = Loan.objects.get(pk=form.instance.pk)
+        except Exception:
+            orig = None
+
+        # Save the form (updates the loan)
+        response = super().form_valid(form)
+        try:
+            from accounts.models import LoanEditLog
+            desc = 'Loan updated'
+            if orig:
+                desc = f'Loan updated by {self.request.user.get_full_name() or self.request.user.username}'
+
+            # Build field-level diff using form.changed_data when available
+            changes = None
+            try:
+                changed_fields = getattr(form, 'changed_data', None)
+                if changed_fields:
+                    changes = {}
+                    for field in changed_fields:
+                        try:
+                            old_val = getattr(orig, field)
+                        except Exception:
+                            old_val = None
+                        try:
+                            new_val = getattr(self.object, field)
+                        except Exception:
+                            new_val = None
+                        # Convert to serializable strings
+                        changes[field] = {
+                            'old': str(old_val) if old_val is not None else None,
+                            'new': str(new_val) if new_val is not None else None,
+                        }
+            except Exception:
+                changes = None
+
+            LoanEditLog.objects.create(
+                loan=self.object,
+                edited_by=self.request.user,
+                change_type='update',
+                description=desc,
+                changes=changes
+            )
+        except Exception:
+            pass
+
         messages.success(self.request, 'Loan updated successfully!')
-        return super().form_valid(form)
+        return response
 
     def get_object(self, queryset=None):
         obj = super().get_object(queryset=queryset)
@@ -1602,6 +1667,24 @@ class LoanDeleteView(LoginRequiredMixin, ManagerPermissionMixin, RoleBranchAcces
     def delete(self, request, *args, **kwargs):
         self.object = self.get_object()
         loan_number = self.object.loan_number
+        # Log deletion
+        try:
+            from accounts.models import LoanEditLog
+            try:
+                from django.forms.models import model_to_dict
+                old_data = model_to_dict(self.object)
+            except Exception:
+                old_data = None
+            LoanEditLog.objects.create(
+                loan=self.object,
+                edited_by=request.user,
+                change_type='delete',
+                description=f'Loan deleted by {request.user.get_full_name() or request.user.username}',
+                changes={'old': old_data} if old_data is not None else None
+            )
+        except Exception:
+            pass
+
         response = super().delete(request, *args, **kwargs)
         messages.success(request, f'Loan {loan_number} has been deleted successfully.')
         return response
@@ -1693,6 +1776,23 @@ class PaymentCreateView(LoginRequiredMixin, RoleBranchAccessMixin, CreateView):
                 loan.closure_date = timezone.now().date()
                 loan.closed_by = self.request.user
                 loan.save()
+
+                # Log payment and closure with status change and payment detail
+                try:
+                    from accounts.models import LoanEditLog
+                    old_status = 'active' if loan.status == 'closed' else 'unknown'
+                    LoanEditLog.objects.create(
+                        loan=loan,
+                        edited_by=self.request.user,
+                        change_type='payment',
+                        description=f'Loan closed by payment from {self.request.user.get_full_name() or self.request.user.username}',
+                        changes={
+                            'status': {'old': old_status, 'new': 'closed'},
+                            'payment_amount': {'old': None, 'new': str(payment_amount)}
+                        }
+                    )
+                except Exception:
+                    pass
                 
                 messages.success(
                     self.request, 
@@ -1786,6 +1886,19 @@ class LoanForecloseView(LoginRequiredMixin, RoleBranchAccessMixin, View):
         loan.foreclosure_date = timezone.now().date()
         loan.foreclosed_by = request.user
         loan.save()
+
+        # Log foreclose action
+        try:
+            from accounts.models import LoanEditLog
+            LoanEditLog.objects.create(
+                loan=loan,
+                edited_by=request.user,
+                change_type='foreclose',
+                description=f'Loan foreclosed by {request.user.get_full_name() or request.user.username}',
+                changes={'status': {'old': 'active', 'new': 'foreclosed'}}
+            )
+        except Exception:
+            pass
 
         messages.success(request, f'Loan {loan_number} has been successfully foreclosed.')
         return redirect('loan_detail', loan_number=loan_number)

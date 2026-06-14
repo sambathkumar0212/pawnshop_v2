@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% load tz %}
+
+{% block title %}Loan Edit History - {{ loan.loan_number }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h3>Edit History for {{ loan.loan_number }}</h3>
+  <p>
+    <a href="{% url 'loan_detail' loan.loan_number %}" class="btn btn-sm btn-outline-secondary">Back to Loan</a>
+  </p>
+
+  <div class="card mt-3">
+    <div class="card-body">
+      {% if edit_logs %}
+      <ul class="list-group">
+        {% for log in edit_logs %}
+        <li class="list-group-item">
+          <div class="d-flex justify-content-between">
+            <div>
+              <strong>{{ log.get_change_type_display }}</strong> by {{ log.edited_by.get_full_name|default:log.edited_by.username }}
+              <div class="small text-muted">{{ log.edited_at|localtime|date:"Y-m-d H:i:s" }}</div>
+              <div>{{ log.description }}</div>
+
+              {% if log.changes %}
+              <div class="mt-2">
+                <strong>Changes:</strong>
+                <ul class="mb-0">
+                  {% for field, diff in log.changes.items %}
+                    <li>
+                      <code>{{ field }}</code>:
+                      {% if diff.old is not None %}
+                        <span class="text-muted">{{ diff.old }}</span>
+                      {% else %}
+                        <span class="text-muted">(empty)</span>
+                      {% endif %}
+                      &nbsp;&rarr;&nbsp;
+                      {% if diff.new is not None %}
+                        <strong>{{ diff.new }}</strong>
+                      {% else %}
+                        <strong>(empty)</strong>
+                      {% endif %}
+                    </li>
+                  {% endfor %}
+                </ul>
+              </div>
+              {% endif %}
+
+            </div>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="text-muted">No edit history found for this loan.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
