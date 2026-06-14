@@ -20,9 +20,11 @@ class BranchSettingsForm(forms.ModelForm):
         fields = ['max_loan_amount', 'default_interest_rate', 'loan_duration_days', 
                   'grace_period_days', 'require_id_verification', 'enable_face_recognition',
                   'enable_sms_notifications', 'enable_email_notifications',
-                  'auction_delay_days']
+                  'auction_delay_days', 'bill_header_mobile_numbers', 'personal_mobile_number']
         widgets = {
             'default_interest_rate': forms.NumberInput(attrs={'min': 0, 'max': 1, 'step': 0.01}),
+            'bill_header_mobile_numbers': forms.Textarea(attrs={'rows': 4, 'placeholder': 'Enter multiple mobile numbers separated by comma, semicolon, slash, or newline'}),
+            'personal_mobile_number': forms.TextInput(attrs={'placeholder': 'Enter personal mobile number (10-15 chars)', 'maxlength': '15'}),
         }
         
     def clean_default_interest_rate(self):

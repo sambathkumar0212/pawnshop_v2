@@ -132,3 +132,53 @@ def is_empty_photo_list(item_photos):
 def replace_underscore(value):
     """Replace underscores with spaces"""
     return str(value).replace('_', ' ')
+
+@register.filter
+def due_date_color(loan):
+    """Return color class based on due date status:
+    - Green: 30+ days until due date
+    - Orange/Warning: Less than 30 days until due date
+    - Red/Danger: In grace period (due_date passed, grace_period_end not passed)
+    - Dark Red: Grace period expired
+    """
+    from django.utils import timezone
+    from datetime import timedelta
+    
+    if not hasattr(loan, 'due_date') or not loan.due_date:
+        return 'secondary'
+    
+    today = timezone.now().date()
+    days_until_due = (loan.due_date - today).days
+    
+    # Check grace period
+    if hasattr(loan, 'grace_period_end') and loan.grace_period_end:
+        if today > loan.grace_period_end:
+            # Grace period expired
+            return 'danger'
+        elif today > loan.due_date:
+            # In grace period
+            return 'warning'
+    
+    # Days until due date
+    if days_until_due >= 30:
+        return 'success'  # Green - safe
+    elif days_until_due > 0:
+        return 'warning'  # Orange/Yellow - approaching
+    elif days_until_due == 0:
+        return 'warning'  # Today is due date
+    else:
+        # Overdue
+        return 'danger'
+
+@register.filter
+def due_date_bg_color(loan):
+    """Return background color styling for due date cell"""
+    color_class = due_date_color(loan)
+    color_map = {
+        'success': '#d4edda',  # Light green
+        'warning': '#fff3cd',  # Light yellow
+        'danger': '#f8d7da',   # Light red
+        'secondary': '#e2e3e5',  # Light gray
+    }
+    color = color_map.get(color_class, '#fff')
+    return f'background-color: {color};'

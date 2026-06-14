@@ -10,6 +10,7 @@ import csv
 
 from .models import Branch, BranchSettings
 from .forms import BranchForm, BranchSettingsForm
+from transactions.views import get_branch_bill_header_phones
 
 
 class BranchListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
@@ -166,6 +167,9 @@ class BranchDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
             context['settings'] = branch.settings
         except BranchSettings.DoesNotExist:
             context['settings'] = None
+        
+        # Get branch phone display (supports multiple phone numbers)
+        context['branch_phone_display'] = get_branch_bill_header_phones(branch)
         
         return context
 

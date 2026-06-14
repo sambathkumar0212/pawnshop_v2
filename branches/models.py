@@ -78,6 +78,8 @@ class BranchSettings(models.Model):
     enable_email_notifications = models.BooleanField(default=True)
     enable_sms_notifications = models.BooleanField(default=False)
     auction_delay_days = models.IntegerField(default=7)
+    bill_header_mobile_numbers = models.TextField(blank=True, null=True, help_text="Enter multiple mobile numbers (40+ characters). Separated by comma, semicolon, slash, or newline. These will be displayed in bill headers.")
+    personal_mobile_number = models.CharField(max_length=15, blank=True, null=True, help_text="Personal mobile number of branch manager or staff (10-15 characters).")
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
