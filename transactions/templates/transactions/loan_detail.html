@@ -50,6 +50,9 @@
                     <a href="{% url 'loan_document' loan.loan_number %}" class="btn btn-outline-secondary me-2" target="_blank">
                         <i class="fas fa-file-pdf"></i> Download Agreement
                     </a>
+                    <a href="{% url 'loan_schedule' loan.loan_number %}?download=pdf" class="btn btn-outline-secondary me-2" target="_blank">
+                        <i class="fas fa-calendar-alt"></i> Loan Schedule
+                    </a>
                     {% if loan.status == 'defaulted' %}
                         <a href="{% url 'loan_expiry_notice' loan.loan_number %}" class="btn btn-outline-danger me-2" target="_blank">
                             <i class="fas fa-file-alt"></i> Expiry Notice

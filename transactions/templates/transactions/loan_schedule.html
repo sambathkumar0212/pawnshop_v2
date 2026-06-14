@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block content %}
+<div class="container mt-4">
+  <h3>Loan Schedule for {{ loan.loan_number }}</h3>
+  {% if diagnostics %}
+  <div class="card mb-3">
+    <div class="card-body p-2">
+      <h6 class="mb-2">Diagnostics</h6>
+      <div class="row small">
+        <div class="col-md-4"><strong>Principal:</strong> {{ diagnostics.principal }}</div>
+        <div class="col-md-4"><strong>Distribution Amount:</strong> {{ diagnostics.distribution_amount }}</div>
+        <div class="col-md-4"><strong>Processing Fee:</strong> {{ diagnostics.processing_fee }}</div>
+        <div class="col-md-4"><strong>Months:</strong> {{ diagnostics.num_months }}</div>
+        <div class="col-md-4"><strong>Principal / month:</strong> {{ diagnostics.principal_per_month }}</div>
+        <div class="col-md-4"><strong>Last month principal:</strong> {{ diagnostics.last_month_principal }}</div>
+        <div class="col-md-4"><strong>Monthly interest (const):</strong> {{ diagnostics.monthly_interest_const }}</div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  <p>
+    <a href="?download=csv" class="btn btn-sm btn-outline-primary">Download CSV</a>
+  </p>
+    <style>
+    /* Clearer zebra striping for loan schedule table */
+    .loan-schedule-table tbody tr:nth-child(odd) { background-color: #ffffff; }
+    .loan-schedule-table tbody tr:nth-child(even) { background-color: #f6f9ff; }
+    .loan-schedule-table tbody tr:hover { background-color: #e9f0ff; }
+    </style>
+
+    <table class="table loan-schedule-table">
+    <thead>
+      <tr>
+        <th>Month</th>
+        <th>Principal</th>
+        <th>Monthly Interest</th>
+        <th>Total Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td>{{ r.month }}</td>
+        <td>{{ r.principal_display }}</td>
+        <td>{{ r.interest|floatformat:2 }}</td>
+        <td>{{ r.total_amount|floatformat:2 }}</td>
+      </tr>
+      {% endfor %}
+      <tr class="font-weight-bold">
+        <td>{{ final_row.month }}</td>
+        <td>{{ final_row.principal|floatformat:2 }}</td>
+        <td>{{ final_row.interest|floatformat:2 }}</td>
+        <td>{{ final_row.total_amount|floatformat:2 }}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+{% endblock %}

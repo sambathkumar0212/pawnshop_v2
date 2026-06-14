@@ -61,9 +61,11 @@ class AdminOnlyPasswordChangeView(LoginRequiredMixin, PasswordChangeView):
     
     def dispatch(self, request, *args, **kwargs):
         # Staff members cannot change their own password
-        if request.user.is_authenticated and not request.user.is_pawnshop_admin:
-            messages.error(request, "Staff members cannot change their own password. Please contact an admin.")
-            return HttpResponseForbidden("Staff members cannot change their own password.")
+        if request.user.is_authenticated:
+            u = request.user
+            if not (getattr(u, 'is_pawnshop_admin', False) or getattr(u, 'is_superuser', False) or getattr(u, 'is_staff', False) or getattr(u, 'is_organization_admin', False)):
+                messages.error(request, "Staff members cannot change their own password. Please contact an admin.")
+                return HttpResponseForbidden("Staff members cannot change their own password.")
         
         return super().dispatch(request, *args, **kwargs)
     
@@ -149,18 +151,19 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         user = self.request.user
         today = timezone.now().date()
         
-        # Determine if user is branch-specific or has global access
-        if user.is_superuser or not user.branch:
-            # If user has organization, limit to that organization's branches
-            if hasattr(user, 'organization') and user.organization:
-                branches = Branch.objects.filter(organization=user.organization, is_active=True)
-                branch_filter = Q(branch__organization=user.organization)
-            else:
-                branches = Branch.objects.filter(is_active=True)
-                branch_filter = Q()
-        else:
+        # Determine branch filter: prefer user's assigned branch if present
+        if getattr(user, 'branch', None):
+            # User assigned to a branch: restrict dashboard to that branch only
             branches = Branch.objects.filter(id=user.branch.id)
             branch_filter = Q(branch=user.branch)
+        elif getattr(user, 'organization', None):
+            # Organization-scoped user (no specific branch): show organization's active branches
+            branches = Branch.objects.filter(organization=user.organization, is_active=True)
+            branch_filter = Q(branch__organization=user.organization)
+        else:
+            # Superuser or other global users: show all active branches
+            branches = Branch.objects.filter(is_active=True)
+            branch_filter = Q()
         
         # Get inventory statistics
         context['total_items'] = Item.objects.filter(branch_filter).count()
@@ -198,18 +201,9 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             'customer', 'item'
         ).order_by('-sale_date', '-created_at')[:5]
         
-        # Customer statistics - ensure organization filtering
-        if hasattr(user, 'organization') and user.organization:
-            context['customer_count'] = Customer.objects.filter(
-                branch__organization=user.organization
-            ).count()
-            context['new_customers_today'] = Customer.objects.filter(
-                branch__organization=user.organization,
-                created_at__date=today
-            ).count()
-        else:
-            context['customer_count'] = Customer.objects.count()
-            context['new_customers_today'] = Customer.objects.filter(created_at__date=today).count()
+        # Customer statistics - apply same branch/organization filter
+        context['customer_count'] = Customer.objects.filter(branch_filter).count()
+        context['new_customers_today'] = Customer.objects.filter(branch_filter, created_at__date=today).count()
         
         # Branch information
         context['branches'] = branches

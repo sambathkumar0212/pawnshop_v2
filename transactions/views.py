@@ -16,6 +16,7 @@ from django.db.models import Q
 from num2words import num2words
 from django.core.files.base import ContentFile
 from decimal import Decimal
+import logging
 import base64
 import json
 import ast
@@ -62,6 +63,10 @@ def translate_text_for_pdf(text, target_lang='ta', timeout=5):
         translated = ''.join(part[0] for part in payload[0] if part and part[0]).strip()
         if translated and translated.replace('?', '').strip():
             return translated
+
+
+        # Logger for diagnostics
+        logger = logging.getLogger(__name__)
     except Exception:
         pass
 
@@ -2091,6 +2096,206 @@ class LoanPaymentHistoryDownloadView(LoginRequiredMixin, RoleBranchAccessMixin, 
             ])
         
         return response
+
+
+class LoanScheduleView(LoginRequiredMixin, RoleBranchAccessMixin, View):
+    """Generate a month-by-month interest schedule from current month to due month.
+    CSV download is available via ?download=csv
+    """
+    def get(self, request, loan_number):
+        loan = get_object_or_404(Loan, loan_number=loan_number)
+        # enforce branch access
+        self.check_object_branch_access(loan, branch_attr='branch')
+
+        # Basic inputs (use Decimal for precise currency arithmetic)
+        # Principal should be Distribution Amount + Processing Fee when available
+        dist_amt = getattr(loan, 'distribution_amount', None)
+        proc_fee = getattr(loan, 'processing_fee', None)
+        try:
+            dist_amt_d = Decimal(str(dist_amt)) if dist_amt is not None else Decimal('0')
+        except Exception:
+            dist_amt_d = Decimal('0')
+        try:
+            proc_fee_d = Decimal(str(proc_fee)) if proc_fee is not None else Decimal('0')
+        except Exception:
+            proc_fee_d = Decimal('0')
+
+        if dist_amt_d > Decimal('0'):
+            principal = (dist_amt_d + proc_fee_d).quantize(Decimal('0.01'))
+        else:
+            principal = Decimal(str(getattr(loan, 'principal_amount', 0) or 0))
+
+        rate_annual = Decimal(str(getattr(loan, 'interest_rate', 0) or 0))
+        today = timezone.now().date()
+        due = getattr(loan, 'due_date', None)
+        if not due or principal <= 0 or rate_annual <= 0:
+            return HttpResponse('Loan missing principal, due date, or interest rate', status=400)
+
+        # start from beginning of current month
+        start = today.replace(day=1)
+        # iterate months until due month inclusive
+        months = []
+        cur = start
+        while cur <= due:
+            months.append(cur)
+            # advance to next month
+            year = cur.year + (cur.month // 12)
+            month = (cur.month % 12) + 1
+            cur = cur.replace(year=year, month=month, day=1)
+
+        monthly_rate = (rate_annual / Decimal('100')) / Decimal('12')
+
+        rows = []
+        remaining_principal = principal
+
+        num_months = max(1, len(months))
+        # Distribute principal evenly using Decimal; adjust last month to absorb rounding
+        principal_per_month = (principal / Decimal(num_months)).quantize(Decimal('0.01'))
+        last_month_principal = (principal - principal_per_month * (num_months - 1)).quantize(Decimal('0.01'))
+
+        # Interest is constant each month based on original principal
+        monthly_interest_const = (principal * monthly_rate).quantize(Decimal('0.01'))
+
+        # Log diagnostics for inspection
+        try:
+            logger.info(
+                "LoanSchedule diagnostics: loan=%s principal=%s distribution_amount=%s processing_fee=%s num_months=%s principal_per_month=%s last_month_principal=%s monthly_interest_const=%s",
+                loan.loan_number,
+                str(principal),
+                str(dist_amt_d),
+                str(proc_fee_d),
+                str(num_months),
+                str(principal_per_month),
+                str(last_month_principal),
+                str(monthly_interest_const),
+            )
+        except Exception:
+            pass
+
+        # Build rows: principal shown as full principal (distribution+processing_fee) each month,
+        # interest constant, total = principal + cumulative interest up to that month.
+        for idx, m in enumerate(months):
+            month_index = Decimal(idx + 1)
+            cumulative_interest = (monthly_interest_const * month_index).quantize(Decimal('0.01'))
+            total_amount = (principal + cumulative_interest).quantize(Decimal('0.01'))
+
+            # Prepare principal display with breakdown e.g., 35354(35000+354)
+            dist_display = dist_amt_d.quantize(Decimal('0.01'))
+            proc_display = proc_fee_d.quantize(Decimal('0.01'))
+            # Format amounts as integer if no cents, else two decimals
+            def fmt(a: Decimal):
+                a_q = a.quantize(Decimal('0.01'))
+                if a_q == a_q.to_integral():
+                    return str(int(a_q))
+                return format(a_q, '0.2f')
+
+            principal_display = f"{fmt(principal)}({fmt(dist_display)}+{fmt(proc_display)})"
+
+            rows.append({
+                'month': m.strftime('%b-%Y'),
+                'principal': principal,
+                'principal_display': principal_display,
+                'interest': monthly_interest_const,
+                'total_amount': total_amount,
+            })
+
+        # final row: totals
+        total_interest = (monthly_interest_const * Decimal(num_months)).quantize(Decimal('0.01'))
+        final_row = {
+            'month': 'TOTAL',
+            'interest': total_interest,
+            'principal': principal.quantize(Decimal('0.01')),
+            'total_amount': (principal + total_interest).quantize(Decimal('0.01')),
+            'payoff_amount': (principal + Decimal('0.00') + monthly_interest_const).quantize(Decimal('0.01')),
+        }
+
+        download = request.GET.get('download')
+        if download == 'csv':
+            # return CSV with new columns
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = f'attachment; filename="loan_{loan.loan_number}_schedule.csv"'
+            writer = csv.writer(response)
+            writer.writerow(['Month', 'Principal', 'Monthly Interest', 'Total Amount'])
+            for idx, r in enumerate(rows, start=1):
+                # cumulative interest = monthly_interest * idx
+                cum_interest = (r['interest'] * Decimal(idx)).quantize(Decimal('0.01'))
+                writer.writerow([r['month'], r.get('principal_display') or format(r['principal'], '0.2f'), format(r['interest'], '0.2f'), format(r['total_amount'], '0.2f')])
+            writer.writerow([final_row['month'], format(final_row['principal'], '0.2f'), format(final_row['interest'], '0.2f'), format(final_row['total_amount'], '0.2f')])
+            return response
+
+        if download == 'pdf':
+            # Generate a simple PDF schedule using ReportLab
+            from reportlab.lib.pagesizes import A4, landscape
+            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib import colors
+            from reportlab.lib.units import inch
+
+            response = HttpResponse(content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="loan_{loan.loan_number}_schedule.pdf"'
+
+            doc = SimpleDocTemplate(
+                response,
+                pagesize=landscape(A4),
+                rightMargin=0.3*inch,
+                leftMargin=0.3*inch,
+                topMargin=0.5*inch,
+                bottomMargin=0.5*inch,
+            )
+
+            styles = getSampleStyleSheet()
+            title_style = ParagraphStyle('Title', parent=styles['Heading2'], alignment=1)
+            normal = styles['Normal']
+
+            elements = []
+            elements.append(Paragraph(f"Loan Schedule - {loan.loan_number}", title_style))
+            elements.append(Spacer(1, 12))
+
+            table_data = [[ 'Month', 'Principal', 'Monthly Interest', 'Total Amount' ]]
+            for idx, r in enumerate(rows, start=1):
+                table_data.append([r['month'], r.get('principal_display') or format(r['principal'], '0.2f'), f"{r['interest']:.2f}", f"{r['total_amount']:.2f}"])
+            table_data.append([final_row['month'], format(final_row['principal'], '0.2f'), f"{final_row['interest']:.2f}", f"{final_row['total_amount']:.2f}"])
+
+            col_widths = [1.4*inch, 2.0*inch, 1.5*inch, 1.8*inch]
+            table = Table(table_data, colWidths=col_widths)
+
+            # Build table style and add alternating row backgrounds for readability
+            style_list = [
+                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#366092')),
+                ('TEXTCOLOR',(0,0),(-1,0),colors.white),
+                ('ALIGN',(1,1),(-1,-1),'RIGHT'),
+                ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+                ('GRID',(0,0),(-1,-1),0.5,colors.grey),
+                ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+            ]
+
+            # Apply zebra striping to data rows (row index starts at 0 for header)
+            for row_idx in range(1, len(table_data)):
+                if row_idx % 2 == 0:
+                    # even data rows -> light blue background
+                    style_list.append(('BACKGROUND', (0, row_idx), (-1, row_idx), colors.HexColor('#f6f9ff')))
+
+            table.setStyle(TableStyle(style_list))
+
+            elements.append(table)
+            doc.build(elements)
+            return response
+
+        context = {
+            'loan': loan,
+            'rows': rows,
+            'final_row': final_row,
+            'diagnostics': {
+                'principal': str(principal),
+                'distribution_amount': str(dist_amt_d),
+                'processing_fee': str(proc_fee_d),
+                'num_months': num_months,
+                'principal_per_month': str(principal_per_month),
+                'last_month_principal': str(last_month_principal),
+                'monthly_interest_const': str(monthly_interest_const),
+            },
+        }
+        return render(request, 'transactions/loan_schedule.html', context)
     
     def export_excel(self, loan):
         import openpyxl

@@ -29,7 +29,9 @@ class AdminRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
     """Mixin to ensure user is a pawnshop admin"""
     
     def test_func(self):
-        return self.request.user.is_pawnshop_admin
+        # Allow access for pawnshop admin flag, Django superusers, or staff/admin roles
+        u = self.request.user
+        return bool(getattr(u, 'is_pawnshop_admin', False) or getattr(u, 'is_superuser', False) or getattr(u, 'is_staff', False) or getattr(u, 'is_organization_admin', False))
     
     def handle_no_permission(self):
         messages.error(self.request, "You don't have permission to access this page. Admin access required.")
