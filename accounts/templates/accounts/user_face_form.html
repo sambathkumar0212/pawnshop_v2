@@ -28,10 +28,32 @@
                 <div class="card-body">
                     <form method="post" id="userForm" novalidate>
                         {% csrf_token %}
+
+                        {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <strong>Please correct the errors below.</strong>
+                            <ul class="mb-0">
+                                {% for field in form %}
+                                    {% for error in field.errors %}
+                                    <li>{{ field.label }}: {{ error }}</li>
+                                    {% endfor %}
+                                {% endfor %}
+                                {% for error in form.non_field_errors %}
+                                <li>{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
                         
                         <div class="row mb-3">
                             <div class="col-md-6">
-                                {{ form.username|as_crispy_field }}
+                                {% if form.instance.pk %}
+                                    <label class="form-label">Username</label>
+                                    <input type="text" class="form-control" value="{{ form.username.value|default:'' }}" disabled>
+                                    <input type="hidden" name="{{ form.username.name }}" value="{{ form.username.value|default:'' }}">
+                                {% else %}
+                                    {{ form.username|as_crispy_field }}
+                                {% endif %}
                             </div>
                             <div class="col-md-6">
                                 {{ form.email|as_crispy_field }}
@@ -237,6 +259,27 @@
                 $('html, body').animate({
                     scrollTop: faceCaptureSection.offset().top - 100
                 }, 500);
+            }
+            // Client-side validation for required role and branch
+            const roleEl = $('#id_role');
+            const branchEl = $('#id_branch');
+            let hasError = false;
+            if (roleEl.length && !roleEl.val()) {
+                hasError = true;
+                roleEl.addClass('is-invalid');
+            } else {
+                roleEl.removeClass('is-invalid');
+            }
+            if (branchEl.length && !branchEl.val()) {
+                hasError = true;
+                branchEl.addClass('is-invalid');
+            } else {
+                branchEl.removeClass('is-invalid');
+            }
+            if (hasError) {
+                e.preventDefault();
+                showStatusMessage('danger', 'Please select a role and a branch for the user.');
+                $('html, body').animate({ scrollTop: $('.card-body').first().offset().top - 100 }, 400);
             }
         });
     });

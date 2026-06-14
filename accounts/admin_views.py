@@ -145,18 +145,25 @@ class StaffCreateView(AdminRequiredMixin, CreateView):
     """Create a new staff account (admin only)"""
     model = CustomUser
     template_name = 'accounts/admin/staff_form.html'
-    fields = ['username', 'email', 'first_name', 'last_name', 'phone', 'role', 'branch', 'is_active']
+    form_class = UserFaceCreateForm
     success_url = reverse_lazy('admin_staff_list')
     
     def form_valid(self, form):
-        response = super().form_valid(form)
-        staff_user = self.object
-        
-        # Generate a temporary password
-        temp_password = self.generate_temp_password()
-        staff_user.set_password(temp_password)
+        # Do not call super().form_valid since we need to control saving and password
+        staff_user = form.save(commit=False)
+
+        # If admin provided a password, it will be set by the form; otherwise generate a temporary one
+        password = form.cleaned_data.get('password')
+        if password:
+            staff_user.set_password(password)
+            temp_password = None
+        else:
+            temp_password = self.generate_temp_password()
+            staff_user.set_password(temp_password)
+
+        # Save the staff user
         staff_user.save()
-        
+
         # Log staff creation
         request_info = get_request_info(self.request)
         log_staff_creation(
@@ -165,7 +172,7 @@ class StaffCreateView(AdminRequiredMixin, CreateView):
             request=self.request,
             description=f"Created staff account: {staff_user.get_full_name()} (Username: {staff_user.username})"
         )
-        
+
         # Log password creation
         log_password_change(
             user=staff_user,
@@ -174,11 +181,12 @@ class StaffCreateView(AdminRequiredMixin, CreateView):
             ip_address=request_info.get('ip_address'),
             description=f"Initial password set during account creation"
         )
-        
+
         messages.success(self.request, f"Staff account created successfully for {staff_user.get_full_name()}.")
-        messages.info(self.request, f"Temporary password: {temp_password} (Please share securely)")
-        
-        return response
+        if temp_password:
+            messages.info(self.request, f"Temporary password: {temp_password} (Please share securely)")
+
+        return redirect(self.success_url)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

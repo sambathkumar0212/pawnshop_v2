@@ -9,6 +9,7 @@ from django.template.loader import get_template
 from io import BytesIO
 import csv
 from .models import Loan, Payment, LoanExtension, Sale
+from accounts.mixins import RoleBranchAccessMixin
 from .forms import LoanForm, SaleForm, LoanExtensionForm
 from .utils import ManagerPermissionMixin
 from django.db.models import Q
@@ -725,7 +726,7 @@ def get_item_photos_count(item_photos):
 # Basic placeholder views for the transactions app
 # These will need to be implemented properly with the correct models
 
-class LoanListView(LoginRequiredMixin, DownloadMixin, ListView):
+class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, ListView):
     model = Loan
     template_name = 'transactions/loan_list.html'
     context_object_name = 'loans'
@@ -735,16 +736,10 @@ class LoanListView(LoginRequiredMixin, DownloadMixin, ListView):
         queryset = Loan.objects.all()
         user = self.request.user
 
-        # First filter by organization
+        # Apply centralized branch/region access rules and organization isolation
+        queryset = self.filter_queryset_by_branches(queryset, branch_field_name='branch')
         if user.organization:
             queryset = queryset.filter(branch__organization=user.organization)
-
-        # Then filter by branch if needed
-        # Branch managers can only see loans from their branch
-        # Regional managers and superusers can see all loans within their organization
-        if not user.is_superuser and user.branch:
-            if not hasattr(user, 'role') or not user.role or not user.role.name.lower() == 'regional manager':
-                queryset = queryset.filter(branch=user.branch)
 
         # Status filter
         status = self.request.GET.get('status')
@@ -1030,14 +1025,9 @@ class LoanListView(LoginRequiredMixin, DownloadMixin, ListView):
         # Calculate loan statistics for the cards - optimized with aggregation
         user = self.request.user
         base_queryset = Loan.objects.all()
-        
-        # Apply same organization and branch filtering as in get_queryset
+        base_queryset = self.filter_queryset_by_branches(base_queryset, branch_field_name='branch')
         if user.organization:
             base_queryset = base_queryset.filter(branch__organization=user.organization)
-        
-        if not user.is_superuser and user.branch:
-            if not hasattr(user, 'role') or not user.role or not user.role.name.lower() == 'regional manager':
-                base_queryset = base_queryset.filter(branch=user.branch)
         
         # Calculate statistics efficiently - SINGLE QUERY with annotations
         from django.utils import timezone
@@ -1386,9 +1376,11 @@ class LoanListView(LoginRequiredMixin, DownloadMixin, ListView):
         return response
 
 
-class LoanExpiryNoticeView(LoginRequiredMixin, View):
+class LoanExpiryNoticeView(LoginRequiredMixin, RoleBranchAccessMixin, View):
     def get(self, request, loan_number):
         loan = get_object_or_404(Loan, loan_number=loan_number)
+        # enforce branch access
+        self.check_object_branch_access(loan, branch_attr='branch')
         today = timezone.now().date()
 
         # Determine if an expiry/auction notice should be shown
@@ -1425,12 +1417,18 @@ class LoanExpiryNoticeView(LoginRequiredMixin, View):
         }
         return render(request, 'transactions/loan_expiry_notice.html', context)
 
-class LoanDetailView(LoginRequiredMixin, DetailView):
+class LoanDetailView(LoginRequiredMixin, RoleBranchAccessMixin, DetailView):
     model = Loan
     template_name = 'transactions/loan_detail.html'
     context_object_name = 'loan'
     slug_field = 'loan_number'
     slug_url_kwarg = 'loan_number'
+
+    def get_object(self, queryset=None):
+        obj = super().get_object(queryset=queryset)
+        # enforce branch access
+        self.check_object_branch_access(obj, branch_attr='branch')
+        return obj
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1448,7 +1446,7 @@ class LoanDetailView(LoginRequiredMixin, DetailView):
         return context
 
 
-class LoanCreateView(LoginRequiredMixin, CreateView):
+class LoanCreateView(LoginRequiredMixin, RoleBranchAccessMixin, CreateView):
     model = Loan
     form_class = LoanForm
     template_name = 'transactions/loan_form.html'
@@ -1539,7 +1537,7 @@ class LoanCreateView(LoginRequiredMixin, CreateView):
         return super().form_valid(form)
 
 
-class LoanUpdateView(LoginRequiredMixin, UpdateView):
+class LoanUpdateView(LoginRequiredMixin, RoleBranchAccessMixin, UpdateView):
     model = Loan
     form_class = LoanForm
     template_name = 'transactions/loan_form.html'
@@ -1573,8 +1571,13 @@ class LoanUpdateView(LoginRequiredMixin, UpdateView):
         messages.success(self.request, 'Loan updated successfully!')
         return super().form_valid(form)
 
+    def get_object(self, queryset=None):
+        obj = super().get_object(queryset=queryset)
+        # enforce branch access
+        self.check_object_branch_access(obj, branch_attr='branch')
+        return obj
 
-class LoanDeleteView(LoginRequiredMixin, ManagerPermissionMixin, DeleteView):
+class LoanDeleteView(LoginRequiredMixin, ManagerPermissionMixin, RoleBranchAccessMixin, DeleteView):
     model = Loan
     template_name = 'transactions/loan_confirm_delete.html'
     slug_field = 'loan_number'
@@ -1590,7 +1593,7 @@ class LoanDeleteView(LoginRequiredMixin, ManagerPermissionMixin, DeleteView):
         return response
 
 
-class LoanEditLogsView(LoginRequiredMixin, DetailView):
+class LoanEditLogsView(LoginRequiredMixin, RoleBranchAccessMixin, DetailView):
     """Display edit history for a loan"""
     model = Loan
     template_name = 'transactions/loan_edit_logs.html'
@@ -1609,8 +1612,14 @@ class LoanEditLogsView(LoginRequiredMixin, DetailView):
         
         return context
 
+    def get_object(self, queryset=None):
+        obj = super().get_object(queryset=queryset)
+        # enforce branch access
+        self.check_object_branch_access(obj, branch_attr='branch')
+        return obj
 
-class PaymentCreateView(LoginRequiredMixin, CreateView):
+
+class PaymentCreateView(LoginRequiredMixin, RoleBranchAccessMixin, CreateView):
     model = Payment
     template_name = 'transactions/payment_form.html'
     fields = ['amount', 'payment_date', 'payment_method', 'reference_number', 'notes']
@@ -1626,6 +1635,8 @@ class PaymentCreateView(LoginRequiredMixin, CreateView):
         context = super().get_context_data(**kwargs)
         loan_number = self.kwargs.get('loan_number')
         loan = get_object_or_404(Loan, loan_number=loan_number)
+        # enforce branch access
+        self.check_object_branch_access(loan, branch_attr='branch')
         context['loan'] = loan
         
         # Calculate remaining balance for full payment
@@ -1640,6 +1651,8 @@ class PaymentCreateView(LoginRequiredMixin, CreateView):
     def form_valid(self, form):
         loan_number = self.kwargs.get('loan_number')
         loan = get_object_or_404(Loan, loan_number=loan_number)
+        # enforce branch access
+        self.check_object_branch_access(loan, branch_attr='branch')
         
         # Check if loan can accept payments
         if loan.status not in ['active', 'overdue']:
@@ -1697,7 +1710,7 @@ class PaymentDetailView(LoginRequiredMixin, DetailView):
     context_object_name = 'payment'
 
 
-class LoanExtensionCreateView(LoginRequiredMixin, CreateView):
+class LoanExtensionCreateView(LoginRequiredMixin, RoleBranchAccessMixin, CreateView):
     model = LoanExtension
     form_class = LoanExtensionForm
     template_name = 'transactions/loan_extension_form.html'
@@ -1705,12 +1718,17 @@ class LoanExtensionCreateView(LoginRequiredMixin, CreateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         loan_number = self.kwargs.get('loan_number')
-        context['loan'] = get_object_or_404(Loan, loan_number=loan_number)
+        loan = get_object_or_404(Loan, loan_number=loan_number)
+        # enforce branch access
+        self.check_object_branch_access(loan, branch_attr='branch')
+        context['loan'] = loan
         return context
     
     def form_valid(self, form):
         loan_number = self.kwargs.get('loan_number')
         loan = get_object_or_404(Loan, loan_number=loan_number)
+        # enforce branch access
+        self.check_object_branch_access(loan, branch_attr='branch')
         form.instance.loan = loan
         form.instance.created_by = self.request.user
         messages.success(self.request, 'Loan extension created successfully!')
@@ -1720,44 +1738,50 @@ class LoanExtensionCreateView(LoginRequiredMixin, CreateView):
         return reverse('loan_detail', kwargs={'loan_number': self.kwargs.get('loan_number')})
 
 
-class LoanForecloseView(LoginRequiredMixin, View):
+class LoanForecloseView(LoginRequiredMixin, RoleBranchAccessMixin, View):
     def get(self, request, loan_number):
         """Handle GET request - show confirmation page"""
         loan = get_object_or_404(Loan, loan_number=loan_number)
-        
+        # enforce branch access
+        self.check_object_branch_access(loan, branch_attr='branch')
+
         # Check if loan can be foreclosed
         if loan.status not in ['active', 'overdue']:
             messages.error(request, f'Loan {loan_number} cannot be foreclosed. Current status: {loan.get_status_display()}')
             return redirect('loan_detail', loan_number=loan_number)
-        
+
         context = {
             'loan': loan,
             'confirm_action': 'foreclose'
         }
         return render(request, 'transactions/loan_foreclose_confirm.html', context)
-    
+
     def post(self, request, loan_number):
         """Handle POST request - actually foreclose the loan"""
         loan = get_object_or_404(Loan, loan_number=loan_number)
-        
+        # enforce branch access
+        self.check_object_branch_access(loan, branch_attr='branch')
+
         # Check if loan can be foreclosed
         if loan.status not in ['active', 'overdue']:
             messages.error(request, f'Loan {loan_number} cannot be foreclosed. Current status: {loan.get_status_display()}')
             return redirect('loan_detail', loan_number=loan_number)
-        
+
         # Update loan status
         loan.status = 'foreclosed'
         loan.foreclosure_date = timezone.now().date()
         loan.foreclosed_by = request.user
         loan.save()
-        
+
         messages.success(request, f'Loan {loan_number} has been successfully foreclosed.')
         return redirect('loan_detail', loan_number=loan_number)
 
 
-class LoanDocumentView(LoginRequiredMixin, View):
+class LoanDocumentView(LoginRequiredMixin, RoleBranchAccessMixin, View):
     def get(self, request, loan_number):
         loan = get_object_or_404(Loan, loan_number=loan_number)
+        # enforce branch access
+        self.check_object_branch_access(loan, branch_attr='branch')
         # Keep original agreement layout; prefer Chromium rendering for reliable Tamil glyph shaping.
         try:
             return self._generate_browser_pdf(request, loan)
@@ -2025,9 +2049,11 @@ class LoanDocumentView(LoginRequiredMixin, View):
         return response
 
 
-class LoanPaymentHistoryDownloadView(LoginRequiredMixin, View):
+class LoanPaymentHistoryDownloadView(LoginRequiredMixin, RoleBranchAccessMixin, View):
     def get(self, request, loan_number):
         loan = get_object_or_404(Loan, loan_number=loan_number)
+        # enforce branch access
+        self.check_object_branch_access(loan, branch_attr='branch')
         format_type = request.GET.get('format', 'csv')
         
         if format_type == 'csv':

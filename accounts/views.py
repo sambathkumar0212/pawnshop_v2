@@ -22,6 +22,7 @@ import os
 import glob
 
 from .models import CustomUser, Role, UserActivity, Customer, Organization
+from .mixins import RoleBranchAccessMixin
 from .forms import (UserFaceCreateForm, UserUpdateForm, OrganizationSignupForm, 
                   OrganizationUpdateForm, OrganizationBranchForm, CustomerForm)
 from branches.models import Branch
@@ -491,8 +492,8 @@ class UserListView(LoginRequiredMixin, PermissionRequiredMixin, DownloadMixin, L
     
     # Download configuration
     download_filename = 'users'
-    download_fields = ['username', 'email', 'first_name', 'last_name', 'user_type', 'branch__name', 'is_active', 'date_joined']
-    download_headers = ['Username', 'Email', 'First Name', 'Last Name', 'User Type', 'Branch', 'Active', 'Date Joined']
+    download_fields = ['username', 'email', 'first_name', 'last_name', 'role__name', 'branch__name', 'is_active', 'date_joined']
+    download_headers = ['Username', 'Email', 'First Name', 'Last Name', 'Role', 'Branch', 'Active', 'Date Joined']
     
     def has_permission(self):
         # Allow organization owners/admins to view users
@@ -574,6 +575,36 @@ class UserCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     template_name = 'accounts/user_face_form.html'
     success_url = reverse_lazy('user_list')
     permission_required = 'accounts.add_customuser'
+    
+    def form_valid(self, form):
+        """Handle user creation with password setup"""
+        # Don't save yet, we need to set the password
+        user = form.save(commit=False)
+        
+        # Set the password from the form
+        password = form.cleaned_data.get('password')
+        if password:
+            user.set_password(password)
+        
+        # Save the user
+        user.save()
+        
+        # Handle face image if provided
+        if form.cleaned_data.get('face_image'):
+            try:
+                # Decode and save face image
+                face_data = form.cleaned_data.get('face_image')
+                if isinstance(face_data, str) and face_data.startswith('data:image'):
+                    # Parse base64 image data
+                    header, data = face_data.split(',', 1)
+                    import base64
+                    image_data = base64.b64decode(data)
+                    # TODO: Process face encoding for facial recognition
+            except Exception as e:
+                messages.warning(self.request, f"Face image upload had issues: {str(e)}")
+        
+        messages.success(self.request, f"User {user.get_full_name()} created successfully.")
+        return redirect(self.success_url)
 
 
 class UserUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
@@ -636,7 +667,7 @@ class RoleDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
     permission_required = 'accounts.delete_role'
 
 
-class CustomerListView(LoginRequiredMixin, DownloadMixin, ListView):
+class CustomerListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, ListView):
     model = Customer
     template_name = 'accounts/customer_list.html'
     context_object_name = 'customers'
@@ -651,11 +682,11 @@ class CustomerListView(LoginRequiredMixin, DownloadMixin, ListView):
         queryset = Customer.objects.select_related('branch', 'branch__organization').prefetch_related('loans')
         user = self.request.user
         
-        # Filter by organization if user belongs to one
+        # Apply branch/region access rules
+        queryset = self.filter_queryset_by_branches(queryset, branch_field_name='branch')
+        # Additionally ensure organization isolation if applicable
         if user.organization:
             queryset = queryset.filter(branch__organization=user.organization)
-        elif user.branch:
-            queryset = queryset.filter(branch=user.branch)
         
         # Search functionality
         search = self.request.GET.get('search')
@@ -1086,11 +1117,40 @@ class CustomerCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView
         return kwargs
 
 
-class CustomerDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
+class CustomerDetailView(LoginRequiredMixin, RoleBranchAccessMixin, PermissionRequiredMixin, DetailView):
     model = Customer
     template_name = 'accounts/customer_detail.html'
     context_object_name = 'customer'
     permission_required = 'accounts.view_customer'
+
+    def get_object(self, queryset=None):
+        obj = super().get_object(queryset=queryset)
+        # enforce branch/region access rules
+        self.check_object_branch_access(obj, branch_attr='branch')
+        return obj
+
+    def has_permission(self):
+        # Allow if user has global permission
+        user = self.request.user
+        try:
+            if user.has_perm('accounts.view_customer'):
+                return True
+        except Exception:
+            pass
+
+        # Allow if the customer belongs to one of the user's allowed branches
+        try:
+            obj = self.get_object()
+            allowed = self.get_allowed_branches(user)
+            if allowed is None:
+                return True
+            if obj.branch and allowed.filter(pk=obj.branch.pk).exists():
+                return True
+        except Exception:
+            pass
+
+        # Otherwise fallback to default permission check
+        return super().has_permission()
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1273,47 +1333,58 @@ class OrganizationSignupView(CreateView):
         try:
             # Use atomic transaction to ensure data consistency
             with transaction.atomic():
-                # Get unsaved organization and user objects from the form
+                # Get the form data dict which contains both organization and user
                 form_data = form.save(commit=False)
-                organization = form_data['organization']
-                user = form_data['user']
+                organization = form_data.get('organization')
+                user = form_data.get('user')
                 
-                # Save user first (needed for organization.owner)
+                if not organization or not user:
+                    raise ValueError("Form validation failed: organization or user is None")
+                
+                # Save user first (required for ForeignKey to work)
                 user.save()
                 
-                # Set organization owner and save organization
+                # Set organization owner and link user to organization
                 organization.owner = user
+                user.organization = organization
+                
+                # Save organization
                 organization.save()
                 
-                # Link user to organization and save user again
-                user.organization = organization
+                # Save user again to ensure organization link is persisted
                 user.save()
                 
-                # Add required branch permissions to organization owner
-                if user: # Use 'user' (the admin user) instead of 'owner'
-                    from django.contrib.auth.models import Permission, Group
-                    from django.contrib.contenttypes.models import ContentType
-                    from branches.models import Branch
-                    
-                    # Get or create Organization Admin group
-                    org_admin_group, created = Group.objects.get_or_create(name='Organization Admin')
-                    
-                    # Get branch permissions
-                    branch_content_type = ContentType.objects.get_for_model(Branch)
-                    view_branch = Permission.objects.get(content_type=branch_content_type, codename='view_branch')
-                    add_branch = Permission.objects.get(content_type=branch_content_type, codename='add_branch')
-                    change_branch = Permission.objects.get(content_type=branch_content_type, codename='change_branch')
-                    
-                    # Add organization owner to Organization Admin group
-                    user.groups.add(org_admin_group)
-                    
-                    # Add permissions to user
-                    user.user_permissions.add(view_branch, add_branch, change_branch)
-            
-            # Only add success message after transaction completes successfully
-            messages.success(self.request, f'Organization "{organization.name}" created successfully! You can now log in.')
-            self.object = organization # Set self.object for consistency with CreateView pattern
-            return redirect(self.get_success_url()) # Redirect directly instead of calling super().form_valid()
+                # Add required permissions and groups to organization owner
+                from django.contrib.auth.models import Permission, Group
+                from django.contrib.contenttypes.models import ContentType
+                from branches.models import Branch
+                
+                # Get or create Organization Admin group
+                org_admin_group, created = Group.objects.get_or_create(name='Organization Admin')
+                
+                # Get branch permissions
+                branch_content_type = ContentType.objects.get_for_model(Branch)
+                branch_perms = Permission.objects.filter(
+                    content_type=branch_content_type,
+                    codename__in=['view_branch', 'add_branch', 'change_branch']
+                )
+                
+                # Add organization owner to Organization Admin group
+                user.groups.add(org_admin_group)
+                
+                # Add permissions to user
+                user.user_permissions.add(*branch_perms)
+                
+                # Mark object for consistency with CreateView pattern
+                self.object = organization
+                
+                # Add success message
+                messages.success(
+                    self.request, 
+                    f'Organization "{organization.name}" created successfully! You can now log in.'
+                )
+                
+                return redirect(self.get_success_url())
                 
         except IntegrityError as e:
             # Handle duplicate username or other integrity errors
@@ -1330,7 +1401,12 @@ class OrganizationSignupView(CreateView):
                 form.add_error(None, 'An error occurred while creating your account. This information may already be registered. Please try different details.')
             
             messages.error(self.request, 'Unable to complete signup. Please check the errors below and try again.')
-            return self.form_invalid(form) # Render form again with errors
+            return self.form_invalid(form)
+        
+        except Exception as e:
+            # Catch any other unexpected errors
+            messages.error(self.request, f'An unexpected error occurred during signup: {str(e)}')
+            return self.form_invalid(form)
 
 
 class OrganizationDashboardView(LoginRequiredMixin, TemplateView):
@@ -1406,6 +1482,34 @@ class OrganizationUserCreateView(LoginRequiredMixin, CreateView):
     form_class = UserFaceCreateForm
     template_name = 'accounts/user_face_form.html'
     success_url = reverse_lazy('organization_dashboard')
+    
+    def form_valid(self, form):
+        """Handle user creation and link to organization"""
+        # Don't save yet, we need to set the password and organization
+        user = form.save(commit=False)
+        
+        # Set the password from the form
+        password = form.cleaned_data.get('password')
+        if password:
+            user.set_password(password)
+        else:
+            # Generate a temporary password if none provided
+            from django.utils.crypto import get_random_string
+            temp_password = get_random_string(12)
+            user.set_password(temp_password)
+        
+        # Link user to the current user's organization
+        if self.request.user.organization:
+            user.organization = self.request.user.organization
+        else:
+            messages.error(self.request, "You are not associated with any organization.")
+            return redirect(self.success_url)
+        
+        # Save the user
+        user.save()
+        
+        messages.success(self.request, f"User {user.get_full_name()} created and linked to your organization.")
+        return redirect(self.success_url)
 
 
 class FaceEnrollmentView(LoginRequiredMixin, TemplateView):

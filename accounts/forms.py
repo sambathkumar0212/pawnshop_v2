@@ -7,15 +7,21 @@ from django.utils.text import slugify
 import re
 
 class UserFaceCreateForm(forms.ModelForm):
-    """Form for creating a new user with face authentication"""
-    password = forms.CharField(widget=forms.PasswordInput())
-    confirm_password = forms.CharField(widget=forms.PasswordInput())
+    """Form for creating a new user with optional face authentication"""
+    password = forms.CharField(
+        widget=forms.PasswordInput(),
+        help_text="Minimum 8 characters. Must contain a mix of uppercase, lowercase, numbers, and special characters."
+    )
+    confirm_password = forms.CharField(
+        widget=forms.PasswordInput(),
+        help_text="Re-enter your password for confirmation"
+    )
     face_image = forms.CharField(widget=forms.HiddenInput(), required=False)
     enable_face_auth = forms.BooleanField(
-        initial=True, 
+        initial=False,  # Changed from True to False - face auth is optional
         required=False,
-        label="Enable Face Authentication",
-        help_text="Allow this user to login using facial recognition"
+        label="Enable Face Authentication (Optional)",
+        help_text="Allow this user to login using facial recognition. Can be set up later."
     )
     
     class Meta:
@@ -25,15 +31,31 @@ class UserFaceCreateForm(forms.ModelForm):
             'last_name', 'email', 'phone', 'role', 'branch', 
             'enable_face_auth', 'face_image'
         ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Ensure role and branch are required on user creation/edit forms
+        if 'role' in self.fields:
+            self.fields['role'].required = True
+            self.fields['role'].empty_label = 'Select a role'
+        if 'branch' in self.fields:
+            self.fields['branch'].required = True
+            self.fields['branch'].empty_label = 'Select a branch'
     
     def clean(self):
         cleaned_data = super().clean()
+        
+        # Validate password match
         password = cleaned_data.get("password")
         confirm_password = cleaned_data.get("confirm_password")
         
-        if password != confirm_password:
-            self.add_error('confirm_password', "Passwords don't match")
+        if password and confirm_password:
+            if password != confirm_password:
+                self.add_error('confirm_password', "Passwords don't match")
+            elif len(password) < 8:
+                self.add_error('password', "Password must be at least 8 characters long")
         
+        # Face image is only required if face auth is explicitly enabled
         enable_face_auth = cleaned_data.get("enable_face_auth")
         face_image = cleaned_data.get("face_image")
         
@@ -42,10 +64,45 @@ class UserFaceCreateForm(forms.ModelForm):
             
         return cleaned_data
 
+    def clean_role(self):
+        role = self.cleaned_data.get('role')
+        if not role:
+            raise forms.ValidationError('Each user must be assigned a role.')
+        return role
+
+    def clean_branch(self):
+        branch = self.cleaned_data.get('branch')
+        if not branch:
+            raise forms.ValidationError('Each user must be assigned to a branch.')
+        return branch
+
+    def clean_username(self):
+        username = self.cleaned_data.get('username')
+        if username and CustomUser.objects.filter(username=username).exists():
+            # If instance exists and we're editing the same user, allow it
+            if not (hasattr(self, 'instance') and self.instance and self.instance.pk):
+                raise forms.ValidationError('This username is already taken.')
+            else:
+                # If editing, ensure different user doesn't have this username
+                qs = CustomUser.objects.filter(username=username).exclude(pk=self.instance.pk)
+                if qs.exists():
+                    raise forms.ValidationError('This username is already taken.')
+        return username
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if email:
+            qs = CustomUser.objects.filter(email=email)
+            if hasattr(self, 'instance') and self.instance and self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise forms.ValidationError('This email is already registered.')
+        return email
+
 class UserUpdateForm(forms.ModelForm):
     role = forms.ModelChoiceField(
         queryset=Role.objects.all(),
-        required=False,
+        required=True,
         empty_label="Select a role"
     )
     
@@ -60,17 +117,25 @@ class UserUpdateForm(forms.ModelForm):
             self.fields['role'].initial = self.instance.role
             # Set initial branch
             self.fields['branch'].initial = self.instance.branch
+        # Ensure branch is required on update form
+        if 'branch' in self.fields:
+            self.fields['branch'].required = True
 
     def save(self, commit=True):
         user = super().save(commit=False)
+        # Assign role/branch from cleaned_data (form-level validation should enforce presence)
+        role_val = self.cleaned_data.get('role')
+        branch_val = self.cleaned_data.get('branch')
+        if role_val is not None:
+            user.role = role_val
+        if branch_val is not None:
+            user.branch = branch_val
+
         if commit:
             user.save()
-            # Handle role assignment
-            if self.cleaned_data.get('role'):
-                user.role = self.cleaned_data['role']
-                user.save()
-                # Update user permissions based on role
-                user.user_permissions.set(self.cleaned_data['role'].permissions.all())
+            # Update user permissions based on role if provided
+            if role_val:
+                user.user_permissions.set(role_val.permissions.all())
         return user
 
 class OrganizationSignupForm(forms.ModelForm):
@@ -143,7 +208,7 @@ class OrganizationSignupForm(forms.ModelForm):
         return cleaned_data
         
     def save(self, commit=True):
-        """Prepares organization and admin user objects but does not save them if commit=False"""
+        """Save organization and user, ensuring consistency"""
         # Create the organization instance (not saved yet)
         organization = Organization(
             name=self.cleaned_data['organization_name'],
@@ -170,9 +235,10 @@ class OrganizationSignupForm(forms.ModelForm):
             organization.save()
             user.organization = organization
             user.save()
-            return organization # Return the saved organization
+            # Return dict for consistency with commit=False
+            return {'organization': organization, 'user': user}
         
-        # If commit is False, return the unsaved instances
+        # If commit is False, return the unsaved instances dict
         return {'organization': organization, 'user': user}
 
 

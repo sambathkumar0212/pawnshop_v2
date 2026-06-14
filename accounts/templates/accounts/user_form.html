@@ -27,23 +27,40 @@
                         
                         <div class="row mb-3">
                             <div class="col-md-6">
-                                <label for="{{ form.username.id_for_label }}" class="form-label">Username*</label>
+                                    <label for="{{ form.username.id_for_label }}" class="form-label">Username*</label>
+                                    {% if form.errors %}
+                                    <div class="alert alert-danger">
+                                        <strong>Please correct the errors below.</strong>
+                                    </div>
+                                    {% endif %}
                                 {{ form.username.errors }}
+                                {% if form.instance.pk %}
+                                <input type="text" class="form-control" id="{{ form.username.id_for_label }}" value="{{ form.username.value|default:'' }}" disabled>
+                                <input type="hidden" name="{{ form.username.name }}" value="{{ form.username.value|default:'' }}">
+                                {% else %}
                                 <input type="text" name="{{ form.username.name }}" 
                                        class="form-control {% if form.username.errors %}is-invalid{% endif %}"
                                        id="{{ form.username.id_for_label }}" 
                                        value="{{ form.username.value|default:'' }}"
                                        required>
+                                {% endif %}
                             </div>
                             <div class="col-md-6">
-                                <label for="{{ form.password.id_for_label }}" class="form-label">Password*</label>
-                                {{ form.password.errors }}
-                                <input type="password" name="{{ form.password.name }}" 
-                                       class="form-control {% if form.password.errors %}is-invalid{% endif %}"
-                                       id="{{ form.password.id_for_label }}" 
-                                       {% if not form.instance.pk %}required{% endif %}>
-                                {% if form.instance.pk %}
-                                <small class="text-muted">Leave blank to keep current password</small>
+                                <label class="form-label">Password</label>
+                                {% if form.password %}
+                                    {{ form.password.errors }}
+                                    <input type="password" name="{{ form.password.name }}" 
+                                           class="form-control {% if form.password.errors %}is-invalid{% endif %}"
+                                           id="{{ form.password.id_for_label }}" 
+                                           {% if not form.instance.pk %}required{% endif %}>
+                                    {% if form.instance.pk %}
+                                        <small class="text-muted">Leave blank to keep current password</small>
+                                    {% endif %}
+                                    {% if form.password.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.password.errors|join:", " }}</div>
+                                    {% endif %}
+                                {% else %}
+                                    <a href="{% url 'password_change' %}?next={{ request.path }}" class="btn btn-outline-secondary">Change password</a>
                                 {% endif %}
                             </div>
                         </div>
@@ -52,20 +69,26 @@
                             <div class="col-md-6">
                                 <label for="{{ form.first_name.id_for_label }}" class="form-label">First Name*</label>
                                 {{ form.first_name.errors }}
-                                <input type="text" name="{{ form.first_name.name }}" 
+                                    <input type="text" name="{{ form.first_name.name }}" 
                                        class="form-control {% if form.first_name.errors %}is-invalid{% endif %}"
                                        id="{{ form.first_name.id_for_label }}" 
                                        value="{{ form.first_name.value|default:'' }}"
                                        required>
+                                    {% if form.first_name.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.first_name.errors|join:", " }}</div>
+                                    {% endif %}
                             </div>
                             <div class="col-md-6">
                                 <label for="{{ form.last_name.id_for_label }}" class="form-label">Last Name*</label>
                                 {{ form.last_name.errors }}
-                                <input type="text" name="{{ form.last_name.name }}" 
+                                    <input type="text" name="{{ form.last_name.name }}" 
                                        class="form-control {% if form.last_name.errors %}is-invalid{% endif %}"
                                        id="{{ form.last_name.id_for_label }}" 
                                        value="{{ form.last_name.value|default:'' }}"
                                        required>
+                                    {% if form.last_name.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.last_name.errors|join:", " }}</div>
+                                    {% endif %}
                             </div>
                         </div>
 
@@ -73,18 +96,24 @@
                             <div class="col-md-6">
                                 <label for="{{ form.email.id_for_label }}" class="form-label">Email</label>
                                 {{ form.email.errors }}
-                                <input type="email" name="{{ form.email.name }}" 
+                                    <input type="email" name="{{ form.email.name }}" 
                                        class="form-control {% if form.email.errors %}is-invalid{% endif %}"
                                        id="{{ form.email.id_for_label }}" 
                                        value="{{ form.email.value|default:'' }}">
+                                    {% if form.email.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.email.errors|join:", " }}</div>
+                                    {% endif %}
                             </div>
                             <div class="col-md-6">
                                 <label for="{{ form.phone.id_for_label }}" class="form-label">Phone</label>
                                 {{ form.phone.errors }}
-                                <input type="tel" name="{{ form.phone.name }}" 
+                                    <input type="tel" name="{{ form.phone.name }}" 
                                        class="form-control {% if form.phone.errors %}is-invalid{% endif %}"
                                        id="{{ form.phone.id_for_label }}" 
                                        value="{{ form.phone.value|default:'' }}">
+                                    {% if form.phone.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.phone.errors|join:", " }}</div>
+                                    {% endif %}
                             </div>
                         </div>
 
@@ -92,31 +121,18 @@
                             <div class="col-md-6">
                                 <label for="{{ form.role.id_for_label }}" class="form-label">Role*</label>
                                 {{ form.role.errors }}
-                                <select name="{{ form.role.name }}" 
-                                        class="form-select {% if form.role.errors %}is-invalid{% endif %}"
-                                        id="{{ form.role.id_for_label }}" 
-                                        required>
-                                    <option value="">Select a role</option>
-                                    {% for value, label in form.role.field.choices %}
-                                        <option value="{{ value }}" {% if value == form.role.value|stringformat:"s" %}selected{% endif %}>
-                                            {{ label }}
-                                        </option>
-                                    {% endfor %}
-                                </select>
+                                    {{ form.role }}
+                                    {% if form.role.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.role.errors|join:", " }}</div>
+                                    {% endif %}
                             </div>
                             <div class="col-md-6">
                                 <label for="{{ form.branch.id_for_label }}" class="form-label">Branch</label>
                                 {{ form.branch.errors }}
-                                <select name="{{ form.branch.name }}" 
-                                        class="form-select {% if form.branch.errors %}is-invalid{% endif %}"
-                                        id="{{ form.branch.id_for_label }}">
-                                    <option value="">Select a branch</option>
-                                    {% for value, label in form.branch.field.choices %}
-                                        <option value="{{ value }}" {% if value == form.branch.value|stringformat:"s" %}selected{% endif %}>
-                                            {{ label }}
-                                        </option>
-                                    {% endfor %}
-                                </select>
+                                    {{ form.branch }}
+                                    {% if form.branch.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.branch.errors|join:", " }}</div>
+                                    {% endif %}
                             </div>
                         </div>
 
@@ -164,4 +180,41 @@
         </div>
     </div>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    if (!form) return;
+    form.addEventListener('submit', function(e) {
+        const role = document.getElementById('{{ form.role.id_for_label }}');
+        const branch = document.getElementById('{{ form.branch.id_for_label }}');
+        let hasError = false;
+        if (role && !role.value) {
+            role.classList.add('is-invalid');
+            hasError = true;
+        } else if (role) {
+            role.classList.remove('is-invalid');
+        }
+        if (branch && !branch.value) {
+            branch.classList.add('is-invalid');
+            hasError = true;
+        } else if (branch) {
+            branch.classList.remove('is-invalid');
+        }
+        if (hasError) {
+            e.preventDefault();
+            // Show a bootstrap alert at top
+            let alert = document.querySelector('#clientValidationAlert');
+            if (!alert) {
+                alert = document.createElement('div');
+                alert.id = 'clientValidationAlert';
+                alert.className = 'alert alert-danger';
+                alert.innerText = 'Please select a role and a branch for the user.';
+                const container = document.querySelector('.card-body');
+                if (container) container.insertBefore(alert, container.firstChild);
+            }
+            alert.scrollIntoView({behavior: 'smooth', block: 'center'});
+        }
+    });
+});
+</script>
 {% endblock %}

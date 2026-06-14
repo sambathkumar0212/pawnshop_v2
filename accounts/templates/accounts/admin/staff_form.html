@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Create Staff - Admin{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-4">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="fas fa-user-plus me-2"></i>Create Staff</h4>
+            </div>
+            <div class="card-body p-4">
+                <form method="post">
+                    {% csrf_token %}
+
+                    {% if form.errors %}
+                    <div class="alert alert-danger">
+                        <strong>Please correct the errors below.</strong>
+                        <ul class="mb-0">
+                            {% for field in form %}
+                                {% for error in field.errors %}
+                                <li>{{ field.label }}: {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                            {% for error in form.non_field_errors %}
+                            <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    {{ form|crispy }}
+
+                    <div class="d-grid gap-2 mt-3">
+                        <button type="submit" class="btn btn-primary">Create Staff</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    if (!form) return;
+    form.addEventListener('submit', function(e) {
+        const role = document.querySelector('[name="role"]');
+        const branch = document.querySelector('[name="branch"]');
+        let hasError=false;
+        if (role && !role.value) { role.classList.add('is-invalid'); hasError=true; }
+        if (branch && !branch.value) { branch.classList.add('is-invalid'); hasError=true; }
+        if (hasError) {
+            e.preventDefault();
+            // Show alert
+            let alert = document.querySelector('#clientValidationAlertAdmin');
+            if (!alert) {
+                alert = document.createElement('div');
+                alert.id = 'clientValidationAlertAdmin';
+                alert.className = 'alert alert-danger';
+                alert.innerText = 'Please select a role and a branch for the staff.';
+                const container = document.querySelector('.card-body');
+                if (container) container.insertBefore(alert, container.firstChild);
+            }
+            alert.scrollIntoView({behavior:'smooth', block:'center'});
+        }
+    });
+});
+</script>
+{% endblock %}
