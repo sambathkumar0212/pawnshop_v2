@@ -1528,7 +1528,24 @@ class LoanCreateView(LoginRequiredMixin, RoleBranchAccessMixin, CreateView):
         
         # Save photos directly to database
         if item_photos_data:
-            form.instance.item_photos = item_photos_data
+            try:
+                # Attempt to parse as JSON array
+                photos_list = json.loads(item_photos_data)
+                # Ensure it's a list and remove duplicates while preserving order
+                if isinstance(photos_list, list):
+                    unique_photos = []
+                    seen = set()
+                    for p in photos_list:
+                        if p not in seen:
+                            unique_photos.append(p)
+                            seen.add(p)
+                    form.instance.item_photos = json.dumps(unique_photos)
+                else:
+                    # If not a list, treat as single photo
+                    form.instance.item_photos = item_photos_data
+            except json.JSONDecodeError:
+                # Not a JSON string, treat as single photo
+                form.instance.item_photos = item_photos_data
         if customer_face_capture:
             form.instance.customer_face_capture = customer_face_capture
             
