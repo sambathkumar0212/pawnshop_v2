@@ -1428,6 +1428,8 @@ class LoanExpiryNoticeView(LoginRequiredMixin, RoleBranchAccessMixin, View):
             'show_notice': show_notice,
             'use_tamil': use_tamil,
             'branch_phone_display': get_branch_bill_header_phones(getattr(loan, 'branch', None)),
+            'customer_photo': get_first_item_photo(loan.customer_face_capture) if loan.customer_face_capture else None,
+            'first_item_photo': get_first_item_photo(loan.item_photos) if loan.item_photos else None,
         }
         return render(request, 'transactions/loan_expiry_notice.html', context)
 
@@ -2226,6 +2228,348 @@ class LoanPaymentHistoryDownloadView(LoginRequiredMixin, RoleBranchAccessMixin, 
             ])
         
         return response
+    
+    def export_excel(self, loan):
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill
+        
+        workbook = openpyxl.Workbook()
+        worksheet = workbook.active
+        worksheet.title = f"Loan {loan.loan_number} Payments"
+        
+        # Headers
+        headers = ['Date', 'Amount', 'Method', 'Reference', 'Notes']
+        for col, header in enumerate(headers, 1):
+            cell = worksheet.cell(row=1, column=col, value=header)
+            cell.font = Font(bold=True)
+            cell.fill = PatternFill(start_color="CCCCCC", end_color="CCCCCC", fill_type="solid")
+        
+        # Data
+        for row_idx, payment in enumerate(loan.payments.all().order_by('-payment_date'), 2):
+            worksheet.cell(row=row_idx, column=1, value=payment.payment_date.strftime('%Y-%m-%d'))
+            worksheet.cell(row=row_idx, column=2, value=float(payment.amount))
+            worksheet.cell(row=row_idx, column=3, value=payment.get_payment_method_display())
+            worksheet.cell(row=row_idx, column=4, value=payment.reference_number or '')
+            worksheet.cell(row=row_idx, column=5, value=payment.notes or '')
+        
+        output = BytesIO()
+        workbook.save(output)
+        output.seek(0)
+        
+        response = HttpResponse(
+            output.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="loan_{loan.loan_number}_payment_history.xlsx"'
+        
+        return response
+    
+    def export_pdf(self, loan):
+        from reportlab.lib.pagesizes import letter, A4
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib import colors
+        from reportlab.lib.units import inch
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
+        from datetime import datetime
+        import os
+        
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="payment_history_{loan.loan_number}_{datetime.now().strftime("%Y%m%d")}.pdf"'
+        
+        # Create PDF document with better margins
+        doc = SimpleDocTemplate(
+            response, 
+            pagesize=A4,
+            rightMargin=0.5*inch,
+            leftMargin=0.5*inch,
+            topMargin=0.75*inch,
+            bottomMargin=0.75*inch
+        )
+        elements = []
+        styles = getSampleStyleSheet()
+        
+        # Register Unicode font for better currency symbol support
+        try:
+            possible_fonts = [
+                '/System/Library/Fonts/Arial.ttf',  # macOS
+                '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',  # Linux
+                'C:/Windows/Fonts/arial.ttf',  # Windows
+            ]
+            
+            for font_path in possible_fonts:
+                if os.path.exists(font_path):
+                    pdfmetrics.registerFont(TTFont('CustomFont', font_path))
+                    custom_font = 'CustomFont'
+                    break
+            else:
+                custom_font = 'Helvetica'
+        except:
+            custom_font = 'Helvetica'
+        
+        # Create custom styles
+        company_style = ParagraphStyle(
+            'CompanyStyle',
+            parent=styles['Normal'],
+            fontSize=16,
+            fontName='Helvetica-Bold',
+            alignment=1,  # Center
+            spaceAfter=5,
+            textColor=colors.HexColor('#2C3E50')
+        )
+        
+        address_style = ParagraphStyle(
+            'AddressStyle',
+            parent=styles['Normal'],
+            fontSize=10,
+            fontName=custom_font,
+            alignment=1,  # Center
+            spaceAfter=10,
+            textColor=colors.HexColor('#7F8C8D')
+        )
+        
+        title_style = ParagraphStyle(
+            'TitleStyle',
+            parent=styles['Heading1'],
+            fontSize=18,
+            fontName='Helvetica-Bold',
+            alignment=1,  # Center
+            spaceAfter=20,
+            textColor=colors.HexColor('#34495E'),
+            borderWidth=2,
+            borderColor=colors.HexColor('#3498DB'),
+            borderPadding=10,
+            backColor=colors.HexColor('#ECF0F1')
+        )
+        
+        section_style = ParagraphStyle(
+            'SectionStyle',
+            parent=styles['Normal'],
+            fontSize=12,
+            fontName='Helvetica-Bold',
+            spaceAfter=10,
+            textColor=colors.HexColor('#2C3E50')
+        )
+        
+        info_style = ParagraphStyle(
+            'InfoStyle',
+            parent=styles['Normal'],
+            fontSize=10,
+            fontName=custom_font,
+            spaceAfter=5,
+            textColor=colors.HexColor('#34495E')
+        )
+        
+        # Company Header
+        company_name = "PAWNSHOP MANAGEMENT SYSTEM"
+        
+        # Get branch details if available
+        if loan.branch:
+            branch_info = loan.branch
+            company_name = f"{branch_info.name.upper()}"
+            
+            # Add company/branch name
+            elements.append(Paragraph(company_name, company_style))
+            
+            # Add branch address if available
+            address_parts = []
+            if hasattr(branch_info, 'address') and branch_info.address:
+                address_parts.append(branch_info.address)
+            if hasattr(branch_info, 'city') and branch_info.city:
+                address_parts.append(branch_info.city)
+            if hasattr(branch_info, 'state') and branch_info.state:
+                address_parts.append(branch_info.state)
+            if hasattr(branch_info, 'pincode') and branch_info.pincode:
+                address_parts.append(f"PIN: {branch_info.pincode}")
+                
+            if address_parts:
+                elements.append(Paragraph(", ".join(address_parts), address_style))
+            
+            # Add contact details
+            contact_parts = []
+            branch_header_phones = get_branch_bill_header_phones(branch_info)
+            if branch_header_phones:
+                contact_parts.append(f"Phone: {branch_header_phones}")
+            if hasattr(branch_info, 'email') and branch_info.email:
+                contact_parts.append(f"Email: {branch_info.email}")
+                
+            if contact_parts:
+                elements.append(Paragraph(" | ".join(contact_parts), address_style))
+        else:
+            elements.append(Paragraph(company_name, company_style))
+            elements.append(Paragraph("Professional Pawnshop Services", address_style))
+        
+        # Add horizontal line
+        elements.append(Spacer(1, 10))
+        
+        # Document Title
+        elements.append(Paragraph("PAYMENT HISTORY REPORT", title_style))
+        elements.append(Spacer(1, 20))
+        
+        # Loan Information Section
+        elements.append(Paragraph("LOAN INFORMATION", section_style))
+        
+        # Create loan info table
+        loan_data = [
+            ['Loan Number:', loan.loan_number],
+            ['Customer Name:', f"{loan.customer.first_name} {loan.customer.last_name}"],
+            ['Customer Phone:', getattr(loan.customer, 'phone', 'N/A')],
+            ['Principal Amount:', f"Rs {loan.principal_amount:,.2f}"],
+            ['Issue Date:', loan.issue_date.strftime('%d %B %Y')],
+            ['Due Date:', loan.due_date.strftime('%d %B %Y')],
+            ['Loan Status:', loan.get_status_display()],
+        ]
+        
+        loan_info_table = Table(loan_data, colWidths=[2*inch, 4*inch])
+        loan_info_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTNAME', (1, 0), (1, -1), custom_font),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+            ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#BDC3C7')),
+            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#ECF0F1')),
+        ]))
+        
+        elements.append(loan_info_table)
+        elements.append(Spacer(1, 20))
+        
+        # Payment Summary
+        total_payments = loan.payments.count()
+        total_amount_paid = sum(payment.amount for payment in loan.payments.all())
+        
+        elements.append(Paragraph("PAYMENT SUMMARY", section_style))
+        
+        # Calculate remaining balance - ensure it's never negative (0 for fully paid loans)
+        remaining_balance = max(0, loan.total_payable_till_date - total_amount_paid)
+        
+        summary_data = [
+            ['Total Payments Made:', str(total_payments)],
+            ['Total Amount Paid:', f"Rs {total_amount_paid:,.2f}"],
+            ['Remaining Balance:', f"Rs {remaining_balance:,.2f}"],
+        ]
+        
+        summary_table = Table(summary_data, colWidths=[2*inch, 4*inch])
+        summary_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTNAME', (1, 0), (1, -1), custom_font),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+            ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#BDC3C7')),
+            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#E8F6F3')),
+            ('BACKGROUND', (1, -1), (1, -1), colors.HexColor('#FADBD8')),  # Highlight remaining balance
+        ]))
+        
+        elements.append(summary_table)
+        elements.append(Spacer(1, 20))
+        
+        # Payment Details Section
+        elements.append(Paragraph("PAYMENT DETAILS", section_style))
+        
+        if loan.payments.exists():
+            # Payment history table headers
+            payment_headers = ['S.No.', 'Date', 'Amount (Rs)', 'Method', 'Reference No.', 'Received By', 'Notes']
+            payment_data = [payment_headers]
+            
+            # Add payment rows
+            for idx, payment in enumerate(loan.payments.all().order_by('-payment_date'), 1):
+                row = [
+                    str(idx),
+                    payment.payment_date.strftime('%d-%m-%Y'),
+                    f"{payment.amount:,.2f}",
+                    payment.get_payment_method_display(),
+                    payment.reference_number or '-',
+                    f"{payment.received_by.first_name} {payment.received_by.last_name}" if payment.received_by else 'N/A',
+                    payment.notes[:30] + '...' if payment.notes and len(payment.notes) > 30 else (payment.notes or '-')
+                ]
+                payment_data.append(row)
+            
+            payment_table = Table(payment_data, colWidths=[0.5*inch, 1*inch, 1*inch, 1*inch, 1*inch, 1.2*inch, 1.3*inch])
+            payment_table.setStyle(TableStyle([
+                # Header style
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498DB')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 9),
+                ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+                
+                # Data rows style
+                ('FONTNAME', (0, 1), (-1, -1), custom_font),
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('ALIGN', (0, 1), (0, -1), 'CENTER'),  # S.No center
+                ('ALIGN', (1, 1), (1, -1), 'CENTER'),  # Date center
+                ('ALIGN', (2, 1), (2, -1), 'RIGHT'),   # Amount right
+                ('ALIGN', (3, 1), (-1, -1), 'LEFT'),   # Rest left
+                
+                # General styling
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 4),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+                ('TOPPADDING', (0, 0), (-1, -1), 6),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                
+                # Grid and alternating colors
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#BDC3C7')),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8F9FA')]),
+                
+                # Amount column highlighting
+                ('BACKGROUND', (2, 1), (2, -1), colors.HexColor('#E8F8F5')),
+            ]))
+            
+            elements.append(payment_table)
+        else:
+            elements.append(Paragraph("No payments recorded for this loan.", info_style))
+        
+        elements.append(Spacer(1, 30))
+        
+        # Footer section
+        footer_style = ParagraphStyle(
+            'FooterStyle',
+            parent=styles['Normal'],
+            fontSize=8,
+            fontName=custom_font,
+            alignment=1,  # Center
+            textColor=colors.HexColor('#7F8C8D')
+        )
+        
+        # Add generation info
+        elements.append(Paragraph(f"Generated on: {datetime.now().strftime('%d %B %Y at %I:%M %p')}", footer_style))
+        elements.append(Paragraph("This is a computer-generated document and does not require a signature.", footer_style))
+        
+        # Add disclaimer
+        elements.append(Spacer(1, 10))
+        disclaimer_style = ParagraphStyle(
+            'DisclaimerStyle',
+            parent=styles['Normal'],
+            fontSize=7,
+            fontName=custom_font,
+            alignment=4,  # Justify
+            textColor=colors.HexColor('#95A5A6'),
+            leftIndent=20,
+            rightIndent=20
+        )
+        
+        disclaimer_text = ("This payment history is provided for informational purposes only. "
+                          "All payment details are subject to verification. For any discrepancies, "
+                          "please contact the branch office immediately.")
+        elements.append(Paragraph(disclaimer_text, disclaimer_style))
+        
+        # Build PDF
+        doc.build(elements)
+        
+        return response
 
 
 class LoanScheduleView(LoginRequiredMixin, RoleBranchAccessMixin, View):
@@ -2369,45 +2713,103 @@ class LoanScheduleView(LoginRequiredMixin, RoleBranchAccessMixin, View):
                 pagesize=landscape(A4),
                 rightMargin=0.3*inch,
                 leftMargin=0.3*inch,
-                topMargin=0.5*inch,
-                bottomMargin=0.5*inch,
+                topMargin=0.25*inch,
+                bottomMargin=0.25*inch,
             )
 
             styles = getSampleStyleSheet()
-            title_style = ParagraphStyle('Title', parent=styles['Heading2'], alignment=1)
+            title_style = ParagraphStyle('Title', parent=styles['Heading2'], alignment=1, fontSize=12, spaceAfter=6)
+            header_style = ParagraphStyle('Header', parent=styles['Normal'], fontSize=11, fontName='Helvetica-Bold')
+            copy_type_style = ParagraphStyle('CopyType', parent=styles['Normal'], fontSize=14, fontName='Helvetica-Bold', alignment=1, textColor=colors.HexColor('#C0504D'), spaceAfter=8)
             normal = styles['Normal']
 
             elements = []
-            elements.append(Paragraph(f"Loan Schedule - {loan.loan_number}", title_style))
-            elements.append(Spacer(1, 12))
+            
+            # Get copy type from request parameter (default to showing both)
+            copy_type = request.GET.get('copy_type', 'both')  # both, customer, or office
+            
+            # Function to add copy section
+            def add_copy_section(copy_label, is_customer=False):
+                section_elements = []
+                section_elements.append(Paragraph(f"*** {copy_label} ***", copy_type_style))
+                section_elements.append(Paragraph(f"Loan Schedule - {loan.loan_number}", title_style))
+                section_elements.append(Spacer(1, 6))
+                
+                # Add customer details at the top
+                customer_name = f"{loan.customer.first_name} {loan.customer.last_name}"
+                principal_amount = f"Rs {loan.principal_amount:,.2f}"
+                loan_date = loan.issue_date.strftime('%d-%m-%Y')
+                due_date = loan.due_date.strftime('%d-%m-%Y')
 
-            table_data = [[ 'Month', 'Principal', 'Monthly Interest', 'Total Amount' ]]
-            for idx, r in enumerate(rows, start=1):
-                table_data.append([r['month'], r.get('principal_display') or format(r['principal'], '0.2f'), f"{r['interest']:.2f}", f"{r['total_amount']:.2f}"])
-            table_data.append([final_row['month'], format(final_row['principal'], '0.2f'), f"{final_row['interest']:.2f}", f"{final_row['total_amount']:.2f}"])
+                # Create customer details table
+                customer_details = [
+                    ['Customer Name:', customer_name, 'Loan Date:', loan_date],
+                    ['Principal Amount:', principal_amount, 'Due Date:', due_date],
+                ]
+                
+                customer_table = Table(customer_details, colWidths=[1.5*inch, 2.5*inch, 1.5*inch, 2.5*inch])
+                customer_table.setStyle(TableStyle([
+                    ('FONTNAME', (0,0), (0,-1), 'Helvetica-Bold'),
+                    ('FONTNAME', (2,0), (2,-1), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0,0), (-1,-1), 10),
+                    ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+                    ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                    ('LEFTPADDING', (0,0), (-1,-1), 5),
+                    ('RIGHTPADDING', (0,0), (-1,-1), 5),
+                    ('TOPPADDING', (0,0), (-1,-1), 5),
+                    ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+                    ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#E8F0F7')),
+                    ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+                ]))
+                
+                section_elements.append(customer_table)
+                section_elements.append(Spacer(1, 6))
 
-            col_widths = [1.4*inch, 2.0*inch, 1.5*inch, 1.8*inch]
-            table = Table(table_data, colWidths=col_widths)
+                table_data = [[ 'S.No.', 'Month', 'Principal(Dist+Prc)', 'Monthly Interest', 'Customer Signature', 'Office Sign & Seal' ]]
+                for idx, r in enumerate(rows, start=1):
+                    table_data.append([str(idx), r['month'], r.get('principal_display') or format(r['principal'], '0.2f'), f"{r['interest']:.2f}", '', ''])
 
-            # Build table style and add alternating row backgrounds for readability
-            style_list = [
-                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#366092')),
-                ('TEXTCOLOR',(0,0),(-1,0),colors.white),
-                ('ALIGN',(1,1),(-1,-1),'RIGHT'),
-                ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
-                ('GRID',(0,0),(-1,-1),0.5,colors.grey),
-                ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-            ]
+                col_widths = [0.6*inch, 1.0*inch, 1.6*inch, 1.4*inch, 1.9*inch, 1.9*inch]
+                table = Table(table_data, colWidths=col_widths, rowHeights=[0.35*inch] + [0.9*inch]*(len(table_data)-1))
 
-            # Apply zebra striping to data rows (row index starts at 0 for header)
-            for row_idx in range(1, len(table_data)):
-                if row_idx % 2 == 0:
-                    # even data rows -> light blue background
-                    style_list.append(('BACKGROUND', (0, row_idx), (-1, row_idx), colors.HexColor('#f6f9ff')))
+                # Build table style and add alternating row backgrounds for readability
+                style_list = [
+                    ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#366092')),
+                    ('TEXTCOLOR',(0,0),(-1,0),colors.white),
+                    ('ALIGN',(0,0),(0,-1),'CENTER'),
+                    ('ALIGN',(1,1),(3,-1),'RIGHT'),
+                    ('ALIGN',(4,0),(-1,-1),'CENTER'),
+                    ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+                    ('GRID',(0,0),(-1,-1),0.5,colors.grey),
+                    ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0,0), (-1,0), 10),
+                    ('FONTSIZE', (0,1), (-1,-1), 9),
+                    ('LEFTPADDING', (0,0), (-1,-1), 6),
+                    ('RIGHTPADDING', (0,0), (-1,-1), 6),
+                    ('TOPPADDING', (0,0), (-1,-1), 12),
+                    ('BOTTOMPADDING', (0,0), (-1,-1), 12),
+                ]
 
-            table.setStyle(TableStyle(style_list))
+                # Apply zebra striping to data rows (row index starts at 0 for header)
+                for row_idx in range(1, len(table_data)):
+                    if row_idx % 2 == 0:
+                        # even data rows -> light blue background
+                        style_list.append(('BACKGROUND', (0, row_idx), (3, row_idx), colors.HexColor('#f6f9ff')))
+                    # Signature columns always have white background with border
+                    style_list.append(('BACKGROUND', (4, row_idx), (-1, row_idx), colors.white))
 
-            elements.append(table)
+                table.setStyle(TableStyle(style_list))
+                section_elements.append(table)
+                
+                return section_elements
+            
+            # Add copies based on request parameter
+            if copy_type == 'customer':
+                elements.extend(add_copy_section('CUSTOMER COPY', is_customer=True))
+            elif copy_type == 'office':
+                elements.extend(add_copy_section('OFFICE COPY', is_customer=False))
+            else:  # default to customer copy only
+                elements.extend(add_copy_section('CUSTOMER COPY', is_customer=True))
             doc.build(elements)
             return response
 
