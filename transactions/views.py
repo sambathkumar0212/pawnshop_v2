@@ -2640,8 +2640,8 @@ class LoanScheduleView(LoginRequiredMixin, RoleBranchAccessMixin, View):
         principal_per_month = (principal / Decimal(num_months)).quantize(Decimal('0.01'))
         last_month_principal = (principal - principal_per_month * (num_months - 1)).quantize(Decimal('0.01'))
 
-        # Interest is constant each month based on original principal
-        monthly_interest_const = (principal * monthly_rate).quantize(Decimal('0.01'))
+        # Interest is calculated on distribution amount only (not including processing fee)
+        monthly_interest_const = (dist_amt_d * monthly_rate).quantize(Decimal('0.01'))
 
         # Log diagnostics for inspection
         try:
