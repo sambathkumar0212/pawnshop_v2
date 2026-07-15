@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 {% load loan_filters %}
 {% load loan_interest %}
 {% load i18n %}
@@ -204,13 +204,15 @@
                                 <span class="field-content financial-value">Rs {{ loan.monthly_interest.amount|floatformat:2 }} ({{ loan.monthly_interest.rate }}% monthly)</span>
                             </div>
                             <div class="field-row">
-                                <span class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.issue_date }}:</span>
-                                <span class="field-content date-value">{{ loan.issue_date|date:"d/m/Y" }}</span>
+                                <span class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.issue_date }}:{{ loan.issue_date|date:"d/m/Y" }}</span>
+                                <span class="field-content date-value" style="color: #CC0000; font-weight: bold;">{{ labels.due_date }}:{{ loan.due_date|date:"d/m/Y" }}</span>
                             </div>
+                            {% if minimum_term %}
                             <div class="field-row">
-                                <span class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.due_date }}:</span>
-                                <span class="field-content" style="color: #CC0000; font-weight: bold;">{{ loan.due_date|date:"d/m/Y" }}</span>
+                                <span class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}" style="color: #dbdf19; font-weight: bold;">{{ labels.minimum_term }}:{{ minimum_term }} {% if current_language|slice:':2' == 'ta' %}நாட்கள்{% else %}day(s){% endif %}</span>
+                                <span class="field-content">{{ labels.minimum_date }}:{{ minimum_date|date:"d/m/Y" }}</span>
                             </div>
+                            {% endif %}
                         </div>
                     </td>
                 </tr>

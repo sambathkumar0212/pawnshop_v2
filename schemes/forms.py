@@ -92,9 +92,9 @@ class SchemeForm(forms.ModelForm):
         min_value=0,
         widget=forms.NumberInput(attrs={
             'class': 'form-control',
-            'placeholder': 'Enter number of months'
+            'placeholder': 'Enter number of days'
         }),
-        help_text="Minimum duration for gold loans in months (0 means no minimum)"
+        help_text="Minimum duration for gold loans in days (0 means no minimum)"
     )
     
     # Changed to DecimalField for proper number input
@@ -235,10 +235,10 @@ class SchemeForm(forms.ModelForm):
         # Set default values for NEW schemes only
         if not self.instance.pk:
             today = timezone.now().date()
-            next_year = today.replace(year=today.year + 1)
+            far_future = today.replace(year=today.year + 30)
             
             self.fields['start_date'].initial = today
-            self.fields['end_date'].initial = next_year
+            self.fields['end_date'].initial = far_future
             self.fields['minimum_amount'].initial = 1000.00
             self.fields['maximum_amount'].initial = 1000000.00
             self.fields['processing_fee_percentage'].initial = 1.00
@@ -298,6 +298,9 @@ class SchemeForm(forms.ModelForm):
                     managed_branches = user.managed_branches.all()
                     if managed_branches.exists():
                         self.fields['branch'].queryset = managed_branches
+        
+        # Make end_date optional
+        self.fields['end_date'].required = False
     
     def clean(self):
         cleaned_data = super().clean()
@@ -411,9 +414,9 @@ class NewSchemeForm(forms.ModelForm):
         initial=0,
         widget=forms.NumberInput(attrs={
             'class': 'form-control',
-            'placeholder': 'e.g., 1'
+            'placeholder': 'e.g., 30'
         }),
-        help_text="Minimum term in months (0 = no minimum)"
+        help_text="Minimum term in days (0 = no minimum)"
     )
     
     # Add hidden fields for interest_rate and loan_duration
@@ -513,10 +516,13 @@ class NewSchemeForm(forms.ModelForm):
         # Set default values for dates
         if not self.instance.pk:  # Only for new schemes
             today = timezone.now().date()
-            next_year = today.replace(year=today.year + 1)
+            far_future = today.replace(year=today.year + 30)
             
             self.fields['start_date'].initial = today
-            self.fields['end_date'].initial = next_year
+            self.fields['end_date'].initial = far_future
+        
+        # Make end_date optional
+        self.fields['end_date'].required = False
         
         # Branch field logic
         self.fields['branch'].required = False

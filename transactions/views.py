@@ -309,6 +309,8 @@ def build_loan_pdf_language_context(loan, current_language):
         'monthly_interest': 'Monthly Interest',
         'issue_date': 'Issue Date',
         'due_date': 'Due Date',
+        'minimum_term': 'Minimum Term',
+        'minimum_date': 'Minimum Date',
         'gold_items_details': 'Gold Items Details',
         'item_description': 'Item Description',
         'gold_karat': 'Gold Karat',
@@ -344,6 +346,8 @@ def build_loan_pdf_language_context(loan, current_language):
             'monthly_interest': 'மாத வட்டி',
             'issue_date': 'வழங்கிய தேதி',
             'due_date': 'கடைசி தேதி',
+            'minimum_term': 'குறைந்தபட்ச காலம்',
+            'minimum_date': 'குறைந்தபட்ச தேதி',
             'gold_items_details': 'தங்கப் பொருட்கள் விவரம்',
             'item_description': 'பொருள் விவரம்',
             'gold_karat': 'தங்க சுத்தம்',
@@ -367,6 +371,7 @@ def build_loan_pdf_language_context(loan, current_language):
     scheme_name = loan.scheme.name if loan.scheme else 'Standard Gold Loan'
     scheme_interest = loan.scheme.interest_rate if loan.scheme else loan.interest_rate
     scheme_duration = loan.scheme.loan_duration if loan.scheme and loan.scheme.loan_duration else 0
+    minimum_term = loan.scheme.minimum_duration if loan.scheme and loan.scheme.minimum_duration else 0
     display_scheme_name = scheme_name
 
     base_terms = [
@@ -431,6 +436,12 @@ def build_loan_pdf_language_context(loan, current_language):
     if total_items_count <= 0:
         total_items_count = unique_item_names_count
 
+    # Calculate minimum date (issue_date + minimum_duration days)
+    minimum_date = None
+    if minimum_term and minimum_term > 0:
+        from datetime import timedelta
+        minimum_date = loan.issue_date + timedelta(days=minimum_term)
+
     return {
         'current_language': current_language,
         'labels': labels,
@@ -460,6 +471,8 @@ def build_loan_pdf_language_context(loan, current_language):
         'bill_color_field_value': bill_details.get('color_field_value', '#000000'),
         'bill_color_table_header': bill_details.get('color_table_header', '#222222'),
         'terms_list': terms,
+        'minimum_term': minimum_term,
+        'minimum_date': minimum_date,
     }
 
 

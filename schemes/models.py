@@ -33,7 +33,7 @@ class Scheme(models.Model):
     )
     minimum_duration = models.PositiveIntegerField(
         null=True, blank=True, default=0,
-        help_text="Minimum duration for gold loans in months"
+        help_text="Minimum duration for gold loans in days"
     )
     late_payment_interest = models.DecimalField(
         max_digits=5, decimal_places=2, null=True, blank=True,

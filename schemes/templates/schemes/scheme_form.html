@@ -314,8 +314,8 @@
         
         // Set today's date for start_date and end_date if empty
         const today = new Date();
-        const nextYear = new Date(today);
-        nextYear.setFullYear(nextYear.getFullYear() + 1);
+        const farFuture = new Date(today);
+        farFuture.setFullYear(farFuture.getFullYear() + 30);
         
         const startDate = document.getElementById('id_start_date');
         const endDate = document.getElementById('id_end_date');
@@ -325,7 +325,7 @@
         }
         
         if (endDate && !endDate.value) {
-            endDate.value = nextYear.toISOString().split('T')[0];
+            endDate.value = farFuture.toISOString().split('T')[0];
         }
         
         // Set default values for minimum and maximum amounts
