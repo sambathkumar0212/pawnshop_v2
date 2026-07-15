@@ -155,7 +155,7 @@
                             <div>
                                 <strong>Loan:</strong> #{{ alert.loan.id }}
                                 <br>
-                                <small class="text-muted">Amount: ₹{{ alert.loan.principal_amount|floatformat:2 }}</small>
+                                <small class="text-muted">Amount: Rs: {{ alert.loan.principal_amount|floatformat:2 }}</small>
                             </div>
                         </div>
                     {% endif %}

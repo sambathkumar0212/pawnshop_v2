@@ -837,8 +837,8 @@ class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, Lis
             ('email', 'Customer Email'), 
             ('branch', 'Branch'),
             ('item_images', 'Image Count'),
-            ('principal_amount', 'Principal Amount (₹)'),
-            ('distribution_amount', 'Distribution Amount (₹)'),
+            ('principal_amount', 'Principal Amount (Rs: )'),
+            ('distribution_amount', 'Distribution Amount (Rs: )'),
             ('interest_rate', 'Interest Rate (%)'),
             ('issue_date', 'Issue Date'),
             ('due_date', 'Due Date'),
@@ -848,10 +848,10 @@ class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, Lis
             ('item_names', 'Item Names'),
             ('total_weight', 'Total Weight (grams)'),
             ('karat', 'Gold Karat'),
-            ('monthly_interest', 'Monthly Interest Amount (₹)'),
-            ('total_payable', 'Total Payable Till Date (₹)'),
-            ('amount_paid', 'Amount Paid (₹)'),
-            ('remaining_balance', 'Remaining Balance (₹)'),
+            ('monthly_interest', 'Monthly Interest Amount (Rs: )'),
+            ('total_payable', 'Total Payable Till Date (Rs: )'),
+            ('amount_paid', 'Amount Paid (Rs: )'),
+            ('remaining_balance', 'Remaining Balance (Rs: )'),
             ('created_at', 'Created Date'),
             ('created_by', 'Created By')
         ]
@@ -1296,7 +1296,7 @@ class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, Lis
             'Customer Name',
             'Customer Phone',
             'Branch',
-            'Distribution Amount (₹)',
+            'Distribution Amount (Rs: )',
             'Issue Date',
             'Due Date',
             'Status',
@@ -1311,7 +1311,7 @@ class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, Lis
             'Customer Name': 2,
             'Customer Phone': 3,
             'Branch': 5,
-            'Distribution Amount (₹)': 8,
+            'Distribution Amount (Rs: )': 8,
             'Issue Date': 10,
             'Due Date': 11,
             'Status': 12,
@@ -3180,6 +3180,200 @@ class LoanScheduleView(LoginRequiredMixin, RoleBranchAccessMixin, View):
         elements.append(Paragraph(disclaimer_text, disclaimer_style))
         
         # Build PDF
+        doc.build(elements)
+        return response
+
+
+class LoanEMIScheduleView(LoginRequiredMixin, RoleBranchAccessMixin, View):
+    """Generate EMI (Equal Monthly Installment) schedule for the total loan term."""
+    
+    def get(self, request, loan_number):
+        loan = get_object_or_404(Loan, loan_number=loan_number)
+        self.check_object_branch_access(loan, branch_attr='branch')
+        
+        # Get loan details
+        dist_amt = getattr(loan, 'distribution_amount', None)
+        proc_fee = getattr(loan, 'processing_fee', None)
+        
+        try:
+            dist_amt_d = Decimal(str(dist_amt)) if dist_amt is not None else Decimal('0')
+        except Exception:
+            dist_amt_d = Decimal('0')
+        try:
+            proc_fee_d = Decimal(str(proc_fee)) if proc_fee is not None else Decimal('0')
+        except Exception:
+            proc_fee_d = Decimal('0')
+        
+        # Total principal = distribution + processing fee
+        if dist_amt_d > Decimal('0'):
+            principal = (dist_amt_d + proc_fee_d).quantize(Decimal('0.01'))
+        else:
+            principal = Decimal(str(getattr(loan, 'principal_amount', 0) or 0))
+        
+        rate_annual = Decimal(str(getattr(loan, 'interest_rate', 0) or 0))
+        issue_date = getattr(loan, 'issue_date', None)
+        due_date = getattr(loan, 'due_date', None)
+        
+        if not due_date or not issue_date or principal <= 0 or rate_annual <= 0:
+            return HttpResponse('Loan missing required data', status=400)
+        
+        # Calculate number of months from issue to due date
+        months_diff = (due_date.year - issue_date.year) * 12 + (due_date.month - issue_date.month)
+        num_months = max(1, months_diff)
+        
+        monthly_rate = (rate_annual / Decimal('100')) / Decimal('12')
+        
+        # Calculate EMI using formula: EMI = P * r * (1+r)^n / ((1+r)^n - 1)
+        # where P = principal (distribution amount for interest calculation)
+        # r = monthly interest rate, n = number of months
+        one_plus_r = Decimal('1') + monthly_rate
+        one_plus_r_n = one_plus_r ** num_months
+        
+        # EMI calculation based on distribution amount only
+        emi_interest = (dist_amt_d * monthly_rate * one_plus_r_n / (one_plus_r_n - Decimal('1'))).quantize(Decimal('0.01'))
+        
+        # Add prorated processing fee to each EMI
+        processing_fee_per_month = (proc_fee_d / Decimal(num_months)).quantize(Decimal('0.01'))
+        emi_total = emi_interest + processing_fee_per_month
+        
+        # Generate schedule
+        rows = []
+        remaining_principal = dist_amt_d
+        remaining_proc_fee = proc_fee_d
+        total_interest_paid = Decimal('0')
+        
+        cur_date = issue_date.replace(day=1)
+        
+        for month_num in range(1, num_months + 1):
+            # Advance to next month
+            if month_num > 1:
+                year = cur_date.year + (cur_date.month // 12)
+                month = (cur_date.month % 12) + 1
+                cur_date = cur_date.replace(year=year, month=month, day=1)
+            
+            # Interest for this month on remaining principal
+            interest_component = (remaining_principal * monthly_rate).quantize(Decimal('0.01'))
+            
+            # Principal component of EMI
+            principal_component = (emi_interest - interest_component).quantize(Decimal('0.01'))
+            
+            # Adjust for last month to account for rounding
+            if month_num == num_months:
+                principal_component = remaining_principal
+                processing_fee_per_month = remaining_proc_fee
+                emi_total = principal_component + interest_component + processing_fee_per_month
+            
+            remaining_principal = (remaining_principal - principal_component).quantize(Decimal('0.01'))
+            remaining_proc_fee = (remaining_proc_fee - processing_fee_per_month).quantize(Decimal('0.01'))
+            total_interest_paid = (total_interest_paid + interest_component).quantize(Decimal('0.01'))
+            
+            rows.append({
+                'month_num': month_num,
+                'month': cur_date.strftime('%b-%Y'),
+                'emi': emi_total.quantize(Decimal('0.01')),
+                'principal_component': principal_component,
+                'interest_component': interest_component,
+                'processing_fee_component': processing_fee_per_month,
+                'remaining_principal': remaining_principal,
+            })
+        
+        # Summary row
+        total_amount_paid = (dist_amt_d + proc_fee_d + total_interest_paid).quantize(Decimal('0.01'))
+        
+        context = {
+            'loan': loan,
+            'rows': rows,
+            'num_months': num_months,
+            'emi_amount': emi_total.quantize(Decimal('0.01')),
+            'distribution_amount': dist_amt_d.quantize(Decimal('0.01')),
+            'processing_fee': proc_fee_d.quantize(Decimal('0.01')),
+            'total_principal': principal.quantize(Decimal('0.01')),
+            'total_interest': total_interest_paid,
+            'total_amount': total_amount_paid,
+            'issue_date': issue_date,
+            'due_date': due_date,
+        }
+        
+        download = request.GET.get('download')
+        if download == 'pdf':
+            return self.export_pdf(context)
+        
+        return render(request, 'transactions/loan_emi_schedule.html', context)
+    
+    def export_pdf(self, context):
+        from reportlab.lib.pagesizes import A4
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib import colors
+        from reportlab.lib.units import inch
+        from datetime import datetime
+        
+        response = HttpResponse(content_type='application/pdf')
+        loan = context['loan']
+        response['Content-Disposition'] = f'attachment; filename="emi_schedule_{loan.loan_number}_{datetime.now().strftime("%Y%m%d")}.pdf"'
+        
+        doc = SimpleDocTemplate(response, pagesize=A4, topMargin=0.5*inch, bottomMargin=0.5*inch)
+        elements = []
+        styles = getSampleStyleSheet()
+        
+        # Title
+        title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=16, alignment=1)
+        elements.append(Paragraph(f"EMI Schedule - Loan {loan.loan_number}", title_style))
+        elements.append(Spacer(1, 12))
+        
+        # Loan info
+        info_style = styles['Normal']
+        elements.append(Paragraph(f"<b>Customer:</b> {loan.customer.full_name}", info_style))
+        elements.append(Paragraph(f"<b>Loan Number:</b> {loan.loan_number}", info_style))
+        elements.append(Paragraph(f"<b>Loan Date:</b> {context['issue_date'].strftime('%d/%m/%Y')}", info_style))
+        elements.append(Paragraph(f"<b>Due Date:</b> {context['due_date'].strftime('%d/%m/%Y')}", info_style))
+        elements.append(Paragraph(f"<b>Principal Amount:</b> Rs: {context['total_principal']}", info_style))
+        elements.append(Paragraph(f"<b>Distribution Amount:</b> Rs: {context['distribution_amount']}", info_style))
+        elements.append(Paragraph(f"<b>Processing Fee:</b> Rs: {context['processing_fee']}", info_style))
+        elements.append(Paragraph(f"<b>Interest Rate:</b> {loan.interest_rate}% per annum", info_style))
+        elements.append(Paragraph(f"<b>EMI Amount:</b> Rs: {context['emi_amount']}", info_style))
+        elements.append(Paragraph(f"<b>Number of Months:</b> {context['num_months']}", info_style))
+        elements.append(Spacer(1, 12))
+        
+        # Table
+        table_data = [['Month', 'Month', 'EMI', 'Principal', 'Interest', 'Proc. Fee', 'Balance']]
+        table_data[0] = ['#', 'Month', 'EMI', 'Principal', 'Interest', 'Proc. Fee', 'Balance']
+        
+        for row in context['rows']:
+            table_data.append([
+                str(row['month_num']),
+                row['month'],
+                f"Rs: {row['emi']}",
+                f"Rs: {row['principal_component']}",
+                f"Rs: {row['interest_component']}",
+                f"Rs: {row['processing_fee_component']}",
+                f"Rs: {row['remaining_principal']}",
+            ])
+        
+        # Totals row
+        table_data.append([
+            '', 'TOTAL',
+            f"Rs: {context['total_amount']}",
+            f"Rs: {context['distribution_amount']}",
+            f"Rs: {context['total_interest']}",
+            f"Rs: {context['processing_fee']}",
+            '---',
+        ])
+        
+        table = Table(table_data, colWidths=[0.5*inch, 1*inch, 1*inch, 1*inch, 1*inch, 1*inch, 1*inch])
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, -1), (-1, -1), colors.beige),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ]))
+        
+        elements.append(table)
         doc.build(elements)
         return response
 

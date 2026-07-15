@@ -99,7 +99,7 @@
                             </td>
                             <td>
                                 {% if scheme.is_gold_scheme %}
-                                <div>{{ scheme.gold_interest_rate }}₹ per month</div>
+                                <div>{{ scheme.gold_interest_rate }}Rs:  per month</div>
                                 <small class="text-muted">({{ scheme.interest_rate }}% annual)</small>
                                 {% else %}
                                 {{ scheme.interest_rate }}% per year
@@ -112,7 +112,7 @@
                                 {{ scheme.loan_duration }} days
                                 {% endif %}
                             </td>
-                            <td>₹{{ scheme.minimum_amount|floatformat:0 }} - ₹{{ scheme.maximum_amount|floatformat:0 }}</td>
+                            <td>Rs: {{ scheme.minimum_amount|floatformat:0 }} - Rs: {{ scheme.maximum_amount|floatformat:0 }}</td>
                             <td>
                                 {% if scheme.status == 'active' %}
                                 <span class="badge bg-success">Active</span>

@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Function to format currency
     function formatCurrency(amount) {
-        return '₹' + parseFloat(amount).toLocaleString('en-IN', {
+        return 'Rs: ' + parseFloat(amount).toLocaleString('en-IN', {
             maximumFractionDigits: 2,
             minimumFractionDigits: 2
         });
@@ -90,7 +90,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>
                             <div class="col-md-6">
                                 <p><strong>Monthly Interest:</strong> ${formatCurrency(monthlyInterestAmount)}</p>
-                                <p><strong>Rate per ₹1,000:</strong> ${formatCurrency(perThousandRate)}</p>
+                                <p><strong>Rate per Rs: 1,000:</strong> ${formatCurrency(perThousandRate)}</p>
                             </div>
                         </div>
                     </div>
@@ -284,7 +284,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <p><strong>Type:</strong> ${scheme.additional_conditions && scheme.additional_conditions.scheme_type || 'Standard'}</p>
                                 <p><strong>Default Interest Rate:</strong> ${scheme.interest_rate}% per annum</p>
                                 <p><strong>Monthly Interest:</strong> ${monthlyInterestRate.toFixed(2)}% per month</p>
-                                <p><strong>Per ₹1,000 Rate:</strong> ₹${perThousandRate.toFixed(2)}</p>
+                                <p><strong>Per Rs: 1,000 Rate:</strong> Rs: ${perThousandRate.toFixed(2)}</p>
                             </div>
                             <div class="col-md-6">
                                 <p><strong>Loan Period:</strong> ${scheme.loan_duration} days</p>

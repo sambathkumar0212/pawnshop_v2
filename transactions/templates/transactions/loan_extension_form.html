@@ -45,7 +45,7 @@
                             </tr>
                             <tr>
                                 <th>Principal Amount</th>
-                                <td class="rupee">₹{{ loan.principal_amount }}</td>
+                                <td class="rupee">Rs: {{ loan.principal_amount }}</td>
                             </tr>
                             <tr>
                                 <th>Item</th>
@@ -114,7 +114,7 @@
                             </div>
                             <div class="col-md-6 mb-3">
                                 {{ form.extension_fee|as_crispy_field }}
-                                <small class="text-muted d-block">Current Fee: ₹{{ extension_fee }}</small>
+                                <small class="text-muted d-block">Current Fee: Rs: {{ extension_fee }}</small>
                             </div>
                         </div>
                         

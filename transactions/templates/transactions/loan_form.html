@@ -1657,7 +1657,7 @@
                 const maxPrincipalValue = Math.round(goldValue * 0.90);
                 
                 // Updated help text showing min and max percentages with their values
-                const helpText = `<i class="fas fa-info-circle"></i> Gold Value: ₹${goldValue.toFixed(0)} | Principal: ₹${suggestedPrincipal} (${actualPercentage.toFixed(1)}%) | Min Principal (50%): ₹${minPrincipalValue} - Max Principal (90%): ₹${maxPrincipalValue}`;
+                const helpText = `<i class="fas fa-info-circle"></i> Gold Value: Rs: ${goldValue.toFixed(0)} | Principal: Rs: ${suggestedPrincipal} (${actualPercentage.toFixed(1)}%) | Min Principal (50%): Rs: ${minPrincipalValue} - Max Principal (90%): Rs: ${maxPrincipalValue}`;
                 
                 // Update the form-text element or create it if it doesn't exist
                 let formText = $('#div_id_principal_amount .form-text');
@@ -1736,8 +1736,8 @@
                 if (principal < minPrincipal || principal > maxPrincipal) {
                     const errorMsg = $('<div class="principal-error text-danger small mt-1"></div>')
                         .text(principal < minPrincipal 
-                            ? `Principal must be at least ₹${minPrincipal} (50% of gold value)`
-                            : `Principal cannot exceed ₹${maxPrincipal} (90% of gold value)`);
+                            ? `Principal must be at least Rs: ${minPrincipal} (50% of gold value)`
+                            : `Principal cannot exceed Rs: ${maxPrincipal} (90% of gold value)`);
                     errorMsg.insertAfter('#div_id_principal_amount .form-text');
                 }
             }

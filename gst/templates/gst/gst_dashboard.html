@@ -82,7 +82,7 @@
                         <div class="card bg-light mb-3">
                             <div class="card-body text-center">
                                 <h6 class="card-title">Taxable Value</h6>
-                                <h4 class="text-primary">₹{{ current_month_stats.total_taxable|floatformat:2|intcomma }}</h4>
+                                <h4 class="text-primary">Rs: {{ current_month_stats.total_taxable|floatformat:2|intcomma }}</h4>
                             </div>
                         </div>
                     </div>
@@ -90,7 +90,7 @@
                         <div class="card bg-light mb-3">
                             <div class="card-body text-center">
                                 <h6 class="card-title">Total Tax</h6>
-                                <h4 class="text-success">₹{{ current_month_stats.total_tax|floatformat:2|intcomma }}</h4>
+                                <h4 class="text-success">Rs: {{ current_month_stats.total_tax|floatformat:2|intcomma }}</h4>
                             </div>
                         </div>
                     </div>
@@ -100,7 +100,7 @@
                         <div class="card bg-light">
                             <div class="card-body text-center">
                                 <h6 class="card-title">CGST</h6>
-                                <p class="mb-0">₹{{ current_month_stats.cgst|floatformat:2|intcomma }}</p>
+                                <p class="mb-0">Rs: {{ current_month_stats.cgst|floatformat:2|intcomma }}</p>
                             </div>
                         </div>
                     </div>
@@ -108,7 +108,7 @@
                         <div class="card bg-light">
                             <div class="card-body text-center">
                                 <h6 class="card-title">SGST</h6>
-                                <p class="mb-0">₹{{ current_month_stats.sgst|floatformat:2|intcomma }}</p>
+                                <p class="mb-0">Rs: {{ current_month_stats.sgst|floatformat:2|intcomma }}</p>
                             </div>
                         </div>
                     </div>
@@ -116,7 +116,7 @@
                         <div class="card bg-light">
                             <div class="card-body text-center">
                                 <h6 class="card-title">IGST</h6>
-                                <p class="mb-0">₹{{ current_month_stats.igst|floatformat:2|intcomma }}</p>
+                                <p class="mb-0">Rs: {{ current_month_stats.igst|floatformat:2|intcomma }}</p>
                             </div>
                         </div>
                     </div>
@@ -137,7 +137,7 @@
                         <div class="card bg-light mb-3">
                             <div class="card-body text-center">
                                 <h6 class="card-title">Taxable Value</h6>
-                                <h4 class="text-primary">₹{{ fy_stats.total_taxable|floatformat:2|intcomma }}</h4>
+                                <h4 class="text-primary">Rs: {{ fy_stats.total_taxable|floatformat:2|intcomma }}</h4>
                             </div>
                         </div>
                     </div>
@@ -145,7 +145,7 @@
                         <div class="card bg-light mb-3">
                             <div class="card-body text-center">
                                 <h6 class="card-title">Total Tax</h6>
-                                <h4 class="text-success">₹{{ fy_stats.total_tax|floatformat:2|intcomma }}</h4>
+                                <h4 class="text-success">Rs: {{ fy_stats.total_tax|floatformat:2|intcomma }}</h4>
                             </div>
                         </div>
                     </div>
@@ -155,7 +155,7 @@
                         <div class="card bg-light">
                             <div class="card-body text-center">
                                 <h6 class="card-title">CGST</h6>
-                                <p class="mb-0">₹{{ fy_stats.cgst|floatformat:2|intcomma }}</p>
+                                <p class="mb-0">Rs: {{ fy_stats.cgst|floatformat:2|intcomma }}</p>
                             </div>
                         </div>
                     </div>
@@ -163,7 +163,7 @@
                         <div class="card bg-light">
                             <div class="card-body text-center">
                                 <h6 class="card-title">SGST</h6>
-                                <p class="mb-0">₹{{ fy_stats.sgst|floatformat:2|intcomma }}</p>
+                                <p class="mb-0">Rs: {{ fy_stats.sgst|floatformat:2|intcomma }}</p>
                             </div>
                         </div>
                     </div>
@@ -171,7 +171,7 @@
                         <div class="card bg-light">
                             <div class="card-body text-center">
                                 <h6 class="card-title">IGST</h6>
-                                <p class="mb-0">₹{{ fy_stats.igst|floatformat:2|intcomma }}</p>
+                                <p class="mb-0">Rs: {{ fy_stats.igst|floatformat:2|intcomma }}</p>
                             </div>
                         </div>
                     </div>
@@ -262,11 +262,11 @@
                             {% endif %}
                         </td>
                         <td>{{ transaction.gst_rate.name }} ({{ transaction.gst_rate.igst_rate }}%)</td>
-                        <td class="text-end">₹{{ transaction.taxable_value|floatformat:2|intcomma }}</td>
-                        <td class="text-end">₹{{ transaction.cgst_amount|floatformat:2|intcomma }}</td>
-                        <td class="text-end">₹{{ transaction.sgst_amount|floatformat:2|intcomma }}</td>
-                        <td class="text-end">₹{{ transaction.igst_amount|floatformat:2|intcomma }}</td>
-                        <td class="text-end">₹{{ transaction.total_amount|floatformat:2|intcomma }}</td>
+                        <td class="text-end">Rs: {{ transaction.taxable_value|floatformat:2|intcomma }}</td>
+                        <td class="text-end">Rs: {{ transaction.cgst_amount|floatformat:2|intcomma }}</td>
+                        <td class="text-end">Rs: {{ transaction.sgst_amount|floatformat:2|intcomma }}</td>
+                        <td class="text-end">Rs: {{ transaction.igst_amount|floatformat:2|intcomma }}</td>
+                        <td class="text-end">Rs: {{ transaction.total_amount|floatformat:2|intcomma }}</td>
                         <td>
                             <div class="btn-group btn-group-sm">
                                 <a href="{% url 'gst_transaction_detail' transaction.id %}" class="btn btn-info" title="View">

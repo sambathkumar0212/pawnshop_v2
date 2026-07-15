@@ -53,7 +53,7 @@
                 <p><strong>கடன் எண்:</strong> {{ loan.loan_number }}</p>
                 <p><strong>கடைசி தேதி:</strong> {{ loan.due_date|date:"M d, Y" }}{% if loan.grace_period_end %} &nbsp; | &nbsp; <strong>ஓய்வு காலம் முடிவு:</strong> {{ loan.grace_period_end|date:"M d, Y" }}{% endif %}</p>
                 <p><strong>நிலை:</strong> {{ loan.get_status_display }}</p>
-                <p><strong>மீதமுள்ள தொகை (சராசரி):</strong> ₹{{ loan.remaining_balance|default:loan.principal_amount|floatformat:2 }}</p>
+                <p><strong>மீதமுள்ள தொகை (சராசரி):</strong> Rs: {{ loan.remaining_balance|default:loan.principal_amount|floatformat:2 }}</p>
             </div>
 
             <div class="items">
@@ -88,7 +88,7 @@
                 <p><strong>Loan Number:</strong> {{ loan.loan_number }}</p>
                 <p><strong>Due Date:</strong> {{ loan.due_date|date:"M d, Y" }}{% if loan.grace_period_end %} &nbsp; | &nbsp; <strong>Grace End:</strong> {{ loan.grace_period_end|date:"M d, Y" }}{% endif %}</p>
                 <p><strong>Status:</strong> {{ loan.get_status_display }}</p>
-                <p><strong>Outstanding Amount (approx):</strong> ₹{{ loan.remaining_balance|default:loan.principal_amount|floatformat:2 }}</p>
+                <p><strong>Outstanding Amount (approx):</strong> Rs: {{ loan.remaining_balance|default:loan.principal_amount|floatformat:2 }}</p>
             </div>
 
             <div class="items">

@@ -37,8 +37,8 @@ msgstr "குறிப்பு எண்:"
 msgid "Description"
 msgstr "விளக்கம்"
 
-msgid "Amount (₹)"
-msgstr "தொகை (₹)"
+msgid "Amount (Rs: )"
+msgstr "தொகை (Rs: )"
 
 msgid "Payment towards Loan"
 msgstr "கடன் செலுத்துதல்"
@@ -228,7 +228,7 @@ msgid "S.No."
 msgstr "இ.எண்"
 
 msgid "Amount (Rs)"
-msgstr "தொகை (₹)"
+msgstr "தொகை (Rs: )"
 
 msgid "Method"
 msgstr "முறை"

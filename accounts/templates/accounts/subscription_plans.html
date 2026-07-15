@@ -339,7 +339,7 @@
                     
                     <div class="plan-header">
                         <h3 class="card-title">{{ plan.name }}</h3>
-                        <p class="plan-price mb-0">₹{{ plan.price }}
+                        <p class="plan-price mb-0">Rs: {{ plan.price }}
                             <span class="price-period">/{{ plan.period }}</span>
                         </p>
                         <p class="text-muted">{{ plan.description }}</p>
@@ -583,7 +583,7 @@
                                 <td>{{ transaction.date }}</td>
                                 <td>{{ transaction.description }}</td>
                                 <td>{{ transaction.plan }}</td>
-                                <td>₹{{ transaction.amount }}</td>
+                                <td>Rs: {{ transaction.amount }}</td>
                                 <td>
                                     {% if transaction.status == 'paid' %}
                                     <span class="badge bg-success">Paid</span>

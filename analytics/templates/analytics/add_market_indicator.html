@@ -32,8 +32,8 @@
                                     <label for="indicator_type" class="form-label">Indicator Type</label>
                                     <select class="form-control" id="indicator_type" name="indicator_type" required>
                                         <option value="">Select Indicator Type</option>
-                                        <option value="gold_price">Gold Price (₹/gram)</option>
-                                        <option value="silver_price">Silver Price (₹/gram)</option>
+                                        <option value="gold_price">Gold Price (Rs: /gram)</option>
+                                        <option value="silver_price">Silver Price (Rs: /gram)</option>
                                         <option value="inflation_rate">Inflation Rate (%)</option>
                                         <option value="interest_rate">Interest Rate (%)</option>
                                         <option value="currency_rate">Currency Exchange Rate</option>
@@ -131,8 +131,8 @@
                     
                     <h6 class="font-weight-bold text-primary">Sample Values</h6>
                     <small class="text-muted">
-                        <strong>Gold Price:</strong> ₹6,200-6,800/gram<br>
-                        <strong>Silver Price:</strong> ₹75-85/gram<br>
+                        <strong>Gold Price:</strong> Rs: 6,200-6,800/gram<br>
+                        <strong>Silver Price:</strong> Rs: 75-85/gram<br>
                         <strong>Inflation Rate:</strong> 4-7%<br>
                         <strong>Interest Rate:</strong> 6-8%
                     </small>
@@ -199,7 +199,7 @@ document.querySelector('form').addEventListener('submit', function(e) {
     
     // Basic validation for different indicator types
     if (type === 'gold_price' && (parseFloat(value) < 1000 || parseFloat(value) > 20000)) {
-        if (!confirm('Gold price seems unusual (₹' + value + '/gram). Are you sure you want to continue?')) {
+        if (!confirm('Gold price seems unusual (Rs: ' + value + '/gram). Are you sure you want to continue?')) {
             e.preventDefault();
         }
     }

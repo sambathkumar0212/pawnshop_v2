@@ -250,7 +250,7 @@ class Appraisal(models.Model):
         ordering = ['-appraisal_date']
     
     def __str__(self):
-        return f"Appraisal for {self.item.name} - ₹{self.value}"
+        return f"Appraisal for {self.item.name} - Rs: {self.value}"
 
 class InventoryAudit(models.Model):
     item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='audits')

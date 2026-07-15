@@ -394,7 +394,7 @@ class NewSchemeForm(forms.ModelForm):
             'step': '0.01',
             'placeholder': 'e.g., 1.00'
         }),
-        help_text="Monthly interest rate for gold loans per ₹100"
+        help_text="Monthly interest rate for gold loans per Rs: 100"
     )
     
     expiry_period = forms.IntegerField(

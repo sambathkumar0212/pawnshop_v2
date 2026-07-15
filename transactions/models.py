@@ -485,7 +485,7 @@ class Payment(models.Model):
         ordering = ['-payment_date']
     
     def __str__(self):
-        return f"Payment of ₹{self.amount} for {self.loan}"
+        return f"Payment of Rs: {self.amount} for {self.loan}"
 
 
 class LoanExtension(models.Model):
@@ -567,7 +567,7 @@ class Sale(models.Model):
         ordering = ['-sale_date']
     
     def __str__(self):
-        return f"Sale #{self.transaction_number} - ₹{self.total_amount}"
+        return f"Sale #{self.transaction_number} - Rs: {self.total_amount}"
     
     def save(self, *args, **kwargs):
         """Override save to calculate GST if not already calculated"""

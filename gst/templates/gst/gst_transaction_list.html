@@ -97,11 +97,11 @@
                             {% endif %}
                         </td>
                         <td>{{ transaction.gst_rate.name }} ({{ transaction.gst_rate.igst_rate }}%)</td>
-                        <td class="text-end">₹{{ transaction.taxable_value|floatformat:2|intcomma }}</td>
-                        <td class="text-end">₹{{ transaction.cgst_amount|floatformat:2|intcomma }}</td>
-                        <td class="text-end">₹{{ transaction.sgst_amount|floatformat:2|intcomma }}</td>
-                        <td class="text-end">₹{{ transaction.igst_amount|floatformat:2|intcomma }}</td>
-                        <td class="text-end">₹{{ transaction.total_amount|floatformat:2|intcomma }}</td>
+                        <td class="text-end">Rs: {{ transaction.taxable_value|floatformat:2|intcomma }}</td>
+                        <td class="text-end">Rs: {{ transaction.cgst_amount|floatformat:2|intcomma }}</td>
+                        <td class="text-end">Rs: {{ transaction.sgst_amount|floatformat:2|intcomma }}</td>
+                        <td class="text-end">Rs: {{ transaction.igst_amount|floatformat:2|intcomma }}</td>
+                        <td class="text-end">Rs: {{ transaction.total_amount|floatformat:2|intcomma }}</td>
                         <td>
                             <div class="btn-group btn-group-sm">
                                 <a href="{% url 'gst_transaction_detail' transaction.id %}" class="btn btn-info" title="View">
@@ -121,11 +121,11 @@
                 <tfoot class="table-primary">
                     <tr>
                         <th colspan="5" class="text-end">Totals:</th>
-                        <th class="text-end">₹{{ totals.taxable_value|floatformat:2|intcomma }}</th>
-                        <th class="text-end">₹{{ totals.cgst_amount|floatformat:2|intcomma }}</th>
-                        <th class="text-end">₹{{ totals.sgst_amount|floatformat:2|intcomma }}</th>
-                        <th class="text-end">₹{{ totals.igst_amount|floatformat:2|intcomma }}</th>
-                        <th class="text-end">₹{{ totals.total_amount|floatformat:2|intcomma }}</th>
+                        <th class="text-end">Rs: {{ totals.taxable_value|floatformat:2|intcomma }}</th>
+                        <th class="text-end">Rs: {{ totals.cgst_amount|floatformat:2|intcomma }}</th>
+                        <th class="text-end">Rs: {{ totals.sgst_amount|floatformat:2|intcomma }}</th>
+                        <th class="text-end">Rs: {{ totals.igst_amount|floatformat:2|intcomma }}</th>
+                        <th class="text-end">Rs: {{ totals.total_amount|floatformat:2|intcomma }}</th>
                         <th></th>
                     </tr>
                 </tfoot>

@@ -276,7 +276,7 @@
                                     <td>New Customers</td>
                                     <td>{{ new_customers_count|default:"0"|intcomma }}</td>
                                     <td>{{ new_customers_percent|default:"0"|floatformat:2 }}%</td>
-                                    <td>₹{{ new_customers_avg_loan|default:"0"|intcomma }}</td>
+                                    <td>Rs: {{ new_customers_avg_loan|default:"0"|intcomma }}</td>
                                     <td>{{ new_customers_avg_trans|default:"0"|floatformat:2 }}</td>
                                     <td>{{ new_customers_retention|default:"0"|floatformat:2 }}%</td>
                                 </tr>
@@ -284,7 +284,7 @@
                                     <td>Regular Customers</td>
                                     <td>{{ regular_customers_count|default:"0"|intcomma }}</td>
                                     <td>{{ regular_customers_percent|default:"0"|floatformat:2 }}%</td>
-                                    <td>₹{{ regular_customers_avg_loan|default:"0"|intcomma }}</td>
+                                    <td>Rs: {{ regular_customers_avg_loan|default:"0"|intcomma }}</td>
                                     <td>{{ regular_customers_avg_trans|default:"0"|floatformat:2 }}</td>
                                     <td>{{ regular_customers_retention|default:"0"|floatformat:2 }}%</td>
                                 </tr>
@@ -292,7 +292,7 @@
                                     <td>Premium Customers</td>
                                     <td>{{ premium_customers_count|default:"0"|intcomma }}</td>
                                     <td>{{ premium_customers_percent|default:"0"|floatformat:2 }}%</td>
-                                    <td>₹{{ premium_customers_avg_loan|default:"0"|intcomma }}</td>
+                                    <td>Rs: {{ premium_customers_avg_loan|default:"0"|intcomma }}</td>
                                     <td>{{ premium_customers_avg_trans|default:"0"|floatformat:2 }}</td>
                                     <td>{{ premium_customers_retention|default:"0"|floatformat:2 }}%</td>
                                 </tr>

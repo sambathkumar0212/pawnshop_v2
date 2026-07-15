@@ -105,7 +105,7 @@
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
                                 Total Revenue</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">₹{{ total_revenue|default:"0"|intcomma }}</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">Rs: {{ total_revenue|default:"0"|intcomma }}</div>
                             <div class="text-{% if revenue_growth >= 0 %}success{% else %}danger{% endif %} small mt-1">
                                 <i class="fas fa-arrow-{% if revenue_growth >= 0 %}up{% else %}down{% endif %}"></i>
                                 {{ revenue_growth|floatformat:2 }}% {{ comparison_label }}
@@ -127,7 +127,7 @@
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
                                 Net Profit</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">₹{{ net_profit|default:"0"|intcomma }}</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">Rs: {{ net_profit|default:"0"|intcomma }}</div>
                             <div class="text-{% if profit_growth >= 0 %}success{% else %}danger{% endif %} small mt-1">
                                 <i class="fas fa-arrow-{% if profit_growth >= 0 %}up{% else %}down{% endif %}"></i>
                                 {{ profit_growth|floatformat:2 }}% {{ comparison_label }}
@@ -149,7 +149,7 @@
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
                                 Active Loan Portfolio</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">₹{{ loan_portfolio|default:"0"|intcomma }}</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">Rs: {{ loan_portfolio|default:"0"|intcomma }}</div>
                             <div class="text-{% if portfolio_growth >= 0 %}success{% else %}danger{% endif %} small mt-1">
                                 <i class="fas fa-arrow-{% if portfolio_growth >= 0 %}up{% else %}down{% endif %}"></i>
                                 {{ portfolio_growth|floatformat:2 }}% {{ comparison_label }}
@@ -171,7 +171,7 @@
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
                                 Operating Expenses</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">₹{{ expenses|default:"0"|intcomma }}</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">Rs: {{ expenses|default:"0"|intcomma }}</div>
                             <div class="text-{% if expense_growth <= 0 %}success{% else %}danger{% endif %} small mt-1">
                                 <i class="fas fa-arrow-{% if expense_growth <= 0 %}down{% else %}up{% endif %}"></i>
                                 {{ expense_growth|floatformat:2 }}% {{ comparison_label }}
@@ -430,7 +430,7 @@ $(document).ready(function() {
                     beginAtZero: true,
                     ticks: {
                         callback: function(value) {
-                            return '₹' + value.toLocaleString();
+                            return 'Rs: ' + value.toLocaleString();
                         }
                     }
                 }

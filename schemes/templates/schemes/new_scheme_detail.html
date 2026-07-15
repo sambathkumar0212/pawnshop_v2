@@ -99,7 +99,7 @@
                                     <th class="text-nowrap">Interest Rate:</th>
                                     <td>
                                         {% if scheme.is_gold_scheme %}
-                                        {{ scheme.gold_interest_rate }} ₹ per month per ₹100<br>
+                                        {{ scheme.gold_interest_rate }} Rs:  per month per Rs: 100<br>
                                         <small class="text-muted">({{ scheme.interest_rate }}% annual equivalent)</small>
                                         {% else %}
                                         {{ scheme.interest_rate }}% per year
@@ -119,7 +119,7 @@
                                 </tr>
                                 <tr>
                                     <th class="text-nowrap">Amount Range:</th>
-                                    <td>₹{{ scheme.minimum_amount|floatformat:0 }} - ₹{{ scheme.maximum_amount|floatformat:0 }}</td>
+                                    <td>Rs: {{ scheme.minimum_amount|floatformat:0 }} - Rs: {{ scheme.maximum_amount|floatformat:0 }}</td>
                                 </tr>
                                 <tr>
                                     <th class="text-nowrap">Last Updated:</th>

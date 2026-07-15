@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}EMI Schedule - {{ loan.loan_number }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>EMI Schedule - Loan {{ loan.loan_number }}</h2>
+        <div>
+            <a href="{% url 'loan_emi_schedule' loan.loan_number %}?download=pdf" class="btn btn-primary" target="_blank">
+                <i class="fas fa-download"></i> Download PDF
+            </a>
+            <a href="{% url 'loan_detail' loan.loan_number %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Loan
+            </a>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Loan Information</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Customer:</strong> {{ loan.customer.full_name }}</p>
+                    <p><strong>Loan Number:</strong> {{ loan.loan_number }}</p>
+                    <p><strong>Loan Date:</strong> {{ issue_date|date:"d/m/Y" }}</p>
+                    <p><strong>Due Date:</strong> {{ due_date|date:"d/m/Y" }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Principal Amount: Rs :</strong> {{ total_principal }}</p>
+                    <p><strong>Distribution Amount: Rs :</strong> {{ distribution_amount }}</p>
+                    <p><strong>Processing Fee: Rs :</strong> {{ processing_fee }}</p>
+                    <p><strong>Interest Rate:</strong> {{ loan.interest_rate }}% per annum</p>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-md-12">
+                    <div class="alert alert-info">
+                        <h5 class="alert-heading">EMI Details</h5>
+                        <p class="mb-1"><strong>Monthly EMI: Rs :</strong> {{ emi_amount }}</p>
+                        <p class="mb-1"><strong>Number of Months:</strong> {{ num_months }}</p>
+                        <p class="mb-0"><strong>Total Amount Payable: Rs :</strong> {{ total_amount }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Monthly EMI Breakdown</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Month</th>
+                            <th class="text-end">EMI Amount</th>
+                            <th class="text-end">Principal</th>
+                            <th class="text-end">Interest</th>
+                            <th class="text-end">Proc. Fee</th>
+                            <th class="text-end">Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in rows %}
+                        <tr>
+                            <td>{{ row.month_num }}</td>
+                            <td>{{ row.month }}</td>
+                            <td class="text-end">Rs : {{ row.emi }}</td>
+                            <td class="text-end">Rs : {{ row.principal_component }}</td>
+                            <td class="text-end">Rs : {{ row.interest_component }}</td>
+                            <td class="text-end">Rs : {{ row.processing_fee_component }}</td>
+                            <td class="text-end">Rs : {{ row.remaining_principal }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-secondary">
+                        <tr>
+                            <th colspan="2">TOTAL</th>
+                            <th class="text-end">Rs : {{ total_amount }}</th>
+                            <th class="text-end">Rs : {{ distribution_amount }}</th>
+                            <th class="text-end">Rs : {{ total_interest }}</th>
+                            <th class="text-end">Rs : {{ processing_fee }}</th>
+                            <th class="text-end">---</th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="alert alert-warning mt-4">
+        <h6 class="alert-heading"><i class="fas fa-info-circle"></i> Note:</h6>
+        <p class="mb-0">This EMI schedule shows equal monthly installments calculated using the reducing balance method. Interest is calculated on the distribution amount only.</p>
+    </div>
+</div>
+{% endblock %}

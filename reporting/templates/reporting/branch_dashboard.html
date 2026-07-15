@@ -266,7 +266,7 @@
                                 {% for branch in branch_comparison %}
                                 <tr>
                                     <td>{{ branch.name }}</td>
-                                    <td>₹{{ branch.revenue|default:"0"|intcomma }}</td>
+                                    <td>Rs: {{ branch.revenue|default:"0"|intcomma }}</td>
                                     <td>{{ branch.loans|default:"0" }}</td>
                                     <td>{{ branch.customers|default:"0" }}</td>
                                     <td>{{ branch.staff|default:"0" }}</td>

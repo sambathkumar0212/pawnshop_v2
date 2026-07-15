@@ -56,6 +56,9 @@
                     <a href="{% url 'loan_schedule' loan.loan_number %}?download=pdf" class="btn btn-outline-secondary me-2" target="_blank">
                         <i class="fas fa-calendar-alt"></i> Loan Schedule
                     </a>
+                    <a href="{% url 'loan_emi_schedule' loan.loan_number %}?download=pdf" class="btn btn-outline-info me-2" target="_blank">
+                        <i class="fas fa-calculator"></i> EMI Schedule
+                    </a>
                     {% if loan.status == 'defaulted' %}
                         <a href="{% url 'loan_expiry_notice' loan.loan_number %}" class="btn btn-outline-danger me-2" target="_blank">
                             <i class="fas fa-file-alt"></i> Expiry Notice
@@ -147,30 +150,30 @@
                                 </div>
                                 <div class="col-md-3 mb-2">
                                     <label class="small text-muted">Principal Amount</label>
-                                    <p class="mb-0 rupee-symbol">₹{{ loan.principal_amount|floatformat:2 }}</p>
+                                    <p class="mb-0 rupee-symbol">Rs: {{ loan.principal_amount|floatformat:2 }}</p>
                                     <small class="text-muted" id="principalAmountWords" style="font-size: 0.75em;">
                                         {{ loan.principal_amount|number_to_words|title }} Rupees Only
                                     </small>
                                 </div>
                                 <div class="col-md-3 mb-2">
                                     <label class="small text-muted">Total Payable (Till Today)</label>
-                                    <p class="mb-0 rupee-symbol">₹{{ loan.total_payable_till_date|floatformat:0 }}</p>
+                                    <p class="mb-0 rupee-symbol">Rs: {{ loan.total_payable_till_date|floatformat:0 }}</p>
                                 </div>
                                 <div class="col-md-3 mb-2">
                                     <label class="small text-muted">Total Payable (Maturity)</label>
-                                    <p class="mb-0 rupee-symbol">₹{{ loan.total_payable_mature|floatformat:0 }}</p>
+                                    <p class="mb-0 rupee-symbol">Rs: {{ loan.total_payable_mature|floatformat:0 }}</p>
                                 </div>
                                 <div class="col-md-3 mb-2">
                                     <label class="small text-muted">Amount Already Paid</label>
-                                    <p class="mb-0 rupee-symbol">₹{{ loan.amount_paid|floatformat:2 }}</p>
+                                    <p class="mb-0 rupee-symbol">Rs: {{ loan.amount_paid|floatformat:2 }}</p>
                                 </div>
                                 <div class="col-md-3 mb-2">
                                     <label class="small text-muted">Net Payable (Still Due)</label>
-                                    <p class="mb-0 fw-bold text-danger rupee-symbol">₹{{ loan.net_payable_still_due|floatformat:0 }}</p>
+                                    <p class="mb-0 fw-bold text-danger rupee-symbol">Rs: {{ loan.net_payable_still_due|floatformat:0 }}</p>
                                 </div>
                                 <div class="col-md-3 mb-2">
                                     <label class="small text-muted">Remaining Balance</label>
-                                    <p class="mb-0 rupee-symbol">₹{{ loan.remaining_balance|floatformat:0 }}</p>
+                                    <p class="mb-0 rupee-symbol">Rs: {{ loan.remaining_balance|floatformat:0 }}</p>
                                 </div>
                             </div>
                         </div>
@@ -189,11 +192,11 @@
                     <div class="row">
                         <div class="col-md-4 mb-3">
                             <label class="text-muted">Processing Fee</label>
-                            <p class="mb-0 rupee-symbol">₹{{ loan.processing_fee }}</p>
+                            <p class="mb-0 rupee-symbol">Rs: {{ loan.processing_fee }}</p>
                         </div>
                         <div class="col-md-4 mb-3">
                             <label class="text-muted">Distribution Amount</label>
-                            <p class="mb-0 rupee-symbol">₹{{ loan.distribution_amount|floatformat:2 }}</p>
+                            <p class="mb-0 rupee-symbol">Rs: {{ loan.distribution_amount|floatformat:2 }}</p>
                             <small class="text-muted" id="distributionAmountWords" style="font-size: 0.65rem;">
                                 {{ loan.distribution_amount|number_to_words|title }} Rupees Only
                             </small>
@@ -215,11 +218,11 @@
                                         </div>
                                         <div class="col-md-4">
                                             <label class="text-muted small">Monthly Interest</label>
-                                            <p class="mb-0 rupee-symbol small">₹{{ loan|monthly_interest_amount|floatformat:2 }}</p>
+                                            <p class="mb-0 rupee-symbol small">Rs: {{ loan|monthly_interest_amount|floatformat:2 }}</p>
                                         </div>
                                         <div class="col-md-4">
                                             <label class="text-muted small">Interest Till Date</label>
-                                            <p class="mb-0 rupee-symbol small">₹{{ loan.monthly_interest_till_date|floatformat:2 }}</p>
+                                            <p class="mb-0 rupee-symbol small">Rs: {{ loan.monthly_interest_till_date|floatformat:2 }}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -313,8 +316,8 @@
                                 {% endif %}
                             </div>
                             <div class="d-flex justify-content-between mt-1">
-                                <small class="text-muted">₹{{ loan.amount_paid|floatformat:2 }} paid</small>
-                                <small class="text-muted">₹{{ loan.total_payable_till_date|floatformat:0 }} total</small>
+                                <small class="text-muted">Rs: {{ loan.amount_paid|floatformat:2 }} paid</small>
+                                <small class="text-muted">Rs: {{ loan.total_payable_till_date|floatformat:0 }} total</small>
                             </div>
                         </div>
                     </div>
@@ -356,7 +359,7 @@
                                 {% for payment in payments %}
                                 <tr>
                                     <td>{{ payment.payment_date|date:"M d, Y" }}</td>
-                                    <td>₹{{ payment.amount|floatformat:2 }}</td>
+                                    <td>Rs: {{ payment.amount|floatformat:2 }}</td>
                                     <td>{{ payment.get_payment_method_display }}</td>
                                 </tr>
                                 {% endfor %}
@@ -485,7 +488,7 @@
                                     <td>{{ item.gold_karat }}K</td>
                                     <td>{{ item.gross_weight }}g</td>
                                     <td>{{ item.net_weight }}g</td>
-                                    <td>₹{{ item.market_price_22k|floatformat:2 }}</td>
+                                    <td>Rs: {{ item.market_price_22k|floatformat:2 }}</td>
                                 </tr>
                                 {% empty %}
                                 <tr>
@@ -520,7 +523,7 @@
                                 {% for extension in extensions %}
                                 <tr>
                                     <td>{{ extension.extension_date|date:"M d, Y" }}</td>
-                                    <td>₹{{ extension.fee|floatformat:2 }}</td>
+                                    <td>Rs: {{ extension.fee|floatformat:2 }}</td>
                                     <td>{{ extension.new_due_date|date:"M d, Y" }}</td>
                                 </tr>
                                 {% endfor %}

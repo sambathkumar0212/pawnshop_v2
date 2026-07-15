@@ -264,7 +264,7 @@ const seasonalChart = new Chart(seasonalCtx, {
     data: {
         labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
         datasets: [{
-            label: 'Loan Amount (₹)',
+            label: 'Loan Amount (Rs: )',
             data: [
                 {% for month in "123456789012"|make_list %}
                     {% with seasonal_analysis.monthly_patterns|get_item:month as month_data %}
@@ -284,7 +284,7 @@ const seasonalChart = new Chart(seasonalCtx, {
                 beginAtZero: true,
                 ticks: {
                     callback: function(value, index, values) {
-                        return '₹' + value.toLocaleString();
+                        return 'Rs: ' + value.toLocaleString();
                     }
                 }
             }

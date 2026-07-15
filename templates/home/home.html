@@ -236,7 +236,7 @@
     <div class="col-lg-3 col-md-6 mb-3">
         <div class="stats-card stats-sales">
             <div class="stat-label">Today's Revenue</div>
-            <div class="stat-value">₹{{ total_sales|default:"0" }}</div>
+            <div class="stat-value">Rs: {{ total_sales|default:"0" }}</div>
             <div class="stat-trend">
                 <i class="fas fa-arrow-up"></i> 3.48% vs yesterday
             </div>
@@ -524,7 +524,7 @@
                         beginAtZero: true,
                         ticks: {
                             callback: function(value) {
-                                return '₹' + value.toLocaleString();
+                                return 'Rs: ' + value.toLocaleString();
                             }
                         }
                     }
@@ -613,7 +613,7 @@
                         beginAtZero: true,
                         ticks: {
                             callback: function(value) {
-                                return '₹' + value.toLocaleString();
+                                return 'Rs: ' + value.toLocaleString();
                             }
                         }
                     }

@@ -140,7 +140,7 @@ class CashFlowForecastAdmin(admin.ModelAdmin):
         value = obj.predicted_net_cash_flow
         color = '#28a745' if value >= 0 else '#dc3545'
         return format_html(
-            '<span style="color: {}; font-weight: bold;">₹{:,.2f}</span>',
+            '<span style="color: {}; font-weight: bold;">Rs: {:,.2f}</span>',
             color,
             value
         )
@@ -170,7 +170,7 @@ class MarketIndicatorAdmin(admin.ModelAdmin):
     def value(self, obj):
         # Format value based on indicator type
         if obj.indicator_type == 'gold_price':
-            return f"₹{obj.value:,.2f}/gram"
+            return f"Rs: {obj.value:,.2f}/gram"
         elif obj.indicator_type in ['interest_rate', 'inflation_rate', 'unemployment_rate']:
             return f"{obj.value}%"
         elif obj.indicator_type == 'gdp_growth':

@@ -164,7 +164,7 @@
                                     {% for loan in loans|slice:":10" %}
                                         <tr>
                                             <td>{{ loan.loan_number }}</td>
-                                            <td>₹{{ loan.principal_amount|intcomma }}</td>
+                                            <td>Rs: {{ loan.principal_amount|intcomma }}</td>
                                             <td>
                                                 <span class="badge badge-{% if loan.status == 'active' %}success{% elif loan.status == 'defaulted' %}danger{% else %}secondary{% endif %}">
                                                     {{ loan.get_status_display }}

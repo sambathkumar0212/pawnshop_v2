@@ -116,10 +116,10 @@
                     <div class="row mt-3">
                         <div class="col-md-6">
                             <h6 class="font-weight-bold">Financial Details</h6>
-                            <p><strong>Purchase Price:</strong> ₹{{ item.purchase_price }}</p>
-                            <p><strong>Appraised Value:</strong> ₹{{ item.appraised_value }}</p>
+                            <p><strong>Purchase Price:</strong> Rs: {{ item.purchase_price }}</p>
+                            <p><strong>Appraised Value:</strong> Rs: {{ item.appraised_value }}</p>
                             {% if item.status == 'sold' %}
-                            <p><strong>Sale Price:</strong> ₹{{ item.sale_price }}</p>
+                            <p><strong>Sale Price:</strong> Rs: {{ item.sale_price }}</p>
                             {% endif %}
                         </div>
                         <div class="col-md-6">
@@ -166,7 +166,7 @@
                 </div>
                 <div class="card-body">
                     <p><strong>Loan Number:</strong> <a href="{% url 'loan_detail' loan.loan_number %}">{{ loan.loan_number }}</a></p>
-                    <p><strong>Principal Amount:</strong> ₹{{ loan.principal_amount }}</p>
+                    <p><strong>Principal Amount:</strong> Rs: {{ loan.principal_amount }}</p>
                     <p><strong>Interest Rate:</strong> {{ loan.interest_rate }}%</p>
                     <p><strong>Due Date:</strong> {{ loan.due_date }}</p>
                     <p><strong>Days Remaining:</strong> {{ loan.days_remaining }}</p>
@@ -194,7 +194,7 @@
                             <h5 class="card-title">
                                 <a href="{% url 'item_detail' related_item.pk %}">{{ related_item.name }}</a>
                             </h5>
-                            <p class="card-text">₹{{ related_item.appraised_value }}</p>
+                            <p class="card-text">Rs: {{ related_item.appraised_value }}</p>
                         </div>
                     </div>
                 </div>

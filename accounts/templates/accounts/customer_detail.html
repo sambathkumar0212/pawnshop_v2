@@ -214,9 +214,9 @@
                                         </div>
                                         {% endfor %}
                                     </td>
-                                    <td>₹{{ loan.principal_amount|floatformat:2 }}</td>
+                                    <td>Rs: {{ loan.principal_amount|floatformat:2 }}</td>
                                     <td>
-                                        <span class="text-success">₹{{ loan.distribution_amount|floatformat:2 }}</span>
+                                        <span class="text-success">Rs: {{ loan.distribution_amount|floatformat:2 }}</span>
                                     </td>
                                     <td>
                                         {% if loan.is_overdue %}
@@ -290,7 +290,7 @@
                                             {{ item.get_status_display }}
                                         </span>
                                     </td>
-                                    <td>₹{{ item.appraised_value|floatformat:2 }}</td>
+                                    <td>Rs: {{ item.appraised_value|floatformat:2 }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -332,9 +332,9 @@
                                             <span class="text-muted">No ID</span>
                                         {% endif %}
                                     </td>
-                                    <td>₹{{ loan.principal_amount|floatformat:2 }}</td>
+                                    <td>Rs: {{ loan.principal_amount|floatformat:2 }}</td>
                                     <td>
-                                        <span class="text-success">₹{{ loan.distribution_amount|floatformat:2 }}</span>
+                                        <span class="text-success">Rs: {{ loan.distribution_amount|floatformat:2 }}</span>
                                     </td>
                                     <td>
                                         <span class="badge bg-{% if loan.status == 'active' %}success

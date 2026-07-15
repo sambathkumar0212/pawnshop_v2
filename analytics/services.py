@@ -559,7 +559,7 @@ class RiskAnalytics:
             defaults={
                 'severity': 'high' if predicted_amount < -100000 else 'medium',
                 'title': f'Negative Cash Flow Predicted - {branch.name}',
-                'description': f'Negative cash flow of ₹{abs(predicted_amount):,.2f} predicted for {forecast_date}',
+                'description': f'Negative cash flow of Rs: {abs(predicted_amount):,.2f} predicted for {forecast_date}',
                 'recommendation': 'Review loan disbursement policies and ensure adequate liquidity.',
                 'actual_value': predicted_amount
             }

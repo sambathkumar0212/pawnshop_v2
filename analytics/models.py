@@ -309,7 +309,7 @@ class BusinessExpense(models.Model):
         ordering = ['-expense_date', '-created_at']
         
     def __str__(self):
-        return f"{self.expense_number} - {self.category.name} - ₹{self.amount}"
+        return f"{self.expense_number} - {self.category.name} - Rs: {self.amount}"
     
     def save(self, *args, **kwargs):
         if not self.expense_number:
@@ -377,4 +377,4 @@ class RecurringExpense(models.Model):
         ordering = ['next_due_date']
         
     def __str__(self):
-        return f"{self.name} - {self.frequency} - ₹{self.amount}"
+        return f"{self.name} - {self.frequency} - Rs: {self.amount}"

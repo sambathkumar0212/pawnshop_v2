@@ -95,7 +95,7 @@ def generate_loan_agreement_pdf(loan, request=None):
         ['Loan Number:', loan.loan_number],
         ['Customer Name:', loan.customer.full_name],
         ['Loan Date:', str(loan.created_at.date())],
-        ['Principal Amount:', f'₹{loan.principal_amount:,.2f}'],
+        ['Principal Amount:', f'Rs: {loan.principal_amount:,.2f}'],
         ['Interest Rate:', f'{loan.scheme.interest_rate}% per annum'],
         ['Loan Duration:', f'{loan.scheme.loan_duration} days'],
     ]
@@ -105,7 +105,7 @@ def generate_loan_agreement_pdf(loan, request=None):
             ['கடன் எண்:', loan.loan_number],
             ['வாடிக்கையாளர் பெயர்:', loan.customer.full_name],
             ['கடன் தேதி:', str(loan.created_at.date())],
-            ['முதன்மை தொகை:', f'₹{loan.principal_amount:,.2f}'],
+            ['முதன்மை தொகை:', f'Rs: {loan.principal_amount:,.2f}'],
             ['வட்டி விகிதம்:', f'{loan.scheme.interest_rate}% ஆண்டுக்கு'],
             ['கடன் கால அளவு:', f'{loan.scheme.loan_duration} நாட்கள்'],
         ]
@@ -114,7 +114,7 @@ def generate_loan_agreement_pdf(loan, request=None):
             ['Kataan Enru:', loan.loan_number],
             ['Vaadikayalalar Peyar:', loan.customer.full_name],
             ['Kataan Thedum:', str(loan.created_at.date())],
-            ['Muthana Thogai:', f'₹{loan.principal_amount:,.2f}'],
+            ['Muthana Thogai:', f'Rs: {loan.principal_amount:,.2f}'],
             ['Vadi Vikadam:', f'{loan.scheme.interest_rate}% Aandukku'],
             ['Kataan Kaal Alavai:', f'{loan.scheme.loan_duration} Nateghal'],
         ]

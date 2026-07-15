@@ -127,7 +127,7 @@
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
                                 Loan Portfolio Value</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">₹{{ loan_portfolio_value|default:"0"|intcomma }}</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">Rs: {{ loan_portfolio_value|default:"0"|intcomma }}</div>
                             <div class="text-{% if portfolio_growth|default:0 >= 0 %}success{% else %}danger{% endif %} small mt-1">
                                 <i class="fas fa-arrow-{% if portfolio_growth|default:0 >= 0 %}up{% else %}down{% endif %}"></i>
                                 {{ portfolio_growth|default:"0"|floatformat:2 }}% {{ comparison_label|default:"vs last month" }}
@@ -149,7 +149,7 @@
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
                                 Interest Income</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">₹{{ interest_income|default:"0"|intcomma }}</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">Rs: {{ interest_income|default:"0"|intcomma }}</div>
                             <div class="text-{% if interest_growth|default:0 >= 0 %}success{% else %}danger{% endif %} small mt-1">
                                 <i class="fas fa-arrow-{% if interest_growth|default:0 >= 0 %}up{% else %}down{% endif %}"></i>
                                 {{ interest_growth|default:"0"|floatformat:2 }}% {{ comparison_label|default:"vs last month" }}
@@ -277,12 +277,12 @@
                             <tbody>
                                 <tr>
                                     <td>Average Loan Amount</td>
-                                    <td>₹{{ avg_loan_amount|default:"0"|intcomma }}</td>
-                                    <td>₹{{ prev_avg_loan_amount|default:"0"|intcomma }}</td>
+                                    <td>Rs: {{ avg_loan_amount|default:"0"|intcomma }}</td>
+                                    <td>Rs: {{ prev_avg_loan_amount|default:"0"|intcomma }}</td>
                                     <td class="text-{% if avg_loan_amount_change|default:0 >= 0 %}success{% else %}danger{% endif %}">
                                         {{ avg_loan_amount_change|default:"0"|floatformat:2 }}%
                                     </td>
-                                    <td>₹{{ avg_loan_amount_target|default:"0"|intcomma }}</td>
+                                    <td>Rs: {{ avg_loan_amount_target|default:"0"|intcomma }}</td>
                                     <td>
                                         {% if avg_loan_amount|default:0 >= avg_loan_amount_target|default:0 %}
                                         <span class="badge bg-success">On Target</span>
@@ -451,12 +451,12 @@ $(document).ready(function() {
                     beginAtZero: true,
                     ticks: {
                         callback: function(value) {
-                            return '₹' + value.toLocaleString();
+                            return 'Rs: ' + value.toLocaleString();
                         }
                     },
                     title: {
                         display: true,
-                        text: 'Loan Value (₹)'
+                        text: 'Loan Value (Rs: )'
                     }
                 }
             }

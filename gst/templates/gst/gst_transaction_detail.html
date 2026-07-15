@@ -136,14 +136,14 @@
                     </thead>
                     <tbody>
                         <tr>
-                            <td class="text-end">₹ {{ transaction.taxable_value|floatformat:2 }}</td>
+                            <td class="text-end">Rs:  {{ transaction.taxable_value|floatformat:2 }}</td>
                             {% if not transaction.is_interstate %}
-                            <td class="text-end">₹ {{ transaction.cgst_amount|floatformat:2 }}</td>
-                            <td class="text-end">₹ {{ transaction.sgst_amount|floatformat:2 }}</td>
+                            <td class="text-end">Rs:  {{ transaction.cgst_amount|floatformat:2 }}</td>
+                            <td class="text-end">Rs:  {{ transaction.sgst_amount|floatformat:2 }}</td>
                             {% else %}
-                            <td class="text-end">₹ {{ transaction.igst_amount|floatformat:2 }}</td>
+                            <td class="text-end">Rs:  {{ transaction.igst_amount|floatformat:2 }}</td>
                             {% endif %}
-                            <td class="text-end fw-bold">₹ {{ transaction.get_total_amount|floatformat:2 }}</td>
+                            <td class="text-end fw-bold">Rs:  {{ transaction.get_total_amount|floatformat:2 }}</td>
                         </tr>
                     </tbody>
                 </table>
@@ -221,7 +221,7 @@
                 <p>Are you sure you want to delete this GST transaction?</p>
                 <p class="mb-0"><strong>Invoice:</strong> {{ transaction.invoice_number }}</p>
                 <p class="mb-0"><strong>Party:</strong> {{ transaction.party_name }}</p>
-                <p><strong>Amount:</strong> ₹ {{ transaction.get_total_amount|floatformat:2 }}</p>
+                <p><strong>Amount:</strong> Rs:  {{ transaction.get_total_amount|floatformat:2 }}</p>
                 <div class="alert alert-warning">
                     <i class="fas fa-exclamation-triangle me-2"></i> This action cannot be undone.
                 </div>

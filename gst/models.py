@@ -194,7 +194,7 @@ class GSTTransaction(models.Model):
         ]
     
     def __str__(self):
-        return f"{self.get_transaction_type_display()} - {self.invoice_number} - ₹{self.total_amount}"
+        return f"{self.get_transaction_type_display()} - {self.invoice_number} - Rs: {self.total_amount}"
     
     def save(self, *args, **kwargs):
         # Calculate tax amounts if not already set

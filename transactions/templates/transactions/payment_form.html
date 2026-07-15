@@ -68,7 +68,7 @@
                             <table class="table table-sm">
                                 <tr>
                                     <td>Principal Amount</td>
-                                    <td class="text-end">₹{{ loan.principal_amount|floatformat:2 }}</td>
+                                    <td class="text-end">Rs: {{ loan.principal_amount|floatformat:2 }}</td>
                                 </tr>
                                 <tr>
                                     <td>Monthly Interest Rate</td>
@@ -76,35 +76,35 @@
                                 </tr>
                                 <tr>
                                     <td>Monthly Interest Amount</td>
-                                    <td class="text-end">₹{{ loan|monthly_interest_amount|floatformat:2 }}</td>
+                                    <td class="text-end">Rs: {{ loan|monthly_interest_amount|floatformat:2 }}</td>
                                 </tr>
                                 <tr>
                                     <td>Interest Accumulated (Complete Months)</td>
-                                    <td class="text-end">₹{{ loan.monthly_interest_till_date|floatformat:2 }}</td>
+                                    <td class="text-end">Rs: {{ loan.monthly_interest_till_date|floatformat:2 }}</td>
                                 </tr>
                                 <tr>
                                     <td>Interest (till today)</td>
-                                    <td class="text-end">₹{{ loan.total_payable_till_date|subtract:loan.principal_amount|floatformat:2 }}</td>
+                                    <td class="text-end">Rs: {{ loan.total_payable_till_date|subtract:loan.principal_amount|floatformat:2 }}</td>
                                 </tr>
                                 <tr class="text-primary">
                                     <td>Total Payable (Till Today)</td>
-                                    <td class="text-end">₹{{ loan.total_payable_till_date|floatformat:0 }}</td>
+                                    <td class="text-end">Rs: {{ loan.total_payable_till_date|floatformat:0 }}</td>
                                 </tr>
                                 <tr class="text-success">
                                     <td>Amount Already Paid</td>
-                                    <td class="text-end">₹{{ loan.amount_paid|floatformat:2 }}</td>
+                                    <td class="text-end">Rs: {{ loan.amount_paid|floatformat:2 }}</td>
                                 </tr>
                                 <tr class="table-primary fw-bold">
                                     <td>Net Amount Due</td>
-                                    <td class="text-end">₹{{ loan.total_payable_till_date|subtract:loan.amount_paid|floatformat:0 }}</td>
+                                    <td class="text-end">Rs: {{ loan.total_payable_till_date|subtract:loan.amount_paid|floatformat:0 }}</td>
                                 </tr>
                                 <tr>
                                     <td>Total Payable (Maturity)</td>
-                                    <td class="text-end">₹{{ loan.total_payable_mature|floatformat:0 }}</td>
+                                    <td class="text-end">Rs: {{ loan.total_payable_mature|floatformat:0 }}</td>
                                 </tr>
                                 <tr>
                                     <td>Remaining Balance</td>
-                                    <td class="text-end">₹{{ loan.remaining_balance|floatformat:0 }}</td>
+                                    <td class="text-end">Rs: {{ loan.remaining_balance|floatformat:0 }}</td>
                                 </tr>
                             </table>
                         </div>
@@ -124,8 +124,8 @@
                                 </div>
                             </div>
                             <div class="d-flex justify-content-between mt-1">
-                                <small class="text-muted">₹{{ loan.amount_paid|floatformat:2 }} paid</small>
-                                <small class="text-muted">₹{{ loan.total_payable_till_date|floatformat:0 }} total</small>
+                                <small class="text-muted">Rs: {{ loan.amount_paid|floatformat:2 }} paid</small>
+                                <small class="text-muted">Rs: {{ loan.total_payable_till_date|floatformat:0 }} total</small>
                             </div>
                             {% endwith %}
                         </div>
@@ -148,7 +148,7 @@
                                         {% for payment in payments %}
                                         <tr>
                                             <td>{{ payment.payment_date|date:"M d, Y" }}</td>
-                                            <td class="text-end">₹{{ payment.amount|floatformat:2 }}</td>
+                                            <td class="text-end">Rs: {{ payment.amount|floatformat:2 }}</td>
                                             <td>{{ payment.get_payment_method_display }}</td>
                                             <td>
                                                 <a href="{% url 'payment_receipt' payment.id %}" target="_blank" class="btn btn-sm btn-outline-primary">
@@ -324,15 +324,15 @@
                                         <table class="table table-sm">
                                             <tr>
                                                 <td><strong>Payment Amount:</strong></td>
-                                                <td class="text-success">₹${paymentAmount.toFixed(2)}</td>
+                                                <td class="text-success">Rs: ${paymentAmount.toFixed(2)}</td>
                                             </tr>
                                             <tr>
                                                 <td><strong>Outstanding Balance:</strong></td>
-                                                <td class="text-danger">₹${remainingBalance.toFixed(2)}</td>
+                                                <td class="text-danger">Rs: ${remainingBalance.toFixed(2)}</td>
                                             </tr>
                                             <tr>
                                                 <td><strong>Excess Amount:</strong></td>
-                                                <td class="text-info">₹${Math.max(0, paymentAmount - remainingBalance).toFixed(2)}</td>
+                                                <td class="text-info">Rs: ${Math.max(0, paymentAmount - remainingBalance).toFixed(2)}</td>
                                             </tr>
                                         </table>
                                     </div>

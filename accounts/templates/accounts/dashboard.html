@@ -305,7 +305,7 @@
             <i class="fas fa-cash-register"></i>
         </div>
         <div class="stat-label">Today's Revenue</div>
-        <div class="stat-value">₹{{ total_sales|default:"0" }}</div>
+        <div class="stat-value">Rs: {{ total_sales|default:"0" }}</div>
         <div class="stat-trend">
             <i class="fas fa-arrow-up"></i> 3.48% vs yesterday
         </div>
@@ -383,7 +383,7 @@
                     <i class="fas fa-rupee-sign text-primary"></i>
                     Average Loan Amount
                 </div>
-                <div class="metric-value">₹{{ avg_loan_amount|default:"15,000" }}</div>
+                <div class="metric-value">Rs: {{ avg_loan_amount|default:"15,000" }}</div>
             </div>
             <div class="metric-row">
                 <div class="metric-label">
@@ -410,7 +410,7 @@
                             <div class="activity-title text-primary">New Loan #{{ loan.loan_number }}</div>
                             <div class="activity-meta">
                                 {{ loan.customer.first_name }} {{ loan.customer.last_name }}
-                                • ₹{{ loan.principal_amount }}
+                                • Rs: {{ loan.principal_amount }}
                                 <br><small>{{ loan.created_at|timesince }} ago</small>
                             </div>
                         </a>
@@ -430,7 +430,7 @@
                             <div class="activity-title text-success">Item Sold</div>
                             <div class="activity-meta">
                                 {{ sale.item.name }}
-                                • ₹{{ sale.total_amount }}
+                                • Rs: {{ sale.total_amount }}
                                 <br><small>{{ sale.created_at|timesince }} ago</small>
                             </div>
                         </a>

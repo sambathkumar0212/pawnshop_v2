@@ -46,7 +46,7 @@
                             </tr>
                             <tr>
                                 <th>Principal Amount</th>
-                                <td>₹{{ object.principal_amount }}</td>
+                                <td>Rs: {{ object.principal_amount }}</td>
                             </tr>
                             <tr>
                                 <th>Issue Date</th>
@@ -80,27 +80,27 @@
                             <table class="table table-bordered">
                                 <tr>
                                     <th width="30%">Principal Amount</th>
-                                    <td>₹{{ principal_amount|floatformat:2 }}</td>
+                                    <td>Rs: {{ principal_amount|floatformat:2 }}</td>
                                 </tr>
                                 <tr>
                                     <th>Interest Amount (till today)</th>
-                                    <td>₹{{ loan.total_payable_till_date|subtract:principal_amount|floatformat:0 }}</td>
+                                    <td>Rs: {{ loan.total_payable_till_date|subtract:principal_amount|floatformat:0 }}</td>
                                 </tr>
                                 <tr>
                                     <th>Total Payable (Till Today)</th>
-                                    <td>₹{{ loan.total_payable_till_date|floatformat:0 }}</td>
+                                    <td>Rs: {{ loan.total_payable_till_date|floatformat:0 }}</td>
                                 </tr>
                                 <tr>
                                     <th>Amount Already Paid</th>
-                                    <td>₹{{ amount_paid|floatformat:2 }}</td>
+                                    <td>Rs: {{ amount_paid|floatformat:2 }}</td>
                                 </tr>
                                 <tr class="table-primary">
                                     <th>Net Amount Due</th>
-                                    <td><strong>₹{{ loan.total_payable_till_date|subtract:amount_paid|floatformat:0 }}</strong></td>
+                                    <td><strong>Rs: {{ loan.total_payable_till_date|subtract:amount_paid|floatformat:0 }}</strong></td>
                                 </tr>
                                 <tr class="table-secondary">
                                     <th>Total Payable (At Maturity)</th>
-                                    <td>₹{{ total_payable_mature|floatformat:0 }}</td>
+                                    <td>Rs: {{ total_payable_mature|floatformat:0 }}</td>
                                 </tr>
                             </table>
                             <div class="alert alert-info">
@@ -119,7 +119,7 @@
                             <div class="form-group mb-3">
                                 <label for="paid_amount" class="form-label">Amount Paid</label>
                                 <div class="input-group">
-                                    <span class="input-group-text">₹</span>
+                                    <span class="input-group-text">Rs: </span>
                                     <input type="number" step="0.01" min="0" name="paid_amount" id="paid_amount" 
                                            class="form-control" value="{{ payable_amount }}">
                                 </div>

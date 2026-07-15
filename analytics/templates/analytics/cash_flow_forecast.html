@@ -155,7 +155,7 @@
                                     <td>{{ forecast.get_forecast_type_display }}</td>
                                     <td>
                                         <span class="{% if forecast.predicted_net_cash_flow < 0 %}text-danger{% else %}text-success{% endif %}">
-                                            ₹{{ forecast.predicted_net_cash_flow|floatformat:2|intcomma }}
+                                            Rs: {{ forecast.predicted_net_cash_flow|floatformat:2|intcomma }}
                                         </span>
                                     </td>
                                     <td>{{ forecast.confidence_level|floatformat:1 }}%</td>
@@ -222,14 +222,14 @@ function displayForecastResults(forecasts) {
         row.innerHTML = `
             <td>${forecast.period}</td>
             <td>${formattedDate}</td>
-            <td class="text-danger">₹${forecast.disbursements.toLocaleString()}</td>
-            <td class="text-success">₹${forecast.repayments.toLocaleString()}</td>
-            <td class="text-success">₹${forecast.interest_income.toLocaleString()}</td>
-            <td class="text-success">₹${forecast.fee_income.toLocaleString()}</td>
-            <td class="text-success">₹${forecast.sales_revenue.toLocaleString()}</td>
-            <td class="text-danger">₹${forecast.operating_expenses.toLocaleString()}</td>
+            <td class="text-danger">Rs: ${forecast.disbursements.toLocaleString()}</td>
+            <td class="text-success">Rs: ${forecast.repayments.toLocaleString()}</td>
+            <td class="text-success">Rs: ${forecast.interest_income.toLocaleString()}</td>
+            <td class="text-success">Rs: ${forecast.fee_income.toLocaleString()}</td>
+            <td class="text-success">Rs: ${forecast.sales_revenue.toLocaleString()}</td>
+            <td class="text-danger">Rs: ${forecast.operating_expenses.toLocaleString()}</td>
             <td class="${forecast.net_cash_flow >= 0 ? 'text-success' : 'text-danger'}">
-                ₹${forecast.net_cash_flow.toLocaleString()}
+                Rs: ${forecast.net_cash_flow.toLocaleString()}
             </td>
             <td>${forecast.confidence_level.toFixed(1)}%</td>
         `;
@@ -253,7 +253,7 @@ function displayForecastResults(forecasts) {
         data: {
             labels: labels,
             datasets: [{
-                label: 'Net Cash Flow (₹)',
+                label: 'Net Cash Flow (Rs: )',
                 data: netCashFlowData,
                 borderColor: 'rgb(75, 192, 192)',
                 backgroundColor: 'rgba(75, 192, 192, 0.2)',
@@ -288,11 +288,11 @@ function displayForecastResults(forecasts) {
                     position: 'left',
                     title: {
                         display: true,
-                        text: 'Cash Flow (₹)'
+                        text: 'Cash Flow (Rs: )'
                     },
                     ticks: {
                         callback: function(value, index, values) {
-                            return '₹' + value.toLocaleString();
+                            return 'Rs: ' + value.toLocaleString();
                         }
                     }
                 },

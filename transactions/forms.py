@@ -540,10 +540,10 @@ class LoanForm(forms.ModelForm):
 
             if principal > max_principal:
                 self.add_error('principal_amount', 
-                    f'Principal amount cannot exceed 90% of the gold value. Maximum allowed: ₹{max_principal:.2f}')
+                    f'Principal amount cannot exceed 90% of the gold value. Maximum allowed: Rs: {max_principal:.2f}')
             elif principal < min_principal:
                 self.add_error('principal_amount',
-                    f'Principal amount must be at least 50% of the gold value. Minimum required: ₹{min_principal:.2f}')
+                    f'Principal amount must be at least 50% of the gold value. Minimum required: Rs: {min_principal:.2f}')
 
         # Calculate total payable amount (distribution amount + interest)
         interest_rate = cleaned_data.get('interest_rate')
@@ -750,7 +750,7 @@ class LoanExtensionForm(forms.ModelForm):
         min_fee = (self.loan.principal_amount * Decimal('0.005')).quantize(Decimal('0.01'))
         
         if extension_fee and extension_fee < min_fee:
-            self.add_error('extension_fee', f"Extension fee must be at least 0.5% of the principal amount (₹{min_fee}).")
+            self.add_error('extension_fee', f"Extension fee must be at least 0.5% of the principal amount (Rs: {min_fee}).")
         
         # Map extension_fee back to fee for model
         if 'extension_fee' in cleaned_data:

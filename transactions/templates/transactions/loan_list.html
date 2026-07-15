@@ -115,7 +115,7 @@
                         <div>
                             <div class="value">{{ active_loans_count|default:0 }}</div>
                             {% if show_total_outstanding %}
-                                <small class="d-block">Outstanding: ₹{{ active_outstanding|default:0.00|floatformat:2 }}</small>
+                                <small class="d-block">Outstanding: Rs: {{ active_outstanding|default:0.00|floatformat:2 }}</small>
                             {% endif %}
                         </div>
                         <span class="icon"><i class="fas fa-money-bill-wave"></i></span>
@@ -131,7 +131,7 @@
                         <div>
                             <div class="value">{{ due_today_count|default:0 }}</div>
                             {% if show_total_outstanding %}
-                                <small class="d-block">Due: ₹{{ due_today_outstanding|default:0.00|floatformat:2 }}</small>
+                                <small class="d-block">Due: Rs: {{ due_today_outstanding|default:0.00|floatformat:2 }}</small>
                             {% endif %}
                         </div>
                         <span class="icon"><i class="fas fa-calendar-day"></i></span>
@@ -147,7 +147,7 @@
                         <div>
                             <div class="value">{{ overdue_count|default:0 }}</div>
                             {% if show_total_outstanding %}
-                                <small class="d-block">Overdue: ₹{{ overdue_outstanding|default:0.00|floatformat:2 }}</small>
+                                <small class="d-block">Overdue: Rs: {{ overdue_outstanding|default:0.00|floatformat:2 }}</small>
                             {% endif %}
                         </div>
                         <span class="icon"><i class="fas fa-exclamation-circle"></i></span>
@@ -163,7 +163,7 @@
                         <div>
                             <div class="value">{{ due_soon_count|default:0 }}</div>
                             {% if show_total_outstanding %}
-                                <small class="d-block">Due Soon: ₹{{ due_soon_outstanding|default:0.00|floatformat:2 }}</small>
+                                <small class="d-block">Due Soon: Rs: {{ due_soon_outstanding|default:0.00|floatformat:2 }}</small>
                             {% endif %}
                         </div>
                         <span class="icon"><i class="fas fa-calendar-alt"></i></span>
@@ -175,7 +175,7 @@
                 <div class="card-body">
                     <h5 class="card-title">Total Outstanding</h5>
                     <div class="d-flex justify-content-between align-items-center">
-                        <span class="value">₹{{ total_outstanding|floatformat:2 }}</span>
+                        <span class="value">Rs: {{ total_outstanding|floatformat:2 }}</span>
                         <span class="icon"><i class="fas fa-rupee-sign"></i></span>
                     </div>
                 </div>
@@ -497,10 +497,10 @@
                                             <span class="text-muted">No items</span>
                                         {% endif %}
                                     </td>
-                                    <td class="px-3 py-3">₹{{ loan.principal_amount|floatformat:2 }}</td>
+                                    <td class="px-3 py-3">Rs: {{ loan.principal_amount|floatformat:2 }}</td>
                                     <td class="px-3 py-3">
                                         {{ loan|monthly_interest_rate }}%
-                                        <small class="d-block text-muted">Monthly Amount: ₹{{ loan|monthly_interest_amount|floatformat:2 }}</small>
+                                        <small class="d-block text-muted">Monthly Amount: Rs: {{ loan|monthly_interest_amount|floatformat:2 }}</small>
                                     </td>
                                     <td class="px-3 py-3">{{ loan.issue_date }}</td>
                                     <td class="px-3 py-3" style="{{ loan|due_date_bg_color }}; border-radius: 4px; font-weight: 500;">{{ loan.due_date }}</td>

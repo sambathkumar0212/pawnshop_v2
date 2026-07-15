@@ -139,8 +139,8 @@ def generate_tamil_loan_pdf(loan, request=None):
     loan_details_data = [
         ['Loan Number:', loan.loan_number, 'Loan Date:', loan.created_at.strftime('%d/%m/%Y')],
         ['Customer Name:', loan.customer.full_name if loan.customer else 'N/A', 'Loan Duration:', f'{loan.scheme.loan_duration} days'],
-        ['Principal Amount:', f'₹{loan.principal_amount:,.2f}', 'Interest Rate:', f'{loan.scheme.interest_rate}% p.a.'],
-        ['Monthly Interest:', f'₹{getattr(loan.monthly_interest, "amount", loan.monthly_interest.rate if hasattr(loan.monthly_interest, "rate") else "N/A"):,.2f}' if hasattr(loan, 'monthly_interest') else 'N/A', 'Due Date:', loan.due_date.strftime('%d/%m/%Y')],
+        ['Principal Amount:', f'Rs: {loan.principal_amount:,.2f}', 'Interest Rate:', f'{loan.scheme.interest_rate}% p.a.'],
+        ['Monthly Interest:', f'Rs: {getattr(loan.monthly_interest, "amount", loan.monthly_interest.rate if hasattr(loan.monthly_interest, "rate") else "N/A"):,.2f}' if hasattr(loan, 'monthly_interest') else 'N/A', 'Due Date:', loan.due_date.strftime('%d/%m/%Y')],
     ]
     
     loan_details_table = Table(loan_details_data, colWidths=[2*cm, 3.5*cm, 2.5*cm, 3.5*cm])

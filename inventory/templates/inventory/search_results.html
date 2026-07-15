@@ -123,7 +123,7 @@
                                                 {% endif %}
                                             </td>
                                             <td>{{ item.branch.name }}</td>
-                                            <td>₹{{ item.appraised_value|floatformat:2 }}</td>
+                                            <td>Rs: {{ item.appraised_value|floatformat:2 }}</td>
                                             <td>
                                                 <div class="btn-group btn-group-sm">
                                                     <a href="{% url 'item_detail' item.id %}" class="btn btn-outline-primary" title="View">
