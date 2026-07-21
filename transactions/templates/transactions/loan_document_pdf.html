@@ -66,7 +66,7 @@
         table.gold-table, table.gold-table th, table.gold-table td {border: 1px solid #e6e6e6}
         table.gold-table th {font-weight: 700; background-color: #f7f9fc; padding: 8px 6px; text-align: center;}
         table.gold-table td.item-cell {text-align: left; padding: 8px 6px; width: 49%; word-break: break-word}
-        table.gold-table td.karat-cell, table.gold-table td.compact-cell {text-align: center; padding: 6px 4px; font-size: 11px; width: 17%; font-weight: 700; vertical-align: middle}
+        table.gold-table td.karat-cell, table.gold-table td.compact-cell {text-align: center; padding: 6px 4px; font-size: 11px; width: 14%; font-weight: 700; vertical-align: middle}
         .item-name {font-size: 13px; font-weight: 700; margin-bottom: 4px; line-height: 1.2}
         .item-description {font-size: 11px; color: #444; line-height: 1.25; margin-bottom: 1px}
 
@@ -203,13 +203,13 @@
                                 <span class="field-content financial-value">Rs {{ loan.monthly_interest.amount|floatformat:2 }} ({{ loan.monthly_interest.rate }}% monthly)</span>
                             </div>
                             <div class="field-row">
-                                <span class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.issue_date }}:{{ loan.issue_date|date:"d/m/Y" }}</span>
-                                <span class="field-content date-value" style="color: #CC0000; font-weight: bold;">{{ labels.due_date }}:{{ loan.due_date|date:"d/m/Y" }}</span>
+                                <span class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.issue_date }} : {{ loan.issue_date|date:"d/m/Y" }}</span>
+                                <span class="field-content date-value" style="color: #CC0000; font-weight: bold;">{{ labels.due_date }} : {{ loan.due_date|date:"d/m/Y" }}</span>
                             </div>
                             {% if minimum_term %}
                             <div class="field-row">
-                                <span class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}" style="color: #dbdf19; font-weight: bold;">{{ labels.minimum_term }}:{{ minimum_term }} {% if current_language|slice:':2' == 'ta' %}நாட்கள்{% else %}day(s){% endif %}</span>
-                                <span class="field-content">{{ labels.minimum_date }}:{{ minimum_date|date:"d/m/Y" }}</span>
+                                <span class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}" style="color: #dbdf19; font-weight: bold;">{{ labels.minimum_term }} : {{ minimum_term }} {% if current_language|slice:':2' == 'ta' %}நாட்கள்{% else %}day(s){% endif %}</span>
+                                <span class="field-content">{{ labels.minimum_date }} : {{ minimum_date|date:"d/m/Y" }}</span>
                             </div>
                             {% endif %}
                         </div>
@@ -228,6 +228,7 @@
                             <th class="karat-header {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.gold_karat }}</th>
                             <th class="compact-header {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.gross_weight }}</th>
                             <th class="compact-header {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.net_weight }}</th>
+                            <th class="compact-header {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.total_items }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -237,13 +238,12 @@
                                 <td class="item-cell">
                                     <div class="item-name {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ item.display_name }}</div>
                                     {% if item.display_description %}<div class="item-description {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ item.display_description|linebreaksbr }}</div>{% endif %}
-                                    {% if forloop.first %}
-                                    <div class="item-description {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}"><strong>{{ labels.total_items }}: {{ total_items_count|default:unique_item_names_count }}</strong></div>
-                                    {% endif %}
+                                    
                                 </td>
                                 <td class="karat-cell">{{ item.loan_item.gold_karat }}K</td>
                                 <td class="compact-cell">{{ item.loan_item.gross_weight|floatformat:3 }}</td>
                                 <td class="compact-cell">{{ item.loan_item.net_weight|floatformat:3 }}</td>
+                                <td class="compact-cell">{{ total_items_count|default:unique_item_names_count }} pcs</td>
                             </tr>
                             {% endfor %}
                         {% elif loan_items and loan_items|length > 0 %}
