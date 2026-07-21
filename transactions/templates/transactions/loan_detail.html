@@ -203,24 +203,47 @@
                         </div>
                         <div class="col-md-4 mb-3">
                             <label class="text-muted">Interest Rate</label>
-                            <p class="mb-0">{{ loan.interest_rate }}% p.a.</p>
+                            <p class="mb-0">
+                                {% if loan.monthly_interest.annual_rate %}
+                                    {{ loan.monthly_interest.annual_rate }}% p.a. 
+                                    {% if loan.scheme.interest_rate_structure %}
+                                        <small class="text-info">(Tiered Rate)</small>
+                                    {% endif %}
+                                {% else %}
+                                    {{ loan.interest_rate }}% p.a.
+                                {% endif %}
+                            </p>
                         </div>
                         
                         <!-- Monthly Interest Section -->
                         <div class="col-md-12 mb-3">
                             <div class="card bg-light">
                                 <div class="card-body p-2">
-                                    <h6 class="card-title small"><i class="fas fa-chart-line me-2"></i>Monthly Interest Details</h6>
+                                    <h6 class="card-title small"><i class="fas fa-chart-line me-2"></i>Monthly Interest Details 
+                                        {% if loan.scheme.interest_rate_structure %}
+                                            <span class="badge bg-info">Tiered Rates</span>
+                                        {% endif %}
+                                    </h6>
                                     <div class="row g-2">
-                                        <div class="col-md-4">
+                                        <div class="col-md-3">
+                                            <label class="text-muted small">Current Annual Rate</label>
+                                            <p class="mb-0 small fw-bold text-primary">
+                                                {% if loan.monthly_interest.annual_rate %}
+                                                    {{ loan.monthly_interest.annual_rate }}% p.a.
+                                                {% else %}
+                                                    {{ loan.interest_rate }}% p.a.
+                                                {% endif %}
+                                            </p>
+                                        </div>
+                                        <div class="col-md-3">
                                             <label class="text-muted small">Monthly Rate</label>
                                             <p class="mb-0 small">{{ loan|monthly_interest_rate }}%</p>
                                         </div>
-                                        <div class="col-md-4">
+                                        <div class="col-md-3">
                                             <label class="text-muted small">Monthly Interest</label>
                                             <p class="mb-0 rupee-symbol small">Rs: {{ loan|monthly_interest_amount|floatformat:2 }}</p>
                                         </div>
-                                        <div class="col-md-4">
+                                        <div class="col-md-3">
                                             <label class="text-muted small">Interest Till Date</label>
                                             <p class="mb-0 rupee-symbol small">Rs: {{ loan.monthly_interest_till_date|floatformat:2 }}</p>
                                         </div>

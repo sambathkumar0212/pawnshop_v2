@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load scheme_filters %}
 
 {% block title %}{{ scheme.name }} - Scheme Details{% endblock %}
 
@@ -181,6 +182,72 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Tiered Interest Rate System Card -->
+            {% if scheme.early_period_months or scheme.standard_period_months or scheme.early_period_interest_rate or scheme.late_period_interest_rate %}
+            <div class="card mb-4 shadow-sm border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <i class="fas fa-layer-group me-1"></i>
+                    Tiered Interest Rate Structure Details
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card mb-3 border-success h-100">
+                                <div class="card-header bg-success text-white py-2">
+                                    <h6 class="mb-0"><i class="fas fa-clock me-1"></i>Early Period</h6>
+                                </div>
+                                <div class="card-body">
+                                    <p class="card-text mb-0">
+                                        <strong>Duration:</strong> {% if scheme.early_period_months %}{{ scheme.early_period_months }} months{% else %}Not set{% endif %}<br>
+                                        <strong>Interest Rate:</strong> {% if scheme.early_period_interest_rate %}Rs: {{ scheme.early_period_interest_rate }} per Rs: 100/month{% else %}Not set{% endif %}<br>
+                                        <small class="text-muted">Discounted rate for early repayment</small>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card mb-3 border-primary h-100">
+                                <div class="card-header bg-primary text-white py-2">
+                                    <h6 class="mb-0"><i class="fas fa-calendar-alt me-1"></i>Standard Period</h6>
+                                </div>
+                                <div class="card-body">
+                                    <p class="card-text mb-0">
+                                        <strong>Duration:</strong> {% if scheme.standard_period_months %}{{ scheme.standard_period_months }} months{% else %}Not set{% endif %}<br>
+                                        <strong>Interest Rate:</strong> {% if scheme.gold_interest_rate %}Rs: {{ scheme.gold_interest_rate }} per Rs: 100/month{% else %}Not set{% endif %}<br>
+                                        <small class="text-muted">Standard rate for normal repayment</small>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card mb-3 border-danger h-100">
+                                <div class="card-header bg-danger text-white py-2">
+                                    <h6 class="mb-0"><i class="fas fa-exclamation-triangle me-1"></i>Late Period</h6>
+                                </div>
+                                <div class="card-body">
+                                    <p class="card-text mb-0">
+                                        <strong>Duration:</strong> {{ scheme|calculate_late_period }} months<br>
+                                        <strong>Interest Rate:</strong> {% if scheme.late_period_interest_rate %}Rs: {{ scheme.late_period_interest_rate }} per Rs: 100/month{% else %}Not set{% endif %}<br>
+                                        <small class="text-muted">Increased rate for late repayment</small>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- How it works explanation -->
+                    <div class="alert alert-info mt-3 mb-0">
+                        <h6 class="alert-heading"><i class="fas fa-info-circle me-2"></i>Repayment Rules</h6>
+                        <p class="mb-0 small">
+                            Repaying within the first {% if scheme.early_period_months %}{{ scheme.early_period_months }} months{% else %}period{% endif %} charges the discounted early rate.
+                            Repaying after that up to month {% if scheme.expiry_period %}{{ scheme.early_period_months|add:scheme.standard_period_months }}{% else %}standard term{% endif %} charges the standard rate.
+                            Any repayment after that until expiry charges the late interest rate.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
             {% endif %}
         </div>
 
@@ -248,7 +315,7 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Auto-hide alerts after 5 seconds

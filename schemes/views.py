@@ -512,22 +512,30 @@ class SchemeUpdateView(LoginRequiredMixin, View):
         scheme = get_object_or_404(Scheme, pk=pk)
         
         # Check if this is a tiered interest rate scheme
-        has_tiered_structure = (
-            scheme.early_period_months or 
-            scheme.standard_period_months or 
-            scheme.early_period_interest_rate or 
-            scheme.late_period_interest_rate or
-            (scheme.interest_rate_structure and len(scheme.interest_rate_structure) > 0)
-        )
+        # A scheme is considered tiered if it has interest_rate_structure with multiple entries
+        # OR if it has any of the tiered period fields set
+        has_tiered_structure = False
+        
+        if scheme.interest_rate_structure:
+            # If interest_rate_structure exists and has content, it's tiered
+            has_tiered_structure = len(scheme.interest_rate_structure) > 0
+        
+        if not has_tiered_structure:
+            # Also check the period/rate fields
+            has_tiered_structure = (
+                (scheme.early_period_months and scheme.early_period_months > 0) or
+                (scheme.standard_period_months and scheme.standard_period_months > 0) or
+                (scheme.early_period_interest_rate and scheme.early_period_interest_rate > 0) or
+                (scheme.late_period_interest_rate and scheme.late_period_interest_rate > 0)
+            )
         
         if has_tiered_structure:
             # Use the tiered interest rate form
             form = SchemeForm(instance=scheme, user=request.user)
+            return render(request, self.template_name, {'form': form, 'scheme': scheme})
         else:
             # Redirect to the new scheme update for standard schemes
             return redirect('new_scheme_update', pk=pk)
-            
-        return render(request, self.template_name, {'form': form, 'scheme': scheme})
     
     def post(self, request, pk):
         scheme = get_object_or_404(Scheme, pk=pk)

@@ -373,6 +373,7 @@ def build_loan_pdf_language_context(loan, current_language):
     scheme_duration = loan.scheme.loan_duration if loan.scheme and loan.scheme.loan_duration else 0
     minimum_term = loan.scheme.minimum_duration if loan.scheme and loan.scheme.minimum_duration else 0
     display_scheme_name = scheme_name
+    due_date = loan.due_date.strftime('%d-%m-%Y')
 
     base_terms = [
         {
@@ -397,7 +398,7 @@ def build_loan_pdf_language_context(loan, current_language):
         },
         {
             'title': '6. Repayment and Recovery:',
-            'content': 'The loan is repayable before the due date. If not repaid, the lender may sell the pledged article as per applicable law.'
+            'content': f'Repayment and Recovery: The loan is repayable (principal and total interest) before the due date "{due_date}". If not repaid, the lender may sell the pledged gold within 5 days loan due date "{due_date}". I sincerely aggree for this without any opposition'
         },
         {
             'title': '7. Receipt Requirement:',
@@ -412,13 +413,12 @@ def build_loan_pdf_language_context(loan, current_language):
     if use_tamil:
         terms = [
             {'title': '1. கடன் திட்ட விவரங்கள்:', 'content': f'இந்தக் கடன் "{display_scheme_name}" திட்டத்தின் கீழ் வழங்கப்படுகிறது. வட்டி விகிதம்: வருடத்திற்கு {scheme_interest}% மற்றும் காலம் {scheme_duration} நாட்கள்.'},
-            {'title': '2. கடனின் நோக்கம்:', 'content': 'இந்தக் கடன் தங்கப் பொருட்களை அடமானமாக வைத்து வழங்கப்படுகிறது.'},
-            {'title': '3. தங்கம் மீட்பு:', 'content': 'முதன்மை தொகையும் வட்டியும் முழுமையாக செலுத்திய பின் தங்கம் மீட்கப்படும்.'},
+            {'title': '2. கடனின் நோக்கம்:', 'content': 'கடன் வழங்குநரிடம் பிணையமாக வைக்கப்பட்ட தங்க நகைகள்/பொருட்களின் பாதுகாப்பின் பேரில் மட்டுமே இந்தக் கடன் வழங்கப்படுகிறது. அடமானம் வைக்கப்பட்ட பொருள் தங்களுடைய சொந்தச் சொத்து என்றும், அது திருடப்பட்டதோ அல்லது போலி  நகை அல்ல என்றும் கடன் வாங்குபவர் உறுதிப்படுத்துகிறார்.'},
+            {'title': '3. தங்கம் மீட்பு நேரம்:', 'content': 'தங்கத்தை மீட்க, காலை 11:00 மணிக்கு முன் பணம் செலுத்தப்பட வேண்டும், மேலும் அதே நாளில் மாலை 4:00 மணிக்கு மேல் தங்கம் பெற்றுக்கொள்ளலாம்.'},
             {'title': '4. KYC இணக்கம்:', 'content': 'RBI வழிகாட்டுதலின்படி KYC விவரங்கள் சரிபார்க்கப்பட்டுள்ளன.'},
-            {'title': '5. நியாய நடைமுறை:', 'content': 'கடன் வழங்கல் நடைமுறைகள் நியாயமாக பின்பற்றப்படும்.'},
-            {'title': '6. திருப்பிச் செலுத்தல்:', 'content': 'கடைசி தேதிக்குள் கடன் தொகை செலுத்தப்பட வேண்டும்.'},
-            {'title': '7. ரசீது அவசியம்:', 'content': 'ஒவ்வொரு கட்டணத்திற்கும் ரசீது வழங்கப்படும்.'},
-            {'title': '8. அறிவிப்பு:', 'content': 'மேலே உள்ள தகவல்கள் அனைத்தும் உண்மை என கடன் வாங்கியவர் அறிவிக்கிறார்.'},
+            {'title': '5. திருப்பிச் செலுத்தல்:', 'content': f'கடனை (அசல் & மொத்த வட்டி) கடைசி தேதிக்கு முன்பாகத் திருப்பிச் செலுத்தப்படாவிட்டால், செலுத்த வேண்டிய தேதி  "{due_date}" யிலிருந்து 5 நாட்களுக்குள் அடமான தங்கத்தை விற்பதன் மூலம் தொகையை கடன் கொடுத்தவர் வசூலிப்பார். நான் இதற்கு எந்தவித எதிர்ப்புமின்றி மனப்பூர்வமாக ஒப்புக்கொள்கிறேன்.'},
+            {'title': '6. ரசீது அவசியம்:', 'content': 'அசல் கடன் ஆவணங்களைச் சரிபார்த்த பின்பே அடமானம் பொருட்கள் தரப்படும். ஒவ்வொரு கட்டணத்திற்கும் ரசீது வழங்கப்படும்.'},
+            {'title': '7. அறிவிப்பு:', 'content': 'மேலே உள்ள தகவல்கள் அனைத்தும் உண்மையானவை என உறுதிசெய்து, விதிமுறைகளைப் படித்துப் புரிந்துகொண்டு கீழே கையொப்பமிடுகிறேன்.'},
         ]
     else:
         terms = base_terms
@@ -448,7 +448,7 @@ def build_loan_pdf_language_context(loan, current_language):
         'localized_items': localized_items,
         'unique_item_names_count': unique_item_names_count,
         'total_items_count': total_items_count,
-        'customer_name_display': customer_name_ta if use_tamil else customer_name_en,
+        'customer_name_display': customer_name_en,
         'customer_phone_display': customer_phone_display,
         'customer_address_display': customer_address_ta if use_tamil else customer_address_en,
         'customer_id_type_display': customer_id_label_ta if use_tamil else customer_id_label_en,

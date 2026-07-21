@@ -44,7 +44,6 @@
         .container {width: 100%; margin: 0 auto; box-sizing: border-box;}
         .header {
             text-align: center;
-            margin-bottom: 12px;
             border-bottom: 1px solid #ddd;
             padding-bottom: 8px;
         }
@@ -146,7 +145,7 @@
                         <div class="info-section">
                             <div class="field-row">
                                 <span class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.borrower_name }}:</span>
-                                <span class="field-content customer-name {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ customer_name_display }}</span>
+                                <span class="field-content customer-name">{{ customer_name_display }}</span>
                             </div>
                             <div class="field-row">
                                 <span class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.loan_number }}:</span>

@@ -357,8 +357,19 @@ class Loan(models.Model):
                 'per_thousand': Decimal('0.00')
             }
         
+        # Calculate months since issue to determine tiered rate
+        if self.issue_date:
+            today = timezone.now().date()
+            months_elapsed = ((today.year - self.issue_date.year) * 12 + 
+                            today.month - self.issue_date.month)
+            
+            # Get tiered interest rate based on tenure
+            annual_rate = self.scheme.get_interest_rate_for_tenure(months_elapsed)
+        else:
+            annual_rate = self.scheme.interest_rate
+        
         # Calculate monthly interest rate
-        monthly_rate = self.scheme.interest_rate / Decimal('12')
+        monthly_rate = annual_rate / Decimal('12')
         
         # Calculate monthly interest amount based on distribution amount (amount customer receives)
         monthly_interest_amount = (self.distribution_amount * monthly_rate) / Decimal('100')
@@ -369,7 +380,8 @@ class Loan(models.Model):
         return {
             'rate': monthly_rate.quantize(Decimal('0.01')),
             'amount': monthly_interest_amount.quantize(Decimal('0.01')),
-            'per_thousand': per_thousand.quantize(Decimal('0.01'))
+            'per_thousand': per_thousand.quantize(Decimal('0.01')),
+            'annual_rate': annual_rate.quantize(Decimal('0.01'))
         }
     
     def monthly_interest_till_date(self):

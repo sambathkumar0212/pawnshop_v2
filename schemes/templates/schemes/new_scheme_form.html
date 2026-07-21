@@ -112,6 +112,76 @@
                                         {{ form.special_conditions|as_crispy_field }}
                                     </div>
                                 </div>
+                                <div class="row mt-2">
+                                    <div class="col-12">
+                                        <div class="card border-warning bg-light p-3">
+                                            <div class="form-check form-switch mb-0">
+                                                {{ form.enable_tiered_rates|as_crispy_field }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tiered Interest Rates Section (Conditional) -->
+                        <div class="card mb-4 border-warning shadow-sm" id="tieredRatesContainer" style="display: none;">
+                            <div class="card-header bg-warning text-dark">
+                                <h5 class="mb-0"><i class="fas fa-layer-group me-2"></i>Tiered Interest Rate Structure Details</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <strong>How it works:</strong> Define different interest rates for three periods of the loan:
+                                    <ol class="mb-0 mt-2 small">
+                                        <li><strong>Early Period:</strong> Repayment within the early period gets a reduced interest rate.</li>
+                                        <li><strong>Standard Period:</strong> Repayment within early + standard period gets the base gold interest rate.</li>
+                                        <li><strong>Late Period:</strong> Repayment after standard period gets the late period rate.</li>
+                                    </ol>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="card mb-3 border-success">
+                                            <div class="card-header bg-success text-white py-2">
+                                                <h6 class="mb-0"><i class="fas fa-clock me-1"></i>Early Period</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                {{ form.early_period_months|as_crispy_field }}
+                                                {{ form.early_period_interest_rate|as_crispy_field }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card mb-3 border-primary">
+                                            <div class="card-header bg-primary text-white py-2">
+                                                <h6 class="mb-0"><i class="fas fa-calendar-alt me-1"></i>Standard Period</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                {{ form.standard_period_months|as_crispy_field }}
+                                                <div class="mb-3">
+                                                    <label class="form-label">Standard Period Interest Rate</label>
+                                                    <input type="text" class="form-control" id="standard_interest_rate_display" readonly disabled value="Set via Gold Interest Rate above">
+                                                    <div class="form-text text-muted">This uses the base Gold Interest Rate set in terms.</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="card border-danger">
+                                            <div class="card-header bg-danger text-white py-2">
+                                                <h6 class="mb-0"><i class="fas fa-exclamation-triangle me-1"></i>Late Period</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                {{ form.late_period_interest_rate|as_crispy_field }}
+                                                <div id="late_period_calc_info" class="form-text text-muted small mt-2">
+                                                    Late period duration will be: <span id="late_period_months_display" class="fw-bold">0</span> months (calculated as Expiry Period - Early Period - Standard Period).
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -184,7 +254,7 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Set today's date for start_date if empty
@@ -202,6 +272,76 @@
         if (endDate && !endDate.value) {
             endDate.value = farFuture.toISOString().split('T')[0];
         }
+
+        // Tiered Interest Rates Toggle & Calculation Logic
+        const enableTieredCheckbox = document.getElementById('enableTieredRates');
+        const tieredContainer = document.getElementById('tieredRatesContainer');
+        const earlyMonthsInput = document.getElementById('id_early_period_months');
+        const earlyRateInput = document.getElementById('id_early_period_interest_rate');
+        const standardMonthsInput = document.getElementById('id_standard_period_months');
+        const lateRateInput = document.getElementById('id_late_period_interest_rate');
+        const expiryPeriodInput = document.getElementById('id_expiry_period');
+        const goldInterestInput = document.getElementById('id_gold_interest_rate');
+        const standardRateDisplay = document.getElementById('standard_interest_rate_display');
+        const latePeriodDisplay = document.getElementById('late_period_months_display');
+
+        function toggleTieredRates() {
+            if (enableTieredCheckbox && tieredContainer) {
+                const isChecked = enableTieredCheckbox.checked;
+                tieredContainer.style.display = isChecked ? 'block' : 'none';
+                
+                // Toggle required attribute for validation behavior
+                if (earlyMonthsInput) earlyMonthsInput.required = isChecked;
+                if (earlyRateInput) earlyRateInput.required = isChecked;
+                if (standardMonthsInput) standardMonthsInput.required = isChecked;
+                if (lateRateInput) lateRateInput.required = isChecked;
+                
+                calculateLatePeriod();
+            }
+        }
+
+        function calculateLatePeriod() {
+            if (!expiryPeriodInput) return;
+            
+            const expiry = parseInt(expiryPeriodInput.value) || 0;
+            const early = parseInt(earlyMonthsInput ? earlyMonthsInput.value : 0) || 0;
+            const standard = parseInt(standardMonthsInput ? standardMonthsInput.value : 0) || 0;
+            
+            if (enableTieredCheckbox && enableTieredCheckbox.checked) {
+                const late = expiry - (early + standard);
+                if (latePeriodDisplay) {
+                    latePeriodDisplay.textContent = Math.max(0, late);
+                    if (late <= 0) {
+                        latePeriodDisplay.classList.add('text-danger');
+                        latePeriodDisplay.classList.remove('text-success');
+                    } else {
+                        latePeriodDisplay.classList.add('text-success');
+                        latePeriodDisplay.classList.remove('text-danger');
+                    }
+                }
+            }
+        }
+
+        function updateStandardRateDisplay() {
+            if (goldInterestInput && standardRateDisplay) {
+                standardRateDisplay.value = goldInterestInput.value ? goldInterestInput.value + ' per Rs: 100/month' : '';
+            }
+        }
+
+        if (enableTieredCheckbox) {
+            enableTieredCheckbox.addEventListener('change', toggleTieredRates);
+            // Run initially
+            toggleTieredRates();
+        }
+
+        // Add input event listeners
+        if (expiryPeriodInput) expiryPeriodInput.addEventListener('input', calculateLatePeriod);
+        if (earlyMonthsInput) earlyMonthsInput.addEventListener('input', calculateLatePeriod);
+        if (standardMonthsInput) standardMonthsInput.addEventListener('input', calculateLatePeriod);
+        if (goldInterestInput) {
+            goldInterestInput.addEventListener('input', updateStandardRateDisplay);
+            updateStandardRateDisplay();
+        }
         
         // Auto-hide alerts after 5 seconds
         setTimeout(function() {
@@ -215,7 +355,7 @@
 </script>
 {% endblock %}
 
-{% block styles %}
+{% block extra_css %}
 <style>
     .help-list {
         padding-left: 1.25rem;

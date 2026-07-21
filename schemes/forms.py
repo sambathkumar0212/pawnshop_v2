@@ -308,14 +308,14 @@ class SchemeForm(forms.ModelForm):
         # Always set is_gold_scheme to True
         cleaned_data['is_gold_scheme'] = True
         
-        # Get period values
-        early_period_months = cleaned_data.get('early_period_months', 0)
-        standard_period_months = cleaned_data.get('standard_period_months', 0)
-        expiry_period = cleaned_data.get('expiry_period', 0)
+        # Get period values with defaults
+        early_period_months = cleaned_data.get('early_period_months') or 0
+        standard_period_months = cleaned_data.get('standard_period_months') or 0
+        expiry_period = cleaned_data.get('expiry_period') or 0
         
         # Validate that expiry_period is greater than early_period + standard_period
         total_specified_periods = early_period_months + standard_period_months
-        if expiry_period <= total_specified_periods:
+        if expiry_period > 0 and expiry_period <= total_specified_periods:
             self.add_error('expiry_period', 
                 f"Total loan duration must be greater than early period ({early_period_months} months) + standard period ({standard_period_months} months) = {total_specified_periods} months")
         
@@ -326,6 +326,8 @@ class SchemeForm(forms.ModelForm):
         
         # Build interest rate structure JSON
         interest_rate_structure = {}
+        
+        # Only build structure if we have tiered rates
         if early_period_months and early_period_interest_rate:
             key = f"0-{early_period_months}"
             interest_rate_structure[key] = float(early_period_interest_rate)
@@ -334,12 +336,16 @@ class SchemeForm(forms.ModelForm):
             key = f"{early_period_months}-{early_period_months + standard_period_months}"
             interest_rate_structure[key] = float(gold_interest_rate)
         
-        if late_period_interest_rate:
+        if late_period_interest_rate and expiry_period:
             key = f"{early_period_months + standard_period_months}-{expiry_period}"
             interest_rate_structure[key] = float(late_period_interest_rate)
         
-        # Store the interest rate structure in the model
-        cleaned_data['interest_rate_structure'] = interest_rate_structure
+        # Only store the interest rate structure if it has entries
+        if interest_rate_structure:
+            cleaned_data['interest_rate_structure'] = interest_rate_structure
+        else:
+            # Ensure we don't set an empty dict
+            cleaned_data['interest_rate_structure'] = None
         
         # Calculate interest_rate from gold_interest_rate (for backward compatibility)
         if gold_interest_rate:
@@ -359,10 +365,12 @@ class SchemeForm(forms.ModelForm):
         if processing_fee:
             conditions['processing_fee_percentage'] = float(processing_fee)
         
-        # Add period information to additional_conditions
-        conditions['early_period_months'] = early_period_months
-        conditions['standard_period_months'] = standard_period_months
-        conditions['late_period_months'] = expiry_period - (early_period_months + standard_period_months)
+        # Add period information to additional_conditions only if periods are defined
+        if early_period_months or standard_period_months:
+            conditions['early_period_months'] = early_period_months
+            conditions['standard_period_months'] = standard_period_months
+            if expiry_period:
+                conditions['late_period_months'] = expiry_period - (early_period_months + standard_period_months)
         
         # Add any other conditions as needed
         cleaned_data['additional_conditions'] = conditions if conditions else None
@@ -384,6 +392,17 @@ class NewSchemeForm(forms.ModelForm):
         widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3})
     )
     
+    # Add checkbox to enable tiered interest rates
+    enable_tiered_rates = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(attrs={
+            'class': 'form-check-input',
+            'id': 'enableTieredRates'
+        }),
+        label="Enable Tiered Interest Rate Structure",
+        help_text="Check to set different interest rates for different periods"
+    )
+    
     gold_interest_rate = forms.DecimalField(
         required=True,
         max_digits=5,
@@ -395,6 +414,57 @@ class NewSchemeForm(forms.ModelForm):
             'placeholder': 'e.g., 1.00'
         }),
         help_text="Monthly interest rate for gold loans per Rs: 100"
+    )
+    
+    # Tiered interest rate fields (shown only when enable_tiered_rates is checked)
+    early_period_months = forms.IntegerField(
+        required=False,
+        min_value=1,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control tiered-field',
+            'placeholder': 'e.g., 2'
+        }),
+        label="Early Period (months)",
+        help_text="First period in months for reduced interest rate"
+    )
+    
+    early_period_interest_rate = forms.DecimalField(
+        required=False,
+        max_digits=5,
+        decimal_places=2,
+        min_value=0,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control tiered-field',
+            'step': '0.01',
+            'placeholder': 'e.g., 0.80'
+        }),
+        label="Early Period Rate",
+        help_text="Reduced interest rate for early repayment (Rs per 100 per month)"
+    )
+    
+    standard_period_months = forms.IntegerField(
+        required=False,
+        min_value=1,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control tiered-field',
+            'placeholder': 'e.g., 4'
+        }),
+        label="Standard Period (months)",
+        help_text="Second period in months for standard interest rate"
+    )
+    
+    late_period_interest_rate = forms.DecimalField(
+        required=False,
+        max_digits=5,
+        decimal_places=2,
+        min_value=0,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control tiered-field',
+            'step': '0.01',
+            'placeholder': 'e.g., 1.20'
+        }),
+        label="Late Period Rate",
+        help_text="Increased interest rate for late period (Rs per 100 per month)"
     )
     
     expiry_period = forms.IntegerField(
@@ -498,8 +568,10 @@ class NewSchemeForm(forms.ModelForm):
     class Meta:
         model = Scheme
         fields = [
-            'name', 'description', 'gold_interest_rate', 'expiry_period',
-            'minimum_duration',  # Added minimum_duration field
+            'name', 'description', 'enable_tiered_rates', 'gold_interest_rate', 
+            'early_period_months', 'early_period_interest_rate', 
+            'standard_period_months', 'late_period_interest_rate',
+            'expiry_period', 'minimum_duration',
             'minimum_amount', 'maximum_amount', 'processing_fee_percentage',
             'special_conditions', 'start_date', 'end_date', 'status', 'branch',
             'interest_rate', 'loan_duration'
@@ -520,6 +592,40 @@ class NewSchemeForm(forms.ModelForm):
             
             self.fields['start_date'].initial = today
             self.fields['end_date'].initial = far_future
+        else:
+            # For existing schemes, check if tiered rates are enabled
+            if self.instance.interest_rate_structure or \
+               (self.instance.early_period_months and self.instance.early_period_months > 0) or \
+               (self.instance.early_period_interest_rate and self.instance.early_period_interest_rate > 0):
+                self.fields['enable_tiered_rates'].initial = True
+            
+            # Populate processing fee
+            if self.instance.processing_fee_percentage:
+                self.fields['processing_fee_percentage'].initial = self.instance.processing_fee_percentage
+            elif self.instance.additional_conditions and 'processing_fee_percentage' in self.instance.additional_conditions:
+                self.fields['processing_fee_percentage'].initial = self.instance.additional_conditions['processing_fee_percentage']
+            
+            # Populate other tiered fields from additional_conditions if they are not set on model directly
+            if self.instance.additional_conditions:
+                conditions = self.instance.additional_conditions
+                if 'early_period_months' in conditions and not self.instance.early_period_months:
+                    self.fields['early_period_months'].initial = conditions['early_period_months']
+                if 'standard_period_months' in conditions and not self.instance.standard_period_months:
+                    self.fields['standard_period_months'].initial = conditions['standard_period_months']
+            
+            # Parse interest_rate_structure to populate form fields if direct fields are empty
+            if self.instance.interest_rate_structure and not (self.instance.early_period_interest_rate or self.instance.late_period_interest_rate):
+                structure = self.instance.interest_rate_structure
+                for range_key, rate in structure.items():
+                    if range_key.startswith('0-'):
+                        self.fields['early_period_interest_rate'].initial = rate
+                        break
+                for range_key, rate in structure.items():
+                    if '-' in range_key:
+                        parts = range_key.split('-')
+                        if len(parts) == 2 and parts[1] == str(self.instance.expiry_period):
+                            self.fields['late_period_interest_rate'].initial = rate
+                            break
         
         # Make end_date optional
         self.fields['end_date'].required = False
@@ -545,13 +651,82 @@ class NewSchemeForm(forms.ModelForm):
         # Always set is_gold_scheme to True
         cleaned_data['is_gold_scheme'] = True
         
+        # Check if tiered rates are enabled
+        enable_tiered = cleaned_data.get('enable_tiered_rates', False)
+        
+        if enable_tiered:
+            # Validate tiered rate fields
+            early_period_months = cleaned_data.get('early_period_months')
+            early_period_interest_rate = cleaned_data.get('early_period_interest_rate')
+            standard_period_months = cleaned_data.get('standard_period_months')
+            late_period_interest_rate = cleaned_data.get('late_period_interest_rate')
+            expiry_period = cleaned_data.get('expiry_period')
+            gold_interest_rate = cleaned_data.get('gold_interest_rate')
+            
+            # Ensure all tiered fields are provided
+            if not early_period_months:
+                self.add_error('early_period_months', 'This field is required when tiered rates are enabled.')
+            if not early_period_interest_rate:
+                self.add_error('early_period_interest_rate', 'This field is required when tiered rates are enabled.')
+            if not standard_period_months:
+                self.add_error('standard_period_months', 'This field is required when tiered rates are enabled.')
+            if not late_period_interest_rate:
+                self.add_error('late_period_interest_rate', 'This field is required when tiered rates are enabled.')
+            
+            # Validate that expiry_period is greater than early + standard periods
+            if early_period_months and standard_period_months and expiry_period:
+                total_specified_periods = early_period_months + standard_period_months
+                if expiry_period <= total_specified_periods:
+                    self.add_error('expiry_period', 
+                        f"Total loan duration must be greater than early period ({early_period_months} months) + "
+                        f"standard period ({standard_period_months} months) = {total_specified_periods} months")
+            
+            # Build interest rate structure
+            if early_period_months and early_period_interest_rate and standard_period_months and \
+               gold_interest_rate and late_period_interest_rate and expiry_period:
+                interest_rate_structure = {}
+                
+                # Early period: 0 to early_period_months
+                interest_rate_structure[f"0-{early_period_months}"] = float(early_period_interest_rate)
+                
+                # Standard period: early_period_months to early + standard
+                interest_rate_structure[f"{early_period_months}-{early_period_months + standard_period_months}"] = float(gold_interest_rate)
+                
+                # Late period: early + standard to expiry_period
+                interest_rate_structure[f"{early_period_months + standard_period_months}-{expiry_period}"] = float(late_period_interest_rate)
+                
+                cleaned_data['interest_rate_structure'] = interest_rate_structure
+            
+            # Store period information in additional_conditions
+            processing_fee = cleaned_data.get('processing_fee_percentage', 1.0)
+            conditions = {
+                'processing_fee_percentage': float(processing_fee) if processing_fee else 1.0,
+                'early_period_months': early_period_months or 0,
+                'standard_period_months': standard_period_months or 0,
+                'late_period_months': (expiry_period - (early_period_months + standard_period_months)) if expiry_period and early_period_months and standard_period_months else 0
+            }
+            cleaned_data['additional_conditions'] = conditions
+        else:
+            # Standard scheme without tiered rates
+            # Clear tiered rate fields
+            cleaned_data['interest_rate_structure'] = None
+            cleaned_data['early_period_months'] = None
+            cleaned_data['early_period_interest_rate'] = None
+            cleaned_data['standard_period_months'] = None
+            cleaned_data['late_period_interest_rate'] = None
+            
+            # Store only processing fee in additional_conditions
+            processing_fee = cleaned_data.get('processing_fee_percentage', 1.0)
+            conditions = {
+                'processing_fee_percentage': float(processing_fee) if processing_fee else 1.0
+            }
+            cleaned_data['additional_conditions'] = conditions
+        
         # Calculate interest_rate from gold_interest_rate (monthly to annual)
         gold_interest_rate = cleaned_data.get('gold_interest_rate')
         if gold_interest_rate:
             cleaned_data['interest_rate'] = gold_interest_rate * 12
         else:
-            # Provide a default value if gold_interest_rate is not provided
-            # This ensures interest_rate is never NULL
             cleaned_data['interest_rate'] = Decimal('12.00')
         
         # Calculate loan_duration from expiry_period (months to days)
@@ -559,19 +734,6 @@ class NewSchemeForm(forms.ModelForm):
         if expiry_period:
             cleaned_data['loan_duration'] = expiry_period * 30
         else:
-            # Provide a default value if expiry_period is not provided
-            # This ensures loan_duration is never NULL
-            cleaned_data['loan_duration'] = 180  # Default to 6 months (180 days)
-        
-        # Store processing_fee in additional_conditions
-        processing_fee = cleaned_data.get('processing_fee_percentage')
-        conditions = {}
-        if processing_fee:
-            conditions['processing_fee_percentage'] = float(processing_fee)
-        else:
-            # Set default processing fee if not provided
-            conditions['processing_fee_percentage'] = 1.0
-        
-        cleaned_data['additional_conditions'] = conditions
+            cleaned_data['loan_duration'] = 180
         
         return cleaned_data
