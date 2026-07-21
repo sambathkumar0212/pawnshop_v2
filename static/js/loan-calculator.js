@@ -47,16 +47,24 @@ document.addEventListener('DOMContentLoaded', function() {
         const principal = parseInt(principalInput.value) || 0;
         const interestRate = parseFloat(interestRateInput.value) || 0;
         const processingFee = parseInt(processingFeeInput.value) || 0;
+        const isFirstMonthPaidInput = document.getElementById('id_is_first_month_interest_paid');
+        const isFirstMonthPaid = isFirstMonthPaidInput ? isFirstMonthPaidInput.checked : false;
+        
+        // Calculate monthly interest based on base distribution (principal - processingFee)
+        const baseDistribution = principal - processingFee;
+        const monthlyInterestRate = interestRate / 12;
+        const monthlyInterestAmount = Math.round(baseDistribution * monthlyInterestRate / 100);
+        const perThousandRate = Math.round((monthlyInterestRate / 100) * 1000);
         
         // Calculate metrics
         const interestAmount = Math.round(principal * interestRate / 100);
-        const totalRepayment = principal + interestAmount;
-        const distributionAmount = principal - processingFee;
+        let totalRepayment = principal + interestAmount;
+        let distributionAmount = baseDistribution;
         
-        // Calculate monthly interest
-        const monthlyInterestRate = interestRate / 12;
-        const monthlyInterestAmount = Math.round(principal * monthlyInterestRate / 100);
-        const perThousandRate = Math.round((monthlyInterestRate / 100) * 1000);
+        if (isFirstMonthPaid) {
+            distributionAmount = baseDistribution - monthlyInterestAmount;
+            totalRepayment = totalRepayment - monthlyInterestAmount;
+        }
         
         // Update distribution amount input
         if (distributionAmountInput) {
@@ -79,6 +87,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <p><strong>Interest Amount:</strong> ${formatCurrency(interestAmount)}</p>
                                 <p><strong>Total Repayment:</strong> ${formatCurrency(totalRepayment)}</p>
                                 <p><strong>Distribution Amount:</strong> ${formatCurrency(distributionAmount)}</p>
+                                ${isFirstMonthPaid ? `<p class="text-success mb-0" style="font-size: 0.85rem;"><i class="fas fa-check-circle me-1"></i><strong>First Month Interest Paid:</strong> ${formatCurrency(monthlyInterestAmount)} (Deducted)</p>` : ''}
                             </div>
                         </div>
                         <div class="row mt-3 bg-light p-2 rounded">
@@ -411,6 +420,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (processingFeeInput) {
         processingFeeInput.addEventListener('input', calculateLoanMetrics);
+    }
+    
+    const isFirstMonthPaidInput = document.getElementById('id_is_first_month_interest_paid');
+    if (isFirstMonthPaidInput) {
+        isFirstMonthPaidInput.addEventListener('change', calculateLoanMetrics);
     }
     
     if (issueDateInput) {

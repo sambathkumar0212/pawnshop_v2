@@ -1,21 +1,35 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 {% load loan_filters %}
 {% load loan_interest %}
 {% load i18n %}
 <html lang="{{ current_language|default:'en' }}">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ labels.document_title }} - {{ loan.loan_number }}</title>
+    {% if pdf_renderer == 'browser' %}
     <style>
-        {% if pdf_renderer == 'browser' %}
         @font-face {
             font-family: 'NotoSansTamil';
             src: url('{{ tamil_font_file_uri }}') format('truetype');
         }
-        {% endif %}
-        @page {size: A4; margin: 0.7cm;}
-        html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
+    </style>
+    {% endif %}
+    <style>
+        @page {
+            size: A4;
+            margin: 0.7cm;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+        }
+
         body {
             font-family: 'Helvetica', 'Arial', sans-serif;
             margin: 0;
@@ -25,6 +39,7 @@
             color: #111;
             -webkit-font-smoothing: antialiased;
         }
+
         .tamil-text {
             font-family: 'NotoSansTamil', 'Nirmala UI', 'Latha', serif;
             font-size: 12px;
@@ -36,107 +51,465 @@
             text-rendering: optimizeLegibility;
             -webkit-text-size-adjust: 100%;
         }
-        .tamil-text strong, strong.tamil-text {
+
+        .tamil-text strong,
+        strong.tamil-text {
             font-family: 'NotoSansTamil', 'Nirmala UI', 'Latha', serif;
             font-style: normal;
             font-weight: 600;
         }
-        .container {width: 100%; margin: 0 auto; box-sizing: border-box;}
+
+        .container {
+            width: 100%;
+            margin: 0 auto;
+            box-sizing: border-box;
+        }
+
         .header {
             text-align: center;
             border-bottom: 1px solid #ddd;
             padding-bottom: 8px;
         }
-        .header h1 {margin: 0 0 4px 0; font-size: 20px; font-weight: 700; letter-spacing: 0.2px; color: #002f6c}
-        .header h2 {margin: 6px 0 2px 0; font-size: 16px; font-weight: 600; letter-spacing: 0.1px; color: #003f91}
-        .header p {margin: 2px 0; font-size: 11px; color: #333}
-        .branch-contact {font-size: 11px; margin: 4px 0 0 0; text-align: center; line-height: 1.3; color: #444}
 
-        table.data-table {width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 11px; page-break-inside: avoid;}
-        table.data-table, table.data-table th, table.data-table td {border: 1px solid #e1e1e1}
-        table.data-table th, table.data-table td {padding: 6px; text-align: left; line-height: 1.25; vertical-align: top;}
+        .header h1 {
+            margin: 0 0 4px 0;
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: 0.2px;
+            color: #002f6c
+        }
+
+        .header h2 {
+            margin: 6px 0 2px 0;
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: 0.1px;
+            color: #003f91
+        }
+
+        .header p {
+            margin: 2px 0;
+            font-size: 11px;
+            color: #333
+        }
+
+        .branch-contact {
+            font-size: 11px;
+            margin: 4px 0 0 0;
+            text-align: center;
+            line-height: 1.3;
+            color: #444
+        }
+
+        table.data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 12px;
+            font-size: 11px;
+            page-break-inside: avoid;
+        }
+
+        table.data-table,
+        table.data-table th,
+        table.data-table td {
+            border: 1px solid #e1e1e1
+        }
+
+        table.data-table th,
+        table.data-table td {
+            padding: 6px;
+            text-align: left;
+            line-height: 1.25;
+            vertical-align: top;
+        }
 
         /* Customer info styles */
-        .customer-info td {padding: 9px 10px}
-        .customer-info td b {display: block; margin-bottom: 3px; font-size: 11px; margin-top: 0; color: #333}
-        .customer-info .info-section {line-height: 1.25; margin: 0}
+        .customer-info td {
+            padding: 9px 10px
+        }
 
-        .data-section {margin-bottom: 12px; page-break-inside: avoid}
-        table.gold-table {width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 11px; page-break-inside: avoid}
-        table.gold-table, table.gold-table th, table.gold-table td {border: 1px solid #e6e6e6}
-        table.gold-table th {font-weight: 700; background-color: #f7f9fc; padding: 8px 6px; text-align: center;}
-        table.gold-table td.item-cell {text-align: left; padding: 8px 6px; width: 49%; word-break: break-word}
-        table.gold-table td.karat-cell, table.gold-table td.compact-cell {text-align: center; padding: 6px 4px; font-size: 11px; width: 14%; font-weight: 700; vertical-align: middle}
-        .item-name {font-size: 13px; font-weight: 700; margin-bottom: 4px; line-height: 1.2}
-        .item-description {font-size: 11px; color: #444; line-height: 1.25; margin-bottom: 1px}
+        .customer-info td b {
+            display: block;
+            margin-bottom: 3px;
+            font-size: 11px;
+            margin-top: 0;
+            color: #333
+        }
 
-        .terms-section h3 {font-size: 14px; font-weight: 700; margin: 6px 0 8px 0}
-        .terms-list {padding-left: 20px; margin: 4px 0; font-size: 11px}
-        .terms-list li {margin-bottom: 4px; text-align: justify}
+        .customer-info .info-section {
+            line-height: 1.25;
+            margin: 0
+        }
 
-        .signatures {margin-top: 10px; display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; width: 100%; page-break-inside: avoid}
-        .signature-box-left, .signature-box-right {width: 48%; line-height: 1.34}
-        .signature-box-right {text-align: right; overflow-wrap: break-word}
-        .signature-line {border-top: 1px solid #000; margin-top: 36px; margin-bottom: 6px}
-        .signature-box-left p, .signature-box-right p {font-size: 11px; margin: 0}
+        .data-section {
+            margin-bottom: 12px;
+            page-break-inside: avoid
+        }
 
-        .footer {margin-top: 6px; font-size: 11px; text-align: center; color: #555}
+        table.gold-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 8px;
+            font-size: 11px;
+            page-break-inside: avoid
+        }
 
-        .important-field {font-weight: 700; font-size: 12px}
-        .financial-value {color: #00458B; font-weight: 700; font-size: 12px}
-        .date-value {color: #8B0000; font-weight: 700; font-size: 12px}
-        .distribution-amount {color: #006400; font-weight: 700; font-size: 12px}
+        table.gold-table,
+        table.gold-table th,
+        table.gold-table td {
+            border: 1px solid #e6e6e6
+        }
 
-        .customer-name {font-size: 18px; font-weight: 800}
+        table.gold-table th {
+            font-weight: 700;
+            background-color: #f7f9fc;
+            padding: 8px 6px;
+            text-align: center;
+        }
 
-        .customer-photo {width: 40px; height: 45px; border: 1px solid #ccc; overflow: hidden; padding: 0; margin: 0 auto}
-        .customer-photo img {width: 100%; height: 100%; object-fit: cover}
-        .photo-card {width: 100%; text-align: center; box-sizing: border-box; background: #fff}
-        .photo-card-title {font-size: 12px; font-weight: 700; text-align: center; margin: 0 0 6px 0; line-height: 1.1}
-          .customer-photo-large {width: 100%; height: 220px; border: 1px solid #ddd; overflow: hidden; box-sizing: border-box; background: #fff; margin: 0 auto; padding: 0; line-height: 0; font-size: 0}
-        .customer-photo-large img {width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; vertical-align: top}
+        table.gold-table td.item-cell {
+            text-align: left;
+            padding: 8px 6px;
+            width: 49%;
+            word-break: break-word
+        }
 
-        table.photos-table {width: 100%; border-collapse: collapse; border-spacing: 0; margin-bottom: 0; page-break-inside: avoid; border: none}
-        table.photos-table td {padding: 6px 6px; text-align: center; vertical-align: middle; border: none; margin: 0}
-          .item-photo {width: 100%; max-width: 240px; height: 150px; border: none; overflow: hidden; display: inline-block; margin: 0 auto; padding: 0; background: #fff; box-sizing: border-box; line-height: 0; font-size: 0}
-        .item-photo img {width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; vertical-align: top; background: #fff}
-        .item-photo.photo-large {max-width: 270px; height: 170px}
-        .item-photo.photo-medium {max-width: 220px; height: 140px}
-        .item-photo.photo-small {max-width: 180px; height: 120px}
-        .photo-label {font-size: 10px; font-weight: 700; text-align: center; margin-top: 6px; line-height: 1.1}
-        .photo-section-title {font-size: 12px; margin-top: 8px; margin-bottom: 0; font-weight: 700; border: 1px solid #e1e1e1; border-bottom: 0; padding: 6px 8px; text-align: center; background: #fbfdff}
+        table.gold-table td.karat-cell,
+        table.gold-table td.compact-cell {
+            text-align: center;
+            padding: 6px 4px;
+            font-size: 11px;
+            width: 14%;
+            font-weight: 700;
+            vertical-align: middle
+        }
+
+        .item-name {
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 4px;
+            line-height: 1.2
+        }
+
+        .item-description {
+            font-size: 11px;
+            color: #444;
+            line-height: 1.25;
+            margin-bottom: 1px
+        }
+
+        .terms-section h3 {
+            font-size: 14px;
+            font-weight: 700;
+            margin: 6px 0 8px 0
+        }
+
+        .terms-list {
+            padding-left: 20px;
+            margin: 4px 0;
+            font-size: 11px
+        }
+
+        .terms-list li {
+            margin-bottom: 4px;
+            text-align: justify
+        }
+
+        .signatures {
+            margin-top: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 14px;
+            width: 100%;
+            page-break-inside: avoid
+        }
+
+        .signature-box-left,
+        .signature-box-right {
+            width: 48%;
+            line-height: 1.34
+        }
+
+        .signature-box-right {
+            text-align: right;
+            overflow-wrap: break-word
+        }
+
+        .signature-line {
+            border-top: 1px solid #000;
+            margin-top: 36px;
+            margin-bottom: 6px
+        }
+
+        .signature-box-left p,
+        .signature-box-right p {
+            font-size: 11px;
+            margin: 0
+        }
+
+        .footer {
+            margin-top: 6px;
+            font-size: 11px;
+            text-align: center;
+            color: #555
+        }
+
+        .important-field {
+            font-weight: 700;
+            font-size: 12px
+        }
+
+        .financial-value {
+            color: #00458B;
+            font-weight: 700;
+            font-size: 12px
+        }
+
+        .date-value {
+            color: #8B0000;
+            font-weight: 700;
+            font-size: 12px
+        }
+
+        .distribution-amount {
+            color: #006400;
+            font-weight: 700;
+            font-size: 12px
+        }
+
+        .customer-name {
+            font-size: 18px;
+            font-weight: 800
+        }
+
+        .customer-photo {
+            width: 40px;
+            height: 45px;
+            border: 1px solid #ccc;
+            overflow: hidden;
+            padding: 0;
+            margin: 0 auto
+        }
+
+        .customer-photo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover
+        }
+
+        .photo-card {
+            width: 100%;
+            text-align: center;
+            box-sizing: border-box;
+            background: #fff
+        }
+
+        .photo-card-title {
+            font-size: 12px;
+            font-weight: 700;
+            text-align: center;
+            margin: 0 0 6px 0;
+            line-height: 1.1
+        }
+
+        .customer-photo-large {
+            width: 100%;
+            height: 220px;
+            border: 1px solid #ddd;
+            overflow: hidden;
+            box-sizing: border-box;
+            background: #fff;
+            margin: 0 auto;
+            padding: 0;
+            line-height: 0;
+            font-size: 0
+        }
+
+        .customer-photo-large img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+            display: block;
+            vertical-align: top
+        }
+
+        table.photos-table {
+            width: 100%;
+            border-collapse: collapse;
+            border-spacing: 0;
+            margin-bottom: 0;
+            page-break-inside: avoid;
+            border: none
+        }
+
+        table.photos-table td {
+            padding: 6px 6px;
+            text-align: center;
+            vertical-align: middle;
+            border: none;
+            margin: 0
+        }
+
+        .item-photo {
+            width: 100%;
+            max-width: 240px;
+            height: 150px;
+            border: none;
+            overflow: hidden;
+            display: inline-block;
+            margin: 0 auto;
+            padding: 0;
+            background: #fff;
+            box-sizing: border-box;
+            line-height: 0;
+            font-size: 0
+        }
+
+        .item-photo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+            display: block;
+            vertical-align: top;
+            background: #fff
+        }
+
+        .item-photo.photo-large {
+            max-width: 270px;
+            height: 170px
+        }
+
+        .item-photo.photo-medium {
+            max-width: 220px;
+            height: 140px
+        }
+
+        .item-photo.photo-small {
+            max-width: 180px;
+            height: 120px
+        }
+
+        .photo-label {
+            font-size: 10px;
+            font-weight: 700;
+            text-align: center;
+            margin-top: 6px;
+            line-height: 1.1
+        }
+
+        .photo-section-title {
+            font-size: 12px;
+            margin-top: 8px;
+            margin-bottom: 0;
+            font-weight: 700;
+            border: 1px solid #e1e1e1;
+            border-bottom: 0;
+            padding: 6px 8px;
+            text-align: center;
+            background: #fbfdff
+        }
 
         /* Inline labels and values */
-        .inline-info b {display: inline-block; width: 140px; margin-right: 6px; font-size: 11px}
-        .inline-info .value {display: inline-block; font-size: 12px}
+        .inline-info b {
+            display: inline-block;
+            width: 140px;
+            margin-right: 6px;
+            font-size: 11px
+        }
 
-        .field-row {margin-bottom: 6px; line-height: 1.25; padding-left: 2px; display: block; clear: both}
-        .field-label {display: block; font-weight: 700; font-size: 11px; color: #333; width: auto; margin-right: 0; margin-bottom: 2px; vertical-align: top}
-        .field-content {display: block; font-weight: 400; font-size: 12px; color: #000; vertical-align: top; line-height: 1.28}
-        .field-content.customer-name {font-size: 18px !important; font-weight: 800 !important; color: #000 !important; line-height: 1.18 !important}
+        .inline-info .value {
+            display: inline-block;
+            font-size: 12px
+        }
 
-        .section-heading {font-size: 12px; margin: 0 0 6px 0; padding: 6px 8px; border: 1px solid #e6eefc; background: #f2f7ff; font-weight: 700; border-radius: 4px}
-        .terms-section {margin-top: 8px; padding: 6px 8px 0 8px; border-top: 1px solid #e1e1e1; page-break-inside: avoid}
-        .terms-section h4 {font-size: 12px; margin: 0 0 5px 0; font-weight: 700}
-        .terms-text {font-size: 8px; line-height: 1.56; text-align: justify; text-justify: inter-word; margin: 0 0 1px 0}
+        .field-row {
+            margin-bottom: 6px;
+            line-height: 1.25;
+            padding-left: 2px;
+            display: block;
+            clear: both
+        }
+
+        .field-label {
+            display: block;
+            font-weight: 700;
+            font-size: 11px;
+            color: #333;
+            width: auto;
+            margin-right: 0;
+            margin-bottom: 2px;
+            vertical-align: top
+        }
+
+        .field-content {
+            display: block;
+            font-weight: 400;
+            font-size: 12px;
+            color: #000;
+            vertical-align: top;
+            line-height: 1.28
+        }
+
+        .field-content.customer-name {
+            font-size: 18px !important;
+            font-weight: 800 !important;
+            color: #000 !important;
+            line-height: 1.18 !important
+        }
+
+        .section-heading {
+            font-size: 12px;
+            margin: 0 0 6px 0;
+            padding: 6px 8px;
+            border: 1px solid #e6eefc;
+            background: #f2f7ff;
+            font-weight: 700;
+            border-radius: 4px
+        }
+
+        .terms-section {
+            margin-top: 8px;
+            padding: 6px 8px 0 8px;
+            border-top: 1px solid #e1e1e1;
+            page-break-inside: avoid
+        }
+
+        .terms-section h4 {
+            font-size: 12px;
+            margin: 0 0 5px 0;
+            font-weight: 700
+        }
+
+        .terms-text {
+            font-size: 8px;
+            line-height: 1.56;
+            text-align: justify;
+            text-justify: inter-word;
+            margin: 0 0 1px 0
+        }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="header">
             <h1>{% if loan.branch %}{{ loan.branch.name }}{% else %}Pawnshop Management System{% endif %}</h1>
             <p class="branch-contact {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
                 {% if loan.branch %}
-                    {{ branch_address_display }}
-                    {% if branch_phone_display %} | {{ labels.phone_label }}: {{ branch_phone_display }}{% endif %}
-                    {% if loan.branch.email %} | {{ labels.email_label }}: {{ loan.branch.email }}{% endif %}
+                {{ branch_address_display }}
+                {% if branch_phone_display %} | {{ labels.phone_label }}: {{ branch_phone_display }}{% endif %}
+                {% if loan.branch.email %} | {{ labels.email_label }}: {{ loan.branch.email }}{% endif %}
                 {% else %}
-                    Professional Pawnshop Services
+                Professional Pawnshop Services
                 {% endif %}
             </p>
-            <h2 class="{% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.document_title }}</h2>
+            <h2 class="{% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.document_title }}
+            </h2>
         </div>
-        
+
         <!-- Customer and Loan Details Section -->
         <div class="data-section">
             <table class="data-table customer-info">
@@ -144,37 +517,67 @@
                     <td width="50%" style="vertical-align: top; padding: 7px;">
                         <div class="info-section">
                             <div class="field-row">
-                                <span class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.borrower_name }}:</span>
-                                <span class="field-content customer-name">{{ customer_name_display }}</span>
+                                <span
+                                    class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
+                                    {{ labels.borrower_name }}:
+                                </span>
+                                <span class="field-content customer-name">
+                                    {{ customer_name_display }}
+                                </span>
                             </div>
                             <div class="field-row">
-                                <span class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.loan_number }}:</span>
-                                <span class="field-content">{{ loan.loan_number }}</span>
+                                <span
+                                    class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
+                                    {{ labels.loan_number }}:
+                                </span>
+                                <span class="field-content">
+                                    {{ loan.loan_number }}
+                                </span>
                             </div>
                             <div class="field-row">
-                                <span class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.email }}:</span>
-                                <span class="field-content">{% if loan.customer.email %}{{ loan.customer.email }}{% else %}{{ labels.not_provided }}{% endif %}</span>
+                                <span
+                                    class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
+                                    {{ labels.phone }}:
+                                </span>
+                                <span class="field-content">
+                                    {{ customer_phone_display|default:labels.not_provided }}
+                                </span>
                             </div>
                             <div class="field-row">
-                                <span class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.phone }}:</span>
-                                <span class="field-content">{{ customer_phone_display|default:labels.not_provided }}</span>
+                                <span
+                                    class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
+                                    {{ labels.address }}:
+                                </span>
+                                <span
+                                    class="field-content {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
+                                    {{ customer_address_display|default:labels.not_provided }}
+                                </span>
                             </div>
                             <div class="field-row">
-                                <span class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.address }}:</span>
-                                <span class="field-content {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ customer_address_display|default:labels.not_provided }}</span>
-                            </div>
-                            <div class="field-row">
-                                <span class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.id_details }}:</span>
-                                <span class="field-content important-field {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{% if loan.customer.id_type %}{{ customer_id_type_display }}: {% endif %}{{ loan.customer.id_number }}</span>
+                                <span
+                                    class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
+                                    {{ labels.id_details }}:
+                                </span>
+                                <span class="field-content important-field {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
+                                    {% if loan.customer.id_type %}
+                                        {{ customer_id_type_display }}: 
+                                    {% endif %}
+                                    {{ loan.customer.id_number }}
+                                </span>
                             </div>
                         </div>
                     </td>
                     <td width="50%" style="text-align: center; vertical-align: top; padding: 5px;">
                         <div class="photo-card">
-                            <div class="photo-card-title {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.borrower_photo }}</div>
+                            <div
+                                class="photo-card-title {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
+                                {{ labels.borrower_photo }}</div>
                             <div class="customer-photo-large">
-                            {% if customer_photo %}<img src="data:image/jpeg;base64,{{ customer_photo }}" alt="Customer Photo">
-                            {% else %}<p class="{% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}" style="text-align: center; font-size: 8px; margin-top: 110px; color: #666;">{{ labels.no_photos }}</p>{% endif %}
+                                {% if customer_photo %}<img src="data:image/jpeg;base64,{{ customer_photo }}"
+                                    alt="Customer Photo">
+                                {% else %}<p class="{% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}"
+                                    style="text-align: center; font-size: 8px; margin-top: 110px; color: #666;">{{
+                                    labels.no_photos }}</p>{% endif %}
                             </div>
                         </div>
                     </td>
@@ -183,33 +586,77 @@
                     <td width="50%" style="padding: 7px; vertical-align: top;">
                         <div class="info-section">
                             <div class="field-row">
-                                <span class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.principal_amount }}:</span>
-                                <span class="field-content financial-value">Rs {{ loan.principal_amount|floatformat:0 }}</span>
+                                <span
+                                    class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
+                                    {{ labels.principal_amount }}:
+                                </span>
+                                <span class="field-content financial-value">
+                                    Rs {{ loan.principal_amount|floatformat:0 }}
+                                </span>
                             </div>
                             <div class="field-row">
-                                <span class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.processing_fee }}:</span>
-                                <span class="field-content">Rs {{ loan.processing_fee|floatformat:0 }}</span>
+                                <span class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
+                                    {{ labels.processing_fee }}: Rs {{ loan.processing_fee|floatformat:0 }}
+                                </span>
+                                <span class="field-content">
+                                    {{ labels.distribution_amount }}:
+                                    <span style="color: #006400; font-weight: bold;">
+                                        Rs {{ loan.distribution_amount|floatformat:0 }}
+                                    </span>
+                                </span>
                             </div>
+
                             <div class="field-row">
-                                <span class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.distribution_amount }}:</span>
-                                <span class="field-content" style="color: #006400; font-weight: bold;">Rs {{ loan.distribution_amount|floatformat:0 }}</span>
+                                <span
+                                    class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
+                                    {{ labels.first_month_interest_paid }}:
+                                </span>
+                                {% if loan.is_first_month_interest_paid %}
+                                <span class="field-content" style="color: #006400; font-weight: bold;">
+                                    Yes
+                                </span>
+                                {% else %}
+                                <span class="field-content" style="color: #CC0000; font-weight: bold;">
+                                    No
+                                </span>
+                                {% endif %}
                             </div>
+
                         </div>
                     </td>
                     <td width="50%" style="padding: 7px; vertical-align: top;">
                         <div class="info-section">
                             <div class="field-row">
-                                <span class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.monthly_interest }}:</span>
-                                <span class="field-content financial-value">Rs {{ loan.monthly_interest.amount|floatformat:2 }} ({{ loan.monthly_interest.rate }}% monthly)</span>
+                                <span class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
+                                    {{ labels.monthly_interest }}:
+                                </span>
+                                <span class="field-content financial-value">
+                                    Rs {{ loan.monthly_interest.amount|floatformat:2 }}
+                                    ({{ loan.monthly_interest.rate }}% monthly)
+                                </span>
                             </div>
                             <div class="field-row">
-                                <span class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.issue_date }} : {{ loan.issue_date|date:"d/m/Y" }}</span>
-                                <span class="field-content date-value" style="color: #CC0000; font-weight: bold;">{{ labels.due_date }} : {{ loan.due_date|date:"d/m/Y" }}</span>
+                                <span
+                                    class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
+                                    {{ labels.issue_date }} : {{ loan.issue_date|date:"d/m/Y" }}
+                                </span>
+                                <span class="field-content date-value" style="color: #CC0000; font-weight: bold;">
+                                    {{ labels.due_date }} : {{ loan.due_date|date:"d/m/Y" }}
+                                </span>
                             </div>
                             {% if minimum_term %}
                             <div class="field-row">
-                                <span class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}" style="color: #dbdf19; font-weight: bold;">{{ labels.minimum_term }} : {{ minimum_term }} {% if current_language|slice:':2' == 'ta' %}நாட்கள்{% else %}day(s){% endif %}</span>
-                                <span class="field-content">{{ labels.minimum_date }} : {{ minimum_date|date:"d/m/Y" }}</span>
+                                <span class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}" style="color: #dbdf19; font-weight: bold;">
+                                    {{ labels.minimum_term }} : {{ minimum_term }}
+                                    {% if current_language|slice:':2' == 'ta' %}
+                                        நாட்கள்
+                                    {% else %}
+                                        day(s)
+                                    {% endif %}
+                                </span>
+                                <span class="field-content">
+                                    {{ labels.minimum_date }} : {{ minimum_date|date:"d/m/Y" }}
+                                </span>
                             </div>
                             {% endif %}
                         </div>
@@ -217,81 +664,114 @@
                 </tr>
             </table>
         </div>
-        
+
         <!-- Gold Items Section -->
         <div class="data-section">
             <div class="gold-table-container">
                 <table class="gold-table">
                     <thead>
                         <tr>
-                            <th class="{% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.item_description }}</th>
-                            <th class="karat-header {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.gold_karat }}</th>
-                            <th class="compact-header {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.gross_weight }}</th>
-                            <th class="compact-header {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.net_weight }}</th>
-                            <th class="compact-header {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.total_items }}</th>
+                            <th class="{% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
+                                {{ labels.item_description }}
+                            </th>
+                            <th class="karat-header {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
+                                {{ labels.gold_karat }}
+                            </th>
+                            <th
+                                class="compact-header {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
+                                {{ labels.gross_weight }}
+                            </th>
+                            <th
+                                class="compact-header {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
+                                {{ labels.net_weight }}
+                            </th>
+                            <th
+                                class="compact-header {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
+                                {{ labels.total_items }}
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
                         {% if localized_items and localized_items|length > 0 %}
-                            {% for item in localized_items %}
-                            <tr>
-                                <td class="item-cell">
-                                    <div class="item-name {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ item.display_name }}</div>
-                                    {% if item.display_description %}<div class="item-description {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ item.display_description|linebreaksbr }}</div>{% endif %}
-                                    
-                                </td>
-                                <td class="karat-cell">{{ item.loan_item.gold_karat }}K</td>
-                                <td class="compact-cell">{{ item.loan_item.gross_weight|floatformat:3 }}</td>
-                                <td class="compact-cell">{{ item.loan_item.net_weight|floatformat:3 }}</td>
-                                <td class="compact-cell">{{ total_items_count|default:unique_item_names_count }} pcs</td>
-                            </tr>
-                            {% endfor %}
+                        {% for item in localized_items %}
+                        <tr>
+                            <td class="item-cell">
+                                <div
+                                    class="item-name {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
+                                    {{ item.display_name }}</div>
+                                {% if item.display_description %}<div
+                                    class="item-description {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
+                                    {{ item.display_description|linebreaksbr }}</div>{% endif %}
+
+                            </td>
+                            <td class="karat-cell">{{ item.loan_item.gold_karat }}K</td>
+                            <td class="compact-cell">{{ item.loan_item.gross_weight|floatformat:3 }}</td>
+                            <td class="compact-cell">{{ item.loan_item.net_weight|floatformat:3 }}</td>
+                            <td class="compact-cell">{{ total_items_count|default:unique_item_names_count }} pcs</td>
+                        </tr>
+                        {% endfor %}
                         {% elif loan_items and loan_items|length > 0 %}
-                            {% for loan_item in loan_items %}
-                            <tr>
-                                <td class="item-cell">
-                                    <div class="item-name {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ loan_item.item.name|default:"N/A" }}</div>
-                                    {% if loan_item.item.description %}<div class="item-description {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ loan_item.item.description|linebreaksbr }}</div>{% endif %}
-                                    {% if forloop.first %}
-                                    <div class="item-description {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}"><strong>{{ labels.total_items }}: {{ total_items_count|default:unique_item_names_count }}</strong></div>
-                                    {% endif %}
-                                </td>
-                                <td class="karat-cell">{{ loan_item.gold_karat }}K</td>
-                                <td class="compact-cell">{{ loan_item.gross_weight|floatformat:3 }}</td>
-                                <td class="compact-cell">{{ loan_item.net_weight|floatformat:3 }}</td>
-                            </tr>
-                            {% endfor %}
+                        {% for loan_item in loan_items %}
+                        <tr>
+                            <td class="item-cell">
+                                <div
+                                    class="item-name {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
+                                    {{ loan_item.item.name|default:"N/A" }}</div>
+                                {% if loan_item.item.description %}<div
+                                    class="item-description {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
+                                    {{ loan_item.item.description|linebreaksbr }}</div>{% endif %}
+                                {% if forloop.first %}
+                                <div
+                                    class="item-description {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
+                                    <strong>
+                                        {{ labels.total_items }}:
+                                        {{ total_items_count|default:unique_item_names_count }}
+                                    </strong>
+                                </div>
+                                {% endif %}
+                            </td>
+                            <td class="karat-cell">{{ loan_item.gold_karat }}K</td>
+                            <td class="compact-cell">{{ loan_item.gross_weight|floatformat:3 }}</td>
+                            <td class="compact-cell">{{ loan_item.net_weight|floatformat:3 }}</td>
+                        </tr>
+                        {% endfor %}
                         {% else %}
-                            <tr>
-                                <td colspan="4" style="text-align: center; padding: 10px; font-style: italic; color: #666;">
-                                    {{ labels.no_photos }}
-                                </td>
-                            </tr>
+                        <tr>
+                            <td colspan="4" style="text-align: center; padding: 10px; font-style: italic; color: #666;">
+                                {{ labels.no_photos }}
+                            </td>
+                        </tr>
                         {% endif %}
                     </tbody>
                 </table>
             </div>
         </div>
-        
+
         <!-- Loan Photos Section -->
         {% if item_photos and item_photos|length > 0 %}
         <div class="data-section" style="margin-bottom: 6px;">
-            <h3 class="photo-section-title {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}" style="margin-top: 6px; margin-bottom: 0;">{{ labels.pledged_gold_item_photos }}</h3>
+            <h3 class="photo-section-title {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}"
+                style="margin-top: 6px; margin-bottom: 0;">{{ labels.pledged_gold_item_photos }}</h3>
             <table class="photos-table">
                 <tr>
                     {% for photo in item_photos %}
                     {% if photo %}
-                    <td width="{% if item_photos|length <= 2 %}50%{% elif item_photos|length == 3 %}33.33%{% else %}25%{% endif %}">
-                        <div class="item-photo {% if item_photos|length <= 2 %}photo-large{% elif item_photos|length == 3 %}photo-medium{% else %}photo-small{% endif %}">
-                            <img src="data:image/jpeg;base64,{{ photo }}" alt="Gold Item {{ forloop.counter }}" style="width: 100%; height: 100%; object-fit: cover;">
+                    <td
+                        width="{% if item_photos|length <= 2 %}50%{% elif item_photos|length == 3 %}33.33%{% else %}25%{% endif %}">
+                        <div
+                            class="item-photo {% if item_photos|length <= 2 %}photo-large{% elif item_photos|length == 3 %}photo-medium{% else %}photo-small{% endif %}">
+                            <img src="data:image/jpeg;base64,{{ photo }}" alt="Gold Item {{ forloop.counter }}"
+                                style="width: 100%; height: 100%; object-fit: cover;">
                         </div>
                     </td>
-                    {% if item_photos|length <= 2 %}
-                        {% if forloop.counter|divisibleby:2 and not forloop.last %}</tr><tr>{% endif %}
+                    {% if item_photos|length <= 2 %} {% if forloop.counter|divisibleby:2 and not forloop.last %}</tr>
+                <tr>{% endif %}
                     {% elif item_photos|length == 3 %}
-                        {% if forloop.counter|divisibleby:3 and not forloop.last %}</tr><tr>{% endif %}
+                    {% if forloop.counter|divisibleby:3 and not forloop.last %}</tr>
+                <tr>{% endif %}
                     {% else %}
-                        {% if forloop.counter|divisibleby:4 and not forloop.last %}</tr><tr>{% endif %}
+                    {% if forloop.counter|divisibleby:4 and not forloop.last %}</tr>
+                <tr>{% endif %}
                     {% endif %}
                     {% endif %}
                     {% endfor %}
@@ -300,47 +780,103 @@
         </div>
         {% else %}
         <div class="data-section">
-            <h3 class="photo-section-title {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.pledged_gold_item_photos }}</h3>
-            <p class="{% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}" style="font-size: 10px; text-align: center; color: #666; font-style: italic;">{{ labels.no_photos }}</p>
+            <h3 class="photo-section-title {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
+                {{ labels.pledged_gold_item_photos }}
+            </h3>
+            <p class="{% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}"
+                style="font-size: 10px; text-align: center; color: #666; font-style: italic;">
+                {{ labels.no_photos }}
+            </p>
         </div>
         {% endif %}
         <!-- Terms and Conditions Section -->
         <div class="terms-section">
-            <h4 class="{% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.terms_and_conditions }}</h4>
+            <h4 class="{% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
+                {{ labels.terms_and_conditions }}
+            </h4>
             {% for term in terms_list %}
             <p class="terms-text {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
                 <strong>{{ term.title }}</strong> {{ term.content }}
             </p>
             {% endfor %}
         </div>
-            {% comment %}
-            <h4><span class="tamil-text">à®µà®¿à®¤à®¿à®®à¯à®±à¯ˆà®•à®³à¯ à®®à®±à¯à®±à¯à®®à¯ à®¨à®¿à®ªà®¨à¯à®¤à®©à¯ˆà®•à®³à¯</span></h4>
-            <p class="tamil-text" style="font-size: 10px; line-height: 1.6; text-align: justify;">
-1. à®•à®Ÿà®©à¯ à®¤à®¿à®Ÿà¯à®Ÿ à®µà®¿à®µà®°à®™à¯à®•à®³à¯: à®‡à®¨à¯à®¤à®•à¯ à®•à®Ÿà®©à¯ "3 à®ªà¯ˆà®šà®¾ | 6 à®®à®¾à®¤à®¤à¯ à®¤à®¿à®Ÿà¯à®Ÿà®®à¯ | à®Žà®¨à¯à®¤ à®¤à®™à¯à®•à®®à¯à®®à¯" à®¤à®¿à®Ÿà¯à®Ÿà®¤à¯à®¤à®¿à®©à¯ à®•à¯€à®´à¯ à®µà®´à®™à¯à®•à®ªà¯à®ªà®Ÿà¯à®•à®¿à®±à®¤à¯. à®µà®Ÿà¯à®Ÿà®¿ à®µà®¿à®•à®¿à®¤à®®à¯ à®†à®£à¯à®Ÿà¯à®•à¯à®•à¯ 36.00% (180 à®¨à®¾à®Ÿà¯à®•à®³à¯). à®•à®Ÿà®©à¯ à®¤à¯Šà®•à¯ˆ à®µà®°à®®à¯à®ªà¯ à®°à¯‚. 1,000 à®®à¯à®¤à®²à¯ à®°à¯‚. 10,00,000 à®µà®°à¯ˆ.<br/>
-2. à®•à®Ÿà®©à®¿à®©à¯ à®¨à¯‹à®•à¯à®•à®®à¯: à®•à®Ÿà®©à¯ à®µà®´à®™à¯à®•à¯à®ªà®µà®°à®¿à®Ÿà®®à¯ à®ªà®¿à®£à¯ˆà®¯à®®à®¾à®• à®µà¯ˆà®ªà¯à®ªà¯ à®šà¯†à®¯à¯à®¯à®ªà¯à®ªà®Ÿà¯à®Ÿ à®¤à®™à¯à®• à®†à®ªà®°à®£à®™à¯à®•à®³à¯/à®ªà¯Šà®°à¯à®Ÿà¯à®•à®³à®¿à®©à¯ à®ªà®¾à®¤à¯à®•à®¾à®ªà¯à®ªà®¿à®©à¯ à®ªà¯‡à®°à®¿à®²à¯ à®®à®Ÿà¯à®Ÿà¯à®®à¯‡ à®•à®Ÿà®©à¯ à®µà®´à®™à¯à®•à®ªà¯à®ªà®Ÿà¯à®•à®¿à®±à®¤à¯. à®ªà®¿à®£à¯ˆà®¯à®ªà¯ à®ªà¯Šà®°à¯à®³à¯ à®¤à®©à®¤à¯ à®šà¯Šà®¤à¯à®¤à¯ à®Žà®©à¯à®±à¯à®®à¯ à®…à®¤à¯ à®¤à®¿à®°à¯à®Ÿà®ªà¯à®ªà®Ÿà¯à®Ÿà®¤à¯ à®…à®²à¯à®² à®Žà®©à¯à®±à¯à®®à¯ à®•à®Ÿà®©à¯ à®µà®¾à®™à¯à®•à¯à®ªà®µà®°à¯ à®‰à®±à¯à®¤à®¿à®ªà¯à®ªà®Ÿà¯à®¤à¯à®¤à¯à®•à®¿à®±à®¾à®°à¯.<br/>
-3. à®¤à®™à¯à®•à®®à¯ à®®à¯€à®Ÿà¯à®ªà¯ à®¨à¯‡à®°à®®à¯: à®¤à®™à¯à®•à®®à¯ à®®à¯€à®Ÿà¯à®ªà®¤à®±à¯à®•à¯ à®•à®¾à®²à¯ˆ 11:00 à®®à®£à®¿à®•à¯à®•à¯à®³à¯ à®ªà®£à®®à¯ à®šà¯†à®²à¯à®¤à¯à®¤ à®µà¯‡à®£à¯à®Ÿà¯à®®à¯. à®…à®¤à¯‡ à®¨à®¾à®³à®¿à®²à¯ à®®à®¾à®²à¯ˆ 4:00 à®®à®£à®¿à®•à¯à®•à¯à®ªà¯ à®ªà®¿à®±à®•à¯ à®¤à®™à¯à®•à®ªà¯ à®ªà¯Šà®°à¯à®³à¯ à®µà®´à®™à¯à®•à®ªà¯à®ªà®Ÿà¯à®®à¯.<br/>
-4. KYC à®‡à®£à®•à¯à®•à®®à¯: RBI à®µà®´à®¿à®•à®¾à®Ÿà¯à®Ÿà¯à®¤à®²à®¿à®©à¯à®ªà®Ÿà®¿ à®¤à¯‡à®µà¯ˆà®¯à®¾à®© KYC à®†à®µà®£à®™à¯à®•à®³à¯ (à®…à®Ÿà¯ˆà®¯à®¾à®³à®šà¯ à®šà®¾à®©à¯à®±à¯ à®®à®±à¯à®±à¯à®®à¯ à®®à¯à®•à®µà®°à®¿à®šà¯ à®šà®¾à®©à¯à®±à¯) à®•à®Ÿà®©à¯ à®µà®¾à®™à¯à®•à¯à®ªà®µà®°à®¾à®²à¯ à®šà®®à®°à¯à®ªà¯à®ªà®¿à®•à¯à®•à®ªà¯à®ªà®Ÿ à®µà¯‡à®£à¯à®Ÿà¯à®®à¯.<br/>
-5. à®¨à®¿à®¯à®¾à®¯à®®à®¾à®© à®¨à®Ÿà¯ˆà®®à¯à®±à¯ˆà®•à®³à¯: à®‡à®¯à®±à¯à®•à¯ˆ à®ªà¯‡à®°à®¿à®Ÿà®°à¯, à®¤à®¿à®°à¯à®Ÿà¯à®Ÿà¯ à®…à®²à¯à®²à®¤à¯ à®•à®Ÿà®©à¯ à®µà®´à®™à¯à®•à¯à®ªà®µà®°à®¿à®©à¯ à®•à®Ÿà¯à®Ÿà¯à®ªà¯à®ªà®¾à®Ÿà¯à®Ÿà®¿à®±à¯à®•à¯ à®…à®ªà¯à®ªà®¾à®±à¯à®ªà®Ÿà¯à®Ÿ à®•à®¾à®°à®£à®™à¯à®•à®³à®¾à®²à¯ à®à®±à¯à®ªà®Ÿà¯à®®à¯ à®‡à®´à®ªà¯à®ªà¯à®•à®³à¯à®•à¯à®•à¯ RBI à®µà®¿à®¤à®¿à®®à¯à®±à¯ˆà®•à®³à®¿à®©à¯à®ªà®Ÿà®¿ à®•à®Ÿà®©à¯ à®µà®´à®™à¯à®•à¯à®ªà®µà®°à¯ à®ªà¯Šà®±à¯à®ªà¯à®ªà®²à¯à®².<br/>
-6. à®•à®Ÿà®©à¯ à®¤à®¿à®°à¯à®ªà¯à®ªà®¿à®šà¯ à®šà¯†à®²à¯à®¤à¯à®¤à®²à¯: à®•à®Ÿà®©à¯ à®’à®ªà¯à®ªà®¨à¯à®¤ à®•à®¾à®²à®¤à¯à®¤à®¿à®±à¯à®•à¯à®³à¯ à®¤à®¿à®°à¯à®ªà¯à®ªà®¿à®šà¯ à®šà¯†à®²à¯à®¤à¯à®¤à®ªà¯à®ªà®Ÿ à®µà¯‡à®£à¯à®Ÿà¯à®®à¯. à®¤à®µà®±à®¿à®©à¯ à®ªà¯‹à®¤à¯ Indian Contract Act 1872 à®®à®±à¯à®±à¯à®®à¯ Pawn Brokers Act 1943 à®µà®¿à®¤à®¿à®•à®³à®¿à®©à¯à®ªà®Ÿà®¿ à®ªà®¿à®£à¯ˆà®¯à®ªà¯ à®ªà¯Šà®°à¯à®³à¯ˆ à®µà®¿à®±à¯à®•à¯à®®à¯ à®‰à®°à®¿à®®à¯ˆ à®•à®Ÿà®©à¯ à®µà®´à®™à¯à®•à¯à®ªà®µà®°à¯à®•à¯à®•à¯ à®‰à®£à¯à®Ÿà¯.<br/>
-7. à®°à®šà¯€à®¤à¯ à®…à®µà®šà®¿à®¯à®®à¯: à®…à®šà®²à¯ à®•à®Ÿà®©à¯ à®†à®µà®£à®®à¯ à®®à®±à¯à®±à¯à®®à¯ à®…à®Ÿà¯ˆà®¯à®¾à®³à®šà¯ à®šà®¾à®©à¯à®±à¯ à®šà®°à®¿à®ªà®¾à®°à¯à®ªà¯à®ªà¯ à®‡à®²à¯à®²à®¾à®®à®²à¯ à®ªà®¿à®£à¯ˆà®¯à®ªà¯ à®ªà¯Šà®°à¯à®³à¯ à®µà¯†à®³à®¿à®¯à®¿à®Ÿà®ªà¯à®ªà®Ÿà®¾à®¤à¯.<br/>
-8. à®…à®±à®¿à®µà®¿à®ªà¯à®ªà¯: à®µà®´à®™à¯à®•à®ªà¯à®ªà®Ÿà¯à®Ÿ à®…à®©à¯ˆà®¤à¯à®¤à¯ à®¤à®•à®µà®²à¯à®•à®³à¯à®®à¯ à®‰à®£à¯à®®à¯ˆà®¯à®¾à®©à®µà¯ˆ à®Žà®©à¯à®±à¯ à®•à®Ÿà®©à¯ à®µà®¾à®™à¯à®•à¯à®ªà®µà®°à¯ à®…à®±à®¿à®µà®¿à®•à¯à®•à®¿à®±à®¾à®°à¯. à®‡à®™à¯à®•à¯‡ à®•à¯à®±à®¿à®ªà¯à®ªà®¿à®Ÿà®ªà¯à®ªà®Ÿà¯à®Ÿà¯à®³à¯à®³ à®…à®©à¯ˆà®¤à¯à®¤à¯ à®µà®¿à®¤à®¿à®®à¯à®±à¯ˆà®•à®³à¯ˆà®¯à¯à®®à¯ à®¨à®¿à®ªà®¨à¯à®¤à®©à¯ˆà®•à®³à¯ˆà®¯à¯à®®à¯ à®ªà®Ÿà®¿à®¤à¯à®¤à¯ à®ªà¯à®°à®¿à®¨à¯à®¤à¯à®•à¯Šà®£à¯à®Ÿà®¤à®¾à®• à®’à®ªà¯à®ªà¯à®•à¯à®•à¯Šà®³à¯à®•à®¿à®±à®¾à®°à¯.
+        {% comment %}
+        <h4><span class="tamil-text">à®µà®¿à®¤à®¿à®®à¯à®±à¯ˆà®•à®³à¯ à®®à®±à¯à®±à¯à®®à¯
+                à®¨à®¿à®ªà®¨à¯à®¤à®©à¯ˆà®•à®³à¯</span></h4>
+        <p class="tamil-text" style="font-size: 10px; line-height: 1.6; text-align: justify;">
+            1. à®•à®Ÿà®©à¯ à®¤à®¿à®Ÿà¯à®Ÿ à®µà®¿à®µà®°à®™à¯à®•à®³à¯: à®‡à®¨à¯à®¤à®•à¯ à®•à®Ÿà®©à¯ "3 à®ªà¯ˆà®šà®¾
+            | 6 à®®à®¾à®¤à®¤à¯ à®¤à®¿à®Ÿà¯à®Ÿà®®à¯ | à®Žà®¨à¯à®¤ à®¤à®™à¯à®•à®®à¯à®®à¯"
+            à®¤à®¿à®Ÿà¯à®Ÿà®¤à¯à®¤à®¿à®©à¯ à®•à¯€à®´à¯ à®µà®´à®™à¯à®•à®ªà¯à®ªà®Ÿà¯à®•à®¿à®±à®¤à¯.
+            à®µà®Ÿà¯à®Ÿà®¿ à®µà®¿à®•à®¿à®¤à®®à¯ à®†à®£à¯à®Ÿà¯à®•à¯à®•à¯ 36.00% (180 à®¨à®¾à®Ÿà¯à®•à®³à¯).
+            à®•à®Ÿà®©à¯ à®¤à¯Šà®•à¯ˆ à®µà®°à®®à¯à®ªà¯ à®°à¯‚. 1,000 à®®à¯à®¤à®²à¯ à®°à¯‚. 10,00,000
+            à®µà®°à¯ˆ.<br />
+            2. à®•à®Ÿà®©à®¿à®©à¯ à®¨à¯‹à®•à¯à®•à®®à¯: à®•à®Ÿà®©à¯ à®µà®´à®™à¯à®•à¯à®ªà®µà®°à®¿à®Ÿà®®à¯
+            à®ªà®¿à®£à¯ˆà®¯à®®à®¾à®• à®µà¯ˆà®ªà¯à®ªà¯ à®šà¯†à®¯à¯à®¯à®ªà¯à®ªà®Ÿà¯à®Ÿ à®¤à®™à¯à®•
+            à®†à®ªà®°à®£à®™à¯à®•à®³à¯/à®ªà¯Šà®°à¯à®Ÿà¯à®•à®³à®¿à®©à¯ à®ªà®¾à®¤à¯à®•à®¾à®ªà¯à®ªà®¿à®©à¯
+            à®ªà¯‡à®°à®¿à®²à¯ à®®à®Ÿà¯à®Ÿà¯à®®à¯‡ à®•à®Ÿà®©à¯ à®µà®´à®™à¯à®•à®ªà¯à®ªà®Ÿà¯à®•à®¿à®±à®¤à¯.
+            à®ªà®¿à®£à¯ˆà®¯à®ªà¯ à®ªà¯Šà®°à¯à®³à¯ à®¤à®©à®¤à¯ à®šà¯Šà®¤à¯à®¤à¯ à®Žà®©à¯à®±à¯à®®à¯ à®…à®¤à¯
+            à®¤à®¿à®°à¯à®Ÿà®ªà¯à®ªà®Ÿà¯à®Ÿà®¤à¯ à®…à®²à¯à®² à®Žà®©à¯à®±à¯à®®à¯ à®•à®Ÿà®©à¯
+            à®µà®¾à®™à¯à®•à¯à®ªà®µà®°à¯ à®‰à®±à¯à®¤à®¿à®ªà¯à®ªà®Ÿà¯à®¤à¯à®¤à¯à®•à®¿à®±à®¾à®°à¯.<br />
+            3. à®¤à®™à¯à®•à®®à¯ à®®à¯€à®Ÿà¯à®ªà¯ à®¨à¯‡à®°à®®à¯: à®¤à®™à¯à®•à®®à¯ à®®à¯€à®Ÿà¯à®ªà®¤à®±à¯à®•à¯
+            à®•à®¾à®²à¯ˆ 11:00 à®®à®£à®¿à®•à¯à®•à¯à®³à¯ à®ªà®£à®®à¯ à®šà¯†à®²à¯à®¤à¯à®¤ à®µà¯‡à®£à¯à®Ÿà¯à®®à¯.
+            à®…à®¤à¯‡ à®¨à®¾à®³à®¿à®²à¯ à®®à®¾à®²à¯ˆ 4:00 à®®à®£à®¿à®•à¯à®•à¯à®ªà¯ à®ªà®¿à®±à®•à¯
+            à®¤à®™à¯à®•à®ªà¯ à®ªà¯Šà®°à¯à®³à¯ à®µà®´à®™à¯à®•à®ªà¯à®ªà®Ÿà¯à®®à¯.<br />
+            4. KYC à®‡à®£à®•à¯à®•à®®à¯: RBI à®µà®´à®¿à®•à®¾à®Ÿà¯à®Ÿà¯à®¤à®²à®¿à®©à¯à®ªà®Ÿà®¿ à®¤à¯‡à®µà¯ˆà®¯à®¾à®©
+            KYC à®†à®µà®£à®™à¯à®•à®³à¯ (à®…à®Ÿà¯ˆà®¯à®¾à®³à®šà¯ à®šà®¾à®©à¯à®±à¯ à®®à®±à¯à®±à¯à®®à¯
+            à®®à¯à®•à®µà®°à®¿à®šà¯ à®šà®¾à®©à¯à®±à¯) à®•à®Ÿà®©à¯ à®µà®¾à®™à¯à®•à¯à®ªà®µà®°à®¾à®²à¯
+            à®šà®®à®°à¯à®ªà¯à®ªà®¿à®•à¯à®•à®ªà¯à®ªà®Ÿ à®µà¯‡à®£à¯à®Ÿà¯à®®à¯.<br />
+            5. à®¨à®¿à®¯à®¾à®¯à®®à®¾à®© à®¨à®Ÿà¯ˆà®®à¯à®±à¯ˆà®•à®³à¯: à®‡à®¯à®±à¯à®•à¯ˆ à®ªà¯‡à®°à®¿à®Ÿà®°à¯,
+            à®¤à®¿à®°à¯à®Ÿà¯à®Ÿà¯ à®…à®²à¯à®²à®¤à¯ à®•à®Ÿà®©à¯ à®µà®´à®™à¯à®•à¯à®ªà®µà®°à®¿à®©à¯
+            à®•à®Ÿà¯à®Ÿà¯à®ªà¯à®ªà®¾à®Ÿà¯à®Ÿà®¿à®±à¯à®•à¯ à®…à®ªà¯à®ªà®¾à®±à¯à®ªà®Ÿà¯à®Ÿ
+            à®•à®¾à®°à®£à®™à¯à®•à®³à®¾à®²à¯ à®à®±à¯à®ªà®Ÿà¯à®®à¯ à®‡à®´à®ªà¯à®ªà¯à®•à®³à¯à®•à¯à®•à¯ RBI
+            à®µà®¿à®¤à®¿à®®à¯à®±à¯ˆà®•à®³à®¿à®©à¯à®ªà®Ÿà®¿ à®•à®Ÿà®©à¯ à®µà®´à®™à¯à®•à¯à®ªà®µà®°à¯
+            à®ªà¯Šà®±à¯à®ªà¯à®ªà®²à¯à®².<br />
+            6. à®•à®Ÿà®©à¯ à®¤à®¿à®°à¯à®ªà¯à®ªà®¿à®šà¯ à®šà¯†à®²à¯à®¤à¯à®¤à®²à¯: à®•à®Ÿà®©à¯
+            à®’à®ªà¯à®ªà®¨à¯à®¤ à®•à®¾à®²à®¤à¯à®¤à®¿à®±à¯à®•à¯à®³à¯ à®¤à®¿à®°à¯à®ªà¯à®ªà®¿à®šà¯
+            à®šà¯†à®²à¯à®¤à¯à®¤à®ªà¯à®ªà®Ÿ à®µà¯‡à®£à¯à®Ÿà¯à®®à¯. à®¤à®µà®±à®¿à®©à¯ à®ªà¯‹à®¤à¯ Indian Contract
+            Act 1872 à®®à®±à¯à®±à¯à®®à¯ Pawn Brokers Act 1943 à®µà®¿à®¤à®¿à®•à®³à®¿à®©à¯à®ªà®Ÿà®¿
+            à®ªà®¿à®£à¯ˆà®¯à®ªà¯ à®ªà¯Šà®°à¯à®³à¯ˆ à®µà®¿à®±à¯à®•à¯à®®à¯ à®‰à®°à®¿à®®à¯ˆ à®•à®Ÿà®©à¯
+            à®µà®´à®™à¯à®•à¯à®ªà®µà®°à¯à®•à¯à®•à¯ à®‰à®£à¯à®Ÿà¯.<br />
+            7. à®°à®šà¯€à®¤à¯ à®…à®µà®šà®¿à®¯à®®à¯: à®…à®šà®²à¯ à®•à®Ÿà®©à¯ à®†à®µà®£à®®à¯ à®®à®±à¯à®±à¯à®®à¯
+            à®…à®Ÿà¯ˆà®¯à®¾à®³à®šà¯ à®šà®¾à®©à¯à®±à¯ à®šà®°à®¿à®ªà®¾à®°à¯à®ªà¯à®ªà¯ à®‡à®²à¯à®²à®¾à®®à®²à¯
+            à®ªà®¿à®£à¯ˆà®¯à®ªà¯ à®ªà¯Šà®°à¯à®³à¯ à®µà¯†à®³à®¿à®¯à®¿à®Ÿà®ªà¯à®ªà®Ÿà®¾à®¤à¯.<br />
+            8. à®…à®±à®¿à®µà®¿à®ªà¯à®ªà¯: à®µà®´à®™à¯à®•à®ªà¯à®ªà®Ÿà¯à®Ÿ à®…à®©à¯ˆà®¤à¯à®¤à¯
+            à®¤à®•à®µà®²à¯à®•à®³à¯à®®à¯ à®‰à®£à¯à®®à¯ˆà®¯à®¾à®©à®µà¯ˆ à®Žà®©à¯à®±à¯ à®•à®Ÿà®©à¯
+            à®µà®¾à®™à¯à®•à¯à®ªà®µà®°à¯ à®…à®±à®¿à®µà®¿à®•à¯à®•à®¿à®±à®¾à®°à¯. à®‡à®™à¯à®•à¯‡
+            à®•à¯à®±à®¿à®ªà¯à®ªà®¿à®Ÿà®ªà¯à®ªà®Ÿà¯à®Ÿà¯à®³à¯à®³ à®…à®©à¯ˆà®¤à¯à®¤à¯
+            à®µà®¿à®¤à®¿à®®à¯à®±à¯ˆà®•à®³à¯ˆà®¯à¯à®®à¯ à®¨à®¿à®ªà®¨à¯à®¤à®©à¯ˆà®•à®³à¯ˆà®¯à¯à®®à¯
+            à®ªà®Ÿà®¿à®¤à¯à®¤à¯ à®ªà¯à®°à®¿à®¨à¯à®¤à¯à®•à¯Šà®£à¯à®Ÿà®¤à®¾à®•
+            à®’à®ªà¯à®ªà¯à®•à¯à®•à¯Šà®³à¯à®•à®¿à®±à®¾à®°à¯.
+        </p>
+    </div>
+    {% endcomment %}
+    <!-- Signatures Section -->
+
+    <div class="signatures">
+        <div class="signature-box-left">
+            <p class="{% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
+                <b>{{ labels.borrower_signature }}</b>
+                <br>
+                {{ customer_name_display }}
             </p>
         </div>
-            {% endcomment %}
-        <!-- Signatures Section -->
+        <div class="signature-box-right">
+            <p class="{% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
+                <b>{{ labels.authorized_signatory }}</b>
+                <br>
+                {% if loan.branch %}
+                {{ loan.branch.name }}
+                {% else %}
+                {{ labels.branch_manager }}
+                {% endif %}
+            </p>
+        </div>
+    </div>
 
-        <div class="signatures">
-            <div class="signature-box-left">
-                <p class="{% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}"><b>{{ labels.borrower_signature }}</b><br>{{ customer_name_display }}</p>
-            </div>
-            <div class="signature-box-right">
-                <p class="{% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}"><b>{{ labels.authorized_signatory }}</b><br>{% if loan.branch %}{{ loan.branch.name }}{% else %}{{ labels.branch_manager }}{% endif %}</p>
-            </div>
-        </div>
-        
-        <div class="footer">
-            <p class="{% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.document_generated_on }}: {% now "d/m/Y" %}</p>
-        </div>
+    <div class="footer">
+        <p class="{% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">{{ labels.document_generated_on }}:
+            {% now "d/m/Y" %}</p>
+    </div>
     </div>
     <script>
         (function () {
@@ -374,15 +910,5 @@
         })();
     </script>
 </body>
+
 </html>
-
-
-
-
-
-
-
-
-
-
-

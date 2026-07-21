@@ -73,6 +73,11 @@ class Loan(models.Model):
         null=True,
         help_text="Upload loan agreement or related documents. File will be named using customer and item names."
     )
+    is_first_month_interest_paid = models.BooleanField(
+        default=False,
+        verbose_name=_("Is first month interest paid?"),
+        help_text=_("Check if first month interest is paid/collected upfront")
+    )
     
     # Metadata
     created_at = models.DateTimeField(auto_now_add=True)
@@ -106,8 +111,9 @@ class Loan(models.Model):
         # Calculate monthly interest rate (annual rate / 12)
         monthly_rate = Decimal(self.interest_rate) / Decimal('12')
         
-        # Calculate monthly interest amount based on distribution amount (amount customer receives)
-        monthly_amount = (self.distribution_amount * monthly_rate) / Decimal('100')
+        # Calculate monthly interest amount based on base distribution amount (principal - processing fee)
+        base_dist_amount = self.principal_amount - Decimal(str(self.processing_fee))
+        monthly_amount = (base_dist_amount * monthly_rate) / Decimal('100')
         
         # Calculate rate per 1000 of distribution amount
         per_thousand = (monthly_rate * Decimal('10')) # per Rs. 1,000
@@ -251,6 +257,9 @@ class Loan(models.Model):
                 months_count = Decimal(str(months_elapsed + 1))  # Current month counts as well
         
         # Calculate total interest
+        if self.is_first_month_interest_paid:
+            months_count = max(Decimal('0'), months_count - Decimal('1'))
+            
         total_interest = monthly_amount * months_count
         
         # Total payable is principal + interest till date
@@ -320,6 +329,10 @@ class Loan(models.Model):
         if self.due_date.day > self.issue_date.day:
             months += 1
             
+        # Adjust for first month interest paid upfront
+        if self.is_first_month_interest_paid:
+            months = max(0, months - 1)
+            
         # Calculate interest using monthly rate
         monthly_info = self.monthly_interest
         monthly_amount = monthly_info['amount']
@@ -335,30 +348,38 @@ class Loan(models.Model):
         # Use the transaction date for calculating days elapsed
         current_date = timezone.now().date()
         days_elapsed = (current_date - self.issue_date).days
-        distribution_amount = self.distribution_amount
+        
+        # Adjust for first month interest paid upfront (approx. 30 days)
+        if self.is_first_month_interest_paid:
+            days_elapsed = max(0, days_elapsed - 30)
+            
+        # Calculate interest based on scheme interest rate on base distribution amount (principal - processing fee)
+        base_dist_amount = self.principal_amount - Decimal(str(self.processing_fee))
         
         # For schemes with no_interest_period_days, check if we're still in that period
         if self.scheme.no_interest_period_days and days_elapsed <= self.scheme.no_interest_period_days:
             return Decimal('0.00')
             
-        # Calculate interest based on scheme interest rate on distribution amount
+        # Calculate interest based on scheme interest rate on base distribution amount
         daily_rate = self.scheme.interest_rate / Decimal('36500')  # Convert annual rate to daily rate
-        interest = distribution_amount * daily_rate * days_elapsed
+        interest = base_dist_amount * daily_rate * days_elapsed
         
         return interest
         
     @property
     def monthly_interest(self):
         """Calculate monthly interest rate and amount for the loan"""
-        if not self.scheme or not self.distribution_amount:
+        if not self.distribution_amount:
             return {
                 'rate': Decimal('0.00'),
                 'amount': Decimal('0.00'),
                 'per_thousand': Decimal('0.00')
             }
         
-        # Calculate months since issue to determine tiered rate
-        if self.issue_date:
+        # Get interest rate from scheme or default
+        if not self.scheme:
+            annual_rate = Decimal(str(self.interest_rate))
+        elif self.issue_date:
             today = timezone.now().date()
             months_elapsed = ((today.year - self.issue_date.year) * 12 + 
                             today.month - self.issue_date.month)
@@ -371,8 +392,9 @@ class Loan(models.Model):
         # Calculate monthly interest rate
         monthly_rate = annual_rate / Decimal('12')
         
-        # Calculate monthly interest amount based on distribution amount (amount customer receives)
-        monthly_interest_amount = (self.distribution_amount * monthly_rate) / Decimal('100')
+        # Calculate monthly interest amount based on base distribution amount (principal - processing fee)
+        base_dist_amount = self.principal_amount - Decimal(str(self.processing_fee))
+        monthly_interest_amount = (base_dist_amount * monthly_rate) / Decimal('100')
         
         # Calculate per thousand rate (how much interest per 1000 of distribution amount)
         per_thousand = (monthly_rate / Decimal('100')) * Decimal('1000')
@@ -402,6 +424,10 @@ class Loan(models.Model):
         # Ensure we don't have negative months
         if months_elapsed < 0:
             months_elapsed = 0
+            
+        # Adjust for first month interest paid upfront
+        if self.is_first_month_interest_paid:
+            months_elapsed = max(0, months_elapsed - 1)
             
         # Get monthly interest rate and amount
         monthly_info = self.monthly_interest

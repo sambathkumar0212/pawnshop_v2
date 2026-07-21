@@ -56,7 +56,6 @@ class LoanForm(forms.ModelForm):
         required=False,
         max_digits=10,
         decimal_places=0,
-        help_text="Amount to be distributed after processing fee",
         widget=forms.NumberInput(attrs={
             'data-show-words': 'true'  # Custom attribute to identify fields that need words display
         })
@@ -186,12 +185,19 @@ class LoanForm(forms.ModelForm):
             'class': 'form-control'
         })
     )
+    is_first_month_interest_paid = forms.BooleanField(
+        required=False,
+        label='Is first month interest paid?',
+        help_text='Check if first month interest is paid/collected upfront',
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
 
     class Meta:
         model = Loan
         fields = [
             'customer', 'branch', 'scheme', 'principal_amount', 'processing_fee',
-            'distribution_amount', 'interest_rate', 'issue_date', 'due_date', 'loan_document'
+            'distribution_amount', 'interest_rate', 'issue_date', 'due_date', 'loan_document',
+            'is_first_month_interest_paid'
         ]
         widgets = {
             'issue_date': forms.DateInput(attrs={'type': 'date'}),
@@ -415,7 +421,8 @@ class LoanForm(forms.ModelForm):
                 Column('distribution_amount', css_class='col-md-4'),
             ),
             Row(
-                Column('interest_rate', css_class='col-md-12'),
+                Column('interest_rate', css_class='col-md-6'),
+                Column('is_first_month_interest_paid', css_class='col-md-6', style="padding-top: 30px;"),
             ),
             Row(
                 Column('issue_date', css_class='col-md-4'),
@@ -512,7 +519,17 @@ class LoanForm(forms.ModelForm):
             # Calculate processing fee using the scheme's percentage
             processing_fee = round(float(principal_amount) * (processing_fee_percentage / 100))
             cleaned_data['processing_fee'] = processing_fee
-            cleaned_data['distribution_amount'] = principal_amount - processing_fee
+            
+            base_distribution = principal_amount - processing_fee
+            
+            # Calculate first month's interest if checkbox is checked
+            if cleaned_data.get('is_first_month_interest_paid'):
+                annual_rate = cleaned_data.get('interest_rate') or scheme.interest_rate
+                monthly_rate = Decimal(str(annual_rate)) / Decimal('12')
+                first_month_interest = (Decimal(str(base_distribution)) * monthly_rate) / Decimal('100')
+                cleaned_data['distribution_amount'] = round(Decimal(str(base_distribution)) - first_month_interest)
+            else:
+                cleaned_data['distribution_amount'] = base_distribution
 
         # Check if at least one item is being added
         # For new item creation, check required fields
@@ -571,7 +588,14 @@ class LoanForm(forms.ModelForm):
         # Set distribution_amount
         if instance.principal_amount and instance.processing_fee:
             # The processing_fee is already stored as an amount at this point, not a percentage
-            instance.distribution_amount = instance.principal_amount - instance.processing_fee
+            base_distribution = instance.principal_amount - instance.processing_fee
+            if instance.is_first_month_interest_paid:
+                interest_rate = Decimal(str(instance.interest_rate or (instance.scheme.interest_rate if instance.scheme else 12.00)))
+                monthly_rate = interest_rate / Decimal('12')
+                first_month_interest = (Decimal(str(base_distribution)) * monthly_rate) / Decimal('100')
+                instance.distribution_amount = round(Decimal(str(base_distribution)) - first_month_interest)
+            else:
+                instance.distribution_amount = base_distribution
 
         # Set grace_period_end if due_date is set
         if instance.due_date:

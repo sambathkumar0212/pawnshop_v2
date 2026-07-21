@@ -314,8 +314,8 @@ def build_loan_pdf_language_context(loan, current_language):
         'gold_items_details': 'Gold Items Details',
         'item_description': 'Item Description',
         'gold_karat': 'Gold Karat',
-        'gross_weight': 'Gross Weight (g)',
-        'net_weight': 'Net Weight (g)',
+        'gross_weight': 'Gross Weight(g)',
+        'net_weight': 'Net Weight(g)',
         'total_items': 'Total Items',
         'pledged_gold_item_photos': 'Pledged Gold Item Photos',
         'item': 'Item',
@@ -327,6 +327,7 @@ def build_loan_pdf_language_context(loan, current_language):
         'email_label': 'Email',
         'document_generated_on': 'Document generated on',
         'terms_and_conditions': 'TERMS AND CONDITIONS',
+        'first_month_interest_paid': 'First Month Interest Paid (Upfront)',
     }
 
     if use_tamil:
@@ -364,6 +365,7 @@ def build_loan_pdf_language_context(loan, current_language):
             'email_label': 'மின்னஞ்சல்',
             'document_generated_on': 'ஆவணம் உருவாக்கப்பட்ட தேதி',
             'terms_and_conditions': 'விதிமுறைகள் மற்றும் நிபந்தனைகள்',
+            'first_month_interest_paid': 'முதல் மாத வட்டி செலுத்தப்பட்டது (முன்கூட்டியே)',
         }
     else:
         labels = label_keys
@@ -3524,7 +3526,7 @@ class SaleReceiptView(LoginRequiredMixin, View):
 def number_to_words(request, number):
     """Utility view to convert numbers to words"""
     try:
-        words = num2words(float(number))
+        words = num2words(float(number), lang='en_IN').title()
         return JsonResponse({'words': words})
     except (ValueError, TypeError):
         return JsonResponse({'words': 'Invalid number'}, status=400)
