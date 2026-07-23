@@ -163,44 +163,191 @@ class Scheme(models.Model):
         """
         Returns the appropriate interest rate based on the loan tenure in months.
         If interest_rate_structure is not defined, falls back to the default interest_rate.
-        
-        Args:
-            tenure_months: Loan tenure in months
-        
-        Returns:
-            Decimal: The interest rate percentage for the given tenure
         """
         from decimal import Decimal
         
-        # If no dynamic structure is defined, return the default interest rate
         if not self.interest_rate_structure:
             return self.interest_rate
             
-        # Convert tenure_months to a decimal for comparison
+        if self.is_days_based:
+            return self.get_interest_rate_for_days(int(tenure_months) * 30)
+            
         tenure = Decimal(str(tenure_months))
         
-        # Find the appropriate rate in the structure
         for range_key, rate in self.interest_rate_structure.items():
-            # Handle different range formats
             if '-' in range_key:
-                # Range like "0-1", "1-3", "3-6"
                 start, end = range_key.split('-')
-                if start and end:  # Both limits specified
+                if start and end:
                     if Decimal(start) <= tenure <= Decimal(end):
                         return Decimal(str(rate))
-                elif start:  # Only lower limit specified
+                elif start:
                     if Decimal(start) <= tenure:
                         return Decimal(str(rate))
-            elif range_key.endswith('+'):  # Range like "6+"
+            elif range_key.endswith('+'):
                 min_value = Decimal(range_key.rstrip('+'))
                 if tenure >= min_value:
                     return Decimal(str(rate))
-            elif range_key == str(int(tenure)):  # Exact match
+            elif range_key == str(int(tenure)):
                 return Decimal(str(rate))
                 
-        # If no matching range found, use the default rate
+        return self.interest_rate
+
+    @property
+    def is_days_based(self):
+        """Returns True if the tiered rate structure is days-based"""
+        if not self.interest_rate_structure:
+            return False
+        for key in self.interest_rate_structure.keys():
+            clean_key = key.replace('+', '')
+            parts = clean_key.split('-')
+            for part in parts:
+                if part.strip().isdigit() and int(part.strip()) > 12:
+                    return True
+        return False
+
+    def get_interest_rate_for_days(self, days_elapsed):
+        """
+        Returns the appropriate interest rate based on the loan tenure in days.
+        If interest_rate_structure is not defined, falls back to the default interest_rate.
+        """
+        from decimal import Decimal
+        
+        if not self.interest_rate_structure:
+            return self.interest_rate
+            
+        if not self.is_days_based:
+            months = max(1, int(days_elapsed // 30))
+            return self.get_interest_rate_for_tenure(months)
+            
+        days = Decimal(str(days_elapsed))
+        
+        # Sort key ranges to check from smallest to largest end bounds
+        sorted_keys = []
+        for range_key, rate in self.interest_rate_structure.items():
+            if '-' in range_key:
+                start, end = range_key.split('-')
+                if start and end:
+                    sorted_keys.append((Decimal(start), Decimal(end), range_key, Decimal(str(rate))))
+                elif start:
+                    sorted_keys.append((Decimal(start), Decimal('999999'), range_key, Decimal(str(rate))))
+            elif range_key.endswith('+'):
+                min_val = Decimal(range_key.rstrip('+'))
+                sorted_keys.append((min_val, Decimal('999999'), range_key, Decimal(str(rate))))
+            elif range_key.isdigit():
+                val = Decimal(range_key)
+                sorted_keys.append((val, val, range_key, Decimal(str(rate))))
+        
+        # Sort primarily by lower bound, then upper bound
+        sorted_keys.sort()
+        
+        for start, end, range_key, rate in sorted_keys:
+            if start <= days <= end:
+                return rate
+                
+        # If no matching range found, return default
         return self.interest_rate
     
+    def get_tiered_rate_structure_display(self):
+        """
+        Returns structured list of tiers matching Scheme Form creation for display in scheme templates.
+        """
+        from decimal import Decimal
+        tiers = []
+        is_days = self.is_days_based
+        unit = "Days" if is_days else "Months"
+        
+        if self.interest_rate_structure:
+            idx = 1
+            total_items = len(self.interest_rate_structure)
+            for range_key, rate in self.interest_rate_structure.items():
+                level_label = f"Level {idx}"
+                if idx == total_items:
+                    level_label += " (Default/Late)"
+                    
+                if '-' in range_key:
+                    start, end = range_key.split('-')
+                    from_str = f"{start}"
+                    to_str = f"{end}"
+                    range_label = f"{start} to {end} {unit}"
+                elif range_key.endswith('+'):
+                    start = range_key.rstrip('+')
+                    from_str = f"{start}"
+                    to_str = "∞ (No Limit)"
+                    range_label = f"Above {start} {unit}"
+                else:
+                    from_str = "0"
+                    to_str = f"{range_key}"
+                    range_label = f"{range_key} {unit}"
+                    
+                annual = Decimal(str(rate))
+                monthly = (annual / Decimal('12')).quantize(Decimal('0.01'))
+                per_hundred = monthly
+                
+                tiers.append({
+                    'level': level_label,
+                    'from': from_str,
+                    'to': to_str,
+                    'range': range_label,
+                    'annual_rate': annual,
+                    'monthly_rate': monthly,
+                    'per_hundred': per_hundred
+                })
+                idx += 1
+        elif self.early_period_months or self.early_period_interest_rate:
+            m1 = self.early_period_months or 1
+            r1_monthly = Decimal(str(self.early_period_interest_rate or 0))
+            r1_annual = r1_monthly * Decimal('12')
+            
+            m2 = self.standard_period_months or 2
+            r2_monthly = Decimal(str(self.gold_interest_rate or 0))
+            r2_annual = r2_monthly * Decimal('12')
+            
+            r3_monthly = Decimal(str(self.late_period_interest_rate or self.gold_interest_rate or 0))
+            r3_annual = r3_monthly * Decimal('12')
+            
+            tiers.append({
+                'level': 'Level 1 (Early)',
+                'from': '0',
+                'to': f'{m1}',
+                'range': f'0 to {m1} Months',
+                'annual_rate': r1_annual.quantize(Decimal('0.01')),
+                'monthly_rate': r1_monthly.quantize(Decimal('0.01')),
+                'per_hundred': r1_monthly.quantize(Decimal('0.01'))
+            })
+            tiers.append({
+                'level': 'Level 2 (Standard)',
+                'from': f'{m1}',
+                'to': f'{m1 + m2}',
+                'range': f'{m1} to {m1 + m2} Months',
+                'annual_rate': r2_annual.quantize(Decimal('0.01')),
+                'monthly_rate': r2_monthly.quantize(Decimal('0.01')),
+                'per_hundred': r2_monthly.quantize(Decimal('0.01'))
+            })
+            tiers.append({
+                'level': 'Level 3 (Late)',
+                'from': f'{m1 + m2}+',
+                'to': '∞ (No Limit)',
+                'range': f'Above {m1 + m2} Months',
+                'annual_rate': r3_annual.quantize(Decimal('0.01')),
+                'monthly_rate': r3_monthly.quantize(Decimal('0.01')),
+                'per_hundred': r3_monthly.quantize(Decimal('0.01'))
+            })
+        else:
+            annual = Decimal(str(self.interest_rate or 0))
+            monthly = (annual / Decimal('12')).quantize(Decimal('0.01'))
+            duration = self.loan_duration or (self.expiry_period * 30 if self.expiry_period else 365)
+            tiers.append({
+                'level': 'Level 1 (Standard)',
+                'from': '0',
+                'to': f'{duration}',
+                'range': f'0 to {duration} {unit}',
+                'annual_rate': annual.quantize(Decimal('0.01')),
+                'monthly_rate': monthly,
+                'per_hundred': monthly
+            })
+            
+        return tiers
+
     def update_status(self):
         """
         Update the status of the scheme based on current date and start/end dates

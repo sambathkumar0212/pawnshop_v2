@@ -37,8 +37,7 @@
                     {% endif %}
 
                     <!-- Edit Loan - Available only for authorized users -->
-                    {% if user.is_superuser or user.role and user.role.name|lower in
-                    'manager,admin,director,supervisor,head'|split:',' %}
+                    {% if user.is_superuser or user.role and user.role.name|lower in 'manager,admin,director,supervisor,head'|split:',' %}
                     <a href="{% url 'loan_update' loan.loan_number %}" class="btn btn-outline-primary me-2">
                         <i class="fas fa-edit"></i> Edit Loan
                     </a>
@@ -55,13 +54,9 @@
                         target="_blank">
                         <i class="fas fa-file-pdf"></i> Download Agreement
                     </a>
-                    <a href="{% url 'loan_schedule' loan.loan_number %}?download=pdf"
-                        class="btn btn-outline-secondary me-2" target="_blank">
-                        <i class="fas fa-calendar-alt"></i> Loan Schedule
-                    </a>
-                    <a href="{% url 'loan_emi_schedule' loan.loan_number %}?download=pdf"
-                        class="btn btn-outline-info me-2" target="_blank">
-                        <i class="fas fa-calculator"></i> EMI Schedule
+                    <a href="{% url 'loan_tiered_schedule_download' loan.loan_number %}"
+                        class="btn btn-outline-primary me-2" target="_blank">
+                        <i class="fas fa-file-download me-1"></i> Download Tiered Schedule
                     </a>
                     {% if loan.status == 'defaulted' %}
                     <a href="{% url 'loan_expiry_notice' loan.loan_number %}" class="btn btn-outline-danger me-2"
@@ -119,8 +114,7 @@
                                 <div>
                                     <h6 class="mb-1">{{ loan.customer.first_name }} {{ loan.customer.last_name }}</h6>
                                     <p class="small text-muted mb-0">
-                                        <i class="fas fa-phone me-1"></i>{{
-                                        loan.customer.phone|mobile_format|default:"No phone" }}<br>
+                                        <i class="fas fa-phone me-1"></i>{{ loan.customer.phone|mobile_format|default:"No phone" }}<br>
                                         <a href="{% url 'customer_detail' loan.customer.id %}" class="text-primary">
                                             <i class="fas fa-id-card me-1"></i>View Profile
                                         </a>
@@ -145,8 +139,7 @@
                                     <p class="mb-0">
                                         <span class="badge bg-info">{{ loan.scheme.name }}</span>
                                         {% if loan.scheme.no_interest_period_days %}
-                                        <small class="text-muted"> - no interest if paid within {{
-                                            loan.scheme.no_interest_period_days }} days</small>
+                                        <small class="text-muted"> - no interest if paid within {{ loan.scheme.no_interest_period_days }} days</small>
                                         {% endif %}
                                     </p>
                                 </div>
@@ -177,8 +170,7 @@
                                 </div>
                                 <div class="col-md-3 mb-2">
                                     <label class="small text-muted">Net Payable (Still Due)</label>
-                                    <p class="mb-0 fw-bold text-danger rupee-symbol">Rs: {{
-                                        loan.net_payable_still_due|floatformat:0 }}</p>
+                                    <p class="mb-0 fw-bold text-danger rupee-symbol">Rs: {{ loan.net_payable_still_due|floatformat:0 }}</p>
                                 </div>
                                 <div class="col-md-3 mb-2">
                                     <label class="small text-muted">Remaining Balance</label>
@@ -259,29 +251,120 @@
                                         </div>
                                         <div class="col-md-3">
                                             <label class="text-muted small">Monthly Interest</label>
-                                            <p class="mb-0 rupee-symbol small">Rs: {{
-                                                loan|monthly_interest_amount|floatformat:2 }}</p>
+                                            <p class="mb-0 rupee-symbol small">Rs: {{ loan|monthly_interest_amount|floatformat:2 }}</p>
                                         </div>
                                         <div class="col-md-3">
                                             <label class="text-muted small">Interest Till Date</label>
-                                            <p class="mb-0 rupee-symbol small">Rs: {{
-                                                loan.monthly_interest_till_date|floatformat:2 }}</p>
+                                            <p class="mb-0 rupee-symbol small">Rs: {{ loan.monthly_interest_till_date|floatformat:2 }}</p>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
+                        <!-- Tiered Interest Rate Structure & Closing Amount Schedule -->
+                        {% if loan.scheme %}
+                        <div class="col-md-12 mb-3">
+                            <div class="card border-primary">
+                                <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
+                                     <h6 class="mb-0 text-white">
+                                         <i class="fas fa-layer-group me-2"></i>Tiered Interest Rate Structure & Closing Amount Schedule
+                                     </h6>
+                                     <div class="d-flex align-items-center">
+                                         <span class="badge bg-light text-primary fw-bold me-2">
+                                             {% if loan.scheme.is_days_based %}Days-Based Scheme{% else %}Months-Based Scheme{% endif %}
+                                         </span>
+                                         <a href="{% url 'loan_tiered_schedule_download' loan.loan_number %}" class="btn btn-sm btn-light text-primary fw-bold" target="_blank">
+                                             <i class="fas fa-download me-1"></i> Download Document
+                                         </a>
+                                     </div>
+                                 </div>
+                                <div class="card-body p-3">
+                                    <!-- Rate Structure Tiers Summary -->
+                                    <div class="mb-3">
+                                        <h6 class="text-secondary small fw-bold mb-2">
+                                            <i class="fas fa-list-ol me-1"></i>Scheme Rate Tiers Definition
+                                        </h6>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-bordered table-striped mb-0 small text-center align-middle">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th>Level</th>
+                                                        <th>From Date</th>
+                                                        <th>To Date</th>
+                                                        <th>Annual Interest Rate (%)</th>
+                                                        <th>Monthly Rate (%)</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for tier in loan.get_tiered_rate_structure_display %}
+                                                    <tr>
+                                                        <td class="fw-bold">{{ tier.level }}</td>
+                                                        <td>{{ tier.from }}</td>
+                                                        <td>{{ tier.to }}</td>
+                                                        <td class="text-primary fw-bold">{{ tier.annual_rate|floatformat:2 }}% p.a.</td>
+                                                        <td>{{ tier.monthly_rate|floatformat:2 }}%</td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                     {% with schedule_data=loan.get_tiered_schedule %}
+
+                                     <!-- Closing Amount Schedule Till Loan Duration -->
+                                     <div>
+                                         <h6 class="text-secondary small fw-bold mb-2">
+                                             <i class="fas fa-calendar-check me-1"></i>Closing Total Amount Schedule (Till Loan Term Duration)
+                                         </h6>
+                                         <div class="table-responsive">
+                                             <table class="table table-sm table-hover table-bordered mb-0 small text-center align-middle">
+                                                 <thead class="table-dark">
+                                                     <tr>
+                                                         <th>Period / Month</th>
+                                                         <th>Tenure (Days)</th>
+                                                         <th class="table-success text-dark">Disciplined Rate</th>
+                                                         <th class="table-success text-dark">Disciplined Closing</th>
+                                                         <th class="table-danger text-white">Delayed Dynamic Rate</th>
+                                                         <th class="table-danger text-white">Delayed Closing</th>
+                                                         <th class="table-warning text-dark">Disciplined Savings</th>
+                                                     </tr>
+                                                 </thead>
+                                                 <tbody>
+                                                     {% for item in schedule_data.schedule %}
+                                                     <tr>
+                                                         <td class="fw-bold">Month {{ item.month }}</td>
+                                                         <td>{{ item.days }} Days</td>
+                                                         <td><span class="badge bg-success">{{ item.disciplined_rate|floatformat:2 }}% p.a.</span></td>
+                                                         <td class="rupee-symbol fw-bold text-success">Rs: {{ item.disciplined_closing|floatformat:2 }}</td>
+                                                         <td><span class="badge bg-danger">{{ item.delayed_rate|floatformat:2 }}% p.a.</span></td>
+                                                         <td class="rupee-symbol fw-bold text-danger">Rs: {{ item.delayed_closing|floatformat:2 }}</td>
+                                                         <td class="rupee-symbol fw-bold text-primary">Rs: {{ item.savings|floatformat:2 }}</td>
+                                                     </tr>
+                                                     {% endfor %}
+                                                 </tbody>
+                                             </table>
+                                         </div>
+                                         <small class="text-muted fst-italic d-block mt-2" style="font-size: 0.75rem;">
+                                             * Closing Total Amount = Principal Amount (Rs: {{ loan.principal_amount|floatformat:2 }}) + Cumulative Interest accrued under that payment behavior.
+                                         </small>
+                                      </div>
+                                      {% endwith %}
+                                     </div>
+                                 </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
                         <!-- No Interest End Date section -->
                         {% if loan.scheme.no_interest_period_days %}
                         <div class="col-md-4 mb-3">
                             <label class="text-muted small">No Interest End Date</label>
                             <p class="mb-0 small">
-                                <strong>{{ loan.issue_date|date_add_days:loan.scheme.no_interest_period_days|date:'d M,
-                                    Y' }}</strong>
+                                <strong>{{ loan.issue_date|date_add_days:loan.scheme.no_interest_period_days|date:'d M, Y' }}</strong>
                                 {% if loan.days_since_issue <= loan.scheme.no_interest_period_days %} <span
-                                    class="badge bg-success ms-1 small">{{
-                                    loan.scheme.no_interest_period_days|subtract:loan.days_since_issue }}d left</span>
+                                    class="badge bg-success ms-1 small">{{ loan.scheme.no_interest_period_days|subtract:loan.days_since_issue }}d left</span>
                                     {% else %}
                                     <span class="badge bg-secondary ms-1 small">Expired</span>
                                     {% endif %}
@@ -292,29 +375,22 @@
                         <div class="col-md-{% if loan.scheme.no_interest_period_days %}8{% else %}12{% endif %} mb-3">
                             <label class="text-muted">Loan Scheme Details</label>
                             <p class="mb-0">
-                                <small class="text-muted d-block" style="font-size: 0.75rem;">{{ loan.scheme.description
-                                    }}</small>
+                                <small class="text-muted d-block" style="font-size: 0.75rem;">{{ loan.scheme.description }}</small>
 
                                 {% if loan.scheme.no_interest_period_days %}
                                 {% if loan.days_since_issue <= loan.scheme.no_interest_period_days %} <small
                                     class="text-success d-block" style="font-size: 0.75rem;">
                                     <i class="fas fa-check-circle me-1"></i>
-                                    No interest if repaid today! ({{
-                                    loan.scheme.no_interest_period_days|subtract:loan.days_since_issue }} days
-                                    remaining)
+                                    No interest if repaid today! ({{ loan.scheme.no_interest_period_days|subtract:loan.days_since_issue }} days remaining)
                                     </small>
                                     <small class="text-muted d-block" style="font-size: 0.75rem;">
                                         <i class="fas fa-calendar-day me-1"></i>
-                                        Zero interest period ends on {{
-                                        loan.issue_date|date_add_days:loan.scheme.no_interest_period_days|date:'d M, Y'
-                                        }}
+                                        Zero interest period ends on {{ loan.issue_date|date_add_days:loan.scheme.no_interest_period_days|date:'d M, Y' }}
                                     </small>
                                     {% else %}
                                     <small class="text-muted d-block" style="font-size: 0.75rem;">
                                         <i class="fas fa-calendar-times me-1"></i>
-                                        No interest period ended on {{
-                                        loan.issue_date|date_add_days:loan.scheme.no_interest_period_days|date:'d M, Y'
-                                        }}
+                                        No interest period ended on {{ loan.issue_date|date_add_days:loan.scheme.no_interest_period_days|date:'d M, Y' }}
                                     </small>
                                     {% endif %}
                                     {% endif %}
@@ -556,8 +632,7 @@
                                 <tr>
                                     <td>
                                         <a href="{% url 'item_detail' item.item.id %}">{{ item.item.name }}</a>
-                                        <small class="d-block text-muted">{{ item.item.description|truncatechars:30
-                                            }}</small>
+                                        <small class="d-block text-muted">{{ item.item.description|truncatechars:30 }}</small>
                                     </td>
                                     <td>{{ item.gold_karat }}K</td>
                                     <td>{{ item.gross_weight }}g</td>

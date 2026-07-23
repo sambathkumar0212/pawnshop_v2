@@ -73,95 +73,63 @@
                                     <strong>Tiered Interest Rate System.</strong> This scheme uses a three-period loan structure with different interest rates based on when the customer repays the loan.
                                 </div>
                                 
-                                <!-- Three Period Loan Structure -->
-                                <div class="card mb-3">
-                                    <div class="card-header bg-light">
-                                        <h6 class="mb-0">Tiered Interest Rate Structure</h6>
+                                <!-- Five Level Days-Based Structure -->
+                                <div class="card mb-4 border-warning">
+                                    <div class="card-header bg-warning text-dark d-flex align-items-center">
+                                        <h6 class="mb-0 fw-bold"><i class="fas fa-layer-group me-2"></i>Tiered Interest Rate Structure (Days-Based)</h6>
                                     </div>
                                     <div class="card-body">
-                                        <div class="row">
-                                            <div class="col-md-6">
-                                                <div class="card mb-3 border-success">
-                                                    <div class="card-header bg-success text-white">
-                                                        <h6 class="mb-0"><i class="fas fa-clock me-2"></i>Early Period (Discounted Rate)</h6>
-                                                    </div>
-                                                    <div class="card-body">
-                                                        <div class="row">
-                                                            <div class="col-md-6">
-                                                                {{ form.early_period_months|as_crispy_field }}
-                                                                <div id="early-period-days" class="text-muted small mt-1">
-                                                                    <i class="fas fa-calendar-day me-1"></i> <span>0</span> days
-                                                                </div>
-                                                            </div>
-                                                            <div class="col-md-6">
-                                                                {{ form.early_period_interest_rate|as_crispy_field }}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="card mb-3 border-primary">
-                                                    <div class="card-header bg-primary text-white">
-                                                        <h6 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Standard Period (Normal Rate)</h6>
-                                                    </div>
-                                                    <div class="card-body">
-                                                        <div class="row">
-                                                            <div class="col-md-6">
-                                                                {{ form.standard_period_months|as_crispy_field }}
-                                                                <div id="standard-period-days" class="text-muted small mt-1">
-                                                                    <i class="fas fa-calendar-day me-1"></i> <span>0</span> days
-                                                                </div>
-                                                            </div>
-                                                            <div class="col-md-6">
-                                                                {{ form.gold_interest_rate|as_crispy_field }}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                        <div class="alert alert-info py-2 small mb-3">
+                                            <i class="fas fa-info-circle me-1"></i> Specify up to 5 levels of periods (in days) and corresponding annual interest rates.
                                         </div>
-                                        <div class="row">
-                                            <div class="col-md-6">
-                                                <div class="card mb-3 border-danger">
-                                                    <div class="card-header bg-danger text-white">
-                                                        <h6 class="mb-0"><i class="fas fa-exclamation-circle me-2"></i>Late Period (Increased Rate)</h6>
-                                                    </div>
-                                                    <div class="card-body">
-                                                        <div id="late-period-info" class="mb-2">
-                                                            <small class="text-muted">Late period will be automatically calculated based on the total loan duration minus early and standard periods.</small>
-                                                        </div>
-                                                        <div id="late-period-days" class="text-muted small mt-1 mb-2">
-                                                            <i class="fas fa-calendar-day me-1"></i> <span>0</span> days
-                                                        </div>
-                                                        <div class="row">
-                                                            <div class="col-md-12">
-                                                                {{ form.late_period_interest_rate|as_crispy_field }}
+                                        <div class="table-responsive">
+                                            <table class="table table-bordered align-middle mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th style="width: 25%;">Level</th>
+                                                        <th style="width: 15%; text-align: center;">From (Days)</th>
+                                                        <th style="width: 25%; text-align: center;">To (Days)</th>
+                                                        <th style="width: 35%;">Annual Interest Rate (%)</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr>
+                                                        <td><strong>Level 1</strong></td>
+                                                        <td class="text-center">0</td>
+                                                        <td>{{ form.period1_days }}</td>
+                                                        <td>{{ form.period1_rate }}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><strong>Level 2</strong></td>
+                                                        <td>{{ form.period2_from_days }}</td>
+                                                        <td>{{ form.period2_days }}</td>
+                                                        <td>{{ form.period2_rate }}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><strong>Level 3</strong></td>
+                                                        <td>{{ form.period3_from_days }}</td>
+                                                        <td>{{ form.period3_days }}</td>
+                                                        <td>{{ form.period3_rate }}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><strong>Level 4</strong></td>
+                                                        <td>{{ form.period4_from_days }}</td>
+                                                        <td>{{ form.period4_days }}</td>
+                                                        <td>{{ form.period4_rate }}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><strong>Level 5 (Default/Late)</strong></td>
+                                                        <td>
+                                                            <div class="input-group input-group-sm">
+                                                                {{ form.period5_from_days }}
+                                                                <span class="input-group-text">+</span>
                                                             </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="card mb-3 border-info">
-                                                    <div class="card-header bg-info text-white">
-                                                        <h6 class="mb-0"><i class="fas fa-hourglass-end me-2"></i>Total Loan Duration</h6>
-                                                    </div>
-                                                    <div class="card-body">
-                                                        <div class="alert alert-warning">
-                                                            <small>Total loan duration must be greater than early period + standard period.</small>
-                                                        </div>
-                                                        <div class="row">
-                                                            <div class="col-md-12">
-                                                                {{ form.expiry_period|as_crispy_field }}
-                                                                <div id="total-period-days" class="text-muted small mt-1">
-                                                                    <i class="fas fa-calendar-day me-1"></i> <span>0</span> days
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                                        </td>
+                                                        <td class="text-center text-muted">&infin; (No Limit)</td>
+                                                        <td>{{ form.period5_rate }}</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
                                         </div>
                                     </div>
                                 </div>
@@ -340,109 +308,80 @@
             maximumAmount.value = '1000000.00';
         }
 
-        // Three-period loan time validation and feedback
-        function updateLatePeriodInfo() {
-            const earlyPeriod = parseInt(document.getElementById('id_early_period_months').value) || 0;
-            const standardPeriod = parseInt(document.getElementById('id_standard_period_months').value) || 0;
-            const expiryPeriod = parseInt(document.getElementById('id_expiry_period').value) || 0;
-            
-            const latePeriod = expiryPeriod - (earlyPeriod + standardPeriod);
-            const latePeriodInfo = document.getElementById('late-period-info');
-            
-            if (latePeriodInfo) {
-                if (latePeriod <= 0) {
-                    latePeriodInfo.innerHTML = `<div class="alert alert-danger">
-                        <strong>Warning:</strong> The late period calculation is invalid. 
-                        Total loan duration (${expiryPeriod} months) must be greater than 
-                        early period (${earlyPeriod} months) + standard period (${standardPeriod} months).
-                    </div>`;
-                } else {
-                    latePeriodInfo.innerHTML = `<div class="alert alert-info">
-                        <strong>Late Period:</strong> ${latePeriod} months (automatically calculated as 
-                        total loan duration minus early and standard periods)
-                    </div>`;
-                }
-            }
+        // Days-based table validation and synchronization
+        function updateDaysBasedTable() {
+            // No-op or initial synchronization if needed
         }
 
-        // Update early period days display
-        function updateEarlyPeriodDays() {
-            const earlyPeriodMonths = parseInt(document.getElementById('id_early_period_months').value) || 0;
-            const earlyPeriodDays = earlyPeriodMonths * 30; // Approximation: 1 month = 30 days
-            const earlyPeriodDaysElement = document.getElementById('early-period-days').querySelector('span');
-            if (earlyPeriodDaysElement) {
-                earlyPeriodDaysElement.textContent = earlyPeriodDays;
-            }
+        const p1 = document.getElementById('id_period1_days');
+        const p2 = document.getElementById('id_period2_days');
+        const p3 = document.getElementById('id_period3_days');
+        const p4 = document.getElementById('id_period4_days');
+
+        const p2From = document.getElementById('id_period2_from_days');
+        const p3From = document.getElementById('id_period3_from_days');
+        const p4From = document.getElementById('id_period4_from_days');
+        const p5From = document.getElementById('id_period5_from_days');
+
+        if (p1 && p2From) {
+            p1.addEventListener('input', () => { p2From.value = p1.value; });
+            p1.addEventListener('change', () => { p2From.value = p1.value; });
+        }
+        if (p2 && p3From) {
+            p2.addEventListener('input', () => { p3From.value = p2.value; });
+            p2.addEventListener('change', () => { p3From.value = p2.value; });
+        }
+        if (p3 && p4From) {
+            p3.addEventListener('input', () => { p4From.value = p3.value; });
+            p3.addEventListener('change', () => { p4From.value = p3.value; });
+        }
+        if (p4 && p5From) {
+            p4.addEventListener('input', () => { p5From.value = p4.value; });
+            p4.addEventListener('change', () => { p5From.value = p4.value; });
         }
 
-        // Update standard period days display
-        function updateStandardPeriodDays() {
-            const standardPeriodMonths = parseInt(document.getElementById('id_standard_period_months').value) || 0;
-            const standardPeriodDays = standardPeriodMonths * 30; // Approximation: 1 month = 30 days
-            const standardPeriodDaysElement = document.getElementById('standard-period-days').querySelector('span');
-            if (standardPeriodDaysElement) {
-                standardPeriodDaysElement.textContent = standardPeriodDays;
-            }
-        }
+        // Listen for Expiry Period changes to automatically adjust Day Levels
+        const expiryPeriodInput = document.getElementById('id_expiry_period');
+        if (expiryPeriodInput) {
+            function handleExpiryPeriodChange() {
+                const months = parseInt(expiryPeriodInput.value) || 0;
+                if (months > 0) {
+                    let totalDays = months * 30;
+                    if (months === 12) {
+                        totalDays = 365;
+                    }
+                    
+                    const p1 = document.getElementById('id_period1_days');
+                    const p2 = document.getElementById('id_period2_days');
+                    const p3 = document.getElementById('id_period3_days');
+                    const p4 = document.getElementById('id_period4_days');
 
-        // Update late period days display
-        function updateLatePeriodDays() {
-            const earlyPeriodMonths = parseInt(document.getElementById('id_early_period_months').value) || 0;
-            const standardPeriodMonths = parseInt(document.getElementById('id_standard_period_months').value) || 0;
-            const expiryPeriodMonths = parseInt(document.getElementById('id_expiry_period').value) || 0;
-            const latePeriodMonths = expiryPeriodMonths - (earlyPeriodMonths + standardPeriodMonths);
-            const latePeriodDays = latePeriodMonths * 30; // Approximation: 1 month = 30 days
-            const latePeriodDaysElement = document.getElementById('late-period-days').querySelector('span');
-            if (latePeriodDaysElement) {
-                latePeriodDaysElement.textContent = latePeriodDays > 0 ? latePeriodDays : 0;
-            }
-        }
+                    const p2f = document.getElementById('id_period2_from_days');
+                    const p3f = document.getElementById('id_period3_from_days');
+                    const p4f = document.getElementById('id_period4_from_days');
+                    const p5f = document.getElementById('id_period5_from_days');
+                    
+                    const val1 = Math.round(totalDays * 0.25);
+                    const val2 = Math.round(totalDays * 0.50);
+                    const val3 = Math.round(totalDays * 0.75);
+                    const val4 = totalDays;
 
-        // Update total period days display
-        function updateTotalPeriodDays() {
-            const expiryPeriodMonths = parseInt(document.getElementById('id_expiry_period').value) || 0;
-            const totalPeriodDays = expiryPeriodMonths * 30; // Approximation: 1 month = 30 days
-            const totalPeriodDaysElement = document.getElementById('total-period-days').querySelector('span');
-            if (totalPeriodDaysElement) {
-                totalPeriodDaysElement.textContent = totalPeriodDays;
+                    if (p1) p1.value = val1;
+                    if (p2) p2.value = val2;
+                    if (p3) p3.value = val3;
+                    if (p4) p4.value = val4;
+
+                    if (p2f) p2f.value = val1;
+                    if (p3f) p3f.value = val2;
+                    if (p4f) p4f.value = val3;
+                    if (p5f) p5f.value = val4;
+                    
+                    updateDaysBasedTable();
+                }
             }
+            expiryPeriodInput.addEventListener('input', handleExpiryPeriodChange);
+            expiryPeriodInput.addEventListener('change', handleExpiryPeriodChange);
         }
-        
-        // Attach event listeners to period fields
-        const periodFields = [
-            'id_early_period_months',
-            'id_standard_period_months',
-            'id_expiry_period'
-        ];
-        
-        periodFields.forEach(fieldId => {
-            const field = document.getElementById(fieldId);
-            if (field) {
-                field.addEventListener('input', updateLatePeriodInfo);
-                field.addEventListener('change', updateLatePeriodInfo);
-                if (fieldId === 'id_early_period_months') {
-                    field.addEventListener('input', updateEarlyPeriodDays);
-                    field.addEventListener('change', updateEarlyPeriodDays);
-                }
-                if (fieldId === 'id_standard_period_months') {
-                    field.addEventListener('input', updateStandardPeriodDays);
-                    field.addEventListener('change', updateStandardPeriodDays);
-                }
-                if (fieldId === 'id_expiry_period') {
-                    field.addEventListener('input', updateLatePeriodDays);
-                    field.addEventListener('change', updateLatePeriodDays);
-                    field.addEventListener('input', updateTotalPeriodDays);
-                    field.addEventListener('change', updateTotalPeriodDays);
-                }
-            }
-        });
-        
-        // Initialize the late period info and early period days on page load
-        updateLatePeriodInfo();
-        updateEarlyPeriodDays();
-        updateStandardPeriodDays();
-        updateLatePeriodDays();
-        updateTotalPeriodDays();
 
         // Add custom form submission handler with visual feedback
         const schemeForm = document.getElementById('schemeForm');
@@ -453,15 +392,30 @@
             e.preventDefault();
             
             // Validate periods before submission
-            const earlyPeriod = parseInt(document.getElementById('id_early_period_months').value) || 0;
-            const standardPeriod = parseInt(document.getElementById('id_standard_period_months').value) || 0;
-            const expiryPeriod = parseInt(document.getElementById('id_expiry_period').value) || 0;
+            const p1 = parseInt(document.getElementById('id_period1_days').value) || 0;
+            const p2 = parseInt(document.getElementById('id_period2_days').value) || 0;
+            const p3 = parseInt(document.getElementById('id_period3_days').value) || 0;
+            const p4 = parseInt(document.getElementById('id_period4_days').value) || 0;
             
-            if (expiryPeriod <= (earlyPeriod + standardPeriod)) {
-                statusAlert.innerHTML = '<strong>Error:</strong> Total loan duration must be greater than early period + standard period.';
+            if (p2 && p2 <= p1) {
+                statusAlert.innerHTML = '<strong>Error:</strong> Period 2 days must be greater than Period 1 days.';
                 statusAlert.className = 'alert alert-danger';
                 statusAlert.style.display = 'block';
-                document.getElementById('id_expiry_period').focus();
+                document.getElementById('id_period2_days').focus();
+                return;
+            }
+            if (p3 && p3 <= p2) {
+                statusAlert.innerHTML = '<strong>Error:</strong> Period 3 days must be greater than Period 2 days.';
+                statusAlert.className = 'alert alert-danger';
+                statusAlert.style.display = 'block';
+                document.getElementById('id_period3_days').focus();
+                return;
+            }
+            if (p4 && p4 <= p3) {
+                statusAlert.innerHTML = '<strong>Error:</strong> Period 4 days must be greater than Period 3 days.';
+                statusAlert.className = 'alert alert-danger';
+                statusAlert.style.display = 'block';
+                document.getElementById('id_period4_days').focus();
                 return;
             }
             
@@ -523,32 +477,14 @@
                         document.getElementById('schemeForm').innerHTML = doc.getElementById('schemeForm').innerHTML;
                         
                         // Re-initialize the period validation
-                        periodFields.forEach(fieldId => {
-                            const field = document.getElementById(fieldId);
-                            if (field) {
-                                field.addEventListener('input', updateLatePeriodInfo);
-                                field.addEventListener('change', updateLatePeriodInfo);
-                                if (fieldId === 'id_early_period_months') {
-                                    field.addEventListener('input', updateEarlyPeriodDays);
-                                    field.addEventListener('change', updateEarlyPeriodDays);
-                                }
-                                if (fieldId === 'id_standard_period_months') {
-                                    field.addEventListener('input', updateStandardPeriodDays);
-                                    field.addEventListener('change', updateStandardPeriodDays);
-                                }
-                                if (fieldId === 'id_expiry_period') {
-                                    field.addEventListener('input', updateLatePeriodDays);
-                                    field.addEventListener('change', updateLatePeriodDays);
-                                    field.addEventListener('input', updateTotalPeriodDays);
-                                    field.addEventListener('change', updateTotalPeriodDays);
-                                }
+                        daysInputIds.forEach(id => {
+                            const el = document.getElementById(id);
+                            if (el) {
+                                el.addEventListener('input', updateDaysBasedTable);
+                                el.addEventListener('change', updateDaysBasedTable);
                             }
                         });
-                        updateLatePeriodInfo();
-                        updateEarlyPeriodDays();
-                        updateStandardPeriodDays();
-                        updateLatePeriodDays();
-                        updateTotalPeriodDays();
+                        updateDaysBasedTable();
                     } else {
                         // No specific errors found, but form wasn't redirected
                         statusAlert.textContent = 'An unexpected error occurred. Please try again.';

@@ -400,7 +400,7 @@ def build_loan_pdf_language_context(loan, current_language):
         },
         {
             'title': '6. Repayment and Recovery:',
-            'content': f'Repayment and Recovery: The loan is repayable (principal and total interest) before the due date "{due_date}". If not repaid, the lender may sell the pledged gold within 5 days loan due date "{due_date}". I sincerely aggree for this without any opposition'
+            'content': f'The loan is repayable (principal and total interest) before the due date "{due_date}". If not repaid, the lender may sell the pledged gold within 5 days loan due date "{due_date}". I sincerely aggree for this without any opposition'
         },
         {
             'title': '7. Receipt Requirement:',
@@ -444,6 +444,35 @@ def build_loan_pdf_language_context(loan, current_language):
         from datetime import timedelta
         minimum_date = loan.issue_date + timedelta(days=minimum_term)
 
+    # Fetch current loan's tiered scheme rates dynamically for PDF table display
+    tiered_rates = []
+    s = loan.scheme
+    if s and s.interest_rate_structure:
+        from decimal import Decimal
+        # Try to sort the keys naturally if they are ranges
+        # e.g., '0-30', '30-60', '60-90', '90-365', '365+'
+        sorted_keys = sorted(s.interest_rate_structure.keys(), key=lambda k: [int(x) if x.isdigit() else 999999 for x in k.replace('+', '').split('-') if x])
+        for range_key in sorted_keys:
+            rate = s.interest_rate_structure[range_key]
+            # Use 'd' suffix if days-based scheme
+            suffix = 'd' if s.is_days_based else 'm'
+            range_display = f"{range_key}{suffix}"
+            try:
+                original_dist = loan.principal_amount - Decimal(str(loan.processing_fee or 0))
+                monthly_rate = (Decimal(str(rate)) / Decimal('12')).quantize(Decimal('0.01'))
+                interest_amount = (original_dist * monthly_rate / Decimal('100')).quantize(Decimal('0.01'))
+                rate_val = f"{monthly_rate:.2f}%"
+                amount_val = f"Rs {interest_amount:,.2f}"
+            except Exception:
+                rate_val = f"{rate}%"
+                amount_val = ""
+            
+            tiered_rates.append({
+                'range': range_display,
+                'rate': rate_val,
+                'amount': amount_val
+            })
+
     return {
         'current_language': current_language,
         'labels': labels,
@@ -475,6 +504,7 @@ def build_loan_pdf_language_context(loan, current_language):
         'terms_list': terms,
         'minimum_term': minimum_term,
         'minimum_date': minimum_date,
+        'tiered_rates': tiered_rates,
     }
 
 
@@ -2584,7 +2614,46 @@ class LoanPaymentHistoryDownloadView(LoginRequiredMixin, RoleBranchAccessMixin, 
         # Build PDF
         doc.build(elements)
         
-        return response
+class LoanTieredScheduleDownloadView(LoginRequiredMixin, RoleBranchAccessMixin, View):
+    """
+    Renders/Downloads the combined 'Scheme Rate Tiers Definition' and
+    'Closing Total Amount Schedule (Monthly vs Delayed)' document for a loan.
+    """
+    def get(self, request, loan_number):
+        loan = get_object_or_404(Loan, loan_number=loan_number)
+        self.check_object_branch_access(loan, branch_attr='branch')
+        
+        display_tiers = loan.get_tiered_rate_structure_display()
+        schedule_data = loan.get_tiered_schedule()
+        
+        context = {
+            'loan': loan,
+            'display_tiers': display_tiers,
+            'schedule_data': schedule_data,
+            'current_date': timezone.now().date(),
+        }
+        
+        if request.GET.get('format') == 'pdf':
+            try:
+                return self._generate_pdf(request, context)
+            except Exception as e:
+                print(f"PDF generation error: {e}")
+                
+        return render(request, 'transactions/tiered_schedule_document.html', context)
+
+    def _generate_pdf(self, request, context):
+        from django.template.loader import render_to_string
+        html_string = render_to_string('transactions/tiered_schedule_document.html', context, request=request)
+        try:
+            from xhtml2pdf import pisa
+            import io
+            result = io.BytesIO()
+            pisa.CreatePDF(html_string, dest=result)
+            response = HttpResponse(result.getvalue(), content_type='application/pdf')
+            response['Content-Disposition'] = f'inline; filename="Tiered_Schedule_{context["loan"].loan_number}.pdf"'
+            return response
+        except Exception:
+            return HttpResponse(html_string)
 
 
 class LoanScheduleView(LoginRequiredMixin, RoleBranchAccessMixin, View):

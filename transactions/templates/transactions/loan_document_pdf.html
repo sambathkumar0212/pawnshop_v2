@@ -565,6 +565,36 @@
                                     {{ loan.customer.id_number }}
                                 </span>
                             </div>
+                            {% if tiered_rates %}
+                            <div style="margin-top: 6px;">
+                                <table class="data-table" style="text-align: center; font-size: 8px; width: 100%; border-collapse: collapse; border: 1px solid #e1e1e1;">
+                                    <thead style="background-color: #f7f9fc;">
+                                        <tr>
+                                            <th colspan="{{ tiered_rates|length }}" style="text-align: center; font-weight: bold; border: 1px solid #e1e1e1; padding: 2px; font-size: 8px;">
+                                                {% if current_language|slice:':2' == 'ta' %}வட்டி வரம்பு (விகிதம் / நாட்கள்){% else %}Tenure/ Interest Range (Days Based){% endif %}
+                                            </th>
+                                        </tr>
+                                        <tr>
+                                            {% for item in tiered_rates %}
+                                            <th style="text-align: center; font-weight: bold; border: 1px solid #e1e1e1; padding: 2px; font-size: 8px;">{{ item.range }}</th>
+                                            {% endfor %}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            {% for item in tiered_rates %}
+                                            <td style="text-align: center; border: 1px solid #e1e1e1; padding: 2px; font-size: 8px;">
+                                                <div>{{ item.rate }}</div>
+                                                {% if item.amount %}
+                                                <div style="color: #555; font-size: 7px; font-weight: bold; margin-top: 1px;">({{ item.amount }})</div>
+                                                {% endif %}
+                                            </td>
+                                            {% endfor %}
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% endif %}
                         </div>
                     </td>
                     <td width="50%" style="text-align: center; vertical-align: top; padding: 5px;">
@@ -601,7 +631,7 @@
                                 <span class="field-content">
                                     {{ labels.distribution_amount }}:
                                     <span style="color: #006400; font-weight: bold;">
-                                        Rs {{ loan.distribution_amount|floatformat:0 }}
+                                        Rs {{ loan.original_distribution_amount|floatformat:0 }}
                                     </span>
                                 </span>
                             </div>
@@ -644,6 +674,7 @@
                                     {{ labels.due_date }} : {{ loan.due_date|date:"d/m/Y" }}
                                 </span>
                             </div>
+
                             {% if minimum_term %}
                             <div class="field-row">
                                 <span class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}" style="color: #dbdf19; font-weight: bold;">
@@ -789,6 +820,9 @@
             </p>
         </div>
         {% endif %}
+
+
+
         <!-- Terms and Conditions Section -->
         <div class="terms-section">
             <h4 class="{% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">

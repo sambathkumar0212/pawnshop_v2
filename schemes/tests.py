@@ -134,3 +134,51 @@ class NewSchemeFormTest(TestCase):
         self.assertIn('expiry_period', form.errors)
         self.assertIn('Total loan duration must be greater than early period', form.errors['expiry_period'][0])
 
+    def test_scheme_with_days_based_tiered_rates_valid(self):
+        """Test form validation with valid days-based tiered interest rate structure data"""
+        today = timezone.now().date()
+        far_future = today.replace(year=today.year + 1)
+        
+        form_data = {
+            'name': 'Days Tiered Gold Scheme',
+            'description': 'A days-based tiered gold scheme',
+            'status': 'active',
+            'gold_interest_rate': Decimal('1.20'),
+            'minimum_duration': 30,
+            'minimum_amount': Decimal('1000.00'),
+            'maximum_amount': Decimal('100000.00'),
+            'processing_fee_percentage': Decimal('1.50'),
+            'start_date': today,
+            'end_date': far_future,
+            'enable_tiered_rates': True,
+            'period1_days': 90,
+            'period1_rate': Decimal('16.00'),
+            'period2_days': 180,
+            'period2_rate': Decimal('15.00'),
+            'period3_days': 270,
+            'period3_rate': Decimal('14.75'),
+            'period4_days': 365,
+            'period4_rate': Decimal('14.50'),
+            'period5_rate': Decimal('23.34'),
+        }
+        
+        form = NewSchemeForm(data=form_data)
+        self.assertTrue(form.is_valid(), form.errors)
+        
+        cleaned_data = form.cleaned_data
+        expected_structure = {
+            '0-90': 16.00,
+            '90-180': 15.00,
+            '180-270': 14.75,
+            '270-365': 14.50,
+            '365+': 23.34,
+        }
+        self.assertEqual(cleaned_data['interest_rate_structure'], expected_structure)
+        self.assertEqual(cleaned_data['interest_rate'], Decimal('23.34'))
+        self.assertEqual(cleaned_data['loan_duration'], 365)
+        
+        # Verify database saving
+        scheme = form.save()
+        self.assertIsNotNone(scheme.interest_rate_structure)
+        self.assertEqual(scheme.interest_rate_structure, expected_structure)
+

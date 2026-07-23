@@ -1961,9 +1961,7 @@
         // Clear photos when creating a new loan - IMPROVED VERSION
         {% if not form.instance.pk %}
         $(document).ready(function () {
-            // Only clear if there are NO form errors and NOT continuing iteration
-            const hasFormErrors = {{ form.errors| yesno: "true,false"
-        }};
+            const hasFormErrors = {% if form.errors %}true{% else %}false{% endif %};
     const isContinuingIteration = sessionStorage.getItem('continueIteration') === 'true';
 
     if (!hasFormErrors && !isContinuingIteration) {

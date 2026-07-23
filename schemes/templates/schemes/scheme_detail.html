@@ -151,8 +151,45 @@
                             </div>
                         </div>
                         
-                        <!-- Tiered Interest Rate System Display -->
-                        {% if scheme.early_period_months or scheme.standard_period_months or scheme.early_period_interest_rate or scheme.late_period_interest_rate %}
+                        <!-- Dynamic Tiered Interest Rate Structure Display -->
+                        {% if scheme.interest_rate_structure %}
+                        <div class="mt-4">
+                            <div class="card border-primary shadow-sm">
+                                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-2">
+                                    <h6 class="mb-0 text-white"><i class="fas fa-layer-group me-2"></i>Tiered Interest Rate Structure</h6>
+                                    <span class="badge bg-light text-primary fw-bold">
+                                        {% if scheme.is_days_based %}Days-Based Scheme{% else %}Months-Based Scheme{% endif %}
+                                    </span>
+                                </div>
+                                <div class="card-body p-3">
+                                    <div class="table-responsive">
+                                         <table class="table table-bordered table-hover text-center align-middle mb-0 small">
+                                             <thead class="table-light">
+                                                 <tr>
+                                                     <th>Level</th>
+                                                     <th>From ({% if scheme.is_days_based %}Days{% else %}Months{% endif %})</th>
+                                                     <th>To ({% if scheme.is_days_based %}Days{% else %}Months{% endif %})</th>
+                                                     <th>Annual Interest Rate (%)</th>
+                                                     <th>Monthly Rate (%)</th>
+                                                 </tr>
+                                             </thead>
+                                             <tbody>
+                                                 {% for tier in scheme.get_tiered_rate_structure_display %}
+                                                 <tr>
+                                                     <td><strong>{{ tier.level }}</strong></td>
+                                                     <td>{{ tier.from }}</td>
+                                                     <td>{{ tier.to }}</td>
+                                                     <td><span class="badge bg-info text-dark">{{ tier.annual_rate|floatformat:2 }}% p.a.</span></td>
+                                                     <td class="fw-bold text-primary">{{ tier.monthly_rate|floatformat:2 }}%</td>
+                                                 </tr>
+                                                 {% endfor %}
+                                             </tbody>
+                                         </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% elif scheme.early_period_months or scheme.standard_period_months or scheme.early_period_interest_rate or scheme.late_period_interest_rate %}
                         <div class="mt-4">
                             <h5 class="mb-3">
                                 <i class="fas fa-layer-group me-2"></i>Tiered Interest Rate System
@@ -207,22 +244,6 @@
                                     </div>
                                 </div>
                             </div>
-                            
-                            <!-- Period Summary -->
-                            <div class="mt-3">
-                                <div class="alert alert-info">
-                                    <h6 class="alert-heading">
-                                        <i class="fas fa-info-circle me-2"></i>How It Works
-                                    </h6>
-                                    <p class="mb-0">
-                                        Customers benefit from lower interest rates for early repayment within the first 
-                                        {% if scheme.early_period_months %}{{ scheme.early_period_months }} month{{ scheme.early_period_months|pluralize }}{% else %}period{% endif %}.
-                                        Standard rates apply for the next 
-                                        {% if scheme.standard_period_months %}{{ scheme.standard_period_months }} month{{ scheme.standard_period_months|pluralize }}{% else %}period{% endif %}, 
-                                        and higher rates for any delays beyond that.
-                                    </p>
-                                </div>
-                            </div>
                         </div>
                         {% endif %}
                         
@@ -232,39 +253,6 @@
                             <div class="p-3 bg-light rounded">{{ scheme.special_conditions|linebreaks }}</div>
                         </div>
                         {% endif %}
-                    </div>
-                    {% endif %}
-
-                    <!-- Dynamic Interest Rate Structure -->
-                    {% if scheme.interest_rate_structure %}
-                    <div class="mt-4">
-                        <h5 class="mb-3">Dynamic Interest Rate Structure</h5>
-                        <div class="table-responsive">
-                            <table class="table table-bordered">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Loan Tenure</th>
-                                        <th>Interest Rate</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for range, rate in scheme.interest_rate_structure.items %}
-                                    <tr>
-                                        <td>
-                                            {% if "-" in range %}
-                                                {{ range }} months
-                                            {% elif "+" in range %}
-                                                > {{ range|cut:"+" }} months
-                                            {% else %}
-                                                {{ range }} month{% if range != "1" %}s{% endif %}
-                                            {% endif %}
-                                        </td>
-                                        <td>{{ rate }}%</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
                     </div>
                     {% endif %}
                 </div>

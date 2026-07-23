@@ -109,7 +109,12 @@ class Loan(models.Model):
         from decimal import Decimal
         
         # Calculate monthly interest rate (annual rate / 12)
-        monthly_rate = Decimal(self.interest_rate) / Decimal('12')
+        if self.scheme and self.scheme.interest_rate_structure:
+            # Use the lowest/first tier rate (interest rate for 30 days)
+            annual_rate = Decimal(str(self.scheme.get_interest_rate_for_days(30)))
+            monthly_rate = annual_rate / Decimal('12')
+        else:
+            monthly_rate = Decimal(self.interest_rate) / Decimal('12')
         
         # Calculate monthly interest amount based on base distribution amount (principal - processing fee)
         base_dist_amount = self.principal_amount - Decimal(str(self.processing_fee))
@@ -140,6 +145,12 @@ class Loan(models.Model):
         if self.due_date >= timezone.now().date():
             return (self.due_date - timezone.now().date()).days
         return 0
+
+    @property
+    def original_distribution_amount(self):
+        """Returns the original distribution amount (principal - processing fee) before any upfront interest deductions"""
+        from decimal import Decimal
+        return self.principal_amount - Decimal(str(self.processing_fee or 0))
 
     def save(self, *args, **kwargs):
         # Generate loan number if not provided
@@ -231,30 +242,44 @@ class Loan(models.Model):
         """Calculate remaining balance including interest"""
         return max(Decimal('0.00'), self.total_payable_mature - self.amount_paid)
 
+    def calculate_months_date_to_date(self, target_date=None):
+        """
+        Calculates month date-to-date count relative to issue_date.
+        For example: if loan issue_date is 20th of July:
+        - July 20 to August 20 is Month 1.
+        - Crossing August 20 enters Month 2 cycle.
+        """
+        if not self.issue_date:
+            return 1
+            
+        if target_date is None:
+            target_date = timezone.now().date()
+            
+        if target_date <= self.issue_date:
+            return 1
+            
+        months_diff = (target_date.year - self.issue_date.year) * 12 + (target_date.month - self.issue_date.month)
+        
+        if target_date.day > self.issue_date.day:
+            months_count = months_diff + 1
+        elif target_date.day == self.issue_date.day:
+            months_count = max(1, months_diff)
+        else:
+            months_count = max(1, months_diff)
+            
+        return max(1, months_count)
+
     @property
     def net_payable_still_due(self):
         """Calculate net payable (still due) - what customer owes right now including minimum interest"""
         if self.status != 'active' or not self.scheme:
             return max(Decimal('0.00'), self.principal_amount - self.amount_paid)
         
-        # Calculate minimum interest (at least 1 month for new loans)
         principal = self.principal_amount
         monthly_info = self.monthly_interest
         monthly_amount = Decimal(str(monthly_info['amount']))
         
-        # Calculate months elapsed (minimum 1 for new loans)
-        if not self.issue_date:
-            months_count = Decimal('1')
-        else:
-            current_date = timezone.now().date()
-            months_elapsed = ((current_date.year - self.issue_date.year) * 12 + 
-                            current_date.month - self.issue_date.month)
-            
-            # For new loans, always count at least 1 month
-            if months_elapsed < 1:
-                months_count = Decimal('1')
-            else:
-                months_count = Decimal(str(months_elapsed + 1))  # Current month counts as well
+        months_count = Decimal(str(self.calculate_months_date_to_date()))
         
         # Calculate total interest
         if self.is_first_month_interest_paid:
@@ -311,7 +336,7 @@ class Loan(models.Model):
 
     @property
     def total_payable_mature(self):
-        """Calculate total amount payable at maturity"""
+        """Calculate total amount payable at maturity using date-to-date month cycle"""
         if not self.due_date or self.status != 'active' or not self.scheme:
             return Decimal('0.00')
         
@@ -321,13 +346,7 @@ class Loan(models.Model):
         if self.scheme.no_interest_period_days and (self.due_date - self.issue_date).days <= self.scheme.no_interest_period_days:
             return principal_amount
             
-        # Calculate months between issue date and due date
-        months = ((self.due_date.year - self.issue_date.year) * 12 + 
-                 self.due_date.month - self.issue_date.month)
-        
-        # If there's any partial month, count it as a full month
-        if self.due_date.day > self.issue_date.day:
-            months += 1
+        months = self.calculate_months_date_to_date(self.due_date)
             
         # Adjust for first month interest paid upfront
         if self.is_first_month_interest_paid:
@@ -373,7 +392,8 @@ class Loan(models.Model):
             return {
                 'rate': Decimal('0.00'),
                 'amount': Decimal('0.00'),
-                'per_thousand': Decimal('0.00')
+                'per_thousand': Decimal('0.00'),
+                'annual_rate': Decimal('0.00')
             }
         
         # Get interest rate from scheme or default
@@ -381,11 +401,14 @@ class Loan(models.Model):
             annual_rate = Decimal(str(self.interest_rate))
         elif self.issue_date:
             today = timezone.now().date()
-            months_elapsed = ((today.year - self.issue_date.year) * 12 + 
-                            today.month - self.issue_date.month)
-            
-            # Get tiered interest rate based on tenure
-            annual_rate = self.scheme.get_interest_rate_for_tenure(months_elapsed)
+            if self.scheme.is_days_based:
+                days_elapsed = (today - self.issue_date).days
+                annual_rate = self.scheme.get_interest_rate_for_days(days_elapsed)
+            else:
+                months_elapsed = ((today.year - self.issue_date.year) * 12 + 
+                                today.month - self.issue_date.month)
+                # Get tiered interest rate based on tenure
+                annual_rate = self.scheme.get_interest_rate_for_tenure(months_elapsed)
         else:
             annual_rate = self.scheme.interest_rate
         
@@ -412,48 +435,220 @@ class Loan(models.Model):
             return Decimal('0.00')
         
         current_date = timezone.now().date()
-        months_elapsed = ((current_date.year - self.issue_date.year) * 12 + 
-                        current_date.month - self.issue_date.month)
         
-        # For active loans, always charge current month interest
-        if self.status == 'active':
-            # If we're in a different month than issue date, or if at least 1 day has passed in same month
-            if months_elapsed > 0 or (months_elapsed == 0 and current_date.day > self.issue_date.day):
-                months_elapsed += 1
-            
-        # Ensure we don't have negative months
-        if months_elapsed < 0:
-            months_elapsed = 0
-            
-        # Adjust for first month interest paid upfront
-        if self.is_first_month_interest_paid:
-            months_elapsed = max(0, months_elapsed - 1)
-            
-        # Get monthly interest rate and amount
-        monthly_info = self.monthly_interest
-        monthly_amount = monthly_info['amount']
-        
-        # Calculate base interest
-        base_interest = monthly_amount * Decimal(str(months_elapsed))
-        
-        # Add extra interest per 100 rupees if loan due date is crossed
-        if self.is_overdue and self.scheme.late_payment_interest:
-            # Calculate how many months have passed since due date
-            overdue_months = ((current_date.year - self.due_date.year) * 12 + 
-                           current_date.month - self.due_date.month)
-            
-            # Add one for partial months
-            if current_date.day > self.due_date.day:
-                overdue_months += 1
+        if self.scheme.is_days_based:
+            # Days-based calculation
+            days_elapsed = (current_date - self.issue_date).days
+            # Adjust for first month interest paid upfront (approx. 30 days)
+            if self.is_first_month_interest_paid:
+                days_elapsed = max(0, days_elapsed - 30)
                 
-            if overdue_months > 0:
-                # Get late payment interest rate from the scheme
-                extra_interest_rate = self.scheme.late_payment_interest / Decimal('100')  # Convert to decimal percentage
-                # Apply late payment interest on distribution amount (amount customer received)
-                extra_interest = self.distribution_amount * extra_interest_rate * Decimal(str(overdue_months))
-                return base_interest + extra_interest
+            base_dist_amount = self.principal_amount - Decimal(str(self.processing_fee))
+            
+            # For schemes with no_interest_period_days, check if we're still in that period
+            if getattr(self.scheme, 'no_interest_period_days', 0) and days_elapsed <= self.scheme.no_interest_period_days:
+                return Decimal('0.00')
+                
+            # Get tiered interest rate based on days elapsed
+            annual_rate = self.scheme.get_interest_rate_for_days((current_date - self.issue_date).days)
+            daily_rate = annual_rate / Decimal('36500')
+            interest = base_dist_amount * daily_rate * Decimal(str(days_elapsed))
+            return interest.quantize(Decimal('0.01'))
+            
+        else:
+            # Months-based calculation using date-to-date monthly cycle
+            months_elapsed = self.calculate_months_date_to_date(current_date)
+                
+            # Adjust for first month interest paid upfront
+            if self.is_first_month_interest_paid:
+                months_elapsed = max(0, months_elapsed - 1)
+                
+            # Get monthly interest rate and amount
+            monthly_info = self.monthly_interest
+            monthly_amount = monthly_info['amount']
+            
+            # Calculate base interest
+            base_interest = monthly_amount * Decimal(str(months_elapsed))
+            
+            # Add extra interest per 100 rupees if loan due date is crossed
+            if self.is_overdue and self.scheme.late_payment_interest:
+                # Calculate how many months have passed since due date
+                overdue_months = ((current_date.year - self.due_date.year) * 12 + 
+                               current_date.month - self.due_date.month)
+                
+                # Add one for partial months
+                if current_date.day > self.due_date.day:
+                    overdue_months += 1
+                    
+                if overdue_months > 0:
+                    # Get late payment interest rate from the scheme
+                    extra_interest_rate = self.scheme.late_payment_interest / Decimal('100')  # Convert to decimal percentage
+                    # Apply late payment interest on distribution amount (amount customer received)
+                    extra_interest = self.distribution_amount * extra_interest_rate * Decimal(str(overdue_months))
+            return base_interest
+
+    def get_tiered_rate_structure_display(self):
+        """Returns structured tier list with Level, From Date, and To Date for displaying scheme rate tiers."""
+        if not self.scheme:
+            return []
         
-        return base_interest
+        tiers = []
+        import datetime
+        issue_dt = self.issue_date or timezone.now().date()
+        
+        if self.scheme.interest_rate_structure:
+            is_days = self.scheme.is_days_based
+            
+            level_idx = 1
+            for key, rate in self.scheme.interest_rate_structure.items():
+                if '-' in key:
+                    start_val, end_val = key.split('-')
+                    start_num = int(start_val.strip())
+                    end_num = int(end_val.strip())
+                    
+                    if is_days:
+                        from_date = issue_dt + datetime.timedelta(days=start_num)
+                        to_date = issue_dt + datetime.timedelta(days=end_num)
+                        from_date_str = from_date.strftime('%d %b, %Y')
+                        to_date_str = to_date.strftime('%d %b, %Y')
+                    else:
+                        from_date_str = f"Month {start_num}"
+                        to_date_str = f"Month {end_num}"
+                elif key.endswith('+'):
+                    start_num = int(key[:-1].strip())
+                    if is_days:
+                        from_date = issue_dt + datetime.timedelta(days=start_num)
+                        from_date_str = from_date.strftime('%d %b, %Y')
+                        to_date_str = "No Limit (Beyond)"
+                    else:
+                        from_date_str = f"Month {start_num}+"
+                        to_date_str = "No Limit"
+                else:
+                    start_num = 0
+                    end_num = int(key.strip()) if key.isdigit() else 30
+                    if is_days:
+                        from_date = issue_dt + datetime.timedelta(days=start_num)
+                        to_date = issue_dt + datetime.timedelta(days=end_num)
+                        from_date_str = from_date.strftime('%d %b, %Y')
+                        to_date_str = to_date.strftime('%d %b, %Y')
+                    else:
+                        from_date_str = "Month 0"
+                        to_date_str = f"Month {end_num}"
+
+                annual = Decimal(str(rate))
+                monthly = (annual / Decimal('12')).quantize(Decimal('0.01'))
+                
+                level_name = f"Level {level_idx}"
+                if key.endswith('+') or level_idx == 5:
+                    level_name = f"Level {level_idx} (Default/Late)"
+                    
+                tiers.append({
+                    'level': level_name,
+                    'from': from_date_str,
+                    'to': to_date_str,
+                    'range': f"{from_date_str} to {to_date_str}",
+                    'annual_rate': annual,
+                    'monthly_rate': monthly
+                })
+                level_idx += 1
+        else:
+            annual = Decimal(str(self.scheme.interest_rate or self.interest_rate or 0))
+            monthly = (annual / Decimal('12')).quantize(Decimal('0.01'))
+            is_days = self.scheme.is_days_based
+            duration = self.scheme.loan_duration if is_days else (self.scheme.expiry_period or 12)
+            
+            from_date_str = issue_dt.strftime('%d %b, %Y')
+            if is_days:
+                to_date_str = (issue_dt + datetime.timedelta(days=duration)).strftime('%d %b, %Y')
+            else:
+                to_date_str = f"{duration} Months"
+                
+            tiers.append({
+                'level': 'Level 1',
+                'from': from_date_str,
+                'to': to_date_str,
+                'range': f"{from_date_str} to {to_date_str}",
+                'annual_rate': annual,
+                'monthly_rate': monthly
+            })
+            
+        return tiers
+
+    def get_tiered_schedule(self):
+        """
+        Returns a dictionary containing:
+        - schedule: List of month breakdown comparing Disciplined Monthly Payments vs Delayed Bullet Payment
+        - disciplined_rate: Lowest tier annual rate for monthly payers
+        - disciplined_total: Total interest under monthly payment discipline
+        - delayed_total: Total interest under delayed bullet payment
+        - financial_impact_difference: Total savings of paying monthly vs delayed bullet payment
+        """
+        if not self.scheme:
+            return {'schedule': [], 'disciplined_total': Decimal('0.00'), 'delayed_total': Decimal('0.00'), 'financial_impact_difference': Decimal('0.00')}
+        
+        base_dist_amount = self.principal_amount - Decimal(str(self.processing_fee or 0))
+        principal = self.principal_amount
+        
+        # Disciplined Rate is the lowest tier rate (30 days rate)
+        disciplined_annual_rate = Decimal(str(self.scheme.get_interest_rate_for_days(30)))
+        disciplined_monthly_rate = (disciplined_annual_rate / Decimal('12')).quantize(Decimal('0.01'))
+        
+        if self.issue_date and self.due_date:
+            term_days = (self.due_date - self.issue_date).days
+            months_total = max(1, int(round(term_days / 30)))
+        else:
+            duration_days = self.scheme.loan_duration or (self.scheme.expiry_period * 30 if self.scheme.expiry_period else 180)
+            months_total = max(1, int(round(duration_days / 30)))
+        
+        schedule = []
+        disciplined_cum_interest = Decimal('0.00')
+        delayed_cum_interest = Decimal('0.00')
+        
+        for m in range(1, months_total + 1):
+            days = m * 30
+            
+            # Disciplined Path: Month m interest calculated at lowest tier rate
+            m_disc_interest = (base_dist_amount * (disciplined_annual_rate / Decimal('36500')) * Decimal('30')).quantize(Decimal('0.01'))
+            disciplined_cum_interest += m_disc_interest
+            
+            # Delayed Path: Dynamic rate escalates based on total unpaid days elapsed
+            delayed_annual_rate = Decimal(str(self.scheme.get_interest_rate_for_days(days)))
+            delayed_monthly_rate = (delayed_annual_rate / Decimal('12')).quantize(Decimal('0.01'))
+            
+            eff_days = max(0, days - 30) if self.is_first_month_interest_paid else days
+            delayed_cum_interest = (base_dist_amount * (delayed_annual_rate / Decimal('36500')) * Decimal(str(eff_days))).quantize(Decimal('0.01'))
+            
+            diff_cum = max(Decimal('0.00'), delayed_cum_interest - disciplined_cum_interest)
+            
+            schedule.append({
+                'month': m,
+                'days': days,
+                'annual_rate': delayed_annual_rate,
+                'monthly_rate': delayed_monthly_rate,
+                'disciplined_rate': disciplined_annual_rate,
+                'disciplined_monthly_rate': disciplined_monthly_rate,
+                'disciplined_monthly_interest': m_disc_interest,
+                'disciplined_cum_interest': disciplined_cum_interest,
+                'disciplined_closing': (principal + disciplined_cum_interest).quantize(Decimal('0.01')),
+                'delayed_rate': delayed_annual_rate,
+                'delayed_monthly_rate': delayed_monthly_rate,
+                'delayed_cum_interest': delayed_cum_interest,
+                'delayed_closing': (principal + delayed_cum_interest).quantize(Decimal('0.01')),
+                'cumulative_interest': delayed_cum_interest,
+                'closing_amount': (principal + delayed_cum_interest).quantize(Decimal('0.01')),
+                'period_interest': m_disc_interest,
+                'savings': diff_cum,
+            })
+            
+        diff_total = max(Decimal('0.00'), delayed_cum_interest - disciplined_cum_interest)
+        
+        return {
+            'schedule': schedule,
+            'disciplined_rate': disciplined_annual_rate,
+            'disciplined_total': disciplined_cum_interest,
+            'delayed_total': delayed_cum_interest,
+            'financial_impact_difference': diff_total
+        }
 
     @property
     def customer_photo(self):
