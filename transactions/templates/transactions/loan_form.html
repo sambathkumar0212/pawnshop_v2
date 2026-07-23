@@ -246,7 +246,7 @@
                                                 <div id="cameraView" class="border rounded"
                                                     style="height: 120px; position: relative;">
                                                     <video id="cameraStream"
-                                                        style="width: 100%; height: 100%; object-fit: cover;" autoplay
+                                                        style="width: 100%; height: 100%; object-fit: contain; background: #000;" autoplay
                                                         playsinline muted></video>
                                                     <canvas id="photoCanvas" style="display:none;"></canvas>
                                                 </div>
@@ -254,66 +254,66 @@
                                                     <button type="button" class="btn btn-xs btn-primary"
                                                         id="captureBtn">
                                                         <i class="fas fa-camera me-1"></i>Capture
-                                                    </button>
-                                                    <label for="customerPhotoUpload"
-                                                        class="btn btn-xs btn-outline-primary mb-0">
-                                                        <i class="fas fa-upload me-1"></i>Upload
-                                                    </label>
-                                                    <input type="file" id="customerPhotoUpload" class="d-none"
-                                                        accept="image/*">
-                                                    <button type="button" class="btn btn-xs btn-outline-success"
-                                                        id="saveCustomerUploadBtn" disabled>
-                                                        <i class="fas fa-save me-1"></i>Save Upload
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <div class="col-6">
-                                                <div id="photoPreview"
-                                                    class="border rounded d-flex align-items-center justify-content-center bg-light"
-                                                    style="height: 120px;">
-                                                    {% if form.instance.pk and form.instance.customer_face_capture %}
-                                                    <img id="capturedPhoto" class="img-fluid" style="max-height: 120px;"
-                                                        src="{{ form.instance.customer_face_capture }}">
-                                                    {% else %}
-                                                    <span id="noCaptureText" class="small text-muted">
-                                                        {% if form.instance.pk %}
-                                                        No photo
-                                                        {% endif %}
-                                                    </span>
-                                                    {% endif %}
-                                                </div>
-                                                <div class="d-grid gap-1 mt-1">
-                                                    <button type="button" class="btn btn-xs btn-outline-secondary"
-                                                        id="retakeBtn">
-                                                        <i class="fas fa-redo me-1"></i>Retake
-                                                    </button>
-                                                    <a href="#" class="btn btn-xs btn-outline-info disabled"
-                                                        id="downloadCustomerPhotoBtn" download="borrower-photo.jpg"
-                                                        aria-disabled="true">
-                                                        <i class="fas fa-download me-1"></i>Download
-                                                    </a>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Gold Item Photos Section -->
-                                <div class="card mb-2">
-                                    <div
-                                        class="card-header bg-light py-1 d-flex justify-content-between align-items-center">
-                                        <small><strong><i class="fas fa-camera me-1"></i>Gold Item Photos</strong> <span
-                                                class="badge bg-danger" id="photoCountBadge">0</span></small>
-                                    </div>
-                                    <div class="card-body p-2">
-                                        <div class="row g-1">
-                                            <div class="col-6">
-                                                <div id="itemCameraView" class="border rounded"
-                                                    style="height: 120px; position: relative;">
-                                                    <video id="itemCameraStream"
-                                                        style="width: 100%; height: 100%; object-fit: cover;" autoplay
-                                                        playsinline></video>
-                                                    <canvas id="itemPhotoCanvas" style="display:none;"></canvas>
+                                                     </button>
+                                                     <label for="customerPhotoUpload"
+                                                         class="btn btn-xs btn-outline-primary mb-0">
+                                                         <i class="fas fa-upload me-1"></i>Upload
+                                                     </label>
+                                                     <input type="file" id="customerPhotoUpload" class="d-none"
+                                                         accept="image/*">
+                                                     <button type="button" class="btn btn-xs btn-outline-success"
+                                                         id="saveCustomerUploadBtn" disabled>
+                                                         <i class="fas fa-save me-1"></i>Save Upload
+                                                     </button>
+                                                 </div>
+                                             </div>
+                                             <div class="col-6">
+                                                 <div id="photoPreview"
+                                                     class="border rounded d-flex align-items-center justify-content-center bg-light"
+                                                     style="height: 120px;">
+                                                     {% if form.instance.pk and form.instance.customer_face_capture %}
+                                                     <img id="capturedPhoto" class="img-fluid" style="max-height: 120px; object-fit: contain;"
+                                                         src="{{ form.instance.customer_face_capture }}">
+                                                     {% else %}
+                                                     <span id="noCaptureText" class="small text-muted">
+                                                         {% if form.instance.pk %}
+                                                         No photo
+                                                         {% endif %}
+                                                     </span>
+                                                     {% endif %}
+                                                 </div>
+                                                 <div class="d-grid gap-1 mt-1">
+                                                     <button type="button" class="btn btn-xs btn-outline-secondary"
+                                                         id="retakeBtn">
+                                                         <i class="fas fa-redo me-1"></i>Retake
+                                                     </button>
+                                                     <a href="#" class="btn btn-xs btn-outline-info disabled"
+                                                         id="downloadCustomerPhotoBtn" download="borrower-photo.jpg"
+                                                         aria-disabled="true">
+                                                         <i class="fas fa-download me-1"></i>Download
+                                                     </a>
+                                                 </div>
+                                             </div>
+                                         </div>
+                                     </div>
+                                 </div>
+ 
+                                 <!-- Gold Item Photos Section -->
+                                 <div class="card mb-2">
+                                     <div
+                                         class="card-header bg-light py-1 d-flex justify-content-between align-items-center">
+                                         <small><strong><i class="fas fa-camera me-1"></i>Gold Item Photos</strong> <span
+                                                 class="badge bg-danger" id="photoCountBadge">0</span></small>
+                                     </div>
+                                     <div class="card-body p-2">
+                                         <div class="row g-1">
+                                             <div class="col-6">
+                                                 <div id="itemCameraView" class="border rounded"
+                                                     style="height: 120px; position: relative;">
+                                                     <video id="itemCameraStream"
+                                                         style="width: 100%; height: 100%; object-fit: contain; background: #000;" autoplay
+                                                         playsinline></video>
+                                                     <canvas id="itemPhotoCanvas" style="display:none;"></canvas>
                                                 </div>
                                                 <div class="d-grid gap-1 mt-1">
                                                     <button type="button" class="btn btn-xs btn-primary"
@@ -1233,7 +1233,7 @@
                 thumbnailCol.className = 'col-6';
                 thumbnailCol.innerHTML = `
                     <div class="position-relative">
-                        <img src="${photoDataUrl}" class="img-thumbnail" alt="Item photo ${itemPhotos.length}">
+                        <img src="${photoDataUrl}" class="img-thumbnail" style="width: 100%; height: 80px; object-fit: contain; background: #f8f9fa;" alt="Item photo ${itemPhotos.length}">
                         <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 delete-photo" data-photo-id="${photoId}">
                             <i class="fas fa-times"></i>
                         </button>
@@ -1285,7 +1285,7 @@
                 thumbnailCol.className = 'col-6';
                 thumbnailCol.innerHTML = `
                     <div class="position-relative">
-                        <img src="${photoDataUrl}" class="img-thumbnail" alt="Item photo ${photoNumber}">
+                        <img src="${photoDataUrl}" class="img-thumbnail" style="width: 100%; height: 80px; object-fit: contain; background: #f8f9fa;" alt="Item photo ${photoNumber}">
                         <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 delete-photo" data-photo-id="${photoId}">
                             <i class="fas fa-times"></i>
                         </button>

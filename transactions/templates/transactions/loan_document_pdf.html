@@ -295,7 +295,7 @@
         .customer-photo img {
             width: 100%;
             height: 100%;
-            object-fit: cover
+            object-fit: contain
         }
 
         .photo-card {
@@ -329,7 +329,7 @@
         .customer-photo-large img {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain;
             object-position: center;
             display: block;
             vertical-align: top
@@ -370,7 +370,7 @@
         .item-photo img {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain;
             object-position: center;
             display: block;
             vertical-align: top;
@@ -792,7 +792,7 @@
                         <div
                             class="item-photo {% if item_photos|length <= 2 %}photo-large{% elif item_photos|length == 3 %}photo-medium{% else %}photo-small{% endif %}">
                             <img src="data:image/jpeg;base64,{{ photo }}" alt="Gold Item {{ forloop.counter }}"
-                                style="width: 100%; height: 100%; object-fit: cover;">
+                                style="width: 100%; height: 100%; object-fit: contain;">
                         </div>
                     </td>
                     {% if item_photos|length <= 2 %} {% if forloop.counter|divisibleby:2 and not forloop.last %}</tr>
