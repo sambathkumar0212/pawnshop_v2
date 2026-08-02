@@ -161,10 +161,11 @@
                 <thead class="table-dark">
                     <tr>
                         <th>Period / Month</th>
+                        <th>Date Range</th>
                         <th>Tenure (Days)</th>
-                        <th class="table-success text-dark">Disciplined Rate</th>
+                        <th class="table-success text-dark">Disciplined Rate &amp; Interest</th>
                         <th class="table-success text-dark">Disciplined Closing</th>
-                        <th class="table-danger text-white">Delayed Dynamic Rate</th>
+                        <th class="table-danger text-white">Delayed Dynamic Rate &amp; Interest</th>
                         <th class="table-danger text-white">Delayed Closing</th>
                         <th class="table-warning text-dark">Disciplined Savings</th>
                     </tr>
@@ -173,10 +174,17 @@
                     {% for item in schedule_data.schedule %}
                     <tr>
                         <td class="fw-bold">Month {{ item.month }}</td>
+                        <td class="small text-nowrap">{{ item.from_date }} to {{ item.to_date }}</td>
                         <td>{{ item.days }} Days</td>
-                        <td><span class="badge bg-success">{{ item.disciplined_rate|floatformat:2 }}% p.a.</span></td>
+                        <td>
+                            <span class="badge bg-success mb-1">{{ item.disciplined_rate|floatformat:2 }}% p.a.</span>
+                            <div class="small text-muted rupee-symbol">Int: Rs: {{ item.disciplined_cum_interest|floatformat:2 }}</div>
+                        </td>
                         <td class="rupee-symbol fw-bold text-success">Rs: {{ item.disciplined_closing|floatformat:2 }}</td>
-                        <td><span class="badge bg-danger">{{ item.delayed_rate|floatformat:2 }}% p.a.</span></td>
+                        <td>
+                            <span class="badge bg-danger mb-1">{{ item.delayed_rate|floatformat:2 }}% p.a.</span>
+                            <div class="small text-muted rupee-symbol">Int: Rs: {{ item.delayed_cum_interest|floatformat:2 }}</div>
+                        </td>
                         <td class="rupee-symbol fw-bold text-danger">Rs: {{ item.delayed_closing|floatformat:2 }}</td>
                         <td class="rupee-symbol fw-bold text-primary">Rs: {{ item.savings|floatformat:2 }}</td>
                     </tr>

@@ -153,6 +153,9 @@ class Loan(models.Model):
         return self.principal_amount - Decimal(str(self.processing_fee or 0))
 
     def save(self, *args, **kwargs):
+        # Check if this is a creation
+        is_create = self.pk is None
+        
         # Generate loan number if not provided
         if not self.loan_number:
             self.loan_number = self.generate_loan_number()
@@ -180,6 +183,199 @@ class Loan(models.Model):
             self.item_photos = json.dumps([self.item_photos])
         
         super().save(*args, **kwargs)
+        
+        # Delay email until after the full DB transaction commits (including LoanItem rows)
+        # so the PDF always reflects the latest gold item details.
+        loan_id = self.pk
+        _is_create = is_create
+        
+        def _send_notification():
+            try:
+                from transactions.models import Loan
+                loan = Loan.objects.get(pk=loan_id)
+                loan.send_loan_notification_email(_is_create)
+            except Exception as e:
+                print(f"Error sending loan email notification: {str(e)}")
+        
+        from django.db import transaction
+        transaction.on_commit(_send_notification)
+
+    def send_loan_notification_email(self, is_create):
+        """Send email notification on loan creation or edit to firstmoneygold@gmail.com and hariswealthway@gmail.com"""
+        from django.core.mail import EmailMessage
+        from django.conf import settings
+
+        action = "Created" if is_create else "Edited"
+        subject = f"Loan {action}: {self.loan_number} - {self.customer.first_name} {self.customer.last_name}"
+        recipients = ["firstmoneygold@gmail.com", "hariswealthway@gmail.com"]
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@myapp.com')
+
+        body = (
+            f"Dear Team,\n\n"
+            f"A loan has been {action.lower()} with the following details:\n\n"
+            f"Loan Number: {self.loan_number}\n"
+            f"Customer Name: {self.customer.first_name} {self.customer.last_name}\n"
+            f"Branch: {self.branch.name if self.branch else 'N/A'}\n"
+            f"Scheme: {self.scheme.name if self.scheme else 'N/A'}\n"
+            f"Principal Amount: Rs. {self.principal_amount}\n"
+            f"Interest Rate: {self.interest_rate}%\n"
+            f"Status: {self.get_status_display()}\n"
+            f"Issue Date: {self.issue_date}\n"
+            f"Due Date: {self.due_date}\n"
+            f"Created/Modified At: {self.updated_at or self.created_at or 'N/A'}\n\n"
+            f"Please find the loan agreement PDF attached.\n\n"
+            f"Best regards,\n"
+            f"Pawnshop Management System"
+        )
+
+        email = EmailMessage(
+            subject=subject,
+            body=body,
+            from_email=from_email,
+            to=recipients,
+        )
+
+        # Attach the loan agreement PDF if it can be generated
+        try:
+            pdf_bytes, pdf_filename = self.generate_loan_pdf_bytes()
+            if pdf_bytes:
+                email.attach(pdf_filename, pdf_bytes, 'application/pdf')
+        except Exception as e:
+            print(f"Could not attach PDF to loan notification email: {e}")
+
+        email.send(fail_silently=False)
+
+    def generate_loan_pdf_bytes(self):
+        """Generate loan agreement PDF bytes using headless Chromium (with xhtml2pdf fallback).
+        Returns a tuple of (pdf_bytes, filename)."""
+        import os
+        import re
+        import shutil
+        import subprocess
+        import tempfile
+        from django.template.loader import get_template
+        from django.conf import settings
+        from django.utils.text import slugify
+
+        loan_items = self.loanitem_set.all()
+
+        # Build filename
+        customer_name = ""
+        if self.customer:
+            customer_name = slugify(f"{self.customer.first_name}_{self.customer.last_name}").replace('-', '_')
+        item_names = [slugify(li.item.name).replace('-', '_') for li in loan_items if li.item and li.item.name] or ['gold_item']
+        items_part = '_'.join(item_names[:2])
+        if customer_name and items_part:
+            filename_base = f"{customer_name}_{items_part}_{self.loan_number}_agreement"
+        elif customer_name:
+            filename_base = f"{customer_name}_{self.loan_number}_agreement"
+        else:
+            filename_base = f"loan_{self.loan_number}_agreement"
+        filename_base = re.sub(r'[^a-zA-Z0-9_-]', '_', filename_base)[:200]
+        pdf_filename = f"{filename_base}.pdf"
+
+        # Build template context — inline photo processing to avoid circular model→views import
+        raw_photos = self.item_photos
+        if not raw_photos:
+            processed_photos = []
+        elif isinstance(raw_photos, str) and raw_photos.startswith('data:image/'):
+            processed_photos = [raw_photos]
+        elif isinstance(raw_photos, str) and raw_photos.startswith('['):
+            try:
+                processed_photos = json.loads(raw_photos)
+            except Exception:
+                processed_photos = []
+        elif isinstance(raw_photos, list):
+            processed_photos = raw_photos
+        else:
+            processed_photos = []
+        item_photos = []
+        for photo in processed_photos:
+            if photo.startswith('data:image/'):
+                item_photos.append(photo.split(',')[1] if ',' in photo else photo)
+            else:
+                item_photos.append(photo)
+
+        customer_photo = None
+        if self.customer_face_capture:
+            customer_photo = (self.customer_face_capture.split(',')[1]
+                              if self.customer_face_capture.startswith('data:image/')
+                              else self.customer_face_capture)
+
+        context = {
+            'loan': self,
+            'loan_items': loan_items,
+            'item_photos': item_photos,
+            'customer_photo': customer_photo,
+            'tamil_font_file_uri': f"file:///{str((settings.BASE_DIR / 'static' / 'fonts' / 'NotoSansTamil-Regular.ttf')).replace(os.sep, '/')}",
+            'pdf_renderer': 'browser',
+        }
+
+        # Merge language-specific labels (lazy import to avoid circular dependency)
+        try:
+            from transactions.views import build_loan_pdf_language_context
+            language_context = build_loan_pdf_language_context(self, 'en')
+            context.update(language_context)
+        except Exception as e:
+            print(f"Could not build PDF language context: {e}")
+
+        template = get_template('transactions/loan_document_pdf.html')
+        html = template.render(context)
+
+        # Try headless Chromium first
+        browser = None
+        for candidate in [
+            shutil.which('chrome'),
+            shutil.which('msedge'),
+            r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+            r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+            r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+            r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+        ]:
+            if candidate and os.path.exists(candidate):
+                browser = candidate
+                break
+
+        if browser:
+            tmp_dir = tempfile.mkdtemp(prefix='loan_pdf_email_')
+            try:
+                html_path = os.path.join(tmp_dir, 'loan_document.html')
+                pdf_path = os.path.join(tmp_dir, 'loan_document.pdf')
+                profile_dir = os.path.join(tmp_dir, 'profile')
+                os.makedirs(profile_dir, exist_ok=True)
+                with open(html_path, 'w', encoding='utf-8') as f:
+                    f.write(html)
+                cmd = [
+                    browser,
+                    "--headless=new", "--disable-gpu", "--no-sandbox",
+                    f"--user-data-dir={profile_dir}",
+                    "--allow-file-access-from-files", "--disable-web-security",
+                    "--print-to-pdf-no-header",
+                    f"--print-to-pdf={pdf_path}",
+                    f"file:///{html_path.replace(os.sep, '/')}",
+                ]
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
+                if result.returncode == 0 and os.path.exists(pdf_path):
+                    with open(pdf_path, 'rb') as f:
+                        pdf_bytes = f.read()
+                    if pdf_bytes:
+                        return pdf_bytes, pdf_filename
+            finally:
+                shutil.rmtree(tmp_dir, ignore_errors=True)
+
+        # Fallback: xhtml2pdf
+        from io import BytesIO
+        try:
+            from xhtml2pdf import pisa
+            buffer = BytesIO()
+            pisa.CreatePDF(html, dest=buffer)
+            pdf_bytes = buffer.getvalue()
+            if pdf_bytes:
+                return pdf_bytes, pdf_filename
+        except ImportError:
+            pass
+
+        return None, pdf_filename
 
     def generate_loan_number(self):
         """Generate a unique loan number"""
@@ -428,6 +624,82 @@ class Loan(models.Model):
             'per_thousand': per_thousand.quantize(Decimal('0.01')),
             'annual_rate': annual_rate.quantize(Decimal('0.01'))
         }
+
+    @property
+    def daily_interest_amount(self):
+        """Calculate daily interest amount for the loan (per single day)"""
+        if not self.distribution_amount:
+            return Decimal('0.00')
+        
+        # Get interest rate from scheme or default
+        if not self.scheme:
+            annual_rate = Decimal(str(self.interest_rate))
+        elif self.issue_date:
+            today = timezone.now().date()
+            if self.scheme.is_days_based:
+                days_elapsed = (today - self.issue_date).days
+                annual_rate = self.scheme.get_interest_rate_for_days(days_elapsed)
+            else:
+                months_elapsed = ((today.year - self.issue_date.year) * 12 + 
+                                today.month - self.issue_date.month)
+                annual_rate = self.scheme.get_interest_rate_for_tenure(months_elapsed)
+        else:
+            annual_rate = self.scheme.interest_rate
+            
+        base_dist_amount = self.principal_amount - Decimal(str(self.processing_fee))
+        daily_amount = base_dist_amount * (annual_rate / Decimal('36500'))
+        return daily_amount.quantize(Decimal('0.01'))
+
+    @property
+    def interest_till_date_daily_basis(self):
+        """Calculate interest accrued till date calculated on a daily day-by-day basis"""
+        if not self.issue_date or not self.scheme:
+            return Decimal('0.00')
+            
+        current_date = timezone.now().date()
+        days_elapsed = (current_date - self.issue_date).days
+        
+        if self.is_first_month_interest_paid:
+            days_elapsed = max(0, days_elapsed - 30)
+            
+        base_dist_amount = self.principal_amount - Decimal(str(self.processing_fee))
+        
+        if getattr(self.scheme, 'no_interest_period_days', 0) and days_elapsed <= self.scheme.no_interest_period_days:
+            return Decimal('0.00')
+            
+        annual_rate = self.scheme.get_interest_rate_for_days((current_date - self.issue_date).days)
+        daily_rate = annual_rate / Decimal('36500')
+        interest = base_dist_amount * daily_rate * Decimal(str(days_elapsed))
+        return interest.quantize(Decimal('0.01'))
+
+    @property
+    def interest_till_date_monthly_basis(self):
+        """Calculate interest accrued till date calculated on a monthly cycle-by-cycle basis"""
+        if not self.issue_date or not self.scheme:
+            return Decimal('0.00')
+            
+        current_date = timezone.now().date()
+        months_elapsed = self.calculate_months_date_to_date(current_date)
+        
+        if self.is_first_month_interest_paid:
+            months_elapsed = max(0, months_elapsed - 1)
+            
+        monthly_info = self.monthly_interest
+        monthly_amount = monthly_info['amount']
+        base_interest = monthly_amount * Decimal(str(months_elapsed))
+        
+        # Add late payment interest if applicable
+        if self.is_overdue and self.scheme.late_payment_interest:
+            overdue_months = ((current_date.year - self.due_date.year) * 12 + 
+                             current_date.month - self.due_date.month)
+            if current_date.day > self.due_date.day:
+                overdue_months += 1
+            if overdue_months > 0:
+                extra_interest_rate = self.scheme.late_payment_interest / Decimal('100')
+                extra_interest = self.distribution_amount * extra_interest_rate * Decimal(str(overdue_months))
+                base_interest += extra_interest
+                
+        return base_interest.quantize(Decimal('0.01'))
     
     def monthly_interest_till_date(self):
         """Calculate total monthly interest accumulated till date including current month for active loans"""
@@ -592,6 +864,15 @@ class Loan(models.Model):
         # Disciplined Rate is the lowest tier rate (30 days rate)
         disciplined_annual_rate = Decimal(str(self.scheme.get_interest_rate_for_days(30)))
         disciplined_monthly_rate = (disciplined_annual_rate / Decimal('12')).quantize(Decimal('0.01'))
+
+        # If first month interest was collected upfront, pre-calculate that paid amount
+        # so we can deduct it from both closing columns (the customer already paid it at disbursement)
+        if self.is_first_month_interest_paid:
+            first_month_interest_paid = (
+                base_dist_amount * (disciplined_annual_rate / Decimal('36000')) * Decimal('30')
+            ).quantize(Decimal('0.01'))
+        else:
+            first_month_interest_paid = Decimal('0.00')
         
         if self.issue_date and self.due_date:
             term_days = (self.due_date - self.issue_date).days
@@ -600,29 +881,38 @@ class Loan(models.Model):
             duration_days = self.scheme.loan_duration or (self.scheme.expiry_period * 30 if self.scheme.expiry_period else 180)
             months_total = max(1, int(round(duration_days / 30)))
         
+        issue_dt = self.issue_date or datetime.date.today()
+        
         schedule = []
         disciplined_cum_interest = Decimal('0.00')
         delayed_cum_interest = Decimal('0.00')
         
         for m in range(1, months_total + 1):
             days = m * 30
+            from_dt = issue_dt + datetime.timedelta(days=(m-1)*30)
+            to_dt = issue_dt + datetime.timedelta(days=m*30)
+            from_date_str = from_dt.strftime('%b %d, %Y')
+            to_date_str = to_dt.strftime('%b %d, %Y')
             
-            # Disciplined Path: Month m interest calculated at lowest tier rate
-            m_disc_interest = (base_dist_amount * (disciplined_annual_rate / Decimal('36500')) * Decimal('30')).quantize(Decimal('0.01'))
+            # Disciplined Path: Month m interest — 360-day year basis (12 months × 30 days)
+            m_disc_interest = (base_dist_amount * (disciplined_annual_rate / Decimal('36000')) * Decimal('30')).quantize(Decimal('0.01'))
             disciplined_cum_interest += m_disc_interest
             
             # Delayed Path: Dynamic rate escalates based on total unpaid days elapsed
             delayed_annual_rate = Decimal(str(self.scheme.get_interest_rate_for_days(days)))
             delayed_monthly_rate = (delayed_annual_rate / Decimal('12')).quantize(Decimal('0.01'))
             
-            eff_days = max(0, days - 30) if self.is_first_month_interest_paid else days
-            delayed_cum_interest = (base_dist_amount * (delayed_annual_rate / Decimal('36500')) * Decimal(str(eff_days))).quantize(Decimal('0.01'))
+            eff_days = days
+            # Delayed Path: cumulative interest — 360-day year basis (12 months × 30 days)
+            delayed_cum_interest = (base_dist_amount * (delayed_annual_rate / Decimal('36000')) * Decimal(str(eff_days))).quantize(Decimal('0.01'))
             
             diff_cum = max(Decimal('0.00'), delayed_cum_interest - disciplined_cum_interest)
             
             schedule.append({
                 'month': m,
                 'days': days,
+                'from_date': from_date_str,
+                'to_date': to_date_str,
                 'annual_rate': delayed_annual_rate,
                 'monthly_rate': delayed_monthly_rate,
                 'disciplined_rate': disciplined_annual_rate,

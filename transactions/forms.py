@@ -449,43 +449,57 @@ class LoanForm(forms.ModelForm):
         scheme = self.cleaned_data.get('scheme')
         if not scheme:
             raise ValidationError("Please select a loan scheme.")
-        
-        # Calculate loan duration in months
+
+        # Determine whether this is a new loan creation or an edit
+        is_edit = self.instance and self.instance.pk is not None
+
         issue_date = self.cleaned_data.get('issue_date')
         due_date = None
-        
-        if issue_date and scheme.loan_duration:
-            due_date = issue_date + timezone.timedelta(days=scheme.loan_duration)
-            self.cleaned_data['due_date'] = due_date
-            
-            # Set grace period end date (5 days after due date)
-            self.cleaned_data['grace_period_end'] = due_date + timezone.timedelta(days=5)
-        
-        # Calculate loan tenure in months for interest rate determination
-        if issue_date and due_date:
-            months = ((due_date.year - issue_date.year) * 12 + due_date.month - issue_date.month)
-            # Add an extra month if there are remaining days
-            if due_date.day > issue_date.day:
-                months += 1
-                
-            # Check if scheme has dynamic interest rates
-            if scheme.interest_rate_structure:
-                # Get the appropriate interest rate based on tenure
-                interest_rate = scheme.get_interest_rate_for_tenure(months)
-                self.cleaned_data['interest_rate'] = interest_rate
+
+        if not is_edit:
+            # ── NEW LOAN: auto-calculate due_date from scheme duration ──
+            if issue_date and scheme.loan_duration:
+                due_date = issue_date + timezone.timedelta(days=scheme.loan_duration)
+                self.cleaned_data['due_date'] = due_date
+                self.cleaned_data['grace_period_end'] = due_date + timezone.timedelta(days=5)
+        else:
+            # ── EDIT LOAN: honour whatever due_date the user submitted ──
+            due_date = self.cleaned_data.get('due_date')
+            if due_date:
+                self.cleaned_data['grace_period_end'] = due_date + timezone.timedelta(days=5)
+
+        # Calculate interest_rate from the scheme's tiered structure
+        if not is_edit:
+            # For new loans always derive interest_rate from scheme
+            if issue_date and due_date:
+                months = ((due_date.year - issue_date.year) * 12 + due_date.month - issue_date.month)
+                if due_date.day > issue_date.day:
+                    months += 1
+                if scheme.interest_rate_structure:
+                    self.cleaned_data['interest_rate'] = scheme.get_interest_rate_for_tenure(months)
+                else:
+                    self.cleaned_data['interest_rate'] = scheme.interest_rate
             else:
-                # Use the default interest rate if no dynamic structure exists
                 self.cleaned_data['interest_rate'] = scheme.interest_rate
         else:
-            # Fallback to default interest rate if dates are not available
-            self.cleaned_data['interest_rate'] = scheme.interest_rate
-        
+            # For edits: keep the submitted interest_rate; fall back to scheme only if blank
+            submitted_rate = self.cleaned_data.get('interest_rate')
+            if not submitted_rate:
+                if issue_date and due_date and scheme.interest_rate_structure:
+                    months = ((due_date.year - issue_date.year) * 12 + due_date.month - issue_date.month)
+                    if due_date.day > issue_date.day:
+                        months += 1
+                    self.cleaned_data['interest_rate'] = scheme.get_interest_rate_for_tenure(months)
+                else:
+                    self.cleaned_data['interest_rate'] = scheme.interest_rate
+
         # Set processing fee percentage from the scheme's additional_conditions
         if scheme.additional_conditions and 'processing_fee_percentage' in scheme.additional_conditions:
             processing_fee_percentage = scheme.additional_conditions['processing_fee_percentage']
             self.cleaned_data['processing_fee_percentage'] = processing_fee_percentage
-        
+
         return scheme
+
 
     def clean(self):
         cleaned_data = super().clean()
@@ -508,21 +522,23 @@ class LoanForm(forms.ModelForm):
 
         # Calculate processing fee and distribution amount based on scheme's processing fee percentage
         principal_amount = cleaned_data.get('principal_amount')
-        
+        is_edit = self.instance and self.instance.pk is not None
+
         if principal_amount and scheme:
-            # Get processing fee percentage from scheme's additional_conditions, default to 1% if not specified
-            processing_fee_percentage = 1.0  # Default to 1%
-            
-            if scheme.additional_conditions and 'processing_fee_percentage' in scheme.additional_conditions:
-                processing_fee_percentage = float(scheme.additional_conditions['processing_fee_percentage'])
-            
-            # Calculate processing fee using the scheme's percentage
-            processing_fee = round(float(principal_amount) * (processing_fee_percentage / 100))
-            cleaned_data['processing_fee'] = processing_fee
-            
+            if not is_edit:
+                # NEW LOAN: auto-calculate processing fee from scheme percentage
+                processing_fee_percentage = 1.0  # Default to 1%
+                if scheme.additional_conditions and 'processing_fee_percentage' in scheme.additional_conditions:
+                    processing_fee_percentage = float(scheme.additional_conditions['processing_fee_percentage'])
+                processing_fee = round(float(principal_amount) * (processing_fee_percentage / 100))
+                cleaned_data['processing_fee'] = processing_fee
+            else:
+                # EDIT LOAN: honour the user-submitted processing_fee (already parsed above)
+                processing_fee = cleaned_data.get('processing_fee', 0) or 0
+
             base_distribution = principal_amount - processing_fee
-            
-            # Calculate first month's interest if checkbox is checked
+
+            # Recalculate distribution amount (always, since principal/fee/checkbox may have changed)
             if cleaned_data.get('is_first_month_interest_paid'):
                 annual_rate = cleaned_data.get('interest_rate') or scheme.interest_rate
                 monthly_rate = Decimal(str(annual_rate)) / Decimal('12')
@@ -602,72 +618,74 @@ class LoanForm(forms.ModelForm):
             instance.grace_period_end = instance.due_date + timedelta(days=5)
 
         if commit:
-            instance.save()
-            
-            # Check if this is an update or new loan
-            if instance.pk and instance.loanitem_set.exists():
-                # Update existing loan item information
-                loan_item = instance.loanitem_set.first()
-                if loan_item:
-                    # Update item information
-                    loan_item.item.name = self.cleaned_data['item_name']
-                    loan_item.item.tamil_name = self.cleaned_data.get('item_name_tamil', '')
-                    loan_item.item.description = self.cleaned_data['item_description']
-                    loan_item.item.tamil_description = self.cleaned_data.get('item_description_tamil', '')
-                    loan_item.item.tamil_brand = loan_item.item.tamil_brand or ''
-                    loan_item.item.tamil_model = loan_item.item.tamil_model or ''
-                    loan_item.item.tamil_tags = loan_item.item.tamil_tags or ''
-                    loan_item.item.tamil_notes = loan_item.item.tamil_notes or ''
-                    loan_item.item.category = self.cleaned_data['item_category']
-                    loan_item.item.save()
-                    
-                    # Update loan item details
-                    loan_item.gold_karat = self.cleaned_data['gold_karat']
-                    loan_item.gross_weight = self.cleaned_data['gross_weight']
-                    loan_item.net_weight = self.cleaned_data['net_weight']
-                    loan_item.stone_weight = self.cleaned_data.get('stone_weight', 0)
-                    loan_item.market_price_22k = self.cleaned_data['market_price_22k']
-                    loan_item.quantity = _extract_item_quantity_from_name(self.cleaned_data.get('item_name', ''))
-                    loan_item.save()
-            else:
-                # Create new item with gold details
-                new_item = Item(
-                    name=self.cleaned_data['item_name'],
-                    description=self.cleaned_data.get('item_description', ''),
-                    tamil_name=self.cleaned_data.get('item_name_tamil', ''),
-                    tamil_description=self.cleaned_data.get('item_description_tamil', ''),
-                    tamil_brand='',
-                    tamil_model='',
-                    tamil_tags='',
-                    tamil_notes='',
-                    category=self.cleaned_data['item_category'],
-                    status='pawned',  # Set status to pawned when used in loan
-                    branch=instance.branch if instance.branch else self.user.branch,
-                    created_by=self.user
-                )
-                new_item.save()
+            from django.db import transaction
+            with transaction.atomic():
+                instance.save()
                 
-                # Create LoanItem with gold details
-                loan_item = LoanItem(
-                    loan=instance,
-                    item=new_item,
-                    quantity=_extract_item_quantity_from_name(self.cleaned_data.get('item_name', '')),
-                    gold_karat=self.cleaned_data['gold_karat'],
-                    gross_weight=self.cleaned_data['gross_weight'],
-                    net_weight=self.cleaned_data['net_weight'],
-                    stone_weight=self.cleaned_data.get('stone_weight', 0),
-                    market_price_22k=self.cleaned_data['market_price_22k']
-                )
-                loan_item.save()
-            
-            # Handle existing items from formset
-            if hasattr(self, 'items_formset') and self.items_formset.is_valid():
-                for item_form in self.items_formset:
-                    if item_form.cleaned_data and not item_form.cleaned_data.get('DELETE', False):
-                        item = item_form.save(commit=False)
-                        item.status = 'pledged'
-                        item.save()
-                        LoanItem.objects.create(loan=instance, item=item)
+                # Check if this is an update or new loan
+                if instance.pk and instance.loanitem_set.exists():
+                    # Update existing loan item information
+                    loan_item = instance.loanitem_set.first()
+                    if loan_item:
+                        # Update item information
+                        loan_item.item.name = self.cleaned_data['item_name']
+                        loan_item.item.tamil_name = self.cleaned_data.get('item_name_tamil', '')
+                        loan_item.item.description = self.cleaned_data['item_description']
+                        loan_item.item.tamil_description = self.cleaned_data.get('item_description_tamil', '')
+                        loan_item.item.tamil_brand = loan_item.item.tamil_brand or ''
+                        loan_item.item.tamil_model = loan_item.item.tamil_model or ''
+                        loan_item.item.tamil_tags = loan_item.item.tamil_tags or ''
+                        loan_item.item.tamil_notes = loan_item.item.tamil_notes or ''
+                        loan_item.item.category = self.cleaned_data['item_category']
+                        loan_item.item.save()
+                        
+                        # Update loan item details
+                        loan_item.gold_karat = self.cleaned_data['gold_karat']
+                        loan_item.gross_weight = self.cleaned_data['gross_weight']
+                        loan_item.net_weight = self.cleaned_data['net_weight']
+                        loan_item.stone_weight = self.cleaned_data.get('stone_weight', 0)
+                        loan_item.market_price_22k = self.cleaned_data['market_price_22k']
+                        loan_item.quantity = _extract_item_quantity_from_name(self.cleaned_data.get('item_name', ''))
+                        loan_item.save()
+                else:
+                    # Create new item with gold details
+                    new_item = Item(
+                        name=self.cleaned_data['item_name'],
+                        description=self.cleaned_data.get('item_description', ''),
+                        tamil_name=self.cleaned_data.get('item_name_tamil', ''),
+                        tamil_description=self.cleaned_data.get('item_description_tamil', ''),
+                        tamil_brand='',
+                        tamil_model='',
+                        tamil_tags='',
+                        tamil_notes='',
+                        category=self.cleaned_data['item_category'],
+                        status='pawned',  # Set status to pawned when used in loan
+                        branch=instance.branch if instance.branch else self.user.branch,
+                        created_by=self.user
+                    )
+                    new_item.save()
+                    
+                    # Create LoanItem with gold details
+                    loan_item = LoanItem(
+                        loan=instance,
+                        item=new_item,
+                        quantity=_extract_item_quantity_from_name(self.cleaned_data.get('item_name', '')),
+                        gold_karat=self.cleaned_data['gold_karat'],
+                        gross_weight=self.cleaned_data['gross_weight'],
+                        net_weight=self.cleaned_data['net_weight'],
+                        stone_weight=self.cleaned_data.get('stone_weight', 0),
+                        market_price_22k=self.cleaned_data['market_price_22k']
+                    )
+                    loan_item.save()
+                
+                # Handle existing items from formset
+                if hasattr(self, 'items_formset') and self.items_formset.is_valid():
+                    for item_form in self.items_formset:
+                        if item_form.cleaned_data and not item_form.cleaned_data.get('DELETE', False):
+                            item = item_form.save(commit=False)
+                            item.status = 'pledged'
+                            item.save()
+                            LoanItem.objects.create(loan=instance, item=item)
         
         return instance
 

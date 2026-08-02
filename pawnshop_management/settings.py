@@ -1,4 +1,4 @@
-﻿"""Django settings for pawnshop_management project."""
+"""Django settings for pawnshop_management project."""
 
 import os
 from pathlib import Path
@@ -237,3 +237,9 @@ CORS_ALLOWED_ORIGINS = env_list(
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = env_int('DATA_UPLOAD_MAX_MEMORY_SIZE', 26214400)  # 25 MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = env_int('FILE_UPLOAD_MAX_MEMORY_SIZE', 26214400)  # 25 MB
+
+# Email Settings
+EMAIL_BACKEND = env('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', 'noreply@myapp.com')
+SITE_URL = env('SITE_URL', 'http://127.0.0.1:8000')
+

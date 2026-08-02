@@ -23,6 +23,10 @@ urlpatterns = [
     path('organization/subscription/toggle-auto-renew/', views.ToggleSubscriptionAutoRenewView.as_view(), name='toggle_subscription_auto_renew'),
     path('subscription-plans/', views.SubscriptionPlansView.as_view(), name='subscription_plans'),
     path('subscription-upgrade/<str:plan>/', views.SubscriptionUpgradeView.as_view(), name='subscription_upgrade'),
+    path('check-email/', views.CheckEmailView.as_view(), name='check_email'),
+    path('verify-email/', views.VerifyEmailView.as_view(), name='verify_email'),
+    path('resend-verification/', views.ResendVerificationEmailView.as_view(), name='resend_verification_email'),
+    
     
     # Super Admin URLs
     path('superadmin/', views.SuperAdminDashboardView.as_view(), name='superadmin_dashboard'),

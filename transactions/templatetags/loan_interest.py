@@ -18,6 +18,13 @@ def monthly_interest_amount(loan):
     return Decimal('0.00')
 
 @register.filter
+def daily_interest_amount(loan):
+    """Display the daily interest amount for a loan."""
+    if hasattr(loan, 'daily_interest_amount'):
+        return loan.daily_interest_amount
+    return Decimal('0.00')
+
+@register.filter
 def monthly_interest_per_thousand(loan):
     """Display the monthly interest per 1000 of principal."""
     if hasattr(loan, 'monthly_interest'):

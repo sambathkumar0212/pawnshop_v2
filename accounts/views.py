@@ -39,10 +39,19 @@ class CustomLoginView(LoginView):
     redirect_authenticated_user = True
     
     def form_valid(self, form):
+        user = form.get_user()
+        if user.organization and user.organization.status == 'pending':
+            from django.contrib.auth import logout
+            from django.urls import reverse
+            logout(self.request)
+            messages.warning(self.request, "Your organization's email address has not been verified yet. Please check your inbox.")
+            return redirect(reverse('check_email') + f'?email={user.email}')
+            
         response = super().form_valid(form)
         # Log login for admin users
         log_login(self.request.user, self.request)
         return response
+
 
 
 class CustomLogoutView(LogoutView):
@@ -1372,13 +1381,18 @@ class OrganizationSignupView(CreateView):
                 # Mark object for consistency with CreateView pattern
                 self.object = organization
                 
+                # Generate verification token and send verification email
+                from .utils import send_organization_verification_email
+                send_organization_verification_email(organization, request=self.request)
+                
                 # Add success message
                 messages.success(
                     self.request, 
-                    f'Organization "{organization.name}" created successfully! You can now log in.'
+                    f'Organization "{organization.name}" created successfully! A verification email has been sent.'
                 )
                 
-                return redirect(self.get_success_url())
+                from django.urls import reverse
+                return redirect(reverse('check_email') + f'?email={user.email}')
                 
         except IntegrityError as e:
             # Handle duplicate username or other integrity errors
@@ -1520,13 +1534,231 @@ class SubscriptionPlansView(LoginRequiredMixin, TemplateView):
     """View subscription plans"""
     template_name = 'accounts/subscription_plans.html'
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        org = user.organization
+        
+        # If user has no organization (e.g. superadmin), handle gracefully
+        current_plan = org.plan if org else 'free'
+        
+        # Calculate limits and usage counts
+        if org:
+            branches_count = org.branches.count()
+            users_count = org.users.count()
+            customers_count = Customer.objects.filter(branch__organization=org).count()
+            items_count = Item.objects.filter(branch__organization=org).count()
+            
+            branches_limit = "Unlimited" if org.max_branches >= 999999 else org.max_branches
+            users_limit = "Unlimited" if org.max_users >= 999999 else org.max_users
+            customers_limit = "Unlimited" if org.max_customers >= 999999 else org.max_customers
+            items_limit = "Unlimited" if org.max_loans >= 999999 else org.max_loans
+        else:
+            branches_count = 0
+            users_count = 0
+            customers_count = 0
+            items_count = 0
+            branches_limit = 1
+            users_limit = 3
+            customers_limit = 100
+            items_limit = 100
+
+        context['usage_stats'] = {
+            'branches': {
+                'current': branches_count,
+                'limit': branches_limit,
+            },
+            'users': {
+                'current': users_count,
+                'limit': users_limit,
+            },
+            'customers': {
+                'current': customers_count,
+                'limit': customers_limit,
+            },
+            'items': {
+                'current': items_count,
+                'limit': items_limit,
+            }
+        }
+
+        # Build subscription plans data
+        from django.urls import reverse
+        plans_list = [
+            {
+                'name': 'Free Plan',
+                'plan_id': 'free',
+                'price': '0',
+                'period': 'month',
+                'description': 'Ideal for individual/small pawnshops starting out.',
+                'features': [
+                    '1 Branch allowed',
+                    'Up to 3 Users/Staff',
+                    'Up to 100 Customers',
+                    'Up to 100 Loans total',
+                    'Standard loan operations',
+                ],
+                'limitations': [
+                    'No biometric login',
+                    'No priority support',
+                ],
+                'is_current': current_plan == 'free',
+                'recommended': False,
+                'disabled': current_plan == 'free',
+                'action_text': 'Current Plan' if current_plan == 'free' else 'Downgrade',
+                'action_url': reverse('subscription_upgrade', kwargs={'plan': 'free'}),
+            },
+            {
+                'name': 'Basic Plan',
+                'plan_id': 'basic',
+                'price': '1,999',
+                'period': 'month',
+                'description': 'Perfect for growing local pawnshops.',
+                'features': [
+                    'Up to 3 Branches',
+                    'Up to 10 Users/Staff',
+                    'Up to 1,000 Customers',
+                    'Up to 1,000 Loans total',
+                    'Bilingual Tamil/English support',
+                    'Email & Chat support',
+                ],
+                'limitations': [
+                    'No biometric login',
+                ],
+                'is_current': current_plan == 'basic',
+                'recommended': False,
+                'disabled': current_plan == 'basic',
+                'action_text': 'Current Plan' if current_plan == 'basic' else ('Upgrade' if current_plan == 'free' else 'Downgrade'),
+                'action_url': reverse('subscription_upgrade', kwargs={'plan': 'basic'}),
+            },
+            {
+                'name': 'Professional Plan',
+                'plan_id': 'professional',
+                'price': '4,999',
+                'period': 'month',
+                'description': 'Designed for multi-branch organizations.',
+                'features': [
+                    'Up to 10 Branches',
+                    'Up to 30 Users/Staff',
+                    'Up to 5,000 Customers',
+                    'Up to 5,000 Loans total',
+                    'Biometric Face ID Authentication',
+                    'Advanced Reports & Analytics',
+                    '24/7 Priority Support',
+                ],
+                'limitations': [],
+                'is_current': current_plan == 'professional',
+                'recommended': True,
+                'disabled': current_plan == 'professional',
+                'action_text': 'Current Plan' if current_plan == 'professional' else ('Upgrade' if current_plan in ['free', 'basic'] else 'Downgrade'),
+                'action_url': reverse('subscription_upgrade', kwargs={'plan': 'professional'}),
+            },
+            {
+                'name': 'Enterprise Plan',
+                'plan_id': 'enterprise',
+                'price': '9,999',
+                'period': 'month',
+                'description': 'For large operations requiring unlimited capacity.',
+                'features': [
+                    'Unlimited Branches',
+                    'Unlimited Users/Staff',
+                    'Unlimited Customers',
+                    'Unlimited Loans total',
+                    'Biometric Face ID Authentication',
+                    'Custom ERP Integrations',
+                    'Dedicated Account Manager',
+                ],
+                'limitations': [],
+                'is_current': current_plan == 'enterprise',
+                'recommended': False,
+                'disabled': current_plan == 'enterprise',
+                'action_text': 'Current Plan' if current_plan == 'enterprise' else 'Upgrade',
+                'action_url': reverse('subscription_upgrade', kwargs={'plan': 'enterprise'}),
+            },
+        ]
+        context['plans'] = plans_list
+
+        # Mock saved payment methods
+        context['payment_methods'] = [
+            {
+                'type': 'credit_card',
+                'brand': 'Visa',
+                'last4': '4242',
+                'exp_month': '12',
+                'exp_year': '2028',
+                'is_default': True
+            }
+        ]
+
+        # Generate billing history
+        billing_history = []
+        if org and org.plan != 'free':
+            billing_history.append({
+                'date': org.subscription_start.strftime('%Y-%m-%d') if org.subscription_start else timezone.now().strftime('%Y-%m-%d'),
+                'description': f'{org.get_plan_display()} Subscription - 1 Month',
+                'plan': org.get_plan_display(),
+                'amount': '1,999.00' if org.plan == 'basic' else ('4,999.00' if org.plan == 'professional' else '9,999.00'),
+                'status': 'paid',
+                'receipt_url': '#'
+            })
+        context['billing_history'] = billing_history
+
+        return context
+
 
 class SubscriptionUpgradeView(LoginRequiredMixin, View):
     """Handle subscription upgrades"""
+    
+    def get(self, request, plan):
+        return self.upgrade(request, plan)
+        
     def post(self, request, plan):
-        # Handle subscription upgrade logic
-        messages.success(request, f'Subscription upgraded to {plan}!')
-        return redirect('organization_dashboard')
+        return self.upgrade(request, plan)
+        
+    def upgrade(self, request, plan):
+        org = request.user.organization
+        if not org:
+            messages.error(request, "You must be associated with an organization to upgrade.")
+            return redirect('dashboard')
+            
+        if plan not in ['free', 'basic', 'professional', 'enterprise']:
+            messages.error(request, f"Invalid subscription plan selection: {plan}")
+            return redirect('subscription_plans')
+            
+        # Update plan limits
+        org.plan = plan
+        if plan == 'free':
+            org.max_branches = 1
+            org.max_users = 3
+            org.max_customers = 100
+            org.max_loans = 100
+            org.enable_biometrics = False
+        elif plan == 'basic':
+            org.max_branches = 3
+            org.max_users = 10
+            org.max_customers = 1000
+            org.max_loans = 1000
+            org.enable_biometrics = False
+        elif plan == 'professional':
+            org.max_branches = 10
+            org.max_users = 30
+            org.max_customers = 5000
+            org.max_loans = 5000
+            org.enable_biometrics = True
+        elif plan == 'enterprise':
+            org.max_branches = 999999
+            org.max_users = 999999
+            org.max_customers = 999999
+            org.max_loans = 999999
+            org.enable_biometrics = True
+            
+        # Extend/set subscription
+        org.extend_subscription(months=1)
+        org.save()
+        
+        messages.success(request, f"Subscription successfully upgraded to the {org.get_plan_display()}!")
+        return redirect('subscription_plans')
+
 
 
 class ToggleSubscriptionAutoRenewView(LoginRequiredMixin, View):
@@ -1565,3 +1797,97 @@ class BranchListView(LoginRequiredMixin, PermissionRequiredMixin, DownloadMixin,
     download_filename = 'branches'
     download_fields = ['name', 'address', 'phone', 'email', 'manager__username', 'is_active', 'created_at']
     download_headers = ['Name', 'Address', 'Phone', 'Email', 'Manager', 'Active', 'Created Date']
+
+
+class CheckEmailView(TemplateView):
+    """View to render the 'Check Your Email' landing page after organization signup"""
+    template_name = 'accounts/check_email.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['email'] = self.request.GET.get('email', '')
+        return context
+
+
+class ResendVerificationEmailView(View):
+    """POST view to regenerate and resend the verification email to the organization"""
+    def post(self, request):
+        import json
+        email = None
+        
+        if request.content_type == 'application/json':
+            try:
+                data = json.loads(request.body)
+                email = data.get('email')
+            except Exception:
+                pass
+        else:
+            email = request.POST.get('email')
+            
+        if not email:
+            return JsonResponse({'success': False, 'message': 'Email address is required.'}, status=400)
+            
+        try:
+            # Find organization where admin/owner has this email
+            user = CustomUser.objects.filter(email=email, is_organization_admin=True).first()
+            if not user or not user.organization:
+                org = Organization.objects.filter(contact_email=email).first()
+            else:
+                org = user.organization
+                
+            if not org:
+                return JsonResponse({'success': False, 'message': 'No organization found associated with this email.'}, status=404)
+                
+            if org.status == 'active':
+                return JsonResponse({'success': False, 'message': 'This organization is already verified.'}, status=400)
+                
+            # Trigger utility function to resend
+            from .utils import send_organization_verification_email
+            send_organization_verification_email(org, request=request)
+            
+            return JsonResponse({'success': True, 'message': 'Verification email has been resent successfully.'})
+            
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': f'Error resending email: {str(e)}'}, status=500)
+
+
+class VerifyEmailView(View):
+    """GET view to serve verification landing page or process AJAX verification requests"""
+    def get(self, request):
+        token_str = request.GET.get('token')
+        
+        # Check if the request expects JSON (is AJAX)
+        is_ajax = (
+            request.headers.get('x-requested-with') == 'XMLHttpRequest' or 
+            'application/json' in request.headers.get('Accept', '') or
+            request.GET.get('ajax') == '1'
+        )
+        
+        if not is_ajax:
+            # Render the Verification Landing page HTML with loading spinner
+            return render(request, 'accounts/verify_email_landing.html', {'token': token_str})
+            
+        # Process the verification token and return JSON success/error
+        if not token_str:
+            return JsonResponse({'success': False, 'message': 'Token is missing.'}, status=400)
+            
+        try:
+            from .models import OrganizationVerificationToken
+            token_obj = OrganizationVerificationToken.objects.get(token=token_str)
+            
+            if token_obj.is_expired():
+                return JsonResponse({'success': False, 'message': 'The verification link has expired. Please request a new one.'}, status=400)
+                
+            # Update organization status to ACTIVE
+            org = token_obj.organization
+            org.status = 'active'
+            org.save()
+            
+            # Delete token
+            token_obj.delete()
+            
+            return JsonResponse({'success': True, 'message': 'Organization verified successfully!'})
+            
+        except OrganizationVerificationToken.DoesNotExist:
+            return JsonResponse({'success': False, 'message': 'Invalid verification link.'}, status=400)
+

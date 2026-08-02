@@ -117,3 +117,69 @@ def modify_role_permissions(role, add_permissions=None, remove_permissions=None)
         return True, "Successfully modified role permissions"
     except Exception as e:
         return False, f"Error modifying permissions: {str(e)}"
+
+
+def send_organization_verification_email(organization, request=None):
+    """
+    Generate a secure verification token and send a verification email to the organization.
+    """
+    import uuid
+    from datetime import timedelta
+    from django.utils import timezone
+    from django.core.mail import send_mail
+    from django.template.loader import render_to_string
+    from django.conf import settings
+    from django.urls import reverse
+    from .models import OrganizationVerificationToken
+    
+    # 1. Generate secure unique token
+    token_str = uuid.uuid4().hex
+    expires_at = timezone.now() + timedelta(hours=24)
+    
+    # 2. Save token to db (delete any existing verification tokens for this organization first)
+    OrganizationVerificationToken.objects.filter(organization=organization).delete()
+    verification_token = OrganizationVerificationToken.objects.create(
+        organization=organization,
+        token=token_str,
+        expires_at=expires_at
+    )
+    
+    # 3. Construct URL
+    if request:
+        base_url = request.build_absolute_uri('/')[:-1] # Remove trailing slash
+    else:
+        base_url = getattr(settings, 'SITE_URL', 'https://myapp.com').rstrip('/')
+    
+    verify_url = f"{base_url}{reverse('verify_email')}?token={token_str}"
+    
+    # 4. Construct clean professional email body using template
+    subject = "Verify Your Organization Registration - Pawnshop Management System"
+    
+    context = {
+        'organization': organization,
+        'verify_url': verify_url,
+        'owner_name': f"{organization.owner.first_name} {organization.owner.last_name}",
+    }
+    
+    html_message = render_to_string('accounts/emails/verification_email.html', context)
+    plain_message = (
+        f"Hello {context['owner_name']},\n\n"
+        f"Thank you for registering {organization.name} on the Pawnshop Management System. "
+        f"Please verify your email by clicking the link below:\n\n"
+        f"{verify_url}\n\n"
+        f"This link is valid for 24 hours.\n\n"
+        f"Best regards,\nThe Pawnshop Team"
+    )
+    
+    # 5. Send email
+    from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@myapp.com')
+    send_mail(
+        subject=subject,
+        message=plain_message,
+        from_email=from_email,
+        recipient_list=[organization.contact_email],
+        html_message=html_message,
+        fail_silently=False,
+    )
+    
+    return verification_token

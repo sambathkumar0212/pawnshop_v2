@@ -582,3 +582,23 @@ class StaffDeletion(models.Model):
     
     def __str__(self):
         return f"{self.username} - Deleted by {self.deleted_by_admin} - {self.deletion_timestamp}"
+
+
+class OrganizationVerificationToken(models.Model):
+    """Model to store verification tokens for new organizations"""
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='verification_tokens')
+    token = models.CharField(max_length=64, unique=True, help_text="Secure, unique token for verification")
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(help_text="Token expiration timestamp")
+    
+    class Meta:
+        verbose_name = _('organization verification token')
+        verbose_name_plural = _('organization verification tokens')
+        
+    def is_expired(self):
+        """Check if token is expired"""
+        return timezone.now() > self.expires_at
+
+    def __str__(self):
+        return f"{self.organization.name} - {self.token}"
+

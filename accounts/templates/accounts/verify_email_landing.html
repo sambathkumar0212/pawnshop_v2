@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+
+{% block title %}Verify Email - Pawnshop Management System{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6">
+        <div class="card shadow border-0 text-center p-5 rounded-3">
+            <div class="card-body">
+                
+                <!-- 1. Loading State -->
+                <div id="loadingState">
+                    <div class="spinner-border text-primary mb-4" role="status" style="width: 4rem; height: 4rem; border-width: 0.4rem;">
+                        <span class="visually-hidden">Verifying...</span>
+                    </div>
+                    <h3 class="fw-bold mb-3">Verifying your email...</h3>
+                    <p class="text-muted">Please wait while we confirm your registration details with the server.</p>
+                </div>
+                
+                <!-- 2. Success State -->
+                <div id="successState" class="d-none">
+                    <div class="mb-4">
+                        <i class="fas fa-check-circle fa-5x text-success" style="opacity: 0.9;"></i>
+                    </div>
+                    <h3 class="fw-bold text-success mb-3">Email Verified Successfully!</h3>
+                    <p class="text-muted mb-4 fs-5">
+                        Your organization is now active and ready. You will be redirected to the login page in a few seconds...
+                    </p>
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'login' %}" class="btn btn-success btn-lg rounded-pill">
+                            Go to Login Immediately
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- 3. Failure State -->
+                <div id="failureState" class="d-none">
+                    <div class="mb-4">
+                        <i class="fas fa-times-circle fa-5x text-danger" style="opacity: 0.9;"></i>
+                    </div>
+                    <h3 class="fw-bold text-danger mb-3">Verification Failed</h3>
+                    <p id="errorText" class="text-muted mb-4 fs-5">
+                        The verification token is invalid or has expired.
+                    </p>
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'login' %}" class="btn btn-outline-secondary btn-lg rounded-pill mb-2">
+                            Back to Login
+                        </a>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const token = "{{ token }}";
+        const loadingState = document.getElementById("loadingState");
+        const successState = document.getElementById("successState");
+        const failureState = document.getElementById("failureState");
+        const errorText = document.getElementById("errorText");
+        
+        if (!token) {
+            loadingState.classList.add("d-none");
+            failureState.classList.remove("d-none");
+            errorText.textContent = "Missing verification token.";
+            return;
+        }
+        
+        // Call the backend GET verify-email with query parameter ajax=1
+        const verifyUrl = "{% url 'verify_email' %}?token=" + encodeURIComponent(token) + "&ajax=1";
+        
+        // Minimum spinner visibility of 1.5 seconds for visual layout stability
+        const startTime = Date.now();
+        
+        fetch(verifyUrl, {
+            headers: {
+                "Accept": "application/json"
+            }
+        })
+        .then(response => {
+            return response.json().then(data => {
+                if (response.ok && data.success) {
+                    return data;
+                } else {
+                    throw new Error(data.message || "Verification failed");
+                }
+            });
+        })
+        .then(data => {
+            const timeElapsed = Date.now() - startTime;
+            const remainingDelay = Math.max(0, 1500 - timeElapsed);
+            
+            setTimeout(() => {
+                loadingState.classList.add("d-none");
+                successState.classList.remove("d-none");
+                
+                // Redirect to login after 3 seconds
+                setTimeout(() => {
+                    window.location.href = "{% url 'login' %}";
+                }, 3000);
+            }, remainingDelay);
+        })
+        .catch(error => {
+            const timeElapsed = Date.now() - startTime;
+            const remainingDelay = Math.max(0, 1500 - timeElapsed);
+            
+            setTimeout(() => {
+                loadingState.classList.add("d-none");
+                failureState.classList.remove("d-none");
+                errorText.textContent = error.message || "The verification token is invalid or has expired.";
+            }, remainingDelay);
+        });
+    });
+</script>
+{% endblock %}
