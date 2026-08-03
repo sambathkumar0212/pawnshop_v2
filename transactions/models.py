@@ -195,7 +195,9 @@ class Loan(models.Model):
                 loan = Loan.objects.get(pk=loan_id)
                 loan.send_loan_notification_email(_is_create)
             except Exception as e:
+                import traceback
                 print(f"Error sending loan email notification: {str(e)}")
+                traceback.print_exc()
         
         from django.db import transaction
         transaction.on_commit(_send_notification)

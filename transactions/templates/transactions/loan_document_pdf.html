@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 {% load loan_filters %}
 {% load loan_interest %}
 {% load i18n %}
@@ -558,35 +558,44 @@
                                     class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
                                     {{ labels.id_details }}:
                                 </span>
-                                <span class="field-content important-field {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
+                                <span
+                                    class="field-content important-field {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
                                     {% if loan.customer.id_type %}
-                                        {{ customer_id_type_display }}: 
+                                    {{ customer_id_type_display }}:
                                     {% endif %}
                                     {{ loan.customer.id_number }}
                                 </span>
                             </div>
                             {% if tiered_rates %}
                             <div style="margin-top: 6px;">
-                                <table class="data-table" style="text-align: center; font-size: 8px; width: 100%; border-collapse: collapse; border: 1px solid #e1e1e1;">
+                                <table class="data-table"
+                                    style="text-align: center; font-size: 8px; width: 100%; border-collapse: collapse; border: 1px solid #e1e1e1;">
                                     <thead style="background-color: #f7f9fc;">
                                         <tr>
-                                            <th colspan="{{ tiered_rates|length }}" style="text-align: center; font-weight: bold; border: 1px solid #e1e1e1; padding: 2px; font-size: 8px;">
-                                                {% if current_language|slice:':2' == 'ta' %}வட்டி வரம்பு (விகிதம் / நாட்கள்){% else %}Tenure/ Interest Range (Days Based){% endif %}
+                                            <th colspan="{{ tiered_rates|length }}"
+                                                style="text-align: center; font-weight: bold; border: 1px solid #e1e1e1; padding: 2px; font-size: 8px;">
+                                                {% if current_language|slice:':2' == 'ta' %}வட்டி வரம்பு (விகிதம் /
+                                                நாட்கள்){% else %}Tenure/ Interest Range (Days Based){% endif %}
                                             </th>
                                         </tr>
                                         <tr>
                                             {% for item in tiered_rates %}
-                                            <th style="text-align: center; font-weight: bold; border: 1px solid #e1e1e1; padding: 2px; font-size: 8px;">{{ item.range }}</th>
+                                            <th
+                                                style="text-align: center; font-weight: bold; border: 1px solid #e1e1e1; padding: 2px; font-size: 8px;">
+                                                {{ item.range }}</th>
                                             {% endfor %}
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <tr>
                                             {% for item in tiered_rates %}
-                                            <td style="text-align: center; border: 1px solid #e1e1e1; padding: 2px; font-size: 8px;">
+                                            <td
+                                                style="text-align: center; border: 1px solid #e1e1e1; padding: 2px; font-size: 8px;">
                                                 <div>{{ item.rate }}</div>
                                                 {% if item.amount %}
-                                                <div style="color: #555; font-size: 7px; font-weight: bold; margin-top: 1px;">({{ item.amount }})</div>
+                                                <div
+                                                    style="color: #555; font-size: 7px; font-weight: bold; margin-top: 1px;">
+                                                    ({{ item.amount }})</div>
                                                 {% endif %}
                                             </td>
                                             {% endfor %}
@@ -625,7 +634,8 @@
                                 </span>
                             </div>
                             <div class="field-row">
-                                <span class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
+                                <span
+                                    class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
                                     {{ labels.processing_fee }}: Rs {{ loan.processing_fee|floatformat:0 }}
                                 </span>
                                 <span class="field-content">
@@ -657,7 +667,8 @@
                     <td width="50%" style="padding: 7px; vertical-align: top;">
                         <div class="info-section">
                             <div class="field-row">
-                                <span class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
+                                <span
+                                    class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
                                     {{ labels.monthly_interest }}:
                                 </span>
                                 <span class="field-content financial-value">
@@ -677,12 +688,14 @@
 
                             {% if minimum_term %}
                             <div class="field-row">
-                                <span class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}" style="color: #dbdf19; font-weight: bold;">
+                                <span
+                                    class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}"
+                                    style="color: #dbdf19; font-weight: bold;">
                                     {{ labels.minimum_term }} : {{ minimum_term }}
                                     {% if current_language|slice:':2' == 'ta' %}
-                                        நாட்கள்
+                                    நாட்கள்
                                     {% else %}
-                                        day(s)
+                                    day(s)
                                     {% endif %}
                                 </span>
                                 <span class="field-content">
@@ -818,89 +831,6 @@
                 style="font-size: 10px; text-align: center; color: #666; font-style: italic;">
                 {{ labels.no_photos }}
             </p>
-        </div>
-        {% endif %}
-
-
-
-        <!-- Tiered Interest Rate Structure & Closing Amount Schedule Section -->
-        {% if loan.scheme %}
-        <div class="data-section" style="page-break-inside: avoid; margin-top: 10px; margin-bottom: 10px;">
-            <div style="background-color: #002f6c; color: white; padding: 4px 8px; font-weight: bold; font-size: 11px; margin-bottom: 6px;">
-                {% if current_language|slice:':2' == 'ta' %}அடுக்கு வட்டி விகித அமைப்பு & முடிவுத் தொகை அட்டவணை{% else %}Tiered Interest Rate Structure & Closing Amount Schedule{% endif %}
-            </div>
-
-            <!-- Rate Tiers Summary -->
-            <div style="margin-bottom: 8px;">
-                <div style="font-weight: bold; font-size: 9px; margin-bottom: 4px; color: #333;">
-                    {% if current_language|slice:':2' == 'ta' %}திட்ட வட்டி விகித அடுக்குகள் வரையறை{% else %}1. Scheme Rate Tiers Definition{% endif %}
-                </div>
-                <table class="data-table" style="text-align: center; font-size: 8px; width: 100%; border-collapse: collapse; border: 1px solid #e1e1e1; margin-bottom: 6px;">
-                    <thead style="background-color: #f7f9fc;">
-                        <tr>
-                            <th style="text-align: center; font-weight: bold; padding: 3px; font-size: 8px; border: 1px solid #e1e1e1;">{% if current_language|slice:':2' == 'ta' %}நிலை{% else %}Level{% endif %}</th>
-                            <th style="text-align: center; font-weight: bold; padding: 3px; font-size: 8px; border: 1px solid #e1e1e1;">{% if current_language|slice:':2' == 'ta' %}தொடக்க தேதி{% else %}From Date{% endif %}</th>
-                            <th style="text-align: center; font-weight: bold; padding: 3px; font-size: 8px; border: 1px solid #e1e1e1;">{% if current_language|slice:':2' == 'ta' %}முடிவு தேதி{% else %}To Date{% endif %}</th>
-                            <th style="text-align: center; font-weight: bold; padding: 3px; font-size: 8px; border: 1px solid #e1e1e1;">{% if current_language|slice:':2' == 'ta' %}ஆண்டு வட்டி விகிதம்{% else %}Annual Interest Rate{% endif %}</th>
-                            <th style="text-align: center; font-weight: bold; padding: 3px; font-size: 8px; border: 1px solid #e1e1e1;">{% if current_language|slice:':2' == 'ta' %}மாத வட்டி விகிதம்{% else %}Monthly Rate{% endif %}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for tier in loan.get_tiered_rate_structure_display %}
-                        <tr>
-                            <td style="padding: 3px; border: 1px solid #e1e1e1; font-weight: bold;">{{ tier.level }}</td>
-                            <td style="padding: 3px; border: 1px solid #e1e1e1;">{{ tier.from }}</td>
-                            <td style="padding: 3px; border: 1px solid #e1e1e1;">{{ tier.to }}</td>
-                            <td style="padding: 3px; border: 1px solid #e1e1e1; color: #00458B; font-weight: bold;">{{ tier.annual_rate|floatformat:2 }}% p.a.</td>
-                            <td style="padding: 3px; border: 1px solid #e1e1e1; font-weight: bold;">{{ tier.monthly_rate|floatformat:2 }}%</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Closing Amount Schedule -->
-            {% with schedule_data=loan.get_tiered_schedule %}
-            <div>
-                <div style="font-weight: bold; font-size: 9px; margin-bottom: 4px; color: #333;">
-                    {% if current_language|slice:':2' == 'ta' %}முடிவுத் தொகை அட்டவணை (கடன் காலம் வரை){% else %}2. Closing Total Amount Schedule (Till Loan Term Duration){% endif %}
-                </div>
-                <table class="data-table" style="text-align: center; font-size: 8px; width: 100%; border-collapse: collapse; border: 1px solid #e1e1e1; margin-bottom: 0;">
-                    <thead style="background-color: #222; color: white;">
-                        <tr>
-                            <th style="text-align: center; font-weight: bold; padding: 3px; font-size: 8px; border: 1px solid #e1e1e1; color: white;">{% if current_language|slice:':2' == 'ta' %}காலம் / மாதம்{% else %}Period / Month{% endif %}</th>
-                            <th style="text-align: center; font-weight: bold; padding: 3px; font-size: 8px; border: 1px solid #e1e1e1; color: white;">{% if current_language|slice:':2' == 'ta' %}தேதி வரம்பு{% else %}Date Range{% endif %}</th>
-                            <th style="text-align: center; font-weight: bold; padding: 3px; font-size: 8px; border: 1px solid #e1e1e1; color: white;">{% if current_language|slice:':2' == 'ta' %}கால அளவு (நாட்கள்){% else %}Tenure (Days){% endif %}</th>
-                            <th style="text-align: center; font-weight: bold; padding: 3px; font-size: 8px; border: 1px solid #e1e1e1; background-color: #d1e7dd; color: #0f5132;">{% if current_language|slice:':2' == 'ta' %}ஒழுங்குமுறை வட்டி{% else %}Disciplined Rate &amp; Interest{% endif %}</th>
-                            <th style="text-align: center; font-weight: bold; padding: 3px; font-size: 8px; border: 1px solid #e1e1e1; background-color: #d1e7dd; color: #0f5132;">{% if current_language|slice:':2' == 'ta' %}ஒழுங்குமுறை முடிவுத் தொகை{% else %}Disciplined Closing{% endif %}</th>
-                            <th style="text-align: center; font-weight: bold; padding: 3px; font-size: 8px; border: 1px solid #e1e1e1; background-color: #f8d7da; color: #842029;">{% if current_language|slice:':2' == 'ta' %}தாமத வட்டி விகிதம்{% else %}Delayed Dynamic Rate &amp; Interest{% endif %}</th>
-                            <th style="text-align: center; font-weight: bold; padding: 3px; font-size: 8px; border: 1px solid #e1e1e1; background-color: #f8d7da; color: #842029;">{% if current_language|slice:':2' == 'ta' %}தாமத முடிவுத் தொகை{% else %}Delayed Closing{% endif %}</th>
-                            <th style="text-align: center; font-weight: bold; padding: 3px; font-size: 8px; border: 1px solid #e1e1e1; background-color: #fff3cd; color: #664d03;">{% if current_language|slice:':2' == 'ta' %}ஒழுங்குமுறை சேமிப்பு{% else %}Disciplined Savings{% endif %}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in schedule_data.schedule %}
-                        <tr>
-                            <td style="padding: 3px; border: 1px solid #e1e1e1; font-weight: bold;">Month {{ item.month }}</td>
-                            <td style="padding: 3px; border: 1px solid #e1e1e1; white-space: nowrap;">{{ item.from_date }} to {{ item.to_date }}</td>
-                            <td style="padding: 3px; border: 1px solid #e1e1e1;">{{ item.days }} Days</td>
-                            <td style="padding: 3px; border: 1px solid #e1e1e1;">
-                                <div style="font-weight: bold; color: #0f5132;">{{ item.disciplined_rate|floatformat:2 }}% p.a.</div>
-                                <div style="font-size: 7px; color: #555;">Int: Rs: {{ item.disciplined_cum_interest|floatformat:2 }}</div>
-                            </td>
-                            <td style="padding: 3px; border: 1px solid #e1e1e1; font-weight: bold; color: #0f5132;">Rs: {{ item.disciplined_closing|floatformat:2 }}</td>
-                            <td style="padding: 3px; border: 1px solid #e1e1e1;">
-                                <div style="font-weight: bold; color: #842029;">{{ item.delayed_rate|floatformat:2 }}% p.a.</div>
-                                <div style="font-size: 7px; color: #555;">Int: Rs: {{ item.delayed_cum_interest|floatformat:2 }}</div>
-                            </td>
-                            <td style="padding: 3px; border: 1px solid #e1e1e1; font-weight: bold; color: #842029;">Rs: {{ item.delayed_closing|floatformat:2 }}</td>
-                            <td style="padding: 3px; border: 1px solid #e1e1e1; font-weight: bold; color: #0d6efd;">Rs: {{ item.savings|floatformat:2 }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% endwith %}
         </div>
         {% endif %}
 
