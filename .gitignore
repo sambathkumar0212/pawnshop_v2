@@ -47,3 +47,4 @@ ENV/
 .AppleDouble
 .LSOverride
 Thumbs.db
+.env.development
