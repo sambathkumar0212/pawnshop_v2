@@ -4,27 +4,21 @@ from django.contrib import messages
 from django.shortcuts import redirect
 from django.urls import resolve, reverse
 
+
 class DatabaseConnectionMiddleware:
+    """
+    Lightweight middleware that closes only truly stale connections once per
+    request cycle (after the response). Avoids the previous 4x-per-request
+    overhead that was re-opening the 119 MB SQLite file on every page.
+    """
+
     def __init__(self, get_response):
         self.get_response = get_response
 
-    def _close_sqlite_connections(self):
-        for connection in connections.all():
-            if connection.vendor == 'sqlite':
-                connection.close()
-
     def __call__(self, request):
-        # Always drop SQLite file handles between requests to avoid stale
-        # connections after interrupted writes or local file sync/copy events.
-        self._close_sqlite_connections()
+        response = self.get_response(request)
+        # Close stale connections once, after the response is built.
         close_old_connections()
-
-        try:
-            response = self.get_response(request)
-        finally:
-            self._close_sqlite_connections()
-            close_old_connections()
-
         return response
 
 class OrganizationDataIsolationMiddleware:

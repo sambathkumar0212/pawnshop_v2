@@ -15,6 +15,87 @@ from django.utils import timezone
 import re
 
 
+# ---------------------------------------------------------------------------
+# Category bootstrap cache — avoids 17 get_or_create DB calls on every
+# LoanForm init (GET and POST).  Categories almost never change, so we
+# populate them once at process startup and cache the results in memory.
+# ---------------------------------------------------------------------------
+_CATEGORY_NAMES = [
+    # Top-priority ornament types
+    'Mixed Items',
+    'Chain',
+    'Chain with Dollar',
+    'Chain without Dollar',
+    'Ring',
+    # Traditional Tamil Nadu ornaments
+    'Thali (Mangalsutra)', 'Jimikki (Earrings)', 'Mothiram (Rings)',
+    'Valai (Bangles)', 'Malai (Necklaces)', 'Koppu (Studs)',
+    'Odiyanam (Waist Belt)', 'Thodu (Ear Hoops)', 'Vanki (Armlet)',
+    'Kolusu (Anklet)', 'Metti (Toe Ring)', 'Jadai Nagam (Hair Ornament)',
+]
+
+# Maps category name -> description used when auto-creating missing rows
+_CATEGORY_DESCRIPTIONS = {
+    'Mixed Items': 'Multiple types of gold ornaments',
+    'Chain': 'Gold ornament: Chain',
+    'Chain with Dollar': 'Gold ornament: Chain with Dollar',
+    'Chain without Dollar': 'Gold ornament: Chain without Dollar',
+    'Ring': 'Gold ornament: Ring',
+    'Thali (Mangalsutra)': 'Traditional Tamil Nadu gold ornament: Thali (Mangalsutra)',
+    'Jimikki (Earrings)': 'Traditional Tamil Nadu gold ornament: Jimikki (Earrings)',
+    'Mothiram (Rings)': 'Traditional Tamil Nadu gold ornament: Mothiram (Rings)',
+    'Valai (Bangles)': 'Traditional Tamil Nadu gold ornament: Valai (Bangles)',
+    'Malai (Necklaces)': 'Traditional Tamil Nadu gold ornament: Malai (Necklaces)',
+    'Koppu (Studs)': 'Traditional Tamil Nadu gold ornament: Koppu (Studs)',
+    'Odiyanam (Waist Belt)': 'Traditional Tamil Nadu gold ornament: Odiyanam (Waist Belt)',
+    'Thodu (Ear Hoops)': 'Traditional Tamil Nadu gold ornament: Thodu (Ear Hoops)',
+    'Vanki (Armlet)': 'Traditional Tamil Nadu gold ornament: Vanki (Armlet)',
+    'Kolusu (Anklet)': 'Traditional Tamil Nadu gold ornament: Kolusu (Anklet)',
+    'Metti (Toe Ring)': 'Traditional Tamil Nadu gold ornament: Metti (Toe Ring)',
+    'Jadai Nagam (Hair Ornament)': 'Traditional Tamil Nadu gold ornament: Jadai Nagam (Hair Ornament)',
+}
+
+# Process-level cache: {name: Category instance}.  None means not yet populated.
+_category_cache: dict | None = None
+
+
+def _get_form_categories():
+    """Return a dict of {name: Category} for all loan-form categories.
+
+    The first call does at most 2 DB queries (SELECT + optional INSERT for any
+    missing rows).  Subsequent calls within the same server process return the
+    cached dict with zero DB queries.
+    """
+    global _category_cache
+    if _category_cache is not None:
+        return _category_cache
+
+    try:
+        # Single SELECT to fetch all existing categories at once
+        existing = {c.name: c for c in Category.objects.filter(name__in=_CATEGORY_NAMES)}
+
+        missing_names = [n for n in _CATEGORY_NAMES if n not in existing]
+        if missing_names:
+            # Bulk-create any categories that don't exist yet (one INSERT)
+            new_cats = Category.objects.bulk_create(
+                [
+                    Category(name=n, description=_CATEGORY_DESCRIPTIONS.get(n, n))
+                    for n in missing_names
+                ],
+                ignore_conflicts=True,  # safe if another worker beat us to it
+            )
+            # Re-fetch to get IDs for newly created rows
+            for c in Category.objects.filter(name__in=missing_names):
+                existing[c.name] = c
+
+        _category_cache = existing
+    except Exception:
+        # If DB is not ready yet (e.g. during tests), fall back gracefully
+        _category_cache = {}
+
+    return _category_cache
+
+
 def _extract_item_quantity_from_name(item_name):
     """Parse total quantity from item text like 'stud-2, chain-1'."""
     if not item_name:
@@ -191,13 +272,19 @@ class LoanForm(forms.ModelForm):
         help_text='Check if first month interest is paid/collected upfront',
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
     )
+    is_processing_fee_paid = forms.BooleanField(
+        required=False,
+        label='Is processing fees paid?',
+        help_text='Check if processing fees are paid/collected upfront',
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
 
     class Meta:
         model = Loan
         fields = [
             'customer', 'branch', 'scheme', 'principal_amount', 'processing_fee',
             'distribution_amount', 'interest_rate', 'issue_date', 'due_date', 'loan_document',
-            'is_first_month_interest_paid'
+            'is_first_month_interest_paid', 'is_processing_fee_paid'
         ]
         widgets = {
             'issue_date': forms.DateInput(attrs={'type': 'date'}),
@@ -221,24 +308,14 @@ class LoanForm(forms.ModelForm):
                 scheme_queryset = scheme_queryset.filter(
                     Q(branch__isnull=True) | Q(branch_id=branch_id)
                 )
-                print(f"Filtered to {scheme_queryset.count()} schemes for branch {branch_id}")
 
         # Order schemes by most recently modified first
         self.fields['scheme'].queryset = scheme_queryset.order_by('-updated_at')
-        
-        # Print debug info - how many schemes were found
-        print(f"Found {scheme_queryset.count()} active schemes in schemes app")
-        for scheme in scheme_queryset.order_by('-updated_at'):  # Keep same ordering in debug output
-            print(f"  - {scheme.name} (Branch: {scheme.branch}, Last modified: {scheme.updated_at})")
-        
+
         # Set "Standard Gold Loan" as the default selection if it exists
         standard_gold_loan = scheme_queryset.filter(name='Standard Gold Loan').first()
         if standard_gold_loan:
             self.fields['scheme'].initial = standard_gold_loan
-        
-        # If no schemes are available, create a default one to prevent form errors
-        if not scheme_queryset.exists():
-            print("No schemes found in schemes app, consider creating some.")
 
         # Update principal_amount field to use integer values
         self.fields['principal_amount'] = forms.DecimalField(
@@ -296,57 +373,26 @@ class LoanForm(forms.ModelForm):
             # Show all branches for superusers or users without an organization
             self.fields['branch'].queryset = Branch.objects.all().order_by('name')
 
-        # Define top priority ornament types and Tamil Nadu relevant gold ornament categories
-        top_categories = [
-            'Mixed Items',
-            'Chain', 
-            'Chain with Dollar', 
-            'Chain without Dollar', 
-            'Ring'
-        ]
+        # Populate item_category choices using the process-level cache.
+        # _get_form_categories() does at most 1 DB SELECT (first call) and
+        # zero DB queries on every subsequent call — replacing 17 get_or_create
+        # calls that previously ran on every single form init.
+        cat_map = _get_form_categories()
+        category_ids = [c.id for name, c in cat_map.items() if c.id]
+        mixed_items_category = cat_map.get('Mixed Items')
 
-        # Create Mixed Items category first to ensure it exists
-        mixed_items_category, created = Category.objects.get_or_create(
-            name='Mixed Items',
-            defaults={'description': 'Multiple types of gold ornaments'}
-        )
-        category_ids = [mixed_items_category.id]
-
-        # Create other top categories
-        for category_name in top_categories[1:]:  # Skip Mixed Items as it's already created
-            category, created = Category.objects.get_or_create(
-                name=category_name,
-                defaults={'description': f'Gold ornament: {category_name}'}
-            )
-            category_ids.append(category.id)
-
-        # Then create or get the Tamil Nadu categories
-        tamilnadu_categories = [
-            'Thali (Mangalsutra)', 'Jimikki (Earrings)', 'Mothiram (Rings)', 
-            'Valai (Bangles)', 'Malai (Necklaces)', 'Koppu (Studs)',
-            'Odiyanam (Waist Belt)', 'Thodu (Ear Hoops)', 'Vanki (Armlet)',
-            'Kolusu (Anklet)', 'Metti (Toe Ring)', 'Jadai Nagam (Hair Ornament)'
-        ]
-
-        for category_name in tamilnadu_categories:
-            category, created = Category.objects.get_or_create(
-                name=category_name,
-                defaults={'description': f'Traditional Tamil Nadu gold ornament: {category_name}'}
-            )
-            category_ids.append(category.id)
-        
-        # Create the complete categories list in order
-        all_categories = ['Mixed Items'] + top_categories[1:] + tamilnadu_categories
-        
         # Order the categories to ensure Mixed Items appears first
-        self.fields['item_category'].queryset = Category.objects.filter(id__in=category_ids).order_by(
+        self.fields['item_category'].queryset = Category.objects.filter(
+            id__in=category_ids
+        ).order_by(
             models.Case(
-                *[models.When(name=name, then=pos) for pos, name in enumerate(all_categories)]
+                *[models.When(name=name, then=pos) for pos, name in enumerate(_CATEGORY_NAMES)]
             )
         )
-        
+
         # Always set Mixed Items as default
-        self.fields['item_category'].initial = mixed_items_category
+        if mixed_items_category:
+            self.fields['item_category'].initial = mixed_items_category
         self.fields['item_category'].label = 'Ornament Type'
         self.fields['item_category'].help_text = 'Select the type of gold ornament'
 
@@ -421,8 +467,9 @@ class LoanForm(forms.ModelForm):
                 Column('distribution_amount', css_class='col-md-4'),
             ),
             Row(
-                Column('interest_rate', css_class='col-md-6'),
-                Column('is_first_month_interest_paid', css_class='col-md-6', style="padding-top: 30px;"),
+                Column('interest_rate', css_class='col-md-4'),
+                Column('is_first_month_interest_paid', css_class='col-md-4', style="padding-top: 30px;"),
+                Column('is_processing_fee_paid', css_class='col-md-4', style="padding-top: 30px;"),
             ),
             Row(
                 Column('issue_date', css_class='col-md-4'),
@@ -536,7 +583,10 @@ class LoanForm(forms.ModelForm):
                 # EDIT LOAN: honour the user-submitted processing_fee (already parsed above)
                 processing_fee = cleaned_data.get('processing_fee', 0) or 0
 
-            base_distribution = principal_amount - processing_fee
+            if cleaned_data.get('is_processing_fee_paid'):
+                base_distribution = principal_amount
+            else:
+                base_distribution = principal_amount - processing_fee
 
             # Recalculate distribution amount (always, since principal/fee/checkbox may have changed)
             if cleaned_data.get('is_first_month_interest_paid'):
@@ -602,9 +652,13 @@ class LoanForm(forms.ModelForm):
             instance.total_payable = instance.principal_amount + interest_amount
 
         # Set distribution_amount
-        if instance.principal_amount and instance.processing_fee:
-            # The processing_fee is already stored as an amount at this point, not a percentage
-            base_distribution = instance.principal_amount - instance.processing_fee
+        if instance.principal_amount is not None:
+            # Check if processing fee is paid upfront
+            if instance.is_processing_fee_paid:
+                base_distribution = instance.principal_amount
+            else:
+                base_distribution = instance.principal_amount - (instance.processing_fee or 0)
+                
             if instance.is_first_month_interest_paid:
                 interest_rate = Decimal(str(instance.interest_rate or (instance.scheme.interest_rate if instance.scheme else 12.00)))
                 monthly_rate = interest_rate / Decimal('12')

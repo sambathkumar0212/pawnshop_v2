@@ -74,6 +74,46 @@ class LoanInterestPropertiesTest(TestCase):
         # interest = 9900 * 0.000328767 * 15 = 48.82
         self.assertEqual(loan.interest_till_date_daily_basis, Decimal('48.82'))
 
+    def test_processing_fee_paid_calculations(self):
+        # Create a loan with is_processing_fee_paid = True
+        # Base distribution amount = 10,000 (not principal - processing fee)
+        # For 12% p.a.:
+        # Monthly rate = 1%
+        # Monthly interest amount = 10,000 * 1% = 100.00
+        # Daily interest amount = 10,000 * (12 / 36500) = 3.29
+        issue_date = timezone.now().date() - timezone.timedelta(days=15)
+        due_date = issue_date + timezone.timedelta(days=90)
+        grace_period_end = due_date + timezone.timedelta(days=15)
+        
+        loan = Loan.objects.create(
+            customer=self.customer,
+            branch=self.branch,
+            scheme=self.scheme,
+            principal_amount=Decimal('10000.00'),
+            interest_rate=Decimal('12.00'),
+            processing_fee=100,
+            distribution_amount=Decimal('10000.00'),
+            is_processing_fee_paid=True,
+            issue_date=issue_date,
+            due_date=due_date,
+            grace_period_end=grace_period_end,
+            status='active'
+        )
+        
+        # Test basic monthly and daily interest rates/amounts (based on 10,000)
+        self.assertEqual(loan.original_distribution_amount, Decimal('10000.00'))
+        self.assertEqual(loan.monthly_interest['amount'], Decimal('100.00'))
+        self.assertEqual(loan.daily_interest_amount, Decimal('3.29')) # 10000 * 12 / 36500 = 3.28767 -> 3.29
+        
+        # Test accrued interest till date
+        # 1 month accrued: 1 * 100.00 = 100.00
+        self.assertEqual(loan.interest_till_date_monthly_basis, Decimal('100.00'))
+        
+        # Strictly daily-based interest till date:
+        # interest = 10000 * (12/36500) * 15 = 49.32
+        self.assertEqual(loan.interest_till_date_daily_basis, Decimal('49.32'))
+
+
 
 class LoanNotificationEmailTest(TransactionTestCase):
     """Use TransactionTestCase so that transaction.on_commit() fires during tests."""

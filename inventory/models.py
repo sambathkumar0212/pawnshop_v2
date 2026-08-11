@@ -85,7 +85,7 @@ class Item(models.Model):
     selling_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     
     # Status and tracking
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available', db_index=True)
     featured = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
@@ -135,6 +135,12 @@ class Item(models.Model):
     
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            # Dashboard: item counts by status
+            models.Index(fields=['status'], name='item_status_idx'),
+            # Branch + status filtering used in item list and dashboard
+            models.Index(fields=['branch', 'status'], name='item_branch_status_idx'),
+        ]
     
     def __str__(self):
         return f"{self.name} ({self.item_id})"

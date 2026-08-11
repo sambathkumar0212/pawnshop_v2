@@ -32,18 +32,19 @@ from utils.download_utils import DownloadMixin
 from utils.translation import translate_text
 
 
-def translate_text_for_pdf(text, target_lang='ta', timeout=5):
-    """Translate a short piece of text for PDF output with timeout and fallback."""
-    if not text:
-        return ''
+import functools
 
-    if target_lang == 'en':
-        return text
-
-    # Skip translation if requests would take too long
+# ---------------------------------------------------------------------------
+# Translation cache — avoids repeated HTTP calls to Google for the same
+# labels (e.g. "Customer Name", "Date", "Branch") that appear on every bill.
+# LRU cache keeps up to 512 unique (text, lang) pairs in memory.
+# ---------------------------------------------------------------------------
+@functools.lru_cache(maxsize=512)
+def _cached_google_translate(text, target_lang, timeout=5):
+    """Internal cached wrapper for the Google Translate free endpoint."""
     try:
-        import requests
-        response = requests.get(
+        import requests as _requests
+        response = _requests.get(
             'https://translate.googleapis.com/translate_a/single',
             params={
                 'client': 'gtx',
@@ -63,13 +64,29 @@ def translate_text_for_pdf(text, target_lang='ta', timeout=5):
         translated = ''.join(part[0] for part in payload[0] if part and part[0]).strip()
         if translated and translated.replace('?', '').strip():
             return translated
-
-
-        # Logger for diagnostics
-        logger = logging.getLogger(__name__)
     except Exception:
         pass
+    return None
 
+
+def translate_text_for_pdf(text, target_lang='ta', timeout=5):
+    """Translate a short piece of text for PDF output with timeout and fallback.
+
+    Results are cached in-memory (LRU) so each unique string is only
+    translated once per server process — no repeated network round-trips.
+    """
+    if not text:
+        return ''
+
+    if target_lang == 'en':
+        return text
+
+    # Try cached Google Translate first
+    result = _cached_google_translate(text, target_lang, timeout)
+    if result:
+        return result
+
+    # Fallback to configured provider (Google Cloud / Azure via API key)
     try:
         translated = translate_text(text, target_lang=target_lang)
         if translated:
@@ -78,6 +95,7 @@ def translate_text_for_pdf(text, target_lang='ta', timeout=5):
         pass
 
     return text
+
 
 
 def format_mobile_number(value):
@@ -328,6 +346,7 @@ def build_loan_pdf_language_context(loan, current_language):
         'document_generated_on': 'Document generated on',
         'terms_and_conditions': 'TERMS AND CONDITIONS',
         'first_month_interest_paid': 'First Month Interest Paid (Upfront)',
+        'processing_fee_paid': 'Processing Fees Paid (Upfront)',
     }
 
     if use_tamil:
@@ -366,6 +385,7 @@ def build_loan_pdf_language_context(loan, current_language):
             'document_generated_on': 'ஆவணம் உருவாக்கப்பட்ட தேதி',
             'terms_and_conditions': 'விதிமுறைகள் மற்றும் நிபந்தனைகள்',
             'first_month_interest_paid': 'முதல் மாத வட்டி செலுத்தப்பட்டது (முன்கூட்டியே)',
+            'processing_fee_paid': 'செயலாக்கக் கட்டணம் செலுத்தப்பட்டது (முன்கூட்டியே)',
         }
     else:
         labels = label_keys
@@ -1614,10 +1634,17 @@ class LoanCreateView(LoginRequiredMixin, RoleBranchAccessMixin, CreateView):
         response = super().form_valid(form)
         try:
             from accounts.models import LoanEditLog
-            # Capture initial snapshot for created loan
+            # Capture lightweight snapshot for audit log.
+            # Exclude binary blob fields (item_photos, customer_face_capture)
+            # to avoid serializing potentially megabytes of base64 data.
             try:
                 from django.forms.models import model_to_dict
-                new_data = model_to_dict(self.object)
+                new_data = model_to_dict(
+                    self.object,
+                    exclude=['item_photos', 'customer_face_capture', 'loan_document'],
+                )
+                # Convert non-serializable types to strings
+                new_data = {k: str(v) for k, v in new_data.items()}
             except Exception:
                 new_data = None
             LoanEditLog.objects.create(

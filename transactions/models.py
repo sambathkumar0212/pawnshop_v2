@@ -37,7 +37,7 @@ class Loan(models.Model):
         ('extended', _('Extended')),
         ('foreclosed', _('Foreclosed')),
     )
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active', db_index=True)
     
     # Financial details
     principal_amount = models.DecimalField(
@@ -58,8 +58,8 @@ class Loan(models.Model):
     )
     
     # Important dates
-    issue_date = models.DateField()
-    due_date = models.DateField()
+    issue_date = models.DateField(db_index=True)
+    due_date = models.DateField(db_index=True)
     grace_period_end = models.DateField()
     
     # Customer verification and photos
@@ -78,6 +78,11 @@ class Loan(models.Model):
         verbose_name=_("Is first month interest paid?"),
         help_text=_("Check if first month interest is paid/collected upfront")
     )
+    is_processing_fee_paid = models.BooleanField(
+        default=False,
+        verbose_name=_("Is processing fees paid?"),
+        help_text=_("Check if processing fees are paid/collected upfront")
+    )
     
     # Metadata
     created_at = models.DateTimeField(auto_now_add=True)
@@ -95,6 +100,16 @@ class Loan(models.Model):
             ("can_approve_loan", "Can approve loan"),
             ("can_extend_loan", "Can extend loan"),
             ("can_foreclose_loan", "Can foreclose loan"),
+        ]
+        indexes = [
+            # Dashboard: active_loans count
+            models.Index(fields=['status'], name='loan_status_idx'),
+            # Dashboard: overdue_loans = active + due_date < today
+            models.Index(fields=['status', 'due_date'], name='loan_status_due_idx'),
+            # List view default sort
+            models.Index(fields=['-issue_date'], name='loan_issue_date_idx'),
+            # Branch filtering (applied on every request for non-superusers)
+            models.Index(fields=['branch', 'status'], name='loan_branch_status_idx'),
         ]
 
     def __str__(self):
@@ -116,8 +131,11 @@ class Loan(models.Model):
         else:
             monthly_rate = Decimal(self.interest_rate) / Decimal('12')
         
-        # Calculate monthly interest amount based on base distribution amount (principal - processing fee)
-        base_dist_amount = self.principal_amount - Decimal(str(self.processing_fee))
+        # Calculate monthly interest amount based on base distribution amount (principal - processing fee if not paid upfront)
+        if self.is_processing_fee_paid:
+            base_dist_amount = self.principal_amount
+        else:
+            base_dist_amount = self.principal_amount - Decimal(str(self.processing_fee))
         monthly_amount = (base_dist_amount * monthly_rate) / Decimal('100')
         
         # Calculate rate per 1000 of distribution amount
@@ -150,6 +168,8 @@ class Loan(models.Model):
     def original_distribution_amount(self):
         """Returns the original distribution amount (principal - processing fee) before any upfront interest deductions"""
         from decimal import Decimal
+        if self.is_processing_fee_paid:
+            return self.principal_amount
         return self.principal_amount - Decimal(str(self.processing_fee or 0))
 
     def save(self, *args, **kwargs):
@@ -570,8 +590,11 @@ class Loan(models.Model):
         if self.is_first_month_interest_paid:
             days_elapsed = max(0, days_elapsed - 30)
             
-        # Calculate interest based on scheme interest rate on base distribution amount (principal - processing fee)
-        base_dist_amount = self.principal_amount - Decimal(str(self.processing_fee))
+        # Calculate interest based on scheme interest rate on base distribution amount (principal - processing fee if not paid upfront)
+        if self.is_processing_fee_paid:
+            base_dist_amount = self.principal_amount
+        else:
+            base_dist_amount = self.principal_amount - Decimal(str(self.processing_fee))
         
         # For schemes with no_interest_period_days, check if we're still in that period
         if self.scheme.no_interest_period_days and days_elapsed <= self.scheme.no_interest_period_days:
@@ -613,8 +636,11 @@ class Loan(models.Model):
         # Calculate monthly interest rate
         monthly_rate = annual_rate / Decimal('12')
         
-        # Calculate monthly interest amount based on base distribution amount (principal - processing fee)
-        base_dist_amount = self.principal_amount - Decimal(str(self.processing_fee))
+        # Calculate monthly interest amount based on base distribution amount (principal - processing fee if not paid upfront)
+        if self.is_processing_fee_paid:
+            base_dist_amount = self.principal_amount
+        else:
+            base_dist_amount = self.principal_amount - Decimal(str(self.processing_fee))
         monthly_interest_amount = (base_dist_amount * monthly_rate) / Decimal('100')
         
         # Calculate per thousand rate (how much interest per 1000 of distribution amount)
@@ -648,7 +674,10 @@ class Loan(models.Model):
         else:
             annual_rate = self.scheme.interest_rate
             
-        base_dist_amount = self.principal_amount - Decimal(str(self.processing_fee))
+        if self.is_processing_fee_paid:
+            base_dist_amount = self.principal_amount
+        else:
+            base_dist_amount = self.principal_amount - Decimal(str(self.processing_fee))
         daily_amount = base_dist_amount * (annual_rate / Decimal('36500'))
         return daily_amount.quantize(Decimal('0.01'))
 
@@ -664,7 +693,10 @@ class Loan(models.Model):
         if self.is_first_month_interest_paid:
             days_elapsed = max(0, days_elapsed - 30)
             
-        base_dist_amount = self.principal_amount - Decimal(str(self.processing_fee))
+        if self.is_processing_fee_paid:
+            base_dist_amount = self.principal_amount
+        else:
+            base_dist_amount = self.principal_amount - Decimal(str(self.processing_fee))
         
         if getattr(self.scheme, 'no_interest_period_days', 0) and days_elapsed <= self.scheme.no_interest_period_days:
             return Decimal('0.00')
@@ -717,7 +749,10 @@ class Loan(models.Model):
             if self.is_first_month_interest_paid:
                 days_elapsed = max(0, days_elapsed - 30)
                 
-            base_dist_amount = self.principal_amount - Decimal(str(self.processing_fee))
+            if self.is_processing_fee_paid:
+                base_dist_amount = self.principal_amount
+            else:
+                base_dist_amount = self.principal_amount - Decimal(str(self.processing_fee))
             
             # For schemes with no_interest_period_days, check if we're still in that period
             if getattr(self.scheme, 'no_interest_period_days', 0) and days_elapsed <= self.scheme.no_interest_period_days:
@@ -860,7 +895,10 @@ class Loan(models.Model):
         if not self.scheme:
             return {'schedule': [], 'disciplined_total': Decimal('0.00'), 'delayed_total': Decimal('0.00'), 'financial_impact_difference': Decimal('0.00')}
         
-        base_dist_amount = self.principal_amount - Decimal(str(self.processing_fee or 0))
+        if self.is_processing_fee_paid:
+            base_dist_amount = self.principal_amount
+        else:
+            base_dist_amount = self.principal_amount - Decimal(str(self.processing_fee or 0))
         principal = self.principal_amount
         
         # Disciplined Rate is the lowest tier rate (30 days rate)
@@ -1077,8 +1115,8 @@ class Sale(models.Model):
     reference_number = models.CharField(max_length=255, blank=True, null=True)  # Increased from 100 to 255
     
     # Status
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    sale_date = models.DateField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', db_index=True)
+    sale_date = models.DateField(db_index=True)
     
     # Management
     sold_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, 
@@ -1090,6 +1128,12 @@ class Sale(models.Model):
         verbose_name = _('sale')
         verbose_name_plural = _('sales')
         ordering = ['-sale_date']
+        indexes = [
+            # Dashboard: today's revenue = sale_date filter + SUM(total_amount)
+            models.Index(fields=['sale_date'], name='sale_date_idx'),
+            # Branch filtering on sale list
+            models.Index(fields=['branch', 'status'], name='sale_branch_status_idx'),
+        ]
     
     def __str__(self):
         return f"Sale #{self.transaction_number} - Rs: {self.total_amount}"

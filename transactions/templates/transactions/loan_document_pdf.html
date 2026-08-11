@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 {% load loan_filters %}
 {% load loan_interest %}
 {% load i18n %}
@@ -646,6 +646,7 @@
                                 </span>
                             </div>
 
+                            {% if loan.is_first_month_interest_paid or not loan.is_processing_fee_paid %}
                             <div class="field-row">
                                 <span
                                     class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
@@ -661,6 +662,19 @@
                                 </span>
                                 {% endif %}
                             </div>
+                            {% endif %}
+
+                            {% if loan.is_processing_fee_paid %}
+                            <div class="field-row">
+                                <span
+                                    class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
+                                    {{ labels.processing_fee_paid }}:
+                                </span>
+                                <span class="field-content" style="color: #006400; font-weight: bold;">
+                                    Yes
+                                </span>
+                            </div>
+                            {% endif %}
 
                         </div>
                     </td>

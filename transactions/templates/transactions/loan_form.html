@@ -409,11 +409,14 @@
                                                 </div>
                                             </div>
 
-                                            <!-- Third row: Is first month interest paid -->
+                                            <!-- Third row: Is first month interest paid & Is processing fees paid -->
                                             <div class="col-12 mt-2">
                                                 <div class="row g-2">
-                                                    <div class="col-12">
+                                                    <div class="col-md-6 col-12">
                                                         {{ form.is_first_month_interest_paid|as_crispy_field }}
+                                                    </div>
+                                                    <div class="col-md-6 col-12">
+                                                        {{ form.is_processing_fee_paid|as_crispy_field }}
                                                     </div>
                                                 </div>
                                             </div>
@@ -1755,7 +1758,8 @@
             $('#id_processing_fee').val(Math.round(processingFeeAmount));
 
             // Calculate and set distribution amount as integer
-            const baseDistribution = principal - processingFeeAmount;
+            const isProcessingFeePaid = $('#id_is_processing_fee_paid').is(':checked');
+            const baseDistribution = isProcessingFeePaid ? principal : (principal - processingFeeAmount);
             let distributionAmount = baseDistribution;
 
             const isFirstMonthPaid = $('#id_is_first_month_interest_paid').is(':checked');
@@ -1799,7 +1803,7 @@
             .on('input', calculateDistributionAmount)
             .trigger('input'); // Trigger on page load
 
-        $('#id_is_first_month_interest_paid').on('change', calculateDistributionAmount);
+        $('#id_is_first_month_interest_paid, #id_is_processing_fee_paid').on('change', calculateDistributionAmount);
 
         // Validate principal amount against min/max
         $('#id_principal_amount').on('change', function () {

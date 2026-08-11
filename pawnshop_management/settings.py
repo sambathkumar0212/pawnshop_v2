@@ -100,12 +100,26 @@ if not MINIMAL_STARTUP:
 
 ROOT_URLCONF = 'pawnshop_management.urls'
 
+# Use a cached template loader in production so templates are only read from
+# disk once and then served from memory. APP_DIRS and a custom loaders list
+# are mutually exclusive, so we set APP_DIRS=False when using loaders.
+_TEMPLATE_LOADERS = (
+    'django.template.loaders.filesystem.Loader',
+    'django.template.loaders.app_directories.Loader',
+)
+if not DEBUG:
+    # Wrap loaders in cached.Loader for production
+    _TEMPLATE_LOADERS = [
+        ('django.template.loaders.cached.Loader', list(_TEMPLATE_LOADERS))
+    ]
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [BASE_DIR / 'templates'],
-        'APP_DIRS': True,
+        'APP_DIRS': False,
         'OPTIONS': {
+            'loaders': list(_TEMPLATE_LOADERS),
             'context_processors': [
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
@@ -135,7 +149,9 @@ elif DATABASE_ENGINE == 'django.db.backends.sqlite3':
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': str(database_name),
-            'CONN_MAX_AGE': 0,
+            # Keep connections alive for 60 s to avoid re-opening the large DB file
+            # on every request (was 0, which forced a reconnect each time).
+            'CONN_MAX_AGE': 60,
             'OPTIONS': {'timeout': 20},
             'TEST': {'NAME': str(BASE_DIR / 'test_db.sqlite3')},
         }
@@ -175,6 +191,27 @@ LANGUAGES = [
 ]
 
 LOCALE_PATHS = [BASE_DIR / 'locale']
+
+# ---------------------------------------------------------------------------
+# Caching — use Django's built-in in-memory cache so dashboard stats and
+# sessions are served from RAM instead of hitting the large SQLite file.
+# For multi-process/production use, swap 'LocMemCache' for a Redis backend.
+# ---------------------------------------------------------------------------
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'pawnshop-default',
+        'TIMEOUT': 60,          # default TTL in seconds
+        'OPTIONS': {
+            'MAX_ENTRIES': 2000,
+        },
+    }
+}
+
+# Store sessions in the cache (RAM) instead of the database to eliminate
+# one DB query on every authenticated request.
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_CACHE_ALIAS = 'default'
 
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'

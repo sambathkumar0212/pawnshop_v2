@@ -373,6 +373,12 @@ class Customer(models.Model):
                 name='customer_must_have_branch'
             )
         ]
+        indexes = [
+            # Customer search by phone (most common lookup)
+            models.Index(fields=['phone'], name='customer_phone_idx'),
+            # New customers today / branch-filtered lists
+            models.Index(fields=['branch', 'created_at'], name='customer_branch_created_idx'),
+        ]
     
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
