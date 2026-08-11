@@ -69,6 +69,9 @@
                         <i class="fas fa-file-alt"></i> Expiry Notice
                     </a>
                     {% endif %}
+                    <button class="btn btn-outline-warning text-dark me-2" data-bs-toggle="modal" data-bs-target="#goldStatusModal">
+                        <i class="fas fa-gem me-1"></i> Gold Status
+                    </button>
                 </div>
             </div>
         </div>
@@ -731,6 +734,92 @@
                 {% else %}
                 <i class="fas fa-user fa-5x text-secondary"></i>
                 {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gold Status Modal -->
+<div class="modal fade" id="goldStatusModal" tabindex="-1" aria-labelledby="goldStatusModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-warning border-2">
+            <div class="modal-header bg-warning text-dark py-2">
+                <h5 class="modal-title fw-bold" id="goldStatusModalLabel">
+                    <i class="fas fa-gem me-2"></i>Gold Current Status
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Current Details Display -->
+                <div class="bg-light p-3 rounded border mb-3">
+                    <h6 class="border-bottom pb-2 mb-3 text-secondary fw-bold">Current Status Details</h6>
+                    <table class="table table-sm table-borderless mb-0">
+                        <tr>
+                            <td class="text-muted w-50 py-1"><i class="fas fa-map-marker-alt me-2 text-warning"></i>Gold Location</td>
+                            <td class="fw-bold text-dark py-1">{{ loan.gold_location|default:"Not specified" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted w-50 py-1"><i class="fas fa-calendar-alt me-2 text-warning"></i>Repledge Date</td>
+                            <td class="fw-bold text-dark py-1">{{ loan.repledge_date|date:"d M Y"|default:"Not specified" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted w-50 py-1"><i class="fas fa-hand-holding-usd me-2 text-warning"></i>Repledge Amount</td>
+                            <td class="fw-bold text-success py-1">
+                                {% if loan.repledge_amount %}
+                                Rs: {{ loan.repledge_amount|floatformat:2 }}
+                                {% else %}
+                                Not Repledged
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted w-50 py-1"><i class="fas fa-sticky-note me-2 text-warning"></i>Others / Notes</td>
+                            <td class="text-dark py-1" style="font-size: 0.9rem;">{{ loan.gold_status_others|default:"No additional notes" }}</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- Accordion/Collapse to update details -->
+                <div class="accordion" id="goldUpdateAccordion">
+                    <div class="accordion-item border">
+                        <h2 class="accordion-header" id="headingUpdate">
+                            <button class="accordion-button collapsed py-2 small" type="button" data-bs-toggle="collapse" data-bs-target="#collapseUpdate" aria-expanded="false" aria-controls="collapseUpdate">
+                                <i class="fas fa-edit me-2"></i>Update Gold Status Details
+                            </button>
+                        </h2>
+                        <div id="collapseUpdate" class="accordion-collapse collapse" aria-labelledby="headingUpdate" data-bs-parent="#goldUpdateAccordion">
+                            <div class="accordion-body bg-light">
+                                <form method="post" action="{% url 'update_gold_status' loan.loan_number %}">
+                                    {% csrf_token %}
+                                    <div class="mb-3">
+                                        <label for="id_gold_location" class="form-label small fw-bold">Gold Location</label>
+                                        <input type="text" name="gold_location" id="id_gold_location" class="form-control form-control-sm" value="{{ loan.gold_location|default:'' }}" placeholder="e.g. Locker 1, Shelf B">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="id_repledge_date" class="form-label small fw-bold">Repledge Date</label>
+                                        <input type="date" name="repledge_date" id="id_repledge_date" class="form-control form-control-sm" value="{{ loan.repledge_date|date:'Y-m-d' }}">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="id_repledge_amount" class="form-label small fw-bold">Repledge Amount (Optional)</label>
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text">Rs:</span>
+                                            <input type="number" step="0.01" name="repledge_amount" id="id_repledge_amount" class="form-control" value="{{ loan.repledge_amount|stringformat:'.2f'|default:'' }}">
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="id_gold_status_others" class="form-label small fw-bold">Others / Notes</label>
+                                        <textarea name="gold_status_others" id="id_gold_status_others" rows="3" class="form-control form-control-sm" placeholder="Additional status details...">{{ loan.gold_status_others|default:'' }}</textarea>
+                                    </div>
+                                    <div class="text-end">
+                                        <button type="submit" class="btn btn-warning btn-sm fw-bold">
+                                            <i class="fas fa-save me-1"></i>Save Changes
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

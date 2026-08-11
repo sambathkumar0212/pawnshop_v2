@@ -278,13 +278,40 @@ class LoanForm(forms.ModelForm):
         help_text='Check if processing fees are paid/collected upfront',
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
     )
+    gold_location = forms.CharField(
+        required=False,
+        label='Gold Location',
+        help_text='Locker/Location where the gold is stored',
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    repledge_date = forms.DateField(
+        required=False,
+        label='Repledge Date',
+        help_text='Date of the repledge',
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
+    )
+    repledge_amount = forms.DecimalField(
+        required=False,
+        max_digits=12,
+        decimal_places=2,
+        label='Repledge Amount',
+        help_text='Amount if repledged',
+        widget=forms.NumberInput(attrs={'class': 'form-control'})
+    )
+    gold_status_others = forms.CharField(
+        required=False,
+        label='Gold Status Others (Notes)',
+        help_text='Any other notes or details about the gold status',
+        widget=forms.Textarea(attrs={'rows': 2, 'class': 'form-control'})
+    )
 
     class Meta:
         model = Loan
         fields = [
             'customer', 'branch', 'scheme', 'principal_amount', 'processing_fee',
             'distribution_amount', 'interest_rate', 'issue_date', 'due_date', 'loan_document',
-            'is_first_month_interest_paid', 'is_processing_fee_paid'
+            'is_first_month_interest_paid', 'is_processing_fee_paid',
+            'gold_location', 'repledge_date', 'repledge_amount', 'gold_status_others'
         ]
         widgets = {
             'issue_date': forms.DateInput(attrs={'type': 'date'}),
@@ -474,6 +501,15 @@ class LoanForm(forms.ModelForm):
             Row(
                 Column('issue_date', css_class='col-md-4'),
                 Column('due_date', css_class='col-md-4'),
+            ),
+            HTML('<h5 class="mt-4 mb-3 border-bottom pb-2 text-secondary"><i class="fas fa-gem me-2"></i>Gold Status Information</h5>'),
+            Row(
+                Column('gold_location', css_class='col-md-6'),
+                Column('repledge_date', css_class='col-md-6'),
+            ),
+            Row(
+                Column('repledge_amount', css_class='col-md-6'),
+                Column('gold_status_others', css_class='col-md-6'),
             ),
         )
 

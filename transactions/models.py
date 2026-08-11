@@ -83,6 +83,33 @@ class Loan(models.Model):
         verbose_name=_("Is processing fees paid?"),
         help_text=_("Check if processing fees are paid/collected upfront")
     )
+    gold_location = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        verbose_name=_("Gold Location"),
+        help_text=_("Locker/Location where the gold is stored")
+    )
+    repledge_date = models.DateField(
+        blank=True,
+        null=True,
+        verbose_name=_("Repledge Date"),
+        help_text=_("Date of the repledge")
+    )
+    repledge_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        verbose_name=_("Repledge Amount"),
+        help_text=_("Amount if repledged")
+    )
+    gold_status_others = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name=_("Gold Status Others"),
+        help_text=_("Any other notes or details about the gold status")
+    )
     
     # Metadata
     created_at = models.DateTimeField(auto_now_add=True)

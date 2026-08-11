@@ -1527,6 +1527,35 @@ class LoanDetailView(LoginRequiredMixin, RoleBranchAccessMixin, DetailView):
         return context
 
 
+class UpdateGoldStatusView(LoginRequiredMixin, RoleBranchAccessMixin, View):
+    def post(self, request, loan_number):
+        loan = get_object_or_404(Loan, loan_number=loan_number)
+        self.check_object_branch_access(loan, branch_attr='branch')
+        
+        loan.gold_location = request.POST.get('gold_location')
+        
+        rep_date = request.POST.get('repledge_date')
+        if rep_date:
+            loan.repledge_date = rep_date
+        else:
+            loan.repledge_date = None
+            
+        repledge_amt = request.POST.get('repledge_amount')
+        if repledge_amt:
+            try:
+                loan.repledge_amount = Decimal(repledge_amt)
+            except Exception:
+                loan.repledge_amount = None
+        else:
+            loan.repledge_amount = None
+            
+        loan.gold_status_others = request.POST.get('gold_status_others')
+        loan.save()
+        
+        messages.success(request, "Gold current status updated successfully.")
+        return redirect('loan_detail', loan_number=loan_number)
+
+
 class LoanCreateView(LoginRequiredMixin, RoleBranchAccessMixin, CreateView):
     model = Loan
     form_class = LoanForm
