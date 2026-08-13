@@ -2669,7 +2669,8 @@ class LoanPaymentHistoryDownloadView(LoginRequiredMixin, RoleBranchAccessMixin, 
         
         # Build PDF
         doc.build(elements)
-        
+        return response
+
 class LoanTieredScheduleDownloadView(LoginRequiredMixin, RoleBranchAccessMixin, View):
     """
     Renders/Downloads the combined 'Scheme Rate Tiers Definition' and
