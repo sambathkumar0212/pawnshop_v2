@@ -93,8 +93,9 @@
                             <i class="fas fa-hand-holding-usd fa-lg"></i>
                         </div>
                     </div>
-                    <div class="mt-2 small text-muted">
-                        Disbursed: Rs: {{ loan.distribution_amount|floatformat:2 }}
+                    <div class="mt-2 small text-muted" style="line-height: 1.4;">
+                        <div><i class="fas fa-arrow-circle-right me-1 text-primary"></i><strong>Distribution:</strong> Rs: {{ loan.distribution_amount|default:loan.principal_amount|floatformat:2 }}</div>
+                        <div><i class="fas fa-check-circle me-1 text-success"></i><strong>With Deduction:</strong> Rs: {{ loan.distribution_amount_with_deduction|floatformat:2 }}</div>
                     </div>
                 </div>
             </div>
@@ -221,6 +222,29 @@
                             <div class="border rounded p-2 h-100 bg-light">
                                 <div class="text-muted small mb-1"><i class="fas fa-layer-group me-1 text-info"></i>Scheme</div>
                                 <div style="font-size:.82rem;"><span class="badge bg-info text-dark">{{ loan.scheme.name }}</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ── Distribution Amount Overview ── -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <div class="border rounded p-2 h-100 bg-light border-primary border-opacity-25">
+                                <div class="text-muted small mb-1"><i class="fas fa-hand-holding-usd me-1 text-primary"></i>Distribution Amount <span class="badge bg-secondary text-white" style="font-size:.65rem;">Processing Fee Deducted</span></div>
+                                <div class="fw-bold text-dark" style="font-size:.95rem;">Rs {{ loan.distribution_amount|default:loan.principal_amount|floatformat:2 }}</div>
+                                <div class="text-muted" style="font-size:.7rem;">Principal &minus; Processing Fee (1st month interest not deducted)</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="border rounded p-2 h-100 bg-light border-success border-opacity-25">
+                                <div class="text-muted small mb-1"><i class="fas fa-money-check-alt me-1 text-success"></i>Distribution with Deduction <span class="badge bg-success text-white" style="font-size:.65rem;">Net Disbursed</span></div>
+                                <div class="fw-bold text-success" style="font-size:.95rem;">Rs {{ loan.distribution_amount_with_deduction|floatformat:2 }}</div>
+                                <div class="text-muted" style="font-size:.7rem;">
+                                    Deducted:
+                                    {% if loan.is_processing_fee_paid %}<span class="badge bg-warning text-dark" style="font-size:.6rem;">Processing Fee</span>{% endif %}
+                                    {% if loan.is_first_month_interest_paid %}<span class="badge bg-info text-dark" style="font-size:.6rem;">1st Month Interest</span>{% endif %}
+                                    {% if not loan.is_processing_fee_paid and not loan.is_first_month_interest_paid %}<span class="text-muted">None paid upfront</span>{% endif %}
+                                </div>
                             </div>
                         </div>
                     </div>

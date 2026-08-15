@@ -816,6 +816,11 @@ class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, Lis
         if status:
             queryset = queryset.filter(status=status)
 
+        # Scheme filter
+        scheme_id = self.request.GET.get('scheme')
+        if scheme_id:
+            queryset = queryset.filter(scheme_id=scheme_id)
+
         # Search filter
         search = self.request.GET.get('search')
         if search:
@@ -900,6 +905,9 @@ class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, Lis
             ('item_names', 'Item Names'),
             ('total_weight', 'Total Weight (grams)'),
             ('karat', 'Gold Karat'),
+            ('gold_location', 'Gold Location'),
+            ('repledge_date', 'Repledge Date'),
+            ('repledge_amount', 'Repledge Amount (Rs: )'),
             ('monthly_interest', 'Monthly Interest Amount (Rs: )'),
             ('total_payable', 'Total Payable Till Date (Rs: )'),
             ('amount_paid', 'Amount Paid (Rs: )'),
@@ -934,6 +942,7 @@ class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, Lis
             'roll_number', 'loan_number', 'customer_name', 'phone', 'email', 'branch',
             'item_images', 'principal_amount', 'distribution_amount', 'interest_rate', 'issue_date', 'due_date', 'status',
             'days_since_issue', 'days_remaining', 'item_names', 'total_weight', 'karat',
+            'gold_location', 'repledge_date', 'repledge_amount',
             'monthly_interest', 'total_payable', 'amount_paid', 'remaining_balance',
             'created_at', 'created_by'
         ]
@@ -963,6 +972,10 @@ class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, Lis
                     total_weight += float(item.net_weight)
                 if hasattr(item, 'gold_karat') and item.gold_karat:
                     karat_info.add(f"{item.gold_karat}K")
+            
+            repledge_date_str = loan.repledge_date.strftime('%Y-%m-%d') if loan.repledge_date else ''
+            repledge_amt = float(loan.repledge_amount) if loan.repledge_amount else 0
+            gold_loc = loan.gold_location or ''
             
             # Calculate financial information
             try:
@@ -1012,6 +1025,9 @@ class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, Lis
                 ', '.join(item_names) if item_names else '',
                 total_weight,
                 ', '.join(sorted(karat_info)) if karat_info else '',
+                gold_loc,
+                repledge_date_str,
+                repledge_amt,
                 monthly_interest,
                 total_payable,
                 amount_paid,
@@ -1054,6 +1070,9 @@ class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, Lis
 
         loan_items = loan.loanitem_set.all()
         item_names = [li.item.name for li in loan_items if li.item]
+        repledge_date_str = loan.repledge_date.strftime('%Y-%m-%d') if loan.repledge_date else ''
+        repledge_amt = float(loan.repledge_amount) if loan.repledge_amount else 0
+        gold_loc = loan.gold_location or ''
 
         return [
             index,
@@ -1074,6 +1093,9 @@ class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, Lis
             ', '.join(item_names) if item_names else '',
             0,
             '',
+            gold_loc,
+            repledge_date_str,
+            repledge_amt,
             monthly_interest,
             total_payable,
             amount_paid,
@@ -1093,6 +1115,17 @@ class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, Lis
         context['selected_date_range'] = self.request.GET.get('date_range', '')
         context['selected_filter_type'] = self.request.GET.get('filter_type', '')
         context['current_sort'] = self.request.GET.get('sort', '-issue_date')
+        context['selected_scheme'] = self.request.GET.get('scheme', '')
+
+        # Populate scheme dropdown with schemes visible to this user's organization
+        from schemes.models import Scheme
+        user = self.request.user
+        if user.organization:
+            context['schemes'] = Scheme.objects.filter(
+                Q(is_default=True) | Q(organization=user.organization)
+            ).order_by('name')
+        else:
+            context['schemes'] = Scheme.objects.all().order_by('name')
         
         # Calculate loan statistics for the cards - optimized with aggregation
         user = self.request.user
@@ -1341,7 +1374,7 @@ class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, Lis
             splitLongWords=1,
         )
         
-        # PDF Export - Show only 10 key columns for clarity
+        # PDF Export - Show key columns including Gold Location and Repledge Info
         pdf_headers = [
             'Roll Number',
             'Loan Number',
@@ -1352,7 +1385,10 @@ class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, Lis
             'Issue Date',
             'Due Date',
             'Status',
-            'Item Names'
+            'Item Names',
+            'Gold Location',
+            'Repledge Date',
+            'Repledge Amount (Rs: )'
         ]
         
         # Map header names to row indices
@@ -1367,7 +1403,10 @@ class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, Lis
             'Issue Date': 10,
             'Due Date': 11,
             'Status': 12,
-            'Item Names': 15
+            'Item Names': 15,
+            'Gold Location': 18,
+            'Repledge Date': 19,
+            'Repledge Amount (Rs: )': 20
         }
         
         if self.request.GET.get('full') == '1':
@@ -1386,19 +1425,22 @@ class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, Lis
             ]
             table_data.append(pdf_row)
         
-        # Column widths for 10 columns on landscape A4
+        # Column widths for 13 columns on landscape A4
         # Available width: 11.69 - 0.6 = 11.09 inches
         col_widths = [
-            0.65 * inch,  # Roll Number
-            1.05 * inch,  # Loan Number
-            1.25 * inch,  # Customer Name
-            0.95 * inch,  # Customer Phone
-            1.35 * inch,  # Branch
-            0.95 * inch,  # Distribution Amount
-            0.8 * inch,   # Issue Date
-            0.8 * inch,   # Due Date
-            0.65 * inch,  # Status
-            2.0 * inch,   # Item Names
+            0.50 * inch,  # Roll Number
+            0.90 * inch,  # Loan Number
+            1.05 * inch,  # Customer Name
+            0.80 * inch,  # Customer Phone
+            1.10 * inch,  # Branch
+            0.80 * inch,  # Distribution Amount
+            0.70 * inch,  # Issue Date
+            0.70 * inch,  # Due Date
+            0.55 * inch,  # Status
+            1.15 * inch,  # Item Names
+            0.90 * inch,  # Gold Location
+            0.75 * inch,  # Repledge Date
+            0.80 * inch,  # Repledge Amount
         ]
         
         if self.request.GET.get('full') == '1':
@@ -1646,8 +1688,23 @@ class LoanCreateView(LoginRequiredMixin, RoleBranchAccessMixin, CreateView):
             form.instance.customer_face_capture = customer_face_capture
             
         # Set the branch and created_by
+        # Assign branch: use user's branch if set, else fall back to first
+        # branch in the user's organization (covers superusers / admin accounts
+        # that are not tied to a specific branch).
         if self.request.user.branch:
             form.instance.branch = self.request.user.branch
+        elif not hasattr(form.instance, 'branch') or form.instance.branch_id is None:
+            from branches.models import Branch
+            user = self.request.user
+            fallback_branch = None
+            if hasattr(user, 'organization') and user.organization:
+                fallback_branch = Branch.objects.filter(
+                    organization=user.organization, is_active=True
+                ).first()
+            if fallback_branch is None and user.is_superuser:
+                fallback_branch = Branch.objects.filter(is_active=True).first()
+            if fallback_branch:
+                form.instance.branch = fallback_branch
         form.instance.created_by = self.request.user
         
         # Ensure interest_rate is set from the cleaned data
@@ -1699,6 +1756,17 @@ class LoanUpdateView(LoginRequiredMixin, RoleBranchAccessMixin, UpdateView):
     def get_success_url(self):
         return reverse('loan_detail', kwargs={'loan_number': self.object.loan_number})
     
+    def get_initial(self):
+        initial = super().get_initial()
+        if self.object:
+            dist_val = self.object.distribution_amount
+            if dist_val is None and self.object.principal_amount is not None:
+                dist_val = self.object.principal_amount - (self.object.processing_fee or 0)
+            initial['processing_fee'] = self.object.processing_fee or 0
+            initial['distribution_amount'] = dist_val
+            initial['distribution_amount_with_deduction'] = self.object.distribution_amount_with_deduction
+        return initial
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         # Process item photos for form editing
@@ -3564,8 +3632,32 @@ class SaleCreateView(LoginRequiredMixin, CreateView):
     
     def form_valid(self, form):
         form.instance.created_by = self.request.user
+
+        # Assign branch: use user's branch if set, else fall back to first
+        # branch in the user's organization (covers superusers / admin accounts
+        # that are not tied to a specific branch).
         if self.request.user.branch:
             form.instance.branch = self.request.user.branch
+        else:
+            from branches.models import Branch
+            user = self.request.user
+            fallback_branch = None
+            if hasattr(user, 'organization') and user.organization:
+                fallback_branch = Branch.objects.filter(
+                    organization=user.organization, is_active=True
+                ).first()
+            if fallback_branch is None and user.is_superuser:
+                fallback_branch = Branch.objects.filter(is_active=True).first()
+
+            if fallback_branch:
+                form.instance.branch = fallback_branch
+            else:
+                form.add_error(
+                    None,
+                    'No branch is assigned to your account. Please contact an administrator.'
+                )
+                return self.form_invalid(form)
+
         messages.success(self.request, 'Sale created successfully!')
         return super().form_valid(form)
 

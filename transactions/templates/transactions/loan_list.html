@@ -1,4 +1,4 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
 {% load loan_tags %}
@@ -199,6 +199,17 @@
                     </select>
                 </div>
                 <div class="col-md-3">
+                    <label for="scheme" class="form-label">Scheme</label>
+                    <select name="scheme" id="scheme" class="form-select">
+                        <option value="">All Schemes</option>
+                        {% for scheme in schemes %}
+                            <option value="{{ scheme.id }}" {% if selected_scheme == scheme.id|stringformat:"s" %}selected{% endif %}>
+                                {{ scheme.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
                     <label for="search" class="form-label">Search</label>
                     <input type="text" name="search" id="search" class="form-control" placeholder="Customer name, ID..." value="{{ search_query }}">
                 </div>
@@ -218,14 +229,14 @@
                     </button>
                 </div>
                 <div class="col-md-2">
-                    <a href="{% url 'loan_list' %}?filter_type=overdue{% if search_query %}&search={{ search_query }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}" 
+                    <a href="{% url 'loan_list' %}?filter_type=overdue{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_scheme %}&scheme={{ selected_scheme }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}" 
                        class="btn btn-danger w-100 {% if selected_filter_type == 'overdue' %}active{% endif %}">
                         <i class="fas fa-exclamation-circle"></i> Overdue 
                         <span class="badge text-bg-light rounded-pill ms-1">{{ overdue_count|default:0 }}</span>
                     </a>
                 </div>
                 <div class="col-md-2">
-                    <a href="{% url 'loan_list' %}?filter_type=due_soon{% if search_query %}&search={{ search_query }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}" 
+                    <a href="{% url 'loan_list' %}?filter_type=due_soon{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_scheme %}&scheme={{ selected_scheme }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}" 
                        class="btn btn-warning w-100 {% if selected_filter_type == 'due_soon' %}active{% endif %}">
                         <i class="fas fa-calendar-alt"></i> Next 30 Days 
                         <span class="badge text-bg-light rounded-pill ms-1">{{ due_soon_count|default:0 }}</span>
@@ -735,6 +746,18 @@
                             <div class="form-check">
                                 <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="item_names" id="col_item_names" checked>
                                 <label class="form-check-label" for="col_item_names">{% if LANGUAGE_CODE == 'ta' %}பொருள் பெயர்கள்{% else %}Item Names{% endif %}</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="gold_location" id="col_gold_location" checked>
+                                <label class="form-check-label" for="col_gold_location">{% if LANGUAGE_CODE == 'ta' %}தங்கத்தின் இருப்பிடம்{% else %}Gold Location{% endif %}</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="repledge_date" id="col_repledge_date" checked>
+                                <label class="form-check-label" for="col_repledge_date">{% if LANGUAGE_CODE == 'ta' %}மறு அடகு தேதி{% else %}Repledge Date{% endif %}</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="repledge_amount" id="col_repledge_amount" checked>
+                                <label class="form-check-label" for="col_repledge_amount">{% if LANGUAGE_CODE == 'ta' %}மறு அடகு தொகை{% else %}Repledge Amount{% endif %}</label>
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="item_images" id="col_item_images" checked>

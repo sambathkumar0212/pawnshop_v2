@@ -113,6 +113,65 @@ class LoanInterestPropertiesTest(TestCase):
         # interest = 10000 * (12/36500) * 15 = 49.32
         self.assertEqual(loan.interest_till_date_daily_basis, Decimal('49.32'))
 
+    def test_distribution_amount_vs_distribution_with_deduction(self):
+        """
+        distribution_amount = principal - processing_fee  (always)
+
+        distribution_amount_with_deduction = distribution_amount
+            - (processing_fee        if is_processing_fee_paid)
+            - (first_month_interest  if is_first_month_interest_paid)
+
+        For principal=10000, proc_fee=100, 12% p.a. (1% monthly = Rs 100):
+            Distribution Amount = 10000 - 100 = 9900
+
+            Case 1 (neither paid):       9900 - 0   - 0   = 9900
+            Case 2 (proc fee only):      9900 - 100 - 0   = 9800
+            Case 3 (1st month only):     9900 - 0   - 100 = 9800
+            Case 4 (both paid):          9900 - 100 - 100 = 9700
+        """
+        base_kwargs = dict(
+            customer=self.customer,
+            branch=self.branch,
+            scheme=self.scheme,
+            principal_amount=Decimal('10000.00'),
+            interest_rate=Decimal('12.00'),   # 1% monthly = Rs 100
+            processing_fee=100,
+            distribution_amount=Decimal('9900.00'),  # principal - processing_fee
+            issue_date=timezone.now().date(),
+            due_date=timezone.now().date() + timezone.timedelta(days=90),
+            grace_period_end=timezone.now().date() + timezone.timedelta(days=105),
+            status='active'
+        )
+
+        # Case 1: Neither paid upfront → distribution_amount unchanged
+        loan1 = Loan.objects.create(**{**base_kwargs,
+            'is_processing_fee_paid': False,
+            'is_first_month_interest_paid': False
+        })
+        self.assertEqual(loan1.distribution_amount_with_deduction, Decimal('9900.00'))
+
+        # Case 2: Only processing fee paid upfront → deduct proc_fee from distribution_amount
+        loan2 = Loan.objects.create(**{**base_kwargs,
+            'is_processing_fee_paid': True,
+            'is_first_month_interest_paid': False
+        })
+        self.assertEqual(loan2.distribution_amount_with_deduction, Decimal('9800.00'))  # 9900 - 100
+
+        # Case 3: Only 1st month interest paid upfront → deduct first_month_interest only (based on distribution_amount = 9900)
+        # Interest = 9900 * 1% = 99.00. Result = 9900 - 99 = 9801.00
+        loan3 = Loan.objects.create(**{**base_kwargs,
+            'is_processing_fee_paid': False,
+            'is_first_month_interest_paid': True
+        })
+        self.assertEqual(loan3.distribution_amount_with_deduction, Decimal('9801.00'))
+
+        # Case 4: Both paid upfront → deduct both
+        # Result = 9900 - 100 - 99 = 9701.00
+        loan4 = Loan.objects.create(**{**base_kwargs,
+            'is_processing_fee_paid': True,
+            'is_first_month_interest_paid': True
+        })
+        self.assertEqual(loan4.distribution_amount_with_deduction, Decimal('9701.00'))
 
 
 class LoanNotificationEmailTest(TransactionTestCase):
@@ -169,21 +228,49 @@ class LoanNotificationEmailTest(TransactionTestCase):
 
         # Verify creation email sent to recipients
         self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(sorted(mail.outbox[0].to), sorted(['firstmoneygold@gmail.com', 'hariswealthway@gmail.com']))
-        self.assertIn('Loan Created', mail.outbox[0].subject)
-        self.assertIn(loan.loan_number, mail.outbox[0].subject)
-        self.assertIn('Rs. 5000', mail.outbox[0].body)
+        creation_mail = mail.outbox[0]
+        self.assertEqual(sorted(creation_mail.to), sorted(['firstmoneygold@gmail.com', 'hariswealthway@gmail.com']))
+        self.assertIn('Loan Created', creation_mail.subject)
+        self.assertIn(loan.loan_number, creation_mail.subject)
+        self.assertIn('Rs. 5000', creation_mail.body)
+        self.assertEqual(len(creation_mail.alternatives), 1)
+        html_content = creation_mail.alternatives[0][0]
+        self.assertIn('Loan Created', html_content)
+        self.assertIn('Rs. 5000', html_content)
 
         # Clear outbox
         mail.outbox = []
 
         # Edit loan
         loan.principal_amount = Decimal('6000.00')
+        loan.interest_rate = Decimal('14.00')
         loan.save()
 
-        # Verify edit email sent to recipients
+        # Verify edit email sent to recipients with highlighted changes
         self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(sorted(mail.outbox[0].to), sorted(['firstmoneygold@gmail.com', 'hariswealthway@gmail.com']))
-        self.assertIn('Loan Edited', mail.outbox[0].subject)
+        edit_mail = mail.outbox[0]
+        self.assertEqual(sorted(edit_mail.to), sorted(['firstmoneygold@gmail.com', 'hariswealthway@gmail.com']))
+        self.assertIn('Loan Edited', edit_mail.subject)
+        self.assertIn(loan.loan_number, edit_mail.subject)
+        
+        # Verify plain-text modified values highlighting
+        self.assertIn('MODIFIED / EDITED VALUES', edit_mail.body)
+        self.assertIn('Principal Amount: Rs. 5000 -> Rs. 6000', edit_mail.body)
+        self.assertIn('Interest Rate: 12.00% -> 14.00%', edit_mail.body)
+        self.assertIn('[UPDATED] Principal Amount: Rs. 6000 (Previous: Rs. 5000)', edit_mail.body)
+        self.assertIn('[UPDATED] Interest Rate: 14.00% (Previous: 12.00%)', edit_mail.body)
+
+        # Verify HTML modified values highlighting
+        self.assertEqual(len(edit_mail.alternatives), 1)
+        edit_html = edit_mail.alternatives[0][0]
+        self.assertIn('Loan Edited / Updated', edit_html)
+        self.assertIn('Highlighted Modified Values', edit_html)
+        self.assertIn('Rs. 5000', edit_html)
+        self.assertIn('Rs. 6000', edit_html)
+        self.assertIn('12.00%', edit_html)
+        self.assertIn('14.00%', edit_html)
+        self.assertIn('UPDATED', edit_html)
+        self.assertIn('row-highlighted', edit_html)
+
 
 

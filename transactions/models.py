@@ -75,13 +75,11 @@ class Loan(models.Model):
     )
     is_first_month_interest_paid = models.BooleanField(
         default=False,
-        verbose_name=_("Is first month interest paid?"),
-        help_text=_("Check if first month interest is paid/collected upfront")
+        verbose_name=_("Is first month interest paid?")
     )
     is_processing_fee_paid = models.BooleanField(
         default=False,
-        verbose_name=_("Is processing fees paid?"),
-        help_text=_("Check if processing fees are paid/collected upfront")
+        verbose_name=_("Is processing fees paid?")
     )
     gold_location = models.CharField(
         max_length=255,
@@ -158,11 +156,9 @@ class Loan(models.Model):
         else:
             monthly_rate = Decimal(self.interest_rate) / Decimal('12')
         
-        # Calculate monthly interest amount based on base distribution amount (principal - processing fee if not paid upfront)
-        if self.is_processing_fee_paid:
-            base_dist_amount = self.principal_amount
-        else:
-            base_dist_amount = self.principal_amount - Decimal(str(self.processing_fee))
+        # Calculate monthly interest amount based on distribution amount
+        base_dist_amount = self.distribution_amount if self.distribution_amount is not None \
+            else ((self.principal_amount or Decimal('0')) - Decimal(str(self.processing_fee or 0)))
         monthly_amount = (base_dist_amount * monthly_rate) / Decimal('100')
         
         # Calculate rate per 1000 of distribution amount
@@ -193,16 +189,119 @@ class Loan(models.Model):
 
     @property
     def original_distribution_amount(self):
-        """Returns the original distribution amount (principal - processing fee) before any upfront interest deductions"""
+        """Returns the base distribution amount (principal - processing fee) before any upfront interest/fee deductions"""
         from decimal import Decimal
-        if self.is_processing_fee_paid:
-            return self.principal_amount
-        return self.principal_amount - Decimal(str(self.processing_fee or 0))
+        if self.distribution_amount is not None:
+            return self.distribution_amount
+        return (self.principal_amount or Decimal('0')) - Decimal(str(self.processing_fee or 0))
+
+    @property
+    def distribution_amount_with_deduction(self):
+        """Returns Distribution Amount with Deduction.
+
+        Base = Distribution Amount field (stored value: principal - processing_fee).
+        Then deduct from that base:
+            - processing_fee       if is_processing_fee_paid = True
+            - first_month_interest if is_first_month_interest_paid = True
+
+        Formula:
+            distribution_with_deduction = distribution_amount
+                - (processing_fee        if is_processing_fee_paid)
+                - (first_month_interest  if is_first_month_interest_paid)
+        """
+        from decimal import Decimal
+        principal = self.principal_amount or Decimal('0')
+        proc_fee = Decimal(str(self.processing_fee or 0))
+
+        # Use stored distribution_amount as base; fallback to principal - proc_fee
+        base = Decimal(str(self.distribution_amount)) if self.distribution_amount is not None \
+            else (principal - proc_fee)
+
+        # Deduct processing fee only if paid upfront
+        proc_fee_deduction = proc_fee if self.is_processing_fee_paid else Decimal('0')
+
+        # Deduct 1st month interest only if paid upfront
+        first_month_interest_deduction = Decimal('0')
+        if self.is_first_month_interest_paid:
+            annual_rate = Decimal('0')
+            if self.scheme and self.scheme.interest_rate_structure:
+                annual_rate = Decimal(str(self.scheme.get_interest_rate_for_days(30)))
+            elif self.interest_rate:
+                annual_rate = Decimal(str(self.interest_rate))
+            elif self.scheme and self.scheme.interest_rate:
+                annual_rate = Decimal(str(self.scheme.interest_rate))
+            else:
+                annual_rate = Decimal('12.00')
+            monthly_rate = annual_rate / Decimal('12')
+            first_month_interest_deduction = round((base * monthly_rate) / Decimal('100'), 2)
+
+        net = base - proc_fee_deduction - first_month_interest_deduction
+        return max(Decimal('0'), round(net, 2))
 
     def save(self, *args, **kwargs):
         # Check if this is a creation
         is_create = self.pk is None
+
+        # Ensure distribution_amount has a default of principal - processing_fee
+        if self.distribution_amount is None and self.principal_amount is not None:
+            proc_fee = self.processing_fee or 0
+            from decimal import Decimal
+            self.distribution_amount = self.principal_amount - Decimal(str(proc_fee))
         
+        # Track changed fields when editing an existing loan
+        changes = []
+        if not is_create:
+            try:
+                old_loan = Loan.objects.select_related('customer', 'branch', 'scheme').get(pk=self.pk)
+                field_configs = [
+                    ('customer_id', 'Customer Name',
+                     lambda obj: f"{obj.customer.first_name} {obj.customer.last_name}" if obj.customer else "N/A"),
+                    ('branch_id', 'Branch',
+                     lambda obj: obj.branch.name if obj.branch else "N/A"),
+                    ('scheme_id', 'Scheme',
+                     lambda obj: obj.scheme.name if obj.scheme else "N/A"),
+                    ('principal_amount', 'Principal Amount',
+                     lambda obj: f"Rs. {obj.principal_amount}"),
+                    ('interest_rate', 'Interest Rate',
+                     lambda obj: f"{obj.interest_rate}%"),
+                    ('processing_fee', 'Processing Fee',
+                     lambda obj: f"Rs. {obj.processing_fee}"),
+                    ('distribution_amount', 'Distribution Amount (No Deductions)',
+                     lambda obj: f"Rs. {obj.distribution_amount}"),
+                    ('status', 'Status',
+                     lambda obj: obj.get_status_display() if hasattr(obj, 'get_status_display') else str(obj.status)),
+                    ('issue_date', 'Issue Date',
+                     lambda obj: str(obj.issue_date)),
+                    ('due_date', 'Due Date',
+                     lambda obj: str(obj.due_date)),
+                    ('grace_period_end', 'Grace Period End Date',
+                     lambda obj: str(obj.grace_period_end)),
+                    ('is_first_month_interest_paid', 'First Month Interest Paid Upfront',
+                     lambda obj: "Yes" if obj.is_first_month_interest_paid else "No"),
+                    ('is_processing_fee_paid', 'Processing Fee Paid Upfront',
+                     lambda obj: "Yes" if obj.is_processing_fee_paid else "No"),
+                    ('gold_location', 'Gold Location',
+                     lambda obj: str(obj.gold_location or "N/A")),
+                    ('repledge_date', 'Repledge Date',
+                     lambda obj: str(obj.repledge_date or "N/A")),
+                    ('repledge_amount', 'Repledge Amount',
+                     lambda obj: f"Rs. {obj.repledge_amount}" if obj.repledge_amount is not None else "N/A"),
+                    ('gold_status_others', 'Gold Status Notes',
+                     lambda obj: str(obj.gold_status_others or "N/A")),
+                ]
+                for field_name, label, formatter in field_configs:
+                    old_raw = getattr(old_loan, field_name, None)
+                    new_raw = getattr(self, field_name, None)
+                    if str(old_raw or '') != str(new_raw or ''):
+                        changes.append({
+                            'field': field_name,
+                            'label': label,
+                            'old': formatter(old_loan),
+                            'new': formatter(self),
+                        })
+            except Exception as e:
+                print(f"Error computing loan field changes: {e}")
+
         # Generate loan number if not provided
         if not self.loan_number:
             self.loan_number = self.generate_loan_number()
@@ -235,12 +334,13 @@ class Loan(models.Model):
         # so the PDF always reflects the latest gold item details.
         loan_id = self.pk
         _is_create = is_create
+        _changes = changes
         
         def _send_notification():
             try:
                 from transactions.models import Loan
                 loan = Loan.objects.get(pk=loan_id)
-                loan.send_loan_notification_email(_is_create)
+                loan.send_loan_notification_email(_is_create, changes=_changes)
             except Exception as e:
                 import traceback
                 print(f"Error sending loan email notification: {str(e)}")
@@ -249,40 +349,132 @@ class Loan(models.Model):
         from django.db import transaction
         transaction.on_commit(_send_notification)
 
-    def send_loan_notification_email(self, is_create):
-        """Send email notification on loan creation or edit to firstmoneygold@gmail.com and hariswealthway@gmail.com"""
-        from django.core.mail import EmailMessage
+    def send_loan_notification_email(self, is_create, changes=None):
+        """Send email notification on loan creation or edit to firstmoneygold@gmail.com and hariswealthway@gmail.com with highlighted changes"""
+        from django.core.mail import EmailMultiAlternatives
         from django.conf import settings
+        from django.template.loader import render_to_string
+
+        changes = changes or []
+        changed_fields_map = {c['field']: c for c in changes}
 
         action = "Created" if is_create else "Edited"
         subject = f"Loan {action}: {self.loan_number} - {self.customer.first_name} {self.customer.last_name}"
         recipients = ["firstmoneygold@gmail.com", "hariswealthway@gmail.com"]
         from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@myapp.com')
 
-        body = (
-            f"Dear Team,\n\n"
-            f"A loan has been {action.lower()} with the following details:\n\n"
-            f"Loan Number: {self.loan_number}\n"
-            f"Customer Name: {self.customer.first_name} {self.customer.last_name}\n"
-            f"Branch: {self.branch.name if self.branch else 'N/A'}\n"
-            f"Scheme: {self.scheme.name if self.scheme else 'N/A'}\n"
-            f"Principal Amount: Rs. {self.principal_amount}\n"
-            f"Interest Rate: {self.interest_rate}%\n"
-            f"Status: {self.get_status_display()}\n"
-            f"Issue Date: {self.issue_date}\n"
-            f"Due Date: {self.due_date}\n"
-            f"Created/Modified At: {self.updated_at or self.created_at or 'N/A'}\n\n"
-            f"Please find the loan agreement PDF attached.\n\n"
-            f"Best regards,\n"
-            f"Pawnshop Management System"
-        )
+        # Build comprehensive details list for email table
+        details_list = [
+            {'field': 'loan_number', 'label': 'Loan Number', 'value': self.loan_number, 'is_changed': False, 'old_value': ''},
+            {'field': 'customer_id', 'label': 'Customer Name', 'value': f"{self.customer.first_name} {self.customer.last_name}",
+             'is_changed': 'customer_id' in changed_fields_map,
+             'old_value': changed_fields_map['customer_id']['old'] if 'customer_id' in changed_fields_map else ''},
+            {'field': 'branch_id', 'label': 'Branch', 'value': self.branch.name if self.branch else 'N/A',
+             'is_changed': 'branch_id' in changed_fields_map,
+             'old_value': changed_fields_map['branch_id']['old'] if 'branch_id' in changed_fields_map else ''},
+            {'field': 'scheme_id', 'label': 'Scheme', 'value': self.scheme.name if self.scheme else 'N/A',
+             'is_changed': 'scheme_id' in changed_fields_map,
+             'old_value': changed_fields_map['scheme_id']['old'] if 'scheme_id' in changed_fields_map else ''},
+            {'field': 'principal_amount', 'label': 'Principal Amount', 'value': f"Rs. {self.principal_amount}",
+             'is_changed': 'principal_amount' in changed_fields_map,
+             'old_value': changed_fields_map['principal_amount']['old'] if 'principal_amount' in changed_fields_map else ''},
+            {'field': 'interest_rate', 'label': 'Interest Rate', 'value': f"{self.interest_rate}%",
+             'is_changed': 'interest_rate' in changed_fields_map,
+             'old_value': changed_fields_map['interest_rate']['old'] if 'interest_rate' in changed_fields_map else ''},
+            {'field': 'processing_fee', 'label': 'Processing Fee', 'value': f"Rs. {self.processing_fee}",
+             'is_changed': 'processing_fee' in changed_fields_map,
+             'old_value': changed_fields_map['processing_fee']['old'] if 'processing_fee' in changed_fields_map else ''},
+            {'field': 'distribution_amount', 'label': 'Distribution Amount (No Deductions)', 'value': f"Rs. {self.distribution_amount}",
+             'is_changed': 'distribution_amount' in changed_fields_map,
+             'old_value': changed_fields_map['distribution_amount']['old'] if 'distribution_amount' in changed_fields_map else ''},
+            {'field': 'distribution_amount_with_deduction', 'label': 'Distribution Amount with Deduction', 'value': f"Rs. {self.distribution_amount_with_deduction}",
+             'is_changed': 'distribution_amount' in changed_fields_map or 'principal_amount' in changed_fields_map or 'processing_fee' in changed_fields_map,
+             'old_value': ''},
+            {'field': 'status', 'label': 'Status', 'value': self.get_status_display(),
+             'is_changed': 'status' in changed_fields_map,
+             'old_value': changed_fields_map['status']['old'] if 'status' in changed_fields_map else ''},
+            {'field': 'issue_date', 'label': 'Issue Date', 'value': str(self.issue_date),
+             'is_changed': 'issue_date' in changed_fields_map,
+             'old_value': changed_fields_map['issue_date']['old'] if 'issue_date' in changed_fields_map else ''},
+            {'field': 'due_date', 'label': 'Due Date', 'value': str(self.due_date),
+             'is_changed': 'due_date' in changed_fields_map,
+             'old_value': changed_fields_map['due_date']['old'] if 'due_date' in changed_fields_map else ''},
+            {'field': 'grace_period_end', 'label': 'Grace Period End Date', 'value': str(self.grace_period_end),
+             'is_changed': 'grace_period_end' in changed_fields_map,
+             'old_value': changed_fields_map['grace_period_end']['old'] if 'grace_period_end' in changed_fields_map else ''},
+        ]
 
-        email = EmailMessage(
+        if self.gold_location or 'gold_location' in changed_fields_map:
+            details_list.append({
+                'field': 'gold_location', 'label': 'Gold Location', 'value': self.gold_location or 'N/A',
+                'is_changed': 'gold_location' in changed_fields_map,
+                'old_value': changed_fields_map['gold_location']['old'] if 'gold_location' in changed_fields_map else ''
+            })
+
+        if self.repledge_date or 'repledge_date' in changed_fields_map:
+            details_list.append({
+                'field': 'repledge_date', 'label': 'Repledge Date', 'value': str(self.repledge_date or 'N/A'),
+                'is_changed': 'repledge_date' in changed_fields_map,
+                'old_value': changed_fields_map['repledge_date']['old'] if 'repledge_date' in changed_fields_map else ''
+            })
+
+        if self.repledge_amount or 'repledge_amount' in changed_fields_map:
+            details_list.append({
+                'field': 'repledge_amount', 'label': 'Repledge Amount',
+                'value': f"Rs. {self.repledge_amount}" if self.repledge_amount is not None else 'N/A',
+                'is_changed': 'repledge_amount' in changed_fields_map,
+                'old_value': changed_fields_map['repledge_amount']['old'] if 'repledge_amount' in changed_fields_map else ''
+            })
+
+        details_list.append({
+            'field': 'updated_at', 'label': 'Created/Modified At', 'value': str(self.updated_at or self.created_at or 'N/A'),
+            'is_changed': False, 'old_value': ''
+        })
+
+        # Construct structured plain-text fallback
+        body_lines = [
+            "Dear Team,\n",
+            f"A loan has been {action.lower()} with the following details:\n"
+        ]
+
+        if changes:
+            body_lines.append("⚡ MODIFIED / EDITED VALUES:")
+            for change in changes:
+                body_lines.append(f"  * {change['label']}: {change['old']} -> {change['new']}")
+            body_lines.append("\nCOMPLETE LOAN DETAILS:")
+
+        for item in details_list:
+            if item['is_changed']:
+                body_lines.append(f"[UPDATED] {item['label']}: {item['value']} (Previous: {item['old_value']})")
+            else:
+                body_lines.append(f"{item['label']}: {item['value']}")
+
+        body_lines.append("\nPlease find the loan agreement PDF attached.\n")
+        body_lines.append("Best regards,\nPawnshop Management System")
+        plain_body = "\n".join(body_lines)
+
+        # Render HTML template
+        html_body = None
+        try:
+            html_body = render_to_string('transactions/emails/loan_notification_email.html', {
+                'loan': self,
+                'action': action,
+                'is_create': is_create,
+                'changes': changes,
+                'details_list': details_list,
+            })
+        except Exception as e:
+            print(f"Could not render loan notification email template: {e}")
+
+        email = EmailMultiAlternatives(
             subject=subject,
-            body=body,
+            body=plain_body,
             from_email=from_email,
             to=recipients,
         )
+
+        if html_body:
+            email.attach_alternative(html_body, "text/html")
 
         # Attach the loan agreement PDF if it can be generated
         try:
@@ -617,11 +809,9 @@ class Loan(models.Model):
         if self.is_first_month_interest_paid:
             days_elapsed = max(0, days_elapsed - 30)
             
-        # Calculate interest based on scheme interest rate on base distribution amount (principal - processing fee if not paid upfront)
-        if self.is_processing_fee_paid:
-            base_dist_amount = self.principal_amount
-        else:
-            base_dist_amount = self.principal_amount - Decimal(str(self.processing_fee))
+        # Calculate interest based on scheme interest rate on distribution amount
+        base_dist_amount = self.distribution_amount if self.distribution_amount is not None \
+            else ((self.principal_amount or Decimal('0')) - Decimal(str(self.processing_fee or 0)))
         
         # For schemes with no_interest_period_days, check if we're still in that period
         if self.scheme.no_interest_period_days and days_elapsed <= self.scheme.no_interest_period_days:
@@ -663,11 +853,9 @@ class Loan(models.Model):
         # Calculate monthly interest rate
         monthly_rate = annual_rate / Decimal('12')
         
-        # Calculate monthly interest amount based on base distribution amount (principal - processing fee if not paid upfront)
-        if self.is_processing_fee_paid:
-            base_dist_amount = self.principal_amount
-        else:
-            base_dist_amount = self.principal_amount - Decimal(str(self.processing_fee))
+        # Calculate monthly interest amount based on distribution amount
+        base_dist_amount = self.distribution_amount if self.distribution_amount is not None \
+            else ((self.principal_amount or Decimal('0')) - Decimal(str(self.processing_fee or 0)))
         monthly_interest_amount = (base_dist_amount * monthly_rate) / Decimal('100')
         
         # Calculate per thousand rate (how much interest per 1000 of distribution amount)
@@ -701,10 +889,8 @@ class Loan(models.Model):
         else:
             annual_rate = self.scheme.interest_rate
             
-        if self.is_processing_fee_paid:
-            base_dist_amount = self.principal_amount
-        else:
-            base_dist_amount = self.principal_amount - Decimal(str(self.processing_fee))
+        base_dist_amount = self.distribution_amount if self.distribution_amount is not None \
+            else ((self.principal_amount or Decimal('0')) - Decimal(str(self.processing_fee or 0)))
         daily_amount = base_dist_amount * (annual_rate / Decimal('36500'))
         return daily_amount.quantize(Decimal('0.01'))
 
@@ -720,10 +906,8 @@ class Loan(models.Model):
         if self.is_first_month_interest_paid:
             days_elapsed = max(0, days_elapsed - 30)
             
-        if self.is_processing_fee_paid:
-            base_dist_amount = self.principal_amount
-        else:
-            base_dist_amount = self.principal_amount - Decimal(str(self.processing_fee))
+        base_dist_amount = self.distribution_amount if self.distribution_amount is not None \
+            else ((self.principal_amount or Decimal('0')) - Decimal(str(self.processing_fee or 0)))
         
         if getattr(self.scheme, 'no_interest_period_days', 0) and days_elapsed <= self.scheme.no_interest_period_days:
             return Decimal('0.00')
@@ -776,10 +960,8 @@ class Loan(models.Model):
             if self.is_first_month_interest_paid:
                 days_elapsed = max(0, days_elapsed - 30)
                 
-            if self.is_processing_fee_paid:
-                base_dist_amount = self.principal_amount
-            else:
-                base_dist_amount = self.principal_amount - Decimal(str(self.processing_fee))
+            base_dist_amount = self.distribution_amount if self.distribution_amount is not None \
+                else ((self.principal_amount or Decimal('0')) - Decimal(str(self.processing_fee or 0)))
             
             # For schemes with no_interest_period_days, check if we're still in that period
             if getattr(self.scheme, 'no_interest_period_days', 0) and days_elapsed <= self.scheme.no_interest_period_days:
@@ -922,10 +1104,8 @@ class Loan(models.Model):
         if not self.scheme:
             return {'schedule': [], 'disciplined_total': Decimal('0.00'), 'delayed_total': Decimal('0.00'), 'financial_impact_difference': Decimal('0.00')}
         
-        if self.is_processing_fee_paid:
-            base_dist_amount = self.principal_amount
-        else:
-            base_dist_amount = self.principal_amount - Decimal(str(self.processing_fee or 0))
+        base_dist_amount = self.distribution_amount if self.distribution_amount is not None \
+            else ((self.principal_amount or Decimal('0')) - Decimal(str(self.processing_fee or 0)))
         principal = self.principal_amount
         
         # Disciplined Rate is the lowest tier rate (30 days rate)

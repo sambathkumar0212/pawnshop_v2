@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Function to calculate loan metrics
-    function calculateLoanMetrics() {
+    function calculateLoanMetrics(isInitial = false) {
         // Get input values
         const principal = parseInt(principalInput.value) || 0;
         const interestRate = parseFloat(interestRateInput.value) || 0;
@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Update distribution amount input
-        if (distributionAmountInput) {
+        if (distributionAmountInput && !(window.isEditMode && isInitial)) {
             distributionAmountInput.value = Math.round(distributionAmount);
         }
         
@@ -217,7 +217,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Function to load scheme details
-    function loadSchemeDetails() {
+    function loadSchemeDetails(isInitial = false) {
         const schemeSelect = document.getElementById('id_scheme');
         const schemeId = schemeSelect.value;
         
@@ -258,19 +258,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log(`Processing fee percentage from scheme: ${processingFeePercentage}%`);
                 
                 // Update interest rate input with scheme value
-                if (interestRateInput) {
+                if (interestRateInput && !(window.isEditMode && isInitial)) {
                     interestRateInput.value = scheme.interest_rate;
                 }
                 
                 // Calculate processing fee based on principal amount and scheme percentage
-                if (processingFeeInput && principalInput.value) {
+                if (processingFeeInput && principalInput.value && !(window.isEditMode && isInitial)) {
                     const principal = parseInt(principalInput.value) || 0;
                     processingFeeInput.value = Math.round(principal * processingFeePercentage / 100);
                     console.log(`Calculated processing fee: ${processingFeeInput.value} (${processingFeePercentage}% of ${principal})`);
                 }
                 
                 // Always update dates when scheme changes, regardless of whether issue date is set
-                updateDatesFromScheme(scheme);
+                if (!(window.isEditMode && isInitial)) {
+                    updateDatesFromScheme(scheme);
+                }
                 
                 // Get grace period days from additional_conditions or default to 30
                 const gracePeriodDays = 
@@ -371,7 +373,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 // Calculate loan metrics with updated values
-                calculateLoanMetrics();
+                calculateLoanMetrics(isInitial);
             })
             .catch(error => {
                 console.error('Error loading scheme details:', error);
@@ -438,9 +440,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initial calculation if values are pre-populated
     if (schemeSelect && schemeSelect.value) {
-        loadSchemeDetails();
+        loadSchemeDetails(true);
     } else {
-        calculateLoanMetrics();
+        calculateLoanMetrics(true);
     }
     
     // Calculate gold value if all required fields have values

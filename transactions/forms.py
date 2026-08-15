@@ -137,8 +137,20 @@ class LoanForm(forms.ModelForm):
         required=False,
         max_digits=10,
         decimal_places=0,
+        label="Distribution Amount",
         widget=forms.NumberInput(attrs={
             'data-show-words': 'true'  # Custom attribute to identify fields that need words display
+        })
+    )
+    distribution_amount_with_deduction = forms.DecimalField(
+        required=False,
+        max_digits=10,
+        decimal_places=0,
+        label="Distribution Amount with Deduction",
+        widget=forms.NumberInput(attrs={
+            'data-show-words': 'true',
+            'readonly': 'readonly',
+            'class': 'form-control bg-light'
         })
     )
 
@@ -248,7 +260,7 @@ class LoanForm(forms.ModelForm):
         max_digits=10,
         decimal_places=0,
         initial=0,
-        help_text="Processing fee amount in Rupees",
+        help_text="",
         widget=forms.NumberInput(attrs={
             'step': '1',  # Only allow whole numbers
             'min': '0',   # Prevent negative values
@@ -269,13 +281,13 @@ class LoanForm(forms.ModelForm):
     is_first_month_interest_paid = forms.BooleanField(
         required=False,
         label='Is first month interest paid?',
-        help_text='Check if first month interest is paid/collected upfront',
+        help_text='',
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
     )
     is_processing_fee_paid = forms.BooleanField(
         required=False,
         label='Is processing fees paid?',
-        help_text='Check if processing fees are paid/collected upfront',
+        help_text='',
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
     )
     gold_location = forms.CharField(
@@ -356,7 +368,7 @@ class LoanForm(forms.ModelForm):
             max_digits=10,
             decimal_places=0,
             initial=0,
-            help_text="Processing fee amount in Rupees",
+            help_text="",
             widget=forms.TextInput()  # Changed to TextInput
         )
 
@@ -462,6 +474,22 @@ class LoanForm(forms.ModelForm):
                 self.fields['net_weight'].initial = loan_item.net_weight
                 self.fields['stone_weight'].initial = loan_item.stone_weight
                 self.fields['market_price_22k'].initial = loan_item.market_price_22k
+
+            if 'processing_fee' in self.fields and self.instance.processing_fee is not None:
+                self.initial['processing_fee'] = self.instance.processing_fee
+                self.fields['processing_fee'].initial = self.instance.processing_fee
+
+            if 'distribution_amount' in self.fields:
+                dist_val = self.instance.distribution_amount
+                if dist_val is None and self.instance.principal_amount is not None:
+                    dist_val = self.instance.principal_amount - (self.instance.processing_fee or 0)
+                self.initial['distribution_amount'] = dist_val
+                self.fields['distribution_amount'].initial = dist_val
+
+            if 'distribution_amount_with_deduction' in self.fields:
+                deduct_val = self.instance.distribution_amount_with_deduction
+                self.initial['distribution_amount_with_deduction'] = deduct_val
+                self.fields['distribution_amount_with_deduction'].initial = deduct_val
 
         # Set up crispy form layout
         self.helper = FormHelper()
@@ -606,32 +634,21 @@ class LoanForm(forms.ModelForm):
         # Calculate processing fee and distribution amount based on scheme's processing fee percentage
         principal_amount = cleaned_data.get('principal_amount')
         is_edit = self.instance and self.instance.pk is not None
-
         if principal_amount and scheme:
             if not is_edit:
-                # NEW LOAN: auto-calculate processing fee from scheme percentage
+                # NEW LOAN: auto-calculate processing fee from scheme percentage if not provided
                 processing_fee_percentage = 1.0  # Default to 1%
                 if scheme.additional_conditions and 'processing_fee_percentage' in scheme.additional_conditions:
                     processing_fee_percentage = float(scheme.additional_conditions['processing_fee_percentage'])
-                processing_fee = round(float(principal_amount) * (processing_fee_percentage / 100))
-                cleaned_data['processing_fee'] = processing_fee
-            else:
-                # EDIT LOAN: honour the user-submitted processing_fee (already parsed above)
-                processing_fee = cleaned_data.get('processing_fee', 0) or 0
-
-            if cleaned_data.get('is_processing_fee_paid'):
-                base_distribution = principal_amount
-            else:
-                base_distribution = principal_amount - processing_fee
-
-            # Recalculate distribution amount (always, since principal/fee/checkbox may have changed)
-            if cleaned_data.get('is_first_month_interest_paid'):
-                annual_rate = cleaned_data.get('interest_rate') or scheme.interest_rate
-                monthly_rate = Decimal(str(annual_rate)) / Decimal('12')
-                first_month_interest = (Decimal(str(base_distribution)) * monthly_rate) / Decimal('100')
-                cleaned_data['distribution_amount'] = round(Decimal(str(base_distribution)) - first_month_interest)
-            else:
-                cleaned_data['distribution_amount'] = base_distribution
+                default_proc_fee = round(float(principal_amount) * (processing_fee_percentage / 100))
+                if 'processing_fee' not in cleaned_data or cleaned_data.get('processing_fee') is None:
+                    cleaned_data['processing_fee'] = default_proc_fee
+            
+            processing_fee = cleaned_data.get('processing_fee', 0) or 0
+            # distribution_amount is principal - processing_fee (stored in DB)
+            # If user explicitly entered a distribution_amount, preserve it; otherwise calculate principal - processing_fee
+            if not cleaned_data.get('distribution_amount'):
+                cleaned_data['distribution_amount'] = principal_amount - processing_fee
 
         # Check if at least one item is being added
         # For new item creation, check required fields
@@ -649,29 +666,42 @@ class LoanForm(forms.ModelForm):
             market_price = Decimal(str(cleaned_data['market_price_22k']))
             selected_karat = cleaned_data['gold_karat']
             net_weight = Decimal(str(cleaned_data['net_weight']))
-            
-            # Calculate value based on purity ratio
-            purity_ratio = self.KARAT_PURITY[selected_karat] / self.KARAT_PURITY['22']
-            gold_value = market_price * net_weight * purity_ratio
-            max_principal = gold_value * Decimal('0.90')  # 90% of the gold value
-            min_principal = gold_value * Decimal('0.50')  # 50% of the gold value
-            principal = cleaned_data.get('principal_amount', 0)
 
-            if principal > max_principal:
-                self.add_error('principal_amount', 
-                    f'Principal amount cannot exceed 90% of the gold value. Maximum allowed: Rs: {max_principal:.2f}')
-            elif principal < min_principal:
-                self.add_error('principal_amount',
-                    f'Principal amount must be at least 50% of the gold value. Minimum required: Rs: {min_principal:.2f}')
+            # Calculate karat factor
+            karat_factors = {
+                '24K': Decimal('1.0'),
+                '22K': Decimal('0.916'),
+                '20K': Decimal('0.833'),
+                '18K': Decimal('0.750'),
+                '16K': Decimal('0.666'),
+                '14K': Decimal('0.585'),
+                '12K': Decimal('0.500'),
+                '10K': Decimal('0.417'),
+                '9K': Decimal('0.375'),
+                '8K': Decimal('0.333'),
+                '22': Decimal('0.916'),
+                '20': Decimal('0.833'),
+                '18': Decimal('0.750'),
+                '16': Decimal('0.666'),
+                '14': Decimal('0.585'),
+                '12': Decimal('0.500'),
+                '10': Decimal('0.417'),
+                '9': Decimal('0.375'),
+                '8': Decimal('0.333'),
+            }
 
-        # Calculate total payable amount (distribution amount + interest)
-        interest_rate = cleaned_data.get('interest_rate')
-        distribution_amount = cleaned_data.get('distribution_amount')
-        if distribution_amount and interest_rate:
-            # Interest rate is annual, convert to decimal and apply to distribution amount
-            annual_interest_rate = interest_rate / Decimal('100')
-            interest_amount = distribution_amount * annual_interest_rate
-            cleaned_data['total_payable'] = distribution_amount + interest_amount
+            karat_factor = karat_factors.get(selected_karat, Decimal('0.916'))
+            gold_value = market_price * net_weight * karat_factor
+
+            # Calculate allowed principal range
+            min_principal = round(gold_value * Decimal('0.50'))
+            max_principal = round(gold_value * Decimal('0.90'))
+
+            if principal_amount:
+                if principal_amount < min_principal:
+                    self.add_error('principal_amount', f'Principal amount must be at least ₹{min_principal:,} (50% of gold value)')
+                elif principal_amount > max_principal:
+                    self.add_error('principal_amount', f'Principal amount cannot exceed ₹{max_principal:,} (90% of gold value)')
 
         return cleaned_data
 
@@ -687,21 +717,13 @@ class LoanForm(forms.ModelForm):
             interest_amount = instance.principal_amount * annual_interest_rate
             instance.total_payable = instance.principal_amount + interest_amount
 
-        # Set distribution_amount
+        # Set distribution_amount (base distribution amount: principal - processing_fee)
         if instance.principal_amount is not None:
-            # Check if processing fee is paid upfront
-            if instance.is_processing_fee_paid:
-                base_distribution = instance.principal_amount
-            else:
-                base_distribution = instance.principal_amount - (instance.processing_fee or 0)
-                
-            if instance.is_first_month_interest_paid:
-                interest_rate = Decimal(str(instance.interest_rate or (instance.scheme.interest_rate if instance.scheme else 12.00)))
-                monthly_rate = interest_rate / Decimal('12')
-                first_month_interest = (Decimal(str(base_distribution)) * monthly_rate) / Decimal('100')
-                instance.distribution_amount = round(Decimal(str(base_distribution)) - first_month_interest)
-            else:
-                instance.distribution_amount = base_distribution
+            if self.cleaned_data.get('distribution_amount'):
+                instance.distribution_amount = self.cleaned_data['distribution_amount']
+            elif instance.distribution_amount is None:
+                proc_fee = instance.processing_fee or 0
+                instance.distribution_amount = instance.principal_amount - proc_fee
 
         # Set grace_period_end if due_date is set
         if instance.due_date:

@@ -234,108 +234,108 @@
                                     </div>
                                 </div>
 
-                                <!-- Customer Photo Section -->
-                                <div class="card mb-2">
+                                <!-- Customer Photo Section - Space Optimized -->
+                                <div class="card mb-2 shadow-sm border">
                                     <div class="card-header bg-light py-1">
-                                        <small><strong><i class="fas fa-user-circle me-1"></i>Customer
-                                                Photo</strong></small>
+                                        <small><strong><i class="fas fa-user-circle me-1"></i>Customer Photo</strong></small>
                                     </div>
                                     <div class="card-body p-2">
-                                        <div class="row g-1">
+                                        <div class="row g-2">
                                             <div class="col-6">
-                                                <div id="cameraView" class="border rounded"
-                                                    style="height: 120px; position: relative;">
+                                                <div id="cameraView" class="border rounded bg-dark"
+                                                    style="height: 100px; position: relative;">
                                                     <video id="cameraStream"
                                                         style="width: 100%; height: 100%; object-fit: contain; background: #000;" autoplay
                                                         playsinline muted></video>
                                                     <canvas id="photoCanvas" style="display:none;"></canvas>
                                                 </div>
-                                                <div class="d-grid gap-1 mt-1">
-                                                    <button type="button" class="btn btn-xs btn-primary"
+                                                <div class="d-flex gap-1 mt-1">
+                                                    <button type="button" class="btn btn-xs btn-primary flex-fill text-nowrap py-1"
                                                         id="captureBtn">
                                                         <i class="fas fa-camera me-1"></i>Capture
-                                                     </button>
-                                                     <label for="customerPhotoUpload"
-                                                         class="btn btn-xs btn-outline-primary mb-0">
-                                                         <i class="fas fa-upload me-1"></i>Upload
-                                                     </label>
-                                                     <input type="file" id="customerPhotoUpload" class="d-none"
-                                                         accept="image/*">
-                                                     <button type="button" class="btn btn-xs btn-outline-success"
-                                                         id="saveCustomerUploadBtn" disabled>
-                                                         <i class="fas fa-save me-1"></i>Save Upload
-                                                     </button>
-                                                 </div>
-                                             </div>
-                                             <div class="col-6">
-                                                 <div id="photoPreview"
-                                                     class="border rounded d-flex align-items-center justify-content-center bg-light"
-                                                     style="height: 120px;">
-                                                     {% if form.instance.pk and form.instance.customer_face_capture %}
-                                                     <img id="capturedPhoto" class="img-fluid" style="max-height: 120px; object-fit: contain;"
-                                                         src="{{ form.instance.customer_face_capture }}">
-                                                     {% else %}
-                                                     <span id="noCaptureText" class="small text-muted">
-                                                         {% if form.instance.pk %}
-                                                         No photo
-                                                         {% endif %}
-                                                     </span>
-                                                     {% endif %}
-                                                 </div>
-                                                 <div class="d-grid gap-1 mt-1">
-                                                     <button type="button" class="btn btn-xs btn-outline-secondary"
-                                                         id="retakeBtn">
-                                                         <i class="fas fa-redo me-1"></i>Retake
-                                                     </button>
-                                                     <a href="#" class="btn btn-xs btn-outline-info disabled"
-                                                         id="downloadCustomerPhotoBtn" download="borrower-photo.jpg"
-                                                         aria-disabled="true">
-                                                         <i class="fas fa-download me-1"></i>Download
-                                                     </a>
-                                                 </div>
-                                             </div>
-                                         </div>
-                                     </div>
-                                 </div>
- 
-                                 <!-- Gold Item Photos Section -->
-                                 <div class="card mb-2">
-                                     <div
-                                         class="card-header bg-light py-1 d-flex justify-content-between align-items-center">
-                                         <small><strong><i class="fas fa-camera me-1"></i>Gold Item Photos</strong> <span
-                                                 class="badge bg-danger" id="photoCountBadge">0</span></small>
-                                     </div>
-                                     <div class="card-body p-2">
-                                         <div class="row g-1">
-                                             <div class="col-6">
-                                                 <div id="itemCameraView" class="border rounded"
-                                                     style="height: 120px; position: relative;">
-                                                     <video id="itemCameraStream"
-                                                         style="width: 100%; height: 100%; object-fit: contain; background: #000;" autoplay
-                                                         playsinline></video>
-                                                     <canvas id="itemPhotoCanvas" style="display:none;"></canvas>
+                                                    </button>
+                                                    <label for="customerPhotoUpload"
+                                                        class="btn btn-xs btn-outline-primary mb-0 flex-fill text-nowrap py-1">
+                                                        <i class="fas fa-upload me-1"></i>Upload
+                                                    </label>
+                                                    <input type="file" id="customerPhotoUpload" class="d-none"
+                                                        accept="image/*">
                                                 </div>
-                                                <div class="d-grid gap-1 mt-1">
-                                                    <button type="button" class="btn btn-xs btn-primary"
+                                                <button type="button" class="btn btn-xs btn-outline-success w-100 mt-1 py-1"
+                                                    id="saveCustomerUploadBtn" disabled style="display: none;">
+                                                    <i class="fas fa-save me-1"></i>Save Upload
+                                                </button>
+                                            </div>
+                                            <div class="col-6">
+                                                <div id="photoPreview"
+                                                    class="border rounded d-flex align-items-center justify-content-center bg-light"
+                                                    style="height: 100px;">
+                                                    {% if form.instance.pk and form.instance.customer_face_capture %}
+                                                    <img id="capturedPhoto" class="img-fluid" style="max-height: 100px; object-fit: contain;"
+                                                        src="{{ form.instance.customer_face_capture }}">
+                                                    {% else %}
+                                                    <span id="noCaptureText" class="small text-muted" style="font-size: 0.75rem;">
+                                                        {% if form.instance.pk %}
+                                                        No photo
+                                                        {% else %}
+                                                        Preview
+                                                        {% endif %}
+                                                    </span>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="d-flex gap-1 mt-1">
+                                                    <button type="button" class="btn btn-xs btn-outline-secondary flex-fill text-nowrap py-1"
+                                                        id="retakeBtn" disabled>
+                                                        <i class="fas fa-redo me-1"></i>Retake
+                                                    </button>
+                                                    <a href="#" class="btn btn-xs btn-outline-info flex-fill text-nowrap py-1 disabled"
+                                                        id="downloadCustomerPhotoBtn" download="borrower-photo.jpg"
+                                                        aria-disabled="true">
+                                                        <i class="fas fa-download me-1"></i>Download
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+ 
+                                <!-- Gold Item Photos Section - Space Optimized -->
+                                <div class="card mb-2 shadow-sm border">
+                                    <div class="card-header bg-light py-1 d-flex justify-content-between align-items-center">
+                                        <small><strong><i class="fas fa-camera me-1"></i>Gold Item Photos</strong></small>
+                                        <span class="badge bg-danger" id="photoCountBadge">0</span>
+                                    </div>
+                                    <div class="card-body p-2">
+                                        <div class="row g-2">
+                                            <div class="col-6">
+                                                <div id="itemCameraView" class="border rounded bg-dark"
+                                                    style="height: 100px; position: relative;">
+                                                    <video id="itemCameraStream"
+                                                        style="width: 100%; height: 100%; object-fit: contain; background: #000;" autoplay
+                                                        playsinline></video>
+                                                    <canvas id="itemPhotoCanvas" style="display:none;"></canvas>
+                                                </div>
+                                                <div class="d-flex gap-1 mt-1">
+                                                    <button type="button" class="btn btn-xs btn-primary flex-fill text-nowrap py-1"
                                                         id="captureItemBtn">
-                                                        <i class="fas fa-camera me-1"></i>Capture Item
+                                                        <i class="fas fa-camera me-1"></i>Capture
                                                     </button>
                                                     <label for="itemPhotoUpload"
-                                                        class="btn btn-xs btn-outline-primary mb-0">
-                                                        <i class="fas fa-upload me-1"></i>Upload Item
+                                                        class="btn btn-xs btn-outline-primary mb-0 flex-fill text-nowrap py-1">
+                                                        <i class="fas fa-upload me-1"></i>Upload
                                                     </label>
                                                     <input type="file" id="itemPhotoUpload" class="d-none"
                                                         accept="image/*" multiple>
-                                                    <button type="button" class="btn btn-xs btn-outline-success"
-                                                        id="saveItemUploadBtn" disabled>
-                                                        <i class="fas fa-save me-1"></i>Save Upload
-                                                    </button>
                                                 </div>
+                                                <button type="button" class="btn btn-xs btn-outline-success w-100 mt-1 py-1"
+                                                    id="saveItemUploadBtn" disabled style="display: none;">
+                                                    <i class="fas fa-save me-1"></i>Save Upload
+                                                </button>
                                             </div>
                                             <div class="col-6">
                                                 <div class="border rounded p-1 bg-light position-relative"
-                                                    style="height: 120px; overflow-y: auto;">
-                                                    <div id="noItemPhotosText" class="text-center text-muted p-1 small">
+                                                    style="height: 100px; overflow-y: auto;">
+                                                    <div id="noItemPhotosText" class="text-center text-muted p-1 small" style="font-size: 0.75rem;">
                                                         <small>No photos</small>
                                                     </div>
                                                     <div id="itemPhotosContainer" class="row g-1"
@@ -353,77 +353,69 @@
                                                     </button>
                                                 </div>
                                             </div>
-                                            <div class="col-12 pt-1">
-                                                <p class="mb-0 small text-muted" style="font-size: 0.7rem;"><i
-                                                        class="fas fa-info-circle"></i> Take photos from different
-                                                    angles</p>
-                                            </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <!-- Financial Details Section - Improved layout -->
-                                <div class="card mb-2">
-                                    <div
-                                        class="card-header bg-light py-1 d-flex justify-content-between align-items-center">
+                                <!-- Financial Details Section - Distinct Shaded Rows -->
+                                <div class="card mb-2 shadow-sm border">
+                                    <div class="card-header bg-light py-1 d-flex justify-content-between align-items-center">
                                         <h6 class="card-title mb-0">
                                             <i class="fas fa-money-bill-wave me-1"></i>Financial Details
                                         </h6>
                                     </div>
                                     <div class="card-body p-2">
-                                        <div class="row g-2">
-                                            <!-- First row: Principal and Distribution side by side -->
-                                            <div class="col-12">
-                                                <div class="row g-2">
-                                                    <div class="col-6">
-                                                        {{ form.principal_amount|as_crispy_field }}
-                                                        <small id="principalAmountWords"
-                                                            class="d-block mt-0 mb-1"
-                                                            style="color: #006400 !important; font-size: 0.7rem; font-style: italic; height: 22px; overflow: hidden; text-overflow: ellipsis;"></small>
-                                                    </div>
-                                                    <div class="col-6">
-                                                        {{ form.distribution_amount|as_crispy_field }}
-                                                        <small id="distributionAmountWords"
-                                                            class="d-block mt-0 mb-1"
-                                                            style="color: #006400 !important; font-size: 0.7rem; font-style: italic; height: 22px; overflow: hidden; text-overflow: ellipsis;"></small>
+                                        <!-- Row 1: Principal | Distribution Amount | Processing Fee (Base Amounts Block) -->
+                                        <div class="p-2 mb-2 rounded border" style="background: #ffffff; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);">
+                                            <div class="row g-2">
+                                                <div class="col-4">
+                                                    {{ form.principal_amount|as_crispy_field }}
+                                                    <small id="principalAmountWords"
+                                                        class="d-block mt-0 mb-1"
+                                                        style="color: #006400 !important; font-size: 0.72rem; font-style: italic; min-height: 18px; line-height: 1.25; word-break: break-word;"></small>
+                                                </div>
+                                                <div class="col-4">
+                                                    {{ form.distribution_amount|as_crispy_field }}
+                                                    <small id="distributionAmountWords"
+                                                        class="d-block mt-0 mb-1"
+                                                        style="color: #006400 !important; font-size: 0.72rem; font-style: italic; min-height: 18px; line-height: 1.25; word-break: break-word;"></small>
+                                                </div>
+                                                <div class="col-4">
+                                                    {{ form.processing_fee|as_crispy_field }}
+                                                    <div class="text-success" style="font-size: 0.65rem;">
+                                                        <i class="fas fa-percent"></i> <span id="processingFeePercentDisplay">1%</span> of Distribution Amount
                                                     </div>
                                                 </div>
                                             </div>
+                                        </div>
 
-                                            <!-- Second row: Processing Fee and Due Date side by side -->
-                                            <div class="col-12">
-                                                <div class="row g-2">
-                                                    <div class="col-6">
-                                                        {{ form.processing_fee|as_crispy_field }}
-                                                        <div class="text-success small" style="font-size: 0.7rem;">
-                                                            <i class="fas fa-info-circle"></i> <span
-                                                                id="processingFeePercentDisplay">1%</span> of Principal
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-6">
-                                                        {{ form.due_date|as_crispy_field }}
-                                                        <div class="small text-muted" style="font-size: 0.7rem;">
-                                                            <i class="fas fa-calendar-alt"></i> Loan term end date
-                                                        </div>
+                                        <!-- Row 2: Distribution with Deduction | Due Date | Checkboxes (Net Payout & Terms Block) -->
+                                        <div class="p-2 rounded border" style="background: #f8fbf9; border-color: #d1e7dd !important; box-shadow: 0 2px 6px rgba(25, 135, 84, 0.08);">
+                                            <div class="row g-2 align-items-start">
+                                                <div class="col-4">
+                                                    {{ form.distribution_amount_with_deduction|as_crispy_field }}
+                                                    <small id="distributionWithDeductionWords"
+                                                        class="d-block mt-0 mb-1"
+                                                        style="color: #006400 !important; font-size: 0.72rem; font-style: italic; min-height: 18px; line-height: 1.25; word-break: break-word;"></small>
+                                                    <div class="text-success" style="font-size: 0.65rem;">
+                                                        <i class="fas fa-check-circle"></i> After upfront deductions
                                                     </div>
                                                 </div>
-                                            </div>
-
-                                            <!-- Third row: Is first month interest paid & Is processing fees paid -->
-                                            <div class="col-12 mt-2">
-                                                <div class="row g-2">
-                                                    <div class="col-md-6 col-12">
-                                                        {{ form.is_first_month_interest_paid|as_crispy_field }}
+                                                <div class="col-4">
+                                                    {{ form.due_date|as_crispy_field }}
+                                                    <div class="text-muted" style="font-size: 0.65rem;">
+                                                        <i class="fas fa-calendar-alt"></i> Loan term end date
                                                     </div>
-                                                    <div class="col-md-6 col-12">
-                                                        {{ form.is_processing_fee_paid|as_crispy_field }}
-                                                    </div>
+                                                </div>
+                                                <div class="col-4 d-flex flex-column gap-1 pt-1">
+                                                    <div>{{ form.is_first_month_interest_paid|as_crispy_field }}</div>
+                                                    <div>{{ form.is_processing_fee_paid|as_crispy_field }}</div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                           </div>
                         </div>
 
                         <!-- Submit Button Row -->
@@ -460,7 +452,10 @@
 <!-- FileSaver library for downloading files -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 <!-- Load the loan calculator script -->
-<script src="{% static 'js/loan-calculator.js' %}"></script>
+<script>
+    window.isEditMode = {% if form.instance.pk %}true{% else %}false{% endif %};
+</script>
+<script src="{% static 'js/loan-calculator.js' %}?v=1.0.1"></script>
 
 <script>
     $(document).ready(function () {
@@ -987,7 +982,10 @@
                         updateCustomerDownloadButton(pendingCustomerUpload);
                     }
                     if (noCaptureText) noCaptureText.style.display = 'none';
-                    if (saveCustomerUploadBtn) saveCustomerUploadBtn.disabled = !pendingCustomerUpload;
+                    if (saveCustomerUploadBtn) {
+                        saveCustomerUploadBtn.disabled = !pendingCustomerUpload;
+                        saveCustomerUploadBtn.style.display = pendingCustomerUpload ? 'block' : 'none';
+                    }
                     showAlert('Borrower photo selected. Click Save Upload to keep it.', 'info');
                 };
                 reader.readAsDataURL(file);
@@ -1004,6 +1002,7 @@
                 customerFaceCapture.value = pendingCustomerUpload;
                 if (retakeBtn) retakeBtn.disabled = false;
                 saveCustomerUploadBtn.disabled = true;
+                saveCustomerUploadBtn.style.display = 'none';
                 if (customerPhotoUpload) customerPhotoUpload.value = '';
                 updateCustomerDownloadButton(pendingCustomerUpload);
                 showAlert('Borrower photo uploaded and saved.', 'success');
@@ -1357,13 +1356,19 @@
                 })))
                     .then(results => {
                         pendingItemUploads = results.filter(Boolean);
-                        if (saveItemUploadBtn) saveItemUploadBtn.disabled = pendingItemUploads.length === 0;
+                        if (saveItemUploadBtn) {
+                            saveItemUploadBtn.disabled = pendingItemUploads.length === 0;
+                            saveItemUploadBtn.style.display = pendingItemUploads.length > 0 ? 'block' : 'none';
+                        }
                         showAlert(`${pendingItemUploads.length} item photo(s) selected. Click Save Upload to keep them.`, 'info');
                     })
                     .catch(error => {
                         console.error('Error reading item photo uploads:', error);
                         pendingItemUploads = [];
-                        if (saveItemUploadBtn) saveItemUploadBtn.disabled = true;
+                        if (saveItemUploadBtn) {
+                            saveItemUploadBtn.disabled = true;
+                            saveItemUploadBtn.style.display = 'none';
+                        }
                         showAlert('Failed to read selected item photos.', 'danger');
                     });
             });
@@ -1379,6 +1384,7 @@
                 addUploadedItemPhotos(pendingItemUploads);
                 pendingItemUploads = [];
                 saveItemUploadBtn.disabled = true;
+                saveItemUploadBtn.style.display = 'none';
                 if (itemPhotoUpload) itemPhotoUpload.value = '';
                 showAlert('Item photos uploaded and saved.', 'success');
             });
@@ -1718,21 +1724,22 @@
                     suggestedPrincipal = Math.floor(maxPrincipal / 500) * 500;
                 }
 
-                // Set the suggested principal amount
-                $('#id_principal_amount').val(suggestedPrincipal);
+                // In create mode ONLY, set the suggested principal amount
+                if (!_isEditMode) {
+                    $('#id_principal_amount').val(suggestedPrincipal);
+                    calculateDistributionAmount();
+                }
 
-                // Trigger the distribution amount calculation
-                calculateDistributionAmount();
-
-                // Calculate actual percentage of rounded principal
-                const actualPercentage = (suggestedPrincipal / goldValue) * 100;
+                // Calculate actual percentage of current/suggested principal
+                const currentPrincipal = parseFloat($('#id_principal_amount').val()) || suggestedPrincipal;
+                const actualPercentage = (currentPrincipal / goldValue) * 100;
 
                 // Calculate min and max principal values to display
                 const minPrincipalValue = Math.round(goldValue * 0.5);
                 const maxPrincipalValue = Math.round(goldValue * 0.90);
 
                 // Updated help text showing min and max percentages with their values
-                const helpText = `<i class="fas fa-info-circle"></i> Gold Value: Rs: ${goldValue.toFixed(0)} | Principal: Rs: ${suggestedPrincipal} (${actualPercentage.toFixed(1)}%) | Min Principal (50%): Rs: ${minPrincipalValue} - Max Principal (90%): Rs: ${maxPrincipalValue}`;
+                const helpText = `<i class="fas fa-info-circle"></i> Gold Value: Rs: ${goldValue.toFixed(0)} | Principal: Rs: ${currentPrincipal} (${actualPercentage.toFixed(1)}%) | Min Principal (50%): Rs: ${minPrincipalValue} - Max Principal (90%): Rs: ${maxPrincipalValue}`;
 
                 // Update the form-text element or create it if it doesn't exist
                 let formText = $('#div_id_principal_amount .form-text');
@@ -1746,48 +1753,172 @@
             }
         }, 300);
 
-        // Calculate distribution amount when principal changes
+        let processingFeePercent = 1; // Default to 1%
+
+        function updateProcessingFeePercentFromScheme(recalculate) {
+            if (typeof recalculate === 'undefined') recalculate = true;
+            const selectedSchemeId = $('#id_scheme').val();
+            if (selectedSchemeId) {
+                $.get(`/schemes/${selectedSchemeId}/json/`, function (data) {
+                    if (data.additional_conditions && data.additional_conditions.processing_fee_percentage) {
+                        processingFeePercent = parseFloat(data.additional_conditions.processing_fee_percentage);
+                    } else {
+                        processingFeePercent = 1;
+                    }
+                    $('#processingFeePercentDisplay').text(processingFeePercent + '%');
+                    if (recalculate && !_isEditMode) {
+                        calculateDistributionAmount();
+                    }
+                }).fail(function (error) {
+                    processingFeePercent = 1;
+                    $('#processingFeePercentDisplay').text('1%');
+                    if (recalculate && !_isEditMode) {
+                        calculateDistributionAmount();
+                    }
+                });
+            } else {
+                processingFeePercent = 1;
+                $('#processingFeePercentDisplay').text('1%');
+                if (recalculate && !_isEditMode) {
+                    calculateDistributionAmount();
+                }
+            }
+        }
+
+        // Flag indicating if this form is editing an existing loan
+        const _isEditMode = {% if form.instance.pk %}true{% else %}false{% endif %};
+
+        // Guard flag to prevent circular updates between principal ↔ distribution_amount
+        let _financialUpdateLock = false;
+        // Flag: true when user has manually entered distribution_amount directly or in edit mode
+        // When set, calculateDistributionAmount will NOT overwrite distribution_amount
+        let _distributionManuallyEdited = _isEditMode;
+
+        // Called when user edits Principal Amount.
+        // Sets: processing_fee = principal * procFeePercent%, distribution_amount = principal - processing_fee
+        // Skips overwriting distribution_amount if user manually set it.
         const calculateDistributionAmount = function () {
+            if (_financialUpdateLock) return;
+            if (_isEditMode && _distributionManuallyEdited) {
+                calculateDistributionWithDeduction();
+                return;
+            }
+            _financialUpdateLock = true;
+
             const principalStr = cleanNumericInput($('#id_principal_amount').val());
             const principal = Math.round(parseFloat(principalStr)) || 0;
 
-            // Calculate processing fee as 1% of principal amount, rounded to nearest integer
-            const processingFeeAmount = Math.round(principal * 0.01);
+            const processingFeeAmount = Math.round(principal * (processingFeePercent / 100));
 
-            // Set the processing fee amount as an integer
-            $('#id_processing_fee').val(Math.round(processingFeeAmount));
+            if (!_distributionManuallyEdited) {
+                // Normal flow: compute distribution from principal
+                const distributionAmount = Math.max(0, principal - processingFeeAmount);
+                $('#id_processing_fee').val(processingFeeAmount);
+                $('#id_distribution_amount').val(distributionAmount);
 
-            // Calculate and set distribution amount as integer
-            const isProcessingFeePaid = $('#id_is_processing_fee_paid').is(':checked');
-            const baseDistribution = isProcessingFeePaid ? principal : (principal - processingFeeAmount);
-            let distributionAmount = baseDistribution;
-
-            const isFirstMonthPaid = $('#id_is_first_month_interest_paid').is(':checked');
-            if (isFirstMonthPaid) {
-                const interestRate = parseFloat($('#id_interest_rate').val()) || 0;
-                const monthlyRate = interestRate / 12;
-                const firstMonthInterest = Math.round(baseDistribution * monthlyRate / 100);
-                distributionAmount = baseDistribution - firstMonthInterest;
+                if (distributionAmount > 0) {
+                    $.get(`/transactions/number_to_words/${distributionAmount}`, function (response) {
+                        $('#distributionAmountWords').text(response.words + ' Rupees Only');
+                    });
+                } else {
+                    $('#distributionAmountWords').text('');
+                }
+            } else {
+                // User manually set distribution — keep distribution amount intact and sync words
+                const distributionAmount = parseFloat($('#id_distribution_amount').val()) || 0;
+                if (distributionAmount > 0) {
+                    $.get(`/transactions/number_to_words/${distributionAmount}`, function (response) {
+                        $('#distributionAmountWords').text(response.words + ' Rupees Only');
+                    });
+                }
             }
 
-            $('#id_distribution_amount').val(Math.round(distributionAmount));
-
-            // Update distribution amount in words
-            $.get(`/transactions/number_to_words/${Math.round(distributionAmount)}`, function (response) {
-                $('#distributionAmountWords').text(response.words + ' Rupees Only');
-            });
-
-            // Also update the principal amount in words
             if (principal > 0) {
-                $.get(`/transactions/number_to_words/${Math.round(principal)}`, function (response) {
+                $.get(`/transactions/number_to_words/${principal}`, function (response) {
                     $('#principalAmountWords').text(response.words + ' Rupees Only');
                 });
             } else {
                 $('#principalAmountWords').text('');
             }
+
+            _financialUpdateLock = false;
+            calculateDistributionWithDeduction();
         };
 
-        // Set up event handlers
+        // Called when user manually edits Distribution Amount.
+        // Marks _distributionManuallyEdited = true so calculateDistributionAmount won't overwrite it.
+        // Reverse-calculates: processing_fee = distribution * procFeePercent%, principal = distribution + processing_fee
+        const recalculateFromDistributionAmount = function () {
+            if (_financialUpdateLock) return;
+            _financialUpdateLock = true;
+
+            // Mark that user has manually set this field
+            _distributionManuallyEdited = true;
+
+            const distStr = cleanNumericInput($('#id_distribution_amount').val());
+            const distributionAmount = Math.round(parseFloat(distStr)) || 0;
+
+            const processingFeeAmount = Math.round(distributionAmount * (processingFeePercent / 100));
+            const calculatedPrincipal = distributionAmount + processingFeeAmount;
+
+            $('#id_processing_fee').val(processingFeeAmount);
+            $('#id_principal_amount').val(calculatedPrincipal);
+
+            if (distributionAmount > 0) {
+                $.get(`/transactions/number_to_words/${distributionAmount}`, function (response) {
+                    $('#distributionAmountWords').text(response.words + ' Rupees Only');
+                });
+            } else {
+                $('#distributionAmountWords').text('');
+            }
+
+            if (calculatedPrincipal > 0) {
+                $.get(`/transactions/number_to_words/${calculatedPrincipal}`, function (response) {
+                    $('#principalAmountWords').text(response.words + ' Rupees Only');
+                });
+            } else {
+                $('#principalAmountWords').text('');
+            }
+
+            _financialUpdateLock = false;
+            calculateDistributionWithDeduction();
+        };
+
+        // Calculate distribution amount with deduction based on upfront deduction checkboxes
+        const calculateDistributionWithDeduction = function () {
+            const distributionStr = cleanNumericInput($('#id_distribution_amount').val());
+            const distributionAmount = parseFloat(distributionStr) || 0;
+
+            const isFirstMonthPaid = $('#id_is_first_month_interest_paid').is(':checked');
+            const isProcessingFeePaid = $('#id_is_processing_fee_paid').is(':checked');
+
+            let deductionTotal = 0;
+
+            if (isProcessingFeePaid) {
+                const processingFee = parseFloat($('#id_processing_fee').val()) || 0;
+                deductionTotal += processingFee;
+            }
+
+            if (isFirstMonthPaid) {
+                const annualInterestRate = parseFloat($('#id_interest_rate').val()) || 12.0;
+                const monthlyRate = annualInterestRate / 12;
+                const firstMonthInterest = Math.round((distributionAmount * monthlyRate) / 100);
+                deductionTotal += firstMonthInterest;
+            }
+
+            const distributionWithDeduction = Math.max(0, Math.round(distributionAmount - deductionTotal));
+            $('#id_distribution_amount_with_deduction').val(distributionWithDeduction);
+
+            if (distributionWithDeduction > 0) {
+                $.get(`/transactions/number_to_words/${distributionWithDeduction}`, function (response) {
+                    $('#distributionWithDeductionWords').text(response.words + ' Rupees Only');
+                });
+            } else {
+                $('#distributionWithDeductionWords').text('');
+            }
+        };
+
+        // Bind events
         $('#id_gross_weight, #id_stone_weight').on('input', calculateNetWeight);
         $('#id_market_price_22k, #id_gold_karat, #id_net_weight').on('input', calculateGoldValue);
         setupBidirectionalTransliteration('#id_item_name', '#id_item_name_tamil', 'to_tamil');
@@ -1795,15 +1926,58 @@
         setupBidirectionalTransliteration('#id_item_description', '#id_item_description_tamil', 'to_tamil');
         setupBidirectionalTransliteration('#id_item_description_tamil', '#id_item_description', 'to_english');
         $('#id_customer').on('change', updateCustomerTamilPreview);
-        $('#id_scheme').on('change', updateSchemePreviewFromSelection);
+        $('#id_scheme').on('change', function(e) {
+            updateSchemePreviewFromSelection();
+            if (e.originalEvent) {
+                _distributionManuallyEdited = false;
+                updateProcessingFeePercentFromScheme(true);
+            }
+        });
         $('#schemeTamilInput').on('input', handleSchemeTamilInput);
         updateCustomerTamilPreview();
         updateSchemePreviewFromSelection();
-        $('#id_principal_amount')
-            .on('input', calculateDistributionAmount)
-            .trigger('input'); // Trigger on page load
 
-        $('#id_is_first_month_interest_paid, #id_is_processing_fee_paid').on('change', calculateDistributionAmount);
+        if (!_isEditMode) {
+            updateProcessingFeePercentFromScheme(true);
+            // Principal ↔ Distribution Amount bidirectional
+            $('#id_principal_amount')
+                .on('input', function() {
+                    _distributionManuallyEdited = false;
+                    calculateDistributionAmount();
+                })
+                .trigger('input'); // Calculate on page load
+        } else {
+            // Edit Mode: fetch fee % asynchronously for display without overwriting form fields
+            updateProcessingFeePercentFromScheme(false);
+
+            $('#id_principal_amount').on('keyup change', function(e) {
+                if (e.originalEvent) {
+                    _distributionManuallyEdited = false;
+                    calculateDistributionAmount();
+                }
+            });
+
+            // Update words for initial saved values
+            const principal = parseFloat($('#id_principal_amount').val()) || 0;
+            if (principal > 0) {
+                $.get(`/transactions/number_to_words/${principal}`, function (response) {
+                    $('#principalAmountWords').text(response.words + ' Rupees Only');
+                });
+            }
+            const distAmt = parseFloat($('#id_distribution_amount').val()) || 0;
+            if (distAmt > 0) {
+                $.get(`/transactions/number_to_words/${distAmt}`, function (response) {
+                    $('#distributionAmountWords').text(response.words + ' Rupees Only');
+                });
+            }
+            calculateDistributionWithDeduction();
+        }
+
+        // When user manually edits Distribution Amount → recalculate principal & fees
+        $('#id_distribution_amount').on('input', recalculateFromDistributionAmount);
+
+        // Checkboxes ONLY update Distribution with Deduction — Distribution Amount is never changed
+        $('#id_is_first_month_interest_paid, #id_is_processing_fee_paid').on('change', calculateDistributionWithDeduction);
 
         // Validate principal amount against min/max
         $('#id_principal_amount').on('change', function () {
@@ -1836,17 +2010,7 @@
             });
         });
 
-        // Add amount in words display for distribution amount
-        $('#id_distribution_amount').on('change', function () {
-            const amount = parseFloat($(this).val()) || 0;
-            $.get(`/transactions/number_to_words/${amount}`, function (response) {
-                $('#distributionAmountWords').text(response.words + ' Rupees Only');
-            });
-        });
-
-        // Add help text containers after the input fields
-        $('#div_id_principal_amount').append('<small id="principalAmountWords" style="color: #006400 !important; font-size: 0.75em;" class="d-block mt-1"></small>');
-        $('#div_id_distribution_amount').append('<small id="distributionAmountWords" style="color: #006400 !important; font-size: 0.75em;" class="d-block mt-1"></small>');
+        // (distribution_amount words are now updated inside recalculateFromDistributionAmount)
 
         // Add form submission handling
         $('#loanForm').on('submit', function (event) {
@@ -2079,51 +2243,6 @@
         }
         {% endif %}
     });
-
-    let processingFeePercent = 1; // Default to 1%
-
-    function updateProcessingFeePercentFromScheme() {
-        const selectedSchemeId = $('#id_scheme').val();
-        if (selectedSchemeId) {
-            $.get(`/schemes/${selectedSchemeId}/json/`, function (data) {
-                if (data.additional_conditions && data.additional_conditions.processing_fee_percentage) {
-                    processingFeePercent = parseFloat(data.additional_conditions.processing_fee_percentage);
-                    console.log(`Processing fee percentage from scheme: ${processingFeePercent}%`);
-                } else {
-                    processingFeePercent = 1;
-                    console.log("Using default processing fee: 1%");
-                }
-                recalculateProcessingFee();
-            }).fail(function (error) {
-                console.error("Error fetching scheme details:", error);
-                processingFeePercent = 1;
-                recalculateProcessingFee();
-            });
-        } else {
-            processingFeePercent = 1;
-            recalculateProcessingFee();
-        }
-    }
-
-    function recalculateProcessingFee() {
-        const principal = parseFloat($('#id_principal_amount').val()) || 0;
-        const processingFee = Math.round(principal * (processingFeePercent / 100));
-        console.log(`Calculated processing fee: ${processingFee} (${processingFeePercent}% of ${principal})`);
-        $('#id_processing_fee').val(processingFee);
-        $('#id_distribution_amount').val(principal - processingFee);
-    }
-
-    $('#id_principal_amount').on('input', recalculateProcessingFee);
-    $('#id_distribution_amount').on('input', function () {
-        const distribution = parseFloat($(this).val()) || 0;
-        const principal = Math.round(distribution / (1 - (processingFeePercent / 100)));
-        $('#id_principal_amount').val(principal);
-        recalculateProcessingFee();
-    });
-    $('#id_scheme').on('change', updateProcessingFeePercentFromScheme);
-
-    // On page load, initialize the correct percentage
-    $(document).ready(updateProcessingFeePercentFromScheme);
     });
 </script>
 {% endblock %}

@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loan {{ action }}: {{ loan.loan_number }}</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f6f8;
+            color: #333333;
+            margin: 0;
+            padding: 0;
+            -webkit-text-size-adjust: none;
+            -ms-text-size-adjust: none;
+        }
+        .container {
+            width: 100%;
+            max-width: 650px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .card {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            padding: 32px;
+            margin-top: 15px;
+            border: 1px solid #e5e7eb;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #f3f4f6;
+        }
+        .system-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 8px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 6px 14px;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            border-radius: 20px;
+        }
+        .badge-create {
+            background-color: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+        .badge-edit {
+            background-color: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fde68a;
+        }
+        .greeting {
+            font-size: 15px;
+            line-height: 1.5;
+            color: #4b5563;
+            margin-bottom: 20px;
+        }
+        .changes-box {
+            background-color: #fffbeb;
+            border: 1px solid #fcd34d;
+            border-left: 4px solid #f59e0b;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+        .changes-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #92400e;
+            margin-top: 0;
+            margin-bottom: 12px;
+        }
+        .table-changes {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            background-color: #ffffff;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid #fde68a;
+        }
+        .table-changes th {
+            background-color: #fef3c7;
+            color: #78350f;
+            font-weight: 600;
+            padding: 9px 12px;
+            text-align: left;
+            border-bottom: 1px solid #fde68a;
+        }
+        .table-changes td {
+            padding: 9px 12px;
+            border-bottom: 1px solid #fef3c7;
+            vertical-align: middle;
+        }
+        .table-changes tr:last-child td {
+            border-bottom: none;
+        }
+        .old-val {
+            color: #991b1b;
+            text-decoration: line-through;
+            background-color: #fee2e2;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+            display: inline-block;
+        }
+        .new-val {
+            color: #065f46;
+            font-weight: 700;
+            background-color: #d1fae5;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+            display: inline-block;
+        }
+        .section-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        .table-details {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 24px;
+        }
+        .table-details td {
+            padding: 10px 14px;
+            border-bottom: 1px solid #f3f4f6;
+            vertical-align: middle;
+        }
+        .table-details tr:last-child td {
+            border-bottom: none;
+        }
+        .table-details td.label {
+            font-weight: 600;
+            color: #4b5563;
+            width: 40%;
+            background-color: #f9fafb;
+        }
+        .table-details td.value {
+            color: #111827;
+            width: 60%;
+        }
+        .row-highlighted {
+            background-color: #fefce8 !important;
+        }
+        .row-highlighted td.label {
+            background-color: #fef9c3 !important;
+            color: #854d0e !important;
+            border-left: 3px solid #eab308;
+        }
+        .row-highlighted td.value {
+            background-color: #fefce8 !important;
+            font-weight: 600;
+            color: #713f12 !important;
+        }
+        .badge-updated {
+            background-color: #f59e0b;
+            color: #ffffff;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-left: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            vertical-align: middle;
+        }
+        .note {
+            font-size: 13px;
+            color: #64748b;
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+        }
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: #94a3b8;
+            padding-top: 16px;
+            border-top: 1px solid #f1f5f9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="header">
+                <div class="system-title">Pawnshop Management System</div>
+                {% if is_create %}
+                    <span class="badge badge-create">✓ Loan Created</span>
+                {% else %}
+                    <span class="badge badge-edit">✎ Loan Edited / Updated</span>
+                {% endif %}
+            </div>
+
+            <p class="greeting">
+                Dear Team,<br><br>
+                {% if is_create %}
+                    A new loan has been created with the following details:
+                {% else %}
+                    Loan <strong>#{{ loan.loan_number }}</strong> has been updated. Below is a summary of the <strong>modified values</strong> and current loan details:
+                {% endif %}
+            </p>
+
+            {% if changes and changes|length > 0 %}
+            <div class="changes-box">
+                <div class="changes-title">⚡ Highlighted Modified Values:</div>
+                <table class="table-changes">
+                    <thead>
+                        <tr>
+                            <th style="width: 35%;">Field</th>
+                            <th style="width: 32%;">Previous Value</th>
+                            <th style="width: 33%;">New (Updated) Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for change in changes %}
+                        <tr>
+                            <td><strong>{{ change.label }}</strong></td>
+                            <td><span class="old-val">{{ change.old }}</span></td>
+                            <td><span class="new-val">{{ change.new }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+
+            <div class="section-title">Loan Overview</div>
+            <table class="table-details">
+                <tbody>
+                    {% for item in details_list %}
+                    <tr class="{% if item.is_changed %}row-highlighted{% endif %}">
+                        <td class="label">
+                            {{ item.label }}
+                            {% if item.is_changed %}
+                                <span class="badge-updated">UPDATED</span>
+                            {% endif %}
+                        </td>
+                        <td class="value">
+                            {{ item.value }}
+                            {% if item.is_changed and item.old_value %}
+                                <span style="font-size: 12px; color: #854d0e; font-weight: normal; margin-left: 6px;">(Previous: {{ item.old_value }})</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <div class="note">
+                📎 <strong>Attachment:</strong> The latest loan agreement document PDF is attached to this email for your records.
+            </div>
+
+            <div class="footer">
+                This is an automated notification from Pawnshop Management System.<br>
+                &copy; 2026 First Money Gold Pawnshop. All rights reserved.
+            </div>
+        </div>
+    </div>
+</body>
+</html>
