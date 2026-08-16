@@ -1104,8 +1104,25 @@ class CustomerCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView
             # Auto-save default icon photo when creating customer without photo input.
             form.instance.profile_photo = get_default_person_photo()
 
+        # Process captured ID document image (Aadhar / ID card)
+        camera_image_data = (self.request.POST.get('camera_image_data') or '').strip()
         if remove_id_image:
             form.instance.id_image = None
+        elif camera_image_data:
+            try:
+                if ';base64,' in camera_image_data:
+                    format_part, imgstr = camera_image_data.split(';base64,')
+                    ext = format_part.split('/')[-1].lower()
+                    if ext == 'jpeg':
+                        ext = 'jpg'
+                else:
+                    imgstr = camera_image_data
+                    ext = 'jpg'
+                decoded_file = base64.b64decode(imgstr)
+                fname = f"id_card_{timezone.now().strftime('%Y%m%d_%H%M%S')}.{ext}"
+                form.instance.id_image = ContentFile(decoded_file, name=fname)
+            except Exception as e:
+                print(f"Error decoding camera_image_data: {e}")
 
         # Set created_by to current user
         form.instance.created_by = self.request.user
@@ -1247,8 +1264,26 @@ class CustomerUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView
         elif profile_photo_data:
             form.instance.profile_photo = profile_photo_data
 
+        # Process captured ID document image (Aadhar / ID card)
+        camera_image_data = (self.request.POST.get('camera_image_data') or '').strip()
         if remove_id_image:
             form.instance.id_image = None
+        elif camera_image_data:
+            try:
+                if ';base64,' in camera_image_data:
+                    format_part, imgstr = camera_image_data.split(';base64,')
+                    ext = format_part.split('/')[-1].lower()
+                    if ext == 'jpeg':
+                        ext = 'jpg'
+                else:
+                    imgstr = camera_image_data
+                    ext = 'jpg'
+                decoded_file = base64.b64decode(imgstr)
+                fname = f"id_card_{timezone.now().strftime('%Y%m%d_%H%M%S')}.{ext}"
+                form.instance.id_image = ContentFile(decoded_file, name=fname)
+            except Exception as e:
+                print(f"Error decoding camera_image_data: {e}")
+
         messages.success(self.request, f'Customer {form.instance.full_name} has been updated successfully!')
         return super().form_valid(form)
     
@@ -1299,6 +1334,11 @@ class CustomerJsonView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
             'phone': customer.phone,
             'email': customer.email or '',
             'address': customer.address or '',
+            'branch_id': customer.branch_id if customer.branch else None,
+            'profile_photo': customer.profile_photo or '',
+            'id_type': customer.id_type or '',
+            'id_number': customer.id_number or '',
+            'id_image': customer.id_image.url if customer.id_image else '',
         }
         return JsonResponse(data)
 
