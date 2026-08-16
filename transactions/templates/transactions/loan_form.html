@@ -5,6 +5,41 @@
 {% block title %}{% if form.instance.pk %}Edit Loan{% else %}New Loan{% endif %} - Pawnshop Management{% endblock %}
 
 {% block content %}
+<style>
+    /* Blue field labels inside the loan form */
+    #loanForm label.form-label,
+    #loanForm .form-check-label {
+        color: #0d6efd !important;
+    }
+
+    /* Dark shade for help text to keep it subtle */
+    #loanForm .form-text,
+    #loanForm .helptext,
+    #loanForm small.text-muted {
+        color: #333333 !important;
+        opacity: 1;
+    }
+
+    /* Interest paid checkbox — teal/green theme */
+    .checkbox-interest .form-check-label {
+        color: #0d6e4f !important;
+        font-weight: 600;
+    }
+    .checkbox-interest .form-check-input:checked {
+        background-color: #198754;
+        border-color: #198754;
+    }
+
+    /* Processing fee paid checkbox — amber/orange theme */
+    .checkbox-fee .form-check-label {
+        color: #b45309 !important;
+        font-weight: 600;
+    }
+    .checkbox-fee .form-check-input:checked {
+        background-color: #f59e0b;
+        border-color: #f59e0b;
+    }
+</style>
 <div class="container-fluid py-2">
     <div class="row mb-2">
         <div class="col-12">
@@ -87,7 +122,8 @@
                 <input type="hidden" name="customer_face_capture" id="customerFaceCapture"
                     value="{% if form.instance.customer_face_capture %}{{ form.instance.customer_face_capture|escapejs }}{% endif %}">
                 <input type="hidden" name="item_photos" id="itemPhotosData" value="">
-                <input type="hidden" name="interest_rate" id="id_interest_rate" value="12.00">
+                <input type="hidden" name="interest_rate" id="id_interest_rate"
+                    value="{% if form.instance.pk and form.instance.interest_rate %}{{ form.instance.interest_rate|stringformat:'.2f' }}{% elif form.instance.scheme and form.instance.scheme.interest_rate %}{{ form.instance.scheme.interest_rate|stringformat:'.2f' }}{% elif form.interest_rate.value %}{{ form.interest_rate.value }}{% else %}24.00{% endif %}">
 
                 <div class="card shadow mb-3">
                     <div class="card-body p-2">
@@ -104,33 +140,32 @@
                                     </div>
                                     <div class="card-body p-2">
                                         <div class="row g-2">
-                                            <div class="col-md-6">
+                                            <!-- Row 1: Customer | Branch | Issue Date -->
+                                            <div class="col-md-4">
                                                 {{ form.customer|as_crispy_field }}
-                                                <div class="mt-1">
-                                                    <label for="customerTamilPreview" class="form-label mb-1">Customer
-                                                        Name (Tamil)</label>
-                                                    <input type="text" id="customerTamilPreview" class="form-control"
-                                                        readonly>
-                                                </div>
                                             </div>
-                                            <div class="col-md-6">
+                                            <div class="col-md-4">
                                                 {{ form.branch|as_crispy_field }}
                                             </div>
-                                            <div class="col-md-6">
+                                            <div class="col-md-4">
+                                                {{ form.issue_date|as_crispy_field }}
+                                            </div>
+                                            <!-- Row 2: Customer Tamil | Scheme | Scheme Tamil + info -->
+                                            <div class="col-md-4">
+                                                <label for="customerTamilPreview" class="form-label mb-1 small">Customer Name (Tamil)</label>
+                                                <input type="text" id="customerTamilPreview" class="form-control form-control-sm" readonly>
+                                            </div>
+                                            <div class="col-md-4">
                                                 {{ form.scheme|as_crispy_field }}
-                                                <div class="mt-1">
-                                                    <label for="schemeTamilInput" class="form-label mb-1">Scheme Name
-                                                        (Tamil)</label>
-                                                    <input type="text" id="schemeTamilInput" class="form-control"
-                                                        placeholder="Type scheme in Tamil">
-                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label for="schemeTamilInput" class="form-label mb-1 small">Scheme Name (Tamil)</label>
+                                                <input type="text" id="schemeTamilInput" class="form-control form-control-sm"
+                                                    placeholder="Type scheme in Tamil">
                                                 <div id="scheme-info" class="alert alert-info py-1 px-2 small mb-0 mt-1"
                                                     style="display: none;">
                                                     <span id="scheme-details"></span>
                                                 </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                {{ form.issue_date|as_crispy_field }}
                                             </div>
                                         </div>
                                     </div>
@@ -241,37 +276,23 @@
                                     </div>
                                     <div class="card-body p-2">
                                         <div class="row g-2">
-                                            <div class="col-6">
+                                            <!-- Camera column -->
+                                            <div class="col-5">
                                                 <div id="cameraView" class="border rounded bg-dark"
-                                                    style="height: 100px; position: relative;">
+                                                    style="height: 150px; position: relative;">
                                                     <video id="cameraStream"
                                                         style="width: 100%; height: 100%; object-fit: contain; background: #000;" autoplay
                                                         playsinline muted></video>
                                                     <canvas id="photoCanvas" style="display:none;"></canvas>
                                                 </div>
-                                                <div class="d-flex gap-1 mt-1">
-                                                    <button type="button" class="btn btn-xs btn-primary flex-fill text-nowrap py-1"
-                                                        id="captureBtn">
-                                                        <i class="fas fa-camera me-1"></i>Capture
-                                                    </button>
-                                                    <label for="customerPhotoUpload"
-                                                        class="btn btn-xs btn-outline-primary mb-0 flex-fill text-nowrap py-1">
-                                                        <i class="fas fa-upload me-1"></i>Upload
-                                                    </label>
-                                                    <input type="file" id="customerPhotoUpload" class="d-none"
-                                                        accept="image/*">
-                                                </div>
-                                                <button type="button" class="btn btn-xs btn-outline-success w-100 mt-1 py-1"
-                                                    id="saveCustomerUploadBtn" disabled style="display: none;">
-                                                    <i class="fas fa-save me-1"></i>Save Upload
-                                                </button>
                                             </div>
-                                            <div class="col-6">
+                                            <!-- Preview column -->
+                                            <div class="col-7">
                                                 <div id="photoPreview"
                                                     class="border rounded d-flex align-items-center justify-content-center bg-light"
-                                                    style="height: 100px;">
+                                                    style="height: 150px;">
                                                     {% if form.instance.pk and form.instance.customer_face_capture %}
-                                                    <img id="capturedPhoto" class="img-fluid" style="max-height: 100px; object-fit: contain;"
+                                                    <img id="capturedPhoto" class="img-fluid" style="max-height: 150px; object-fit: contain;"
                                                         src="{{ form.instance.customer_face_capture }}">
                                                     {% else %}
                                                     <span id="noCaptureText" class="small text-muted" style="font-size: 0.75rem;">
@@ -283,7 +304,22 @@
                                                     </span>
                                                     {% endif %}
                                                 </div>
-                                                <div class="d-flex gap-1 mt-1">
+                                            </div>
+                                            <div class="col-12">
+                                                <!-- Row 1: Capture | Upload -->
+                                                <div class="d-flex gap-1 mb-1">
+                                                    <button type="button" class="btn btn-xs btn-primary flex-fill text-nowrap py-1"
+                                                        id="captureBtn">
+                                                        <i class="fas fa-camera me-1"></i>Capture
+                                                    </button>
+                                                    <label for="customerPhotoUpload"
+                                                        class="btn btn-xs btn-outline-primary mb-0 flex-fill text-nowrap py-1">
+                                                        <i class="fas fa-upload me-1"></i>Upload
+                                                    </label>
+                                                    <input type="file" id="customerPhotoUpload" class="d-none" accept="image/*">
+                                                </div>
+                                                <!-- Row 2: Retake | Download -->
+                                                <div class="d-flex gap-1">
                                                     <button type="button" class="btn btn-xs btn-outline-secondary flex-fill text-nowrap py-1"
                                                         id="retakeBtn" disabled>
                                                         <i class="fas fa-redo me-1"></i>Retake
@@ -294,6 +330,10 @@
                                                         <i class="fas fa-download me-1"></i>Download
                                                     </a>
                                                 </div>
+                                                <button type="button" class="btn btn-xs btn-outline-success w-100 mt-1 py-1"
+                                                    id="saveCustomerUploadBtn" disabled style="display: none;">
+                                                    <i class="fas fa-save me-1"></i>Save Upload
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -365,51 +405,56 @@
                                         </h6>
                                     </div>
                                     <div class="card-body p-2">
-                                        <!-- Row 1: Principal | Distribution Amount | Processing Fee (Base Amounts Block) -->
+                                        <!-- Block 1: Base Amounts -->
                                         <div class="p-2 mb-2 rounded border" style="background: #ffffff; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);">
                                             <div class="row g-2">
-                                                <div class="col-4">
+                                                <!-- Row 1: Principal | Distribution Amount -->
+                                                <div class="col-6">
                                                     {{ form.principal_amount|as_crispy_field }}
                                                     <small id="principalAmountWords"
                                                         class="d-block mt-0 mb-1"
                                                         style="color: #006400 !important; font-size: 0.72rem; font-style: italic; min-height: 18px; line-height: 1.25; word-break: break-word;"></small>
                                                 </div>
-                                                <div class="col-4">
+                                                <div class="col-6">
                                                     {{ form.distribution_amount|as_crispy_field }}
                                                     <small id="distributionAmountWords"
                                                         class="d-block mt-0 mb-1"
                                                         style="color: #006400 !important; font-size: 0.72rem; font-style: italic; min-height: 18px; line-height: 1.25; word-break: break-word;"></small>
                                                 </div>
-                                                <div class="col-4">
+                                                <!-- Row 2: Processing Fee | Distribution w/ Deduction -->
+                                                <div class="col-6">
                                                     {{ form.processing_fee|as_crispy_field }}
                                                     <div class="text-success" style="font-size: 0.65rem;">
                                                         <i class="fas fa-percent"></i> <span id="processingFeePercentDisplay">1%</span> of Distribution Amount
                                                     </div>
                                                 </div>
-                                            </div>
-                                        </div>
-
-                                        <!-- Row 2: Distribution with Deduction | Due Date | Checkboxes (Net Payout & Terms Block) -->
-                                        <div class="p-2 rounded border" style="background: #f8fbf9; border-color: #d1e7dd !important; box-shadow: 0 2px 6px rgba(25, 135, 84, 0.08);">
-                                            <div class="row g-2 align-items-start">
-                                                <div class="col-4">
+                                                <div class="col-6">
                                                     {{ form.distribution_amount_with_deduction|as_crispy_field }}
                                                     <small id="distributionWithDeductionWords"
                                                         class="d-block mt-0 mb-1"
                                                         style="color: #006400 !important; font-size: 0.72rem; font-style: italic; min-height: 18px; line-height: 1.25; word-break: break-word;"></small>
-                                                    <div class="text-success" style="font-size: 0.65rem;">
-                                                        <i class="fas fa-check-circle"></i> After upfront deductions
-                                                    </div>
                                                 </div>
-                                                <div class="col-4">
+                                            </div>
+                                        </div>
+
+                                        <!-- Block 2: Terms -->
+                                        <div class="p-2 rounded border" style="background: #f8fbf9; border-color: #d1e7dd !important; box-shadow: 0 2px 6px rgba(25, 135, 84, 0.08);">
+                                            <div class="row g-2 align-items-start">
+                                                <!-- Left: Due Date -->
+                                                <div class="col-6">
                                                     {{ form.due_date|as_crispy_field }}
                                                     <div class="text-muted" style="font-size: 0.65rem;">
                                                         <i class="fas fa-calendar-alt"></i> Loan term end date
                                                     </div>
                                                 </div>
-                                                <div class="col-4 d-flex flex-column gap-1 pt-1">
-                                                    <div>{{ form.is_first_month_interest_paid|as_crispy_field }}</div>
-                                                    <div>{{ form.is_processing_fee_paid|as_crispy_field }}</div>
+                                                <!-- Right: Both checkboxes stacked -->
+                                                <div class="col-6 d-flex flex-column gap-2 pt-1">
+                                                    <div class="checkbox-interest rounded px-2 py-1" style="font-size: 0.72rem; background: #d1fae5; border: 1px solid #6ee7b7;">
+                                                        {{ form.is_first_month_interest_paid|as_crispy_field }}
+                                                    </div>
+                                                    <div class="checkbox-fee rounded px-2 py-1" style="font-size: 0.72rem; background: #fef3c7; border: 1px solid #fcd34d;">
+                                                        {{ form.is_processing_fee_paid|as_crispy_field }}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -1766,6 +1811,23 @@
                         processingFeePercent = 1;
                     }
                     $('#processingFeePercentDisplay').text(processingFeePercent + '%');
+
+                    // Update interest rate from scheme if available
+                    if (data.interest_rate || data.interest_rate_structure) {
+                        let effectiveRate = data.interest_rate || 24;
+                        if (data.interest_rate_structure) {
+                            for (const [range, rate] of Object.entries(data.interest_rate_structure)) {
+                                if (range === '1' || range === '1-3' || range === '1-6' || range === '1-12' || range.startsWith('1-')) {
+                                    effectiveRate = parseFloat(rate);
+                                    break;
+                                }
+                            }
+                        }
+                        if (!_isEditMode || !$('#id_interest_rate').val() || $('#id_interest_rate').val() === '12.00') {
+                            $('#id_interest_rate').val(effectiveRate);
+                        }
+                    }
+
                     if (recalculate && !_isEditMode) {
                         calculateDistributionAmount();
                     }
@@ -1889,25 +1951,47 @@
             const distributionStr = cleanNumericInput($('#id_distribution_amount').val());
             const distributionAmount = parseFloat(distributionStr) || 0;
 
-            const isFirstMonthPaid = $('#id_is_first_month_interest_paid').is(':checked');
-            const isProcessingFeePaid = $('#id_is_processing_fee_paid').is(':checked');
+            const isFirstMonthPaid  = document.getElementById('id_is_first_month_interest_paid')
+                                        ? document.getElementById('id_is_first_month_interest_paid').checked
+                                        : false;
+            const isProcessingFeePaid = document.getElementById('id_is_processing_fee_paid')
+                                        ? document.getElementById('id_is_processing_fee_paid').checked
+                                        : false;
 
             let deductionTotal = 0;
+            let breakdownParts = [];
 
+            // Deduct processing fee if that checkbox is checked
             if (isProcessingFeePaid) {
-                const processingFee = parseFloat($('#id_processing_fee').val()) || 0;
+                const processingFee = Math.round(parseFloat($('#id_processing_fee').val()) || 0);
                 deductionTotal += processingFee;
+                breakdownParts.push(`Processing Fee: ₹${processingFee}`);
             }
 
+            // Deduct first month interest if that checkbox is checked
+            // Formula (matches server model): distribution_amount × (annual_rate / 12) / 100
             if (isFirstMonthPaid) {
-                const annualInterestRate = parseFloat($('#id_interest_rate').val()) || 12.0;
+                const annualInterestRate = parseFloat($('#id_interest_rate').val()) || 24.0;
                 const monthlyRate = annualInterestRate / 12;
                 const firstMonthInterest = Math.round((distributionAmount * monthlyRate) / 100);
                 deductionTotal += firstMonthInterest;
+                breakdownParts.push(`1st Month Interest: ₹${firstMonthInterest} (${monthlyRate.toFixed(2)}%)`);
             }
 
             const distributionWithDeduction = Math.max(0, Math.round(distributionAmount - deductionTotal));
             $('#id_distribution_amount_with_deduction').val(distributionWithDeduction);
+
+            // Show breakdown below the field
+            let $breakdown = $('#deductionBreakdown');
+            if (!$breakdown.length) {
+                $breakdown = $('<small id="deductionBreakdown" class="d-block mt-1" style="font-size:0.7rem; color:#555;"></small>');
+                $('#div_id_distribution_amount_with_deduction').append($breakdown);
+            }
+            if (breakdownParts.length > 0) {
+                $breakdown.html('<i class="fas fa-minus-circle text-danger me-1"></i>' + breakdownParts.join(' &nbsp;|&nbsp; '));
+            } else {
+                $breakdown.html('');
+            }
 
             if (distributionWithDeduction > 0) {
                 $.get(`/transactions/number_to_words/${distributionWithDeduction}`, function (response) {
@@ -1917,6 +2001,9 @@
                 $('#distributionWithDeductionWords').text('');
             }
         };
+
+        // Expose to window so loan-calculator.js can call it after checkbox triggers
+        window.calculateDistributionWithDeduction = calculateDistributionWithDeduction;
 
         // Bind events
         $('#id_gross_weight, #id_stone_weight').on('input', calculateNetWeight);
@@ -1970,7 +2057,14 @@
                     $('#distributionAmountWords').text(response.words + ' Rupees Only');
                 });
             }
-            calculateDistributionWithDeduction();
+            // In edit mode: use the server-saved value as-is — do NOT recalculate.
+            // Recalculation only happens when the user changes a field.
+            const savedDeductionAmt = parseFloat($('#id_distribution_amount_with_deduction').val()) || 0;
+            if (savedDeductionAmt > 0) {
+                $.get(`/transactions/number_to_words/${savedDeductionAmt}`, function (response) {
+                    $('#distributionWithDeductionWords').text(response.words + ' Rupees Only');
+                });
+            }
         }
 
         // When user manually edits Distribution Amount → recalculate principal & fees

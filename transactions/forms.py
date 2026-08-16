@@ -159,7 +159,6 @@ class LoanForm(forms.ModelForm):
         queryset=Scheme.objects.none(),  # Empty queryset as placeholder, will set in __init__
         empty_label="Select a Loan Scheme",
         required=True,
-        help_text="Select a loan scheme to apply to this loan"
     )
 
     KARAT_CHOICES = [

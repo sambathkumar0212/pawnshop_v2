@@ -345,8 +345,8 @@
             {% endif %}
             
             <!-- Hidden fields for camera data -->
-            <input type="hidden" name="camera_image_data" id="camera_image_data">
-            <input type="hidden" name="profile_photo_data" id="profile_photo_data">
+            <input type="hidden" name="camera_image_data" id="camera_image_data" value="{% if request.POST.camera_image_data %}{{ request.POST.camera_image_data }}{% endif %}">
+            <input type="hidden" name="profile_photo_data" id="profile_photo_data" value="{% if request.POST.profile_photo_data %}{{ request.POST.profile_photo_data }}{% elif form.instance.profile_photo %}{{ form.instance.profile_photo|escapejs }}{% endif %}">
             <input type="hidden" name="remove_profile_photo" id="remove_profile_photo" value="0">
             <input type="hidden" name="remove_id_image" id="remove_id_image" value="0">
             
@@ -366,7 +366,7 @@
                             <option value="">Select a branch</option>
                             {% for branch in form.branch.field.queryset %}
                             <option value="{{ branch.pk }}" 
-                                {% if form.branch.value == branch.pk %}selected{% endif %}
+                                {% if form.branch.value|stringformat:"s" == branch.pk|stringformat:"s" or form.instance.branch_id == branch.pk or form.branch.initial == branch or form.branch.initial == branch.pk %}selected{% endif %}
                                 data-address="{{ branch.address|default:'' }}"
                                 data-city="{{ branch.city|default:'' }}"
                                 data-state="{{ branch.state|default:'' }}"
@@ -516,10 +516,9 @@
                             <input type="file" id="id_profile_photo_upload" class="d-none" accept="image/*">
                         </div>
                         <div class="capture-option">
-                            <label for="id_profile_photo_capture" class="btn btn-capture btn-camera">
+                            <button type="button" id="capture-profile-button" class="btn btn-capture btn-camera">
                                 <i class="fas fa-camera me-2"></i>Capture Photo
-                            </label>
-                            <input type="file" id="id_profile_photo_capture" class="d-none" accept="image/*" capture="user">
+                            </button>
                         </div>
                     </div>
 
@@ -718,23 +717,30 @@
 </div>
 
 <!-- Camera Capture Modal -->
-<div id="camera-container">
+<div id="camera-container" style="display: none;">
     <div class="camera-inner">
-        <div class="camera-title">
-            <i class="fas fa-camera me-2"></i>Capture ID Document
+        <div class="camera-title" id="camera-modal-title">
+            <i class="fas fa-camera me-2"></i>Capture Photo
         </div>
-        <video id="camera-video" autoplay playsinline></video>
-        <div class="camera-controls">
-            <button id="take-picture-button" class="btn btn-primary">
+        <div class="position-relative" style="min-height: 240px; background: #000; border-radius: 0.5rem; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+            <video id="camera-video" autoplay playsinline muted style="width: 100%; max-height: 400px; object-fit: contain;"></video>
+            <canvas id="camera-canvas" style="display: none; width: 100%; max-height: 400px; object-fit: contain;"></canvas>
+            <div id="camera-loading" style="display: none; position: absolute; color: white; text-align: center;">
+                <i class="fas fa-spinner fa-spin fa-2x mb-2"></i>
+                <div>Starting camera...</div>
+            </div>
+        </div>
+        <div class="camera-controls mt-3">
+            <button type="button" id="take-picture-button" class="btn btn-primary">
                 <i class="fas fa-camera me-2"></i>Take Picture
             </button>
-            <button id="retake-picture-button" class="btn btn-warning" style="display: none;">
+            <button type="button" id="retake-picture-button" class="btn btn-warning" style="display: none;">
                 <i class="fas fa-redo me-2"></i>Retake
             </button>
-            <button id="confirm-picture-button" class="btn btn-success" style="display: none;">
+            <button type="button" id="confirm-picture-button" class="btn btn-success" style="display: none;">
                 <i class="fas fa-check me-2"></i>Confirm
             </button>
-            <button id="cancel-picture-button" class="btn btn-secondary">
+            <button type="button" id="cancel-picture-button" class="btn btn-secondary">
                 <i class="fas fa-times me-2"></i>Cancel
             </button>
         </div>
@@ -753,12 +759,16 @@
         quality: 0.9
     };
 </script>
-<script src="{% static 'accounts/js/camera-capture.js' %}?v=6"></script>
+<script src="{% static 'accounts/js/camera-capture.js' %}?v=7"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        console.log('Customer form JavaScript initializing...');
-        
+        console.log('Customer form JavaScript initializing with auto-draft protection...');
+
+        const DRAFT_KEY = 'customer_form_draft_v2';
+        const isCreateMode = {% if form.instance.pk %}false{% else %}true{% endif %};
+
         // Initialize form elements
+        const form = document.getElementById('customer-form');
         const fileInput = document.getElementById('id_id_image');
         const imagePreview = document.getElementById('id-image-preview');
         const previewSection = document.getElementById('image-preview-section');
@@ -769,176 +779,326 @@
         const deleteIdPhotoBtn = document.getElementById('delete-id-photo');
         const deleteProfilePhotoBtn = document.getElementById('delete-profile-photo');
         const downloadIdPhotoBtn = document.getElementById('download-id-photo');
-        
-        // Show existing image if available
-        {% if form.instance.id_image %}
-        if (imagePreview && previewSection) {
-            imagePreview.src = "{{ form.instance.id_image.url }}";
-            previewSection.style.display = 'block';
-            if (deleteIdPhotoBtn) deleteIdPhotoBtn.style.display = 'inline-block';
-            if (downloadIdPhotoBtn) {
-                downloadIdPhotoBtn.href = "{{ form.instance.id_image.url }}";
-                downloadIdPhotoBtn.style.display = 'inline-block';
-            }
-        }
-        {% endif %}
 
-        // Handle file input change
-        if (fileInput) {
-            fileInput.addEventListener('change', function(e) {
-                if (this.files && this.files[0] && imagePreview) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        imagePreview.src = e.target.result;
-                        previewSection.style.display = 'block';
-                        // Clear camera data if using file upload
-                        if (imageDataField) imageDataField.value = '';
-                        if (removeIdImageField) removeIdImageField.value = '0';
-                        if (deleteIdPhotoBtn) deleteIdPhotoBtn.style.display = 'inline-block';
-                        if (downloadIdPhotoBtn) {
-                            downloadIdPhotoBtn.href = e.target.result;
-                            downloadIdPhotoBtn.style.display = 'inline-block';
-                        }
-                        console.log('File uploaded and preview shown');
-                    };
-                    reader.readAsDataURL(this.files[0]);
-                }
-            });
-        }
-        
-        // Enhanced form submission to handle camera data
-        const form = document.getElementById('customer-form');
-        form.addEventListener('submit', function(e) {
-            // Handle camera captured image data
-            if (imageDataField && imageDataField.value) {
-                console.log('Submitting form with camera-captured image');
-                // The camera data will be processed by the server
-            }
-            
-            let isValid = true;
-            
-            // Check required fields
-            const requiredFields = form.querySelectorAll('[required]');
-            requiredFields.forEach(field => {
-                if (!field.value.trim()) {
-                    field.classList.add('is-invalid');
-                    isValid = false;
-                } else {
-                    field.classList.remove('is-invalid');
-                }
-            });
-            
-            if (!isValid) {
-                e.preventDefault();
-                // Scroll to first error
-                const firstError = form.querySelector('.is-invalid');
-                if (firstError) {
-                    firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-            }
-        });
-        
-        // Enhanced form field animations
-        const formControls = document.querySelectorAll('.form-control, .form-select');
-        formControls.forEach(control => {
-            control.addEventListener('focus', function() {
-                this.parentElement.style.transform = 'scale(1.01)';
-            });
-            
-            control.addEventListener('blur', function() {
-                this.parentElement.style.transform = 'scale(1)';
-            });
-        });
-        
-        // Phone input: keep only 10 digits (no brackets/hyphens)
-        const phoneInput = document.getElementById('id_phone');
-        if (phoneInput) {
-            phoneInput.addEventListener('input', function(e) {
-                let value = e.target.value.replace(/\D/g, '');
-                if (value.length > 10) value = value.slice(-10);
-                e.target.value = value;
-            });
-        }
-
-        // Profile photo upload/capture + preview + hidden data + download.
         const profilePhotoUpload = document.getElementById('id_profile_photo_upload');
-        const profilePhotoCapture = document.getElementById('id_profile_photo_capture');
         const profilePhotoData = document.getElementById('profile_photo_data');
         const profilePreview = document.getElementById('profile-photo-preview');
         const profilePreviewSection = document.getElementById('profile-photo-preview-section');
         const profileDownloadLink = document.getElementById('download-profile-photo');
 
-        {% if form.instance.profile_photo %}
-        if (profilePhotoData && profilePreview && profilePreviewSection && profileDownloadLink) {
-            profilePhotoData.value = "{{ form.instance.profile_photo|escapejs }}";
-            profilePreview.src = "{{ form.instance.profile_photo|escapejs }}";
-            profilePreviewSection.style.display = 'block';
-            profileDownloadLink.href = "{{ form.instance.profile_photo|escapejs }}";
-            profileDownloadLink.style.display = 'inline-block';
-            if (deleteProfilePhotoBtn) deleteProfilePhotoBtn.style.display = 'inline-block';
+        // Helper: Save draft to sessionStorage
+        function saveDraft() {
+            if (!isCreateMode || !form) return;
+            try {
+                const draft = {
+                    branch: document.getElementById('id_branch')?.value || '',
+                    first_name: document.getElementById('id_first_name')?.value || '',
+                    first_name_tamil: document.getElementById('id_first_name_tamil')?.value || '',
+                    last_name: document.getElementById('id_last_name')?.value || '',
+                    last_name_tamil: document.getElementById('id_last_name_tamil')?.value || '',
+                    email: document.getElementById('id_email')?.value || '',
+                    phone: document.getElementById('id_phone')?.value || '',
+                    date_of_birth: document.getElementById('id_date_of_birth')?.value || '',
+                    address: document.getElementById('id_address')?.value || '',
+                    address_tamil: document.getElementById('id_address_tamil')?.value || '',
+                    city: document.getElementById('id_city')?.value || '',
+                    city_tamil: document.getElementById('id_city_tamil')?.value || '',
+                    state: document.getElementById('id_state')?.value || '',
+                    state_tamil: document.getElementById('id_state_tamil')?.value || '',
+                    zip_code: document.getElementById('id_zip_code')?.value || '',
+                    id_type: document.getElementById('id_id_type')?.value || '',
+                    id_number: document.getElementById('id_id_number')?.value || '',
+                    notes: document.getElementById('id_notes')?.value || '',
+                    notes_tamil: document.getElementById('id_notes_tamil')?.value || '',
+                    profile_photo_data: profilePhotoData?.value || '',
+                    camera_image_data: imageDataField?.value || ''
+                };
+                sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+            } catch (e) {
+                console.warn('Could not save draft to sessionStorage:', e);
+            }
         }
-        {% endif %}
+        window.saveCustomerDraft = saveDraft;
 
-        function setProfilePhotoFromFile(file) {
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(evt) {
-                const dataUrl = evt.target.result;
-                if (profilePhotoData) profilePhotoData.value = dataUrl;
-                if (profilePreview) profilePreview.src = dataUrl;
-                if (profilePreviewSection) profilePreviewSection.style.display = 'block';
-                if (removeProfilePhotoField) removeProfilePhotoField.value = '0';
+        function clearDraft() {
+            try {
+                sessionStorage.removeItem(DRAFT_KEY);
+            } catch (e) {
+                console.warn('Could not clear draft:', e);
+            }
+        }
+
+        // Helper: Restore draft from sessionStorage
+        function restoreDraft() {
+            if (!isCreateMode) return;
+            try {
+                const raw = sessionStorage.getItem(DRAFT_KEY);
+                if (!raw) return;
+                const draft = JSON.parse(raw);
+                if (!draft) return;
+
+                Object.keys(draft).forEach(key => {
+                    const el = document.getElementById('id_' + key) || document.getElementById(key);
+                    if (el && !el.value && draft[key]) {
+                        el.value = draft[key];
+                        if (el.tagName === 'SELECT') {
+                            el.dispatchEvent(new Event('change'));
+                        }
+                    }
+                });
+
+                // Restore profile photo from draft if not already set
+                if (draft.profile_photo_data && profilePhotoData && profilePreview && profilePreviewSection) {
+                    if (!profilePhotoData.value) {
+                        profilePhotoData.value = draft.profile_photo_data;
+                    }
+                    profilePreview.src = draft.profile_photo_data;
+                    profilePreviewSection.style.display = 'block';
+                    if (profileDownloadLink) {
+                        profileDownloadLink.href = draft.profile_photo_data;
+                        profileDownloadLink.style.display = 'inline-block';
+                    }
+                    if (deleteProfilePhotoBtn) deleteProfilePhotoBtn.style.display = 'inline-block';
+                }
+
+                // Restore ID photo from draft if not already set
+                if (draft.camera_image_data && imageDataField && imagePreview && previewSection) {
+                    if (!imageDataField.value) {
+                        imageDataField.value = draft.camera_image_data;
+                    }
+                    imagePreview.src = draft.camera_image_data;
+                    previewSection.style.display = 'block';
+                    if (downloadIdPhotoBtn) {
+                        downloadIdPhotoBtn.href = draft.camera_image_data;
+                        downloadIdPhotoBtn.style.display = 'inline-block';
+                    }
+                    if (deleteIdPhotoBtn) deleteIdPhotoBtn.style.display = 'inline-block';
+                }
+            } catch (e) {
+                console.warn('Could not restore draft:', e);
+            }
+        }
+
+        // 1. Restore ID image from instance or POST/hidden data
+        try {
+            {% if form.instance.id_image %}
+            if (imagePreview && previewSection) {
+                imagePreview.src = "{{ form.instance.id_image.url }}";
+                previewSection.style.display = 'block';
+                if (deleteIdPhotoBtn) deleteIdPhotoBtn.style.display = 'inline-block';
+                if (downloadIdPhotoBtn) {
+                    downloadIdPhotoBtn.href = "{{ form.instance.id_image.url }}";
+                    downloadIdPhotoBtn.style.display = 'inline-block';
+                }
+            }
+            {% endif %}
+
+            if (imageDataField && imageDataField.value && imagePreview && previewSection) {
+                imagePreview.src = imageDataField.value;
+                previewSection.style.display = 'block';
+                if (deleteIdPhotoBtn) deleteIdPhotoBtn.style.display = 'inline-block';
+                if (downloadIdPhotoBtn) {
+                    downloadIdPhotoBtn.href = imageDataField.value;
+                    downloadIdPhotoBtn.style.display = 'inline-block';
+                }
+            }
+        } catch (e) {
+            console.error('Error initializing ID image:', e);
+        }
+
+        // 2. Restore Profile photo from instance or POST/hidden data
+        try {
+            {% if form.instance.profile_photo %}
+            if (profilePhotoData && profilePreview && profilePreviewSection && profileDownloadLink) {
+                profilePhotoData.value = "{{ form.instance.profile_photo|escapejs }}";
+                profilePreview.src = "{{ form.instance.profile_photo|escapejs }}";
+                profilePreviewSection.style.display = 'block';
+                profileDownloadLink.href = "{{ form.instance.profile_photo|escapejs }}";
+                profileDownloadLink.style.display = 'inline-block';
+                if (deleteProfilePhotoBtn) deleteProfilePhotoBtn.style.display = 'inline-block';
+            }
+            {% endif %}
+
+            if (profilePhotoData && profilePhotoData.value && profilePreview && profilePreviewSection) {
+                profilePreview.src = profilePhotoData.value;
+                profilePreviewSection.style.display = 'block';
                 if (profileDownloadLink) {
-                    profileDownloadLink.href = dataUrl;
+                    profileDownloadLink.href = profilePhotoData.value;
                     profileDownloadLink.style.display = 'inline-block';
                 }
                 if (deleteProfilePhotoBtn) deleteProfilePhotoBtn.style.display = 'inline-block';
-            };
-            reader.readAsDataURL(file);
+            }
+        } catch (e) {
+            console.error('Error initializing Profile photo:', e);
         }
 
-        if (profilePhotoUpload) {
-            profilePhotoUpload.addEventListener('change', function() {
-                if (this.files && this.files[0]) setProfilePhotoFromFile(this.files[0]);
-            });
-        }
-        if (profilePhotoCapture) {
-            profilePhotoCapture.addEventListener('change', function() {
-                if (this.files && this.files[0]) setProfilePhotoFromFile(this.files[0]);
-            });
+        // 3. Restore draft from sessionStorage if in Create mode
+        restoreDraft();
+
+        // 4. Handle file input change for ID Document
+        try {
+            if (fileInput) {
+                fileInput.addEventListener('change', function(e) {
+                    if (this.files && this.files[0] && imagePreview) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            imagePreview.src = e.target.result;
+                            previewSection.style.display = 'block';
+                            if (imageDataField) imageDataField.value = e.target.result;
+                            if (removeIdImageField) removeIdImageField.value = '0';
+                            if (deleteIdPhotoBtn) deleteIdPhotoBtn.style.display = 'inline-block';
+                            if (downloadIdPhotoBtn) {
+                                downloadIdPhotoBtn.href = e.target.result;
+                                downloadIdPhotoBtn.style.display = 'inline-block';
+                            }
+                            saveDraft();
+                        };
+                        reader.readAsDataURL(this.files[0]);
+                    }
+                });
+            }
+        } catch (e) {
+            console.error('Error in fileInput handler:', e);
         }
 
-        if (deleteProfilePhotoBtn) {
-            deleteProfilePhotoBtn.addEventListener('click', function() {
-                if (profilePhotoData) profilePhotoData.value = '';
-                if (profilePhotoUpload) profilePhotoUpload.value = '';
-                if (profilePhotoCapture) profilePhotoCapture.value = '';
-                if (profilePreview) profilePreview.src = '';
-                if (profilePreviewSection) profilePreviewSection.style.display = 'none';
-                if (profileDownloadLink) {
-                    profileDownloadLink.href = '';
-                    profileDownloadLink.style.display = 'none';
-                }
-                if (removeProfilePhotoField) removeProfilePhotoField.value = '1';
-                deleteProfilePhotoBtn.style.display = 'none';
-            });
+        // 5. Handle file input change for Profile Photo
+        try {
+            function setProfilePhotoFromFile(file) {
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    const dataUrl = evt.target.result;
+                    if (profilePhotoData) profilePhotoData.value = dataUrl;
+                    if (profilePreview) profilePreview.src = dataUrl;
+                    if (profilePreviewSection) profilePreviewSection.style.display = 'block';
+                    if (removeProfilePhotoField) removeProfilePhotoField.value = '0';
+                    if (profileDownloadLink) {
+                        profileDownloadLink.href = dataUrl;
+                        profileDownloadLink.style.display = 'inline-block';
+                    }
+                    if (deleteProfilePhotoBtn) deleteProfilePhotoBtn.style.display = 'inline-block';
+                    saveDraft();
+                };
+                reader.readAsDataURL(file);
+            }
+
+            if (profilePhotoUpload) {
+                profilePhotoUpload.addEventListener('change', function() {
+                    if (this.files && this.files[0]) setProfilePhotoFromFile(this.files[0]);
+                });
+            }
+        } catch (e) {
+            console.error('Error in profilePhotoUpload handler:', e);
         }
 
-        if (deleteIdPhotoBtn) {
-            deleteIdPhotoBtn.addEventListener('click', function() {
-                if (fileInput) fileInput.value = '';
-                if (imageDataField) imageDataField.value = '';
-                if (imagePreview) imagePreview.src = '';
-                if (previewSection) previewSection.style.display = 'none';
-                if (downloadIdPhotoBtn) {
-                    downloadIdPhotoBtn.href = '';
-                    downloadIdPhotoBtn.style.display = 'none';
-                }
-                if (removeIdImageField) removeIdImageField.value = '1';
-                deleteIdPhotoBtn.style.display = 'none';
-            });
+        // 6. Delete buttons
+        try {
+            if (deleteProfilePhotoBtn) {
+                deleteProfilePhotoBtn.addEventListener('click', function() {
+                    if (profilePhotoData) profilePhotoData.value = '';
+                    if (profilePhotoUpload) profilePhotoUpload.value = '';
+                    if (profilePreview) profilePreview.src = '';
+                    if (profilePreviewSection) profilePreviewSection.style.display = 'none';
+                    if (profileDownloadLink) {
+                        profileDownloadLink.href = '';
+                        profileDownloadLink.style.display = 'none';
+                    }
+                    if (removeProfilePhotoField) removeProfilePhotoField.value = '1';
+                    deleteProfilePhotoBtn.style.display = 'none';
+                    saveDraft();
+                });
+            }
+
+            if (deleteIdPhotoBtn) {
+                deleteIdPhotoBtn.addEventListener('click', function() {
+                    if (fileInput) fileInput.value = '';
+                    if (imageDataField) imageDataField.value = '';
+                    if (imagePreview) imagePreview.src = '';
+                    if (previewSection) previewSection.style.display = 'none';
+                    if (downloadIdPhotoBtn) {
+                        downloadIdPhotoBtn.href = '';
+                        downloadIdPhotoBtn.style.display = 'none';
+                    }
+                    if (removeIdImageField) removeIdImageField.value = '1';
+                    deleteIdPhotoBtn.style.display = 'none';
+                    saveDraft();
+                });
+            }
+        } catch (e) {
+            console.error('Error in delete photo handlers:', e);
         }
 
+        // 7. Auto-save draft on any input change
+        try {
+            if (form) {
+                form.addEventListener('input', debounce(saveDraft, 500));
+                form.addEventListener('change', saveDraft);
+            }
+        } catch (e) {
+            console.error('Error setting up draft auto-save:', e);
+        }
+
+        // 8. Form submission handling
+        try {
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    let isValid = true;
+                    const requiredFields = form.querySelectorAll('[required]');
+                    requiredFields.forEach(field => {
+                        if (!field.value.trim()) {
+                            field.classList.add('is-invalid');
+                            isValid = false;
+                        } else {
+                            field.classList.remove('is-invalid');
+                        }
+                    });
+
+                    if (!isValid) {
+                        e.preventDefault();
+                        const firstError = form.querySelector('.is-invalid');
+                        if (firstError) {
+                            firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                    } else {
+                        // Clear draft upon valid submission
+                        clearDraft();
+                    }
+                });
+            }
+        } catch (e) {
+            console.error('Error in form submit handler:', e);
+        }
+
+        // 9. Phone input formatting
+        try {
+            const phoneInput = document.getElementById('id_phone');
+            if (phoneInput) {
+                phoneInput.addEventListener('input', function(e) {
+                    let value = e.target.value.replace(/\D/g, '');
+                    if (value.length > 10) value = value.slice(-10);
+                    e.target.value = value;
+                });
+            }
+        } catch (e) {
+            console.error('Error in phoneInput handler:', e);
+        }
+
+        // 10. Form field focus animations
+        try {
+            const formControls = document.querySelectorAll('.form-control, .form-select');
+            formControls.forEach(control => {
+                control.addEventListener('focus', function() {
+                    if (this.parentElement) this.parentElement.style.transform = 'scale(1.01)';
+                });
+                control.addEventListener('blur', function() {
+                    if (this.parentElement) this.parentElement.style.transform = 'scale(1)';
+                });
+            });
+        } catch (e) {
+            console.error('Error in focus animation:', e);
+        }
+
+        // 11. Transliteration helper
         function debounce(func, wait) {
             let timeout;
             return function executedFunction(...args) {
@@ -975,9 +1135,7 @@
             const source = document.querySelector(sourceSelector);
             const target = document.querySelector(targetSelector);
 
-            if (!source || !target) {
-                return;
-            }
+            if (!source || !target) return;
 
             const syncText = debounce(async function() {
                 if (source.dataset.syncLock === 'true') {
@@ -988,6 +1146,7 @@
                 const text = (source.value || '').trim();
                 if (!text) {
                     target.value = '';
+                    saveDraft();
                     return;
                 }
 
@@ -995,8 +1154,9 @@
                     const data = await transliterateText(text, direction);
                     target.dataset.syncLock = 'true';
                     target.value = data.result || '';
+                    saveDraft();
                 } catch (error) {
-                    console.error('Transliteration error:', error);
+                    console.warn('Transliteration non-fatal warning:', error);
                 }
             }, 350);
 
@@ -1009,108 +1169,96 @@
             }
         }
 
-        setupBidirectionalTransliteration('#id_first_name', '#id_first_name_tamil', 'to_tamil');
-        setupBidirectionalTransliteration('#id_first_name_tamil', '#id_first_name', 'to_english');
-        setupBidirectionalTransliteration('#id_last_name', '#id_last_name_tamil', 'to_tamil');
-        setupBidirectionalTransliteration('#id_last_name_tamil', '#id_last_name', 'to_english');
-        setupBidirectionalTransliteration('#id_address', '#id_address_tamil', 'to_tamil');
-        setupBidirectionalTransliteration('#id_address_tamil', '#id_address', 'to_english');
-        setupBidirectionalTransliteration('#id_city', '#id_city_tamil', 'to_tamil');
-        setupBidirectionalTransliteration('#id_city_tamil', '#id_city', 'to_english');
-        setupBidirectionalTransliteration('#id_state', '#id_state_tamil', 'to_tamil');
-        setupBidirectionalTransliteration('#id_state_tamil', '#id_state', 'to_english');
-        setupBidirectionalTransliteration('#id_notes', '#id_notes_tamil', 'to_tamil');
-        setupBidirectionalTransliteration('#id_notes_tamil', '#id_notes', 'to_english');
-        
-        // Branch selection functionality
-        const branchSelect = document.getElementById('id_branch');
-        const branchInfoCard = document.getElementById('branch-info-card');
-        const branchAddressDiv = document.getElementById('branch-address');
-        const branchContactDiv = document.getElementById('branch-contact');
-        const branchEmailDiv = document.getElementById('branch-email');
-        const branchAddressText = document.getElementById('branch-address-text');
-        const branchPhoneText = document.getElementById('branch-phone-text');
-        const branchEmailText = document.getElementById('branch-email-text');
-        
-        if (branchSelect) {
-            function formatMobilePreview(value) {
-                const digits = (value || '').replace(/\D/g, '').slice(-10);
-                return digits.length === 10 ? `${digits.slice(0, 5)} ${digits.slice(5)}` : digits;
-            }
-            // Show branch details when a branch is selected
-            branchSelect.addEventListener('change', function() {
-                const selectedOption = this.options[this.selectedIndex];
-                
-                if (selectedOption.value) {
-                    const address = selectedOption.dataset.address;
-                    const city = selectedOption.dataset.city;
-                    const state = selectedOption.dataset.state;
-                    const phone = selectedOption.dataset.phone;
-                    const email = selectedOption.dataset.email;
-                    
-                    // Build address string
-                    let fullAddress = '';
-                    if (address) fullAddress += address;
-                    if (city) fullAddress += (fullAddress ? ', ' : '') + city;
-                    if (state) fullAddress += (fullAddress ? ', ' : '') + state;
-                    
-                    // Show/hide address
-                    if (fullAddress) {
-                        branchAddressText.textContent = fullAddress;
-                        branchAddressDiv.style.display = 'block';
-                    } else {
-                        branchAddressDiv.style.display = 'none';
-                    }
-                    
-                    // Show/hide phone
-                    if (phone) {
-                        branchPhoneText.textContent = formatMobilePreview(phone);
-                        branchContactDiv.style.display = 'block';
-                    } else {
-                        branchContactDiv.style.display = 'none';
-                    }
-                    
-                    // Show/hide email
-                    if (email) {
-                        branchEmailText.textContent = email;
-                        branchEmailDiv.style.display = 'block';
-                    } else {
-                        branchEmailDiv.style.display = 'none';
-                    }
-                    
-                    // Show the info card
-                    branchInfoCard.style.display = 'block';
-                } else {
-                    // Hide the info card if no branch selected
-                    branchInfoCard.style.display = 'none';
+        try {
+            setupBidirectionalTransliteration('#id_first_name', '#id_first_name_tamil', 'to_tamil');
+            setupBidirectionalTransliteration('#id_first_name_tamil', '#id_first_name', 'to_english');
+            setupBidirectionalTransliteration('#id_last_name', '#id_last_name_tamil', 'to_tamil');
+            setupBidirectionalTransliteration('#id_last_name_tamil', '#id_last_name', 'to_english');
+            setupBidirectionalTransliteration('#id_address', '#id_address_tamil', 'to_tamil');
+            setupBidirectionalTransliteration('#id_address_tamil', '#id_address', 'to_english');
+            setupBidirectionalTransliteration('#id_city', '#id_city_tamil', 'to_tamil');
+            setupBidirectionalTransliteration('#id_city_tamil', '#id_city', 'to_english');
+            setupBidirectionalTransliteration('#id_state', '#id_state_tamil', 'to_tamil');
+            setupBidirectionalTransliteration('#id_state_tamil', '#id_state', 'to_english');
+            setupBidirectionalTransliteration('#id_notes', '#id_notes_tamil', 'to_tamil');
+            setupBidirectionalTransliteration('#id_notes_tamil', '#id_notes', 'to_english');
+        } catch (e) {
+            console.error('Error setting up transliteration:', e);
+        }
+
+        // 12. Branch selection functionality
+        try {
+            const branchSelect = document.getElementById('id_branch');
+            const branchInfoCard = document.getElementById('branch-info-card');
+            const branchAddressDiv = document.getElementById('branch-address');
+            const branchContactDiv = document.getElementById('branch-contact');
+            const branchEmailDiv = document.getElementById('branch-email');
+            const branchAddressText = document.getElementById('branch-address-text');
+            const branchPhoneText = document.getElementById('branch-phone-text');
+            const branchEmailText = document.getElementById('branch-email-text');
+
+            if (branchSelect) {
+                function formatMobilePreview(value) {
+                    const digits = (value || '').replace(/\D/g, '').slice(-10);
+                    return digits.length === 10 ? `${digits.slice(0, 5)} ${digits.slice(5)}` : digits;
                 }
-            });
-            
-            // Trigger change event on page load if branch is already selected
-            if (branchSelect.value) {
-                branchSelect.dispatchEvent(new Event('change'));
+
+                branchSelect.addEventListener('change', function() {
+                    const selectedOption = this.options[this.selectedIndex];
+                    if (selectedOption && selectedOption.value) {
+                        const address = selectedOption.dataset.address;
+                        const city = selectedOption.dataset.city;
+                        const state = selectedOption.dataset.state;
+                        const phone = selectedOption.dataset.phone;
+                        const email = selectedOption.dataset.email;
+
+                        let fullAddress = '';
+                        if (address) fullAddress += address;
+                        if (city) fullAddress += (fullAddress ? ', ' : '') + city;
+                        if (state) fullAddress += (fullAddress ? ', ' : '') + state;
+
+                        if (branchAddressText && branchAddressDiv) {
+                            if (fullAddress) {
+                                branchAddressText.textContent = fullAddress;
+                                branchAddressDiv.style.display = 'block';
+                            } else {
+                                branchAddressDiv.style.display = 'none';
+                            }
+                        }
+
+                        if (branchPhoneText && branchContactDiv) {
+                            if (phone) {
+                                branchPhoneText.textContent = formatMobilePreview(phone);
+                                branchContactDiv.style.display = 'block';
+                            } else {
+                                branchContactDiv.style.display = 'none';
+                            }
+                        }
+
+                        if (branchEmailText && branchEmailDiv) {
+                            if (email) {
+                                branchEmailText.textContent = email;
+                                branchEmailDiv.style.display = 'block';
+                            } else {
+                                branchEmailDiv.style.display = 'none';
+                            }
+                        }
+
+                        if (branchInfoCard) branchInfoCard.style.display = 'block';
+                    } else {
+                        if (branchInfoCard) branchInfoCard.style.display = 'none';
+                    }
+                });
+
+                if (branchSelect.value) {
+                    branchSelect.dispatchEvent(new Event('change'));
+                }
             }
+        } catch (e) {
+            console.error('Error in branch selection:', e);
         }
-        
-        // Camera availability check and setup
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            console.log("✅ Camera functionality available");
-            if (cameraBtn) {
-                cameraBtn.title = "Capture ID document using camera";
-                console.log("Camera button configured successfully");
-            }
-        } else {
-            console.warn("❌ Camera not available");
-            if (cameraBtn) {
-                cameraBtn.disabled = true;
-                cameraBtn.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Camera Not Available';
-                cameraBtn.title = "Camera not supported in this browser";
-                cameraBtn.classList.add('btn-secondary');
-                cameraBtn.classList.remove('btn-camera');
-            }
-        }
-        
-        console.log('Customer form JavaScript initialized successfully');
+
+        console.log('Customer form initialized with data protection successfully.');
     });
 </script>
 {% endblock %}

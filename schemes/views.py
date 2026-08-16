@@ -440,6 +440,10 @@ class SchemeJsonView(LoginRequiredMixin, View):
             if scheme.additional_conditions:
                 scheme_data['additional_conditions'] = scheme.additional_conditions
                 
+            # Add interest rate structure if available
+            if scheme.interest_rate_structure:
+                scheme_data['interest_rate_structure'] = scheme.interest_rate_structure
+                
             return JsonResponse(scheme_data)
         except Scheme.DoesNotExist:
             return JsonResponse({'error': 'Scheme not found'}, status=404)

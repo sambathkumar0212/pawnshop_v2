@@ -59,10 +59,11 @@ document.addEventListener('DOMContentLoaded', function() {
         // Calculate metrics
         const interestAmount = Math.round(principal * interestRate / 100);
         let totalRepayment = principal + interestAmount;
+        // Distribution Amount is always baseDistribution regardless of checkbox state
         let distributionAmount = baseDistribution;
         
         if (isFirstMonthPaid) {
-            distributionAmount = baseDistribution - monthlyInterestAmount;
+            // Only reduce totalRepayment — Distribution Amount stays unchanged
             totalRepayment = totalRepayment - monthlyInterestAmount;
         }
         
@@ -258,8 +259,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log(`Processing fee percentage from scheme: ${processingFeePercentage}%`);
                 
                 // Update interest rate input with scheme value
-                if (interestRateInput && !(window.isEditMode && isInitial)) {
-                    interestRateInput.value = scheme.interest_rate;
+                if (interestRateInput && (!window.isEditMode || !interestRateInput.value || interestRateInput.value === '12.00')) {
+                    let effectiveRate = scheme.interest_rate;
+                    if (scheme.interest_rate_structure) {
+                        for (const [range, rate] of Object.entries(scheme.interest_rate_structure)) {
+                            if (range === '1' || range === '1-3' || range === '1-6' || range === '1-12' || range.startsWith('1-')) {
+                                effectiveRate = parseFloat(rate);
+                                break;
+                            }
+                        }
+                    }
+                    if (effectiveRate) {
+                        interestRateInput.value = effectiveRate;
+                    }
                 }
                 
                 // Calculate processing fee based on principal amount and scheme percentage
@@ -426,7 +438,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     const isFirstMonthPaidInput = document.getElementById('id_is_first_month_interest_paid');
     if (isFirstMonthPaidInput) {
-        isFirstMonthPaidInput.addEventListener('change', calculateLoanMetrics);
+        isFirstMonthPaidInput.addEventListener('change', function() {
+            calculateLoanMetrics();
+            // After updating distribution amount, recalculate the deduction field
+            // using the template-level function (called via setTimeout to ensure DOM is updated)
+            setTimeout(function() {
+                if (typeof window.calculateDistributionWithDeduction === 'function') {
+                    window.calculateDistributionWithDeduction();
+                }
+            }, 0);
+        });
     }
     
     if (issueDateInput) {
