@@ -96,9 +96,7 @@ class AdminOnlyPasswordChangeView(LoginRequiredMixin, PasswordChangeView):
 
 class AdminOnlyPasswordResetView(PasswordResetView):
     """
-    Custom password reset view - only for staff to request password reset
-    BUT only admin can click the reset link and confirm.
-    Staff can only request, admin verifies and resets.
+    Password reset view for users to reset their password via email.
     """
     template_name = 'accounts/password_reset_request.html'
     email_template_name = 'accounts/password_reset_email.txt'
@@ -107,32 +105,21 @@ class AdminOnlyPasswordResetView(PasswordResetView):
     
     def form_valid(self, form):
         email = form.cleaned_data['email']
-        try:
-            user = CustomUser.objects.get(email=email)
-            if user.is_pawnshop_admin:
-                # Admin can use normal password reset
-                return super().form_valid(form)
-            else:
-                # Staff member is requesting password reset
-                messages.info(self.request, "Password reset request has been submitted. An admin will review and reset your password.")
-                
-                # Create a request record for admin to handle
-                from .models import AuditTrail
-                AuditTrail.objects.create(
-                    admin_user=None,
-                    change_type='password_change',
-                    model_name='CustomUser',
-                    object_id=user.id,
-                    object_str=str(user),
-                    target_user=user,
-                    description=f"Password reset request from {user.get_full_name()} ({user.email})"
-                )
-                
-                return redirect('login')
-        except CustomUser.DoesNotExist:
-            # Security: don't reveal if email exists or not
-            pass
+        users = CustomUser.objects.filter(email__iexact=email, is_active=True)
         
+        # Log the password reset request for audit trail
+        from .models import AuditTrail
+        for user in users:
+            AuditTrail.objects.create(
+                admin_user=None,
+                change_type='password_change',
+                model_name='CustomUser',
+                object_id=user.id,
+                object_str=str(user),
+                target_user=user,
+                description=f"Password reset email requested for {user.get_full_name()} ({user.email})"
+            )
+            
         return super().form_valid(form)
 
 
