@@ -666,31 +666,36 @@ class LoanForm(forms.ModelForm):
             selected_karat = cleaned_data['gold_karat']
             net_weight = Decimal(str(cleaned_data['net_weight']))
 
-            # Calculate karat factor
-            karat_factors = {
-                '24K': Decimal('1.0'),
+            # Calculate gold value based on market price for 22K and purity ratio
+            karat_purities = {
+                '24K': Decimal('0.999'),
+                '24': Decimal('0.999'),
                 '22K': Decimal('0.916'),
-                '20K': Decimal('0.833'),
-                '18K': Decimal('0.750'),
-                '16K': Decimal('0.666'),
-                '14K': Decimal('0.585'),
-                '12K': Decimal('0.500'),
-                '10K': Decimal('0.417'),
-                '9K': Decimal('0.375'),
-                '8K': Decimal('0.333'),
                 '22': Decimal('0.916'),
+                '21K': Decimal('0.875'),
+                '21': Decimal('0.875'),
+                '20K': Decimal('0.833'),
                 '20': Decimal('0.833'),
+                '18K': Decimal('0.750'),
                 '18': Decimal('0.750'),
+                '16K': Decimal('0.666'),
                 '16': Decimal('0.666'),
-                '14': Decimal('0.585'),
+                '14K': Decimal('0.583'),
+                '14': Decimal('0.583'),
+                '12K': Decimal('0.500'),
                 '12': Decimal('0.500'),
+                '10K': Decimal('0.417'),
                 '10': Decimal('0.417'),
+                '9K': Decimal('0.375'),
                 '9': Decimal('0.375'),
+                '8K': Decimal('0.333'),
                 '8': Decimal('0.333'),
             }
 
-            karat_factor = karat_factors.get(selected_karat, Decimal('0.916'))
-            gold_value = market_price * net_weight * karat_factor
+            base_22k_purity = Decimal('0.916')
+            karat_purity = karat_purities.get(str(selected_karat), base_22k_purity)
+            purity_ratio = karat_purity / base_22k_purity
+            gold_value = market_price * net_weight * purity_ratio
 
             # Calculate allowed principal range
             min_principal = round(gold_value * Decimal('0.50'))

@@ -14,9 +14,16 @@
         <div class="col">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h2><i class="fas fa-hand-holding-usd me-2"></i>Loan Details</h2>
-                    <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb">
+                    <div class="d-flex align-items-center gap-2">
+                        <h2 class="mb-0"><i class="fas fa-hand-holding-usd me-2"></i>Loan Details</h2>
+                        {% if loan.branch %}
+                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-2 py-1 fs-6 align-middle">
+                            <i class="fas fa-building me-1"></i>{{ loan.branch.name }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    <nav aria-label="breadcrumb" class="mt-1">
+                        <ol class="breadcrumb mb-0">
                             <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
                             <li class="breadcrumb-item"><a href="{% url 'loan_list' %}">Loans</a></li>
                             <li class="breadcrumb-item active">{{ loan.loan_number }}</li>
@@ -167,7 +174,14 @@
         <div class="col-lg-8">
             <div class="card mb-4 shadow-sm border-0">
                 <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
-                    <h5 class="mb-0"><i class="fas fa-file-invoice-dollar me-2"></i>Loan Parameters</h5>
+                    <div class="d-flex align-items-center gap-2">
+                        <h5 class="mb-0"><i class="fas fa-file-invoice-dollar me-2"></i>Loan Parameters</h5>
+                        {% if loan.branch %}
+                        <span class="badge bg-white text-secondary border shadow-xs" style="font-size: 0.8rem; font-weight: 500;">
+                            <i class="fas fa-building text-primary me-1"></i>{{ loan.branch.name }}
+                        </span>
+                        {% endif %}
+                    </div>
                     <span class="badge bg-{% if loan.status == 'active' %}success{% elif loan.status == 'repaid' %}info{% else %}danger{% endif %} fs-7">
                         {{ loan.status|upper }}
                     </span>
@@ -473,9 +487,14 @@
                     </div>
                     {% endif %}
                     <h6 class="fw-bold mb-1">{{ loan.customer.first_name }} {{ loan.customer.last_name }}</h6>
-                    <p class="text-muted small mb-2">
+                    <p class="text-muted small mb-1">
                         <i class="fas fa-phone me-1"></i>{{ loan.customer.phone|mobile_format|default:"No phone number" }}
                     </p>
+                    {% if loan.branch %}
+                    <p class="text-muted small mb-2">
+                        <i class="fas fa-building me-1 text-primary"></i><strong>Branch:</strong> {{ loan.branch.name }}
+                    </p>
+                    {% endif %}
                     <div class="d-grid">
                         <a href="{% url 'customer_detail' loan.customer.id %}" class="btn btn-outline-primary btn-sm">
                             <i class="fas fa-id-card me-1"></i>View Full Customer Profile
