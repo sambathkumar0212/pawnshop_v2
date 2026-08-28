@@ -97,17 +97,16 @@ def _get_form_categories():
 
 
 def _extract_item_quantity_from_name(item_name):
-    """Parse total quantity from item text like 'stud-2, chain-1'."""
+    """Parse total quantity from item text like 'stud-2, chain-1' or 'ring (2), chain (1)'."""
     if not item_name:
         return 1
     text = str(item_name).strip().lower()
     tokens = [token.strip() for token in re.split(r'[,;\n|]+', text) if token.strip()]
     if not tokens:
-        tokens = [text]
+        return 1
 
     total = 0
-    any_explicit_quantity = False
-    patterns = [r'-(\d+)\b', r'\bx\s*(\d+)\b', r'\bqty\s*[:\-]?\s*(\d+)\b']
+    patterns = [r'[-:]\s*(\d+)\b', r'\bx\s*(\d+)\b', r'\bqty\s*[:\-]?\s*(\d+)\b', r'\(\s*(\d+)\s*\)']
 
     for token in tokens:
         token_qty = None
@@ -118,7 +117,6 @@ def _extract_item_quantity_from_name(item_name):
                     value = int(match.group(1))
                     if value > 0:
                         token_qty = value
-                        any_explicit_quantity = True
                         break
                 except (TypeError, ValueError):
                     pass
@@ -128,9 +126,7 @@ def _extract_item_quantity_from_name(item_name):
         elif token.strip():
             total += 1
 
-    if any_explicit_quantity:
-        return total if total > 0 else 1
-    return 1
+    return total if total > 0 else 1
 
 class LoanForm(forms.ModelForm):
     distribution_amount = forms.DecimalField(
@@ -150,7 +146,8 @@ class LoanForm(forms.ModelForm):
         widget=forms.NumberInput(attrs={
             'data-show-words': 'true',
             'readonly': 'readonly',
-            'class': 'form-control bg-light'
+            'class': 'form-control bg-light',
+            'step': '1'
         })
     )
 
@@ -487,6 +484,11 @@ class LoanForm(forms.ModelForm):
 
             if 'distribution_amount_with_deduction' in self.fields:
                 deduct_val = self.instance.distribution_amount_with_deduction
+                if deduct_val is not None:
+                    try:
+                        deduct_val = int(round(float(deduct_val)))
+                    except (ValueError, TypeError):
+                        pass
                 self.initial['distribution_amount_with_deduction'] = deduct_val
                 self.fields['distribution_amount_with_deduction'].initial = deduct_val
 

@@ -36,20 +36,26 @@ def calculate_total_items(item_name):
         return 0
     
     total_count = 0
-    # Split by commas to handle multiple items
-    items = [item.strip() for item in item_name.split(',') if item.strip()]
+    items = [item.strip() for item in re.split(r'[,;\n|]+', str(item_name)) if item.strip()]
+    patterns = [r'[-:]\s*(\d+)\b', r'\bx\s*(\d+)\b', r'\bqty\s*[:\-]?\s*(\d+)\b', r'\(\s*(\d+)\s*\)']
     
     for item in items:
-        # Find patterns like "item-3" or "item - 5"
-        match = re.search(r'(\w+)\s*-\s*(\d+)', item)
-        if match:
-            try:
-                count = int(match.group(2))
-                total_count += count
-            except ValueError:
-                pass
+        matched = False
+        for pattern in patterns:
+            match = re.search(pattern, item, re.IGNORECASE)
+            if match:
+                try:
+                    count = int(match.group(1))
+                    if count > 0:
+                        total_count += count
+                        matched = True
+                        break
+                except ValueError:
+                    pass
+        if not matched and item.strip():
+            total_count += 1
     
-    return total_count
+    return total_count if total_count > 0 else 1
 
 @register.filter
 def number_to_words(value):

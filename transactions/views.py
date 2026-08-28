@@ -1764,7 +1764,13 @@ class LoanUpdateView(LoginRequiredMixin, RoleBranchAccessMixin, UpdateView):
                 dist_val = self.object.principal_amount - (self.object.processing_fee or 0)
             initial['processing_fee'] = self.object.processing_fee or 0
             initial['distribution_amount'] = dist_val
-            initial['distribution_amount_with_deduction'] = self.object.distribution_amount_with_deduction
+            deduct_val = self.object.distribution_amount_with_deduction
+            if deduct_val is not None:
+                try:
+                    deduct_val = int(round(float(deduct_val)))
+                except (ValueError, TypeError):
+                    pass
+            initial['distribution_amount_with_deduction'] = deduct_val
         return initial
 
     def get_context_data(self, **kwargs):

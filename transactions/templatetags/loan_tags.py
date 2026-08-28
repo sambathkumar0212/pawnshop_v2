@@ -91,17 +91,26 @@ def calculate_total_items(item_name):
     
     total = 0
     import re
-    # Pattern to match formats like "ring-6" or "earrings-2"
-    pattern = r'(\w+)-(\d+)'
-    matches = re.findall(pattern, str(item_name))
+    items = [item.strip() for item in re.split(r'[,;\n|]+', str(item_name)) if item.strip()]
+    patterns = [r'[-:]\s*(\d+)\b', r'\bx\s*(\d+)\b', r'\bqty\s*[:\-]?\s*(\d+)\b', r'\(\s*(\d+)\s*\)']
     
-    for item_type, count in matches:
-        try:
-            total += int(count)
-        except ValueError:
-            continue
+    for item in items:
+        matched = False
+        for pattern in patterns:
+            match = re.search(pattern, item, re.IGNORECASE)
+            if match:
+                try:
+                    count = int(match.group(1))
+                    if count > 0:
+                        total += count
+                        matched = True
+                        break
+                except ValueError:
+                    continue
+        if not matched and item.strip():
+            total += 1
     
-    return total
+    return total if total > 0 else 1
 
 @register.filter
 def is_base64(value):

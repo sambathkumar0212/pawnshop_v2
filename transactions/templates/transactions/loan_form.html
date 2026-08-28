@@ -39,6 +39,27 @@
         background-color: #f59e0b;
         border-color: #f59e0b;
     }
+
+    /* Dynamic Item Inputs Styling */
+    .item-input-row {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 6px 8px;
+        transition: all 0.2s ease-in-out;
+    }
+    .item-input-row:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+    .item-input-row .input-group-text {
+        font-size: 0.75rem;
+    }
+    .items-container-box {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+    }
 </style>
 <div class="container-fluid py-2">
     <div class="row mb-2">
@@ -162,47 +183,66 @@
                                                 <label for="schemeTamilInput" class="form-label mb-1 small">Scheme Name (Tamil)</label>
                                                 <input type="text" id="schemeTamilInput" class="form-control form-control-sm"
                                                     placeholder="Type scheme in Tamil">
-                                                <div id="scheme-info" class="alert alert-info py-1 px-2 small mb-0 mt-1"
-                                                    style="display: none;">
-                                                    <span id="scheme-details"></span>
-                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
                                 <!-- Gold Item Details Section -->
-                                <div class="card h-auto">
-                                    <div
-                                        class="card-header bg-light py-1 d-flex justify-content-between align-items-center">
+                                <div class="card h-auto shadow-sm">
+                                    <div class="card-header bg-light py-1 d-flex justify-content-between align-items-center">
                                         <h6 class="card-title mb-0">
                                             <i class="fas fa-gem me-1"></i>Gold Item Details
                                         </h6>
+                                        <span class="badge bg-primary px-2 py-1" id="totalItemsBadgeHeader">
+                                            <i class="fas fa-cubes me-1"></i>Total Items: <span id="headerTotalItemsCount">1</span>
+                                        </span>
                                     </div>
                                     <div class="card-body p-2">
-                                        <!-- Hidden field for item_category -->
+                                        <!-- Hidden fields for item_name, item_name_tamil, item_category, and calculatedTotalItems -->
                                         <div style="display: none;">
                                             {{ form.item_category|as_crispy_field }}
+                                            {{ form.item_name|as_crispy_field }}
+                                            {{ form.item_name_tamil|as_crispy_field }}
+                                            <input type="hidden" id="calculatedTotalItems" value="1">
+                                        </div>
+
+                                        <!-- Dynamic Item Names & Counts Section -->
+                                        <div class="items-container-box mb-2 p-2">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <span class="small fw-bold text-primary">
+                                                    <i class="fas fa-list-ul me-1"></i>Ornaments & Quantities
+                                                </span>
+                                                <button type="button" class="btn btn-xs btn-primary py-1 px-2" id="addItemRowBtn">
+                                                    <i class="fas fa-plus me-1"></i>Add Extra Item
+                                                </button>
+                                            </div>
+
+                                            <div id="dynamicItemRowsContainer">
+                                                <!-- Dynamic item rows populated by JS -->
+                                            </div>
+
+                                            <div class="d-flex justify-content-between align-items-center mt-2 pt-1 border-top">
+                                                <small class="text-muted fst-italic" style="font-size: 0.72rem;">
+                                                    <i class="fas fa-info-circle me-1"></i>English auto-transliterates to Tamil. Click "+ Add Extra Item" for multiple ornaments.
+                                                </small>
+                                                <div class="d-flex align-items-center gap-1">
+                                                    <span class="small text-muted fw-semibold">Total Qty:</span>
+                                                    <span class="badge bg-success fs-7 px-2 py-1" id="calculatedTotalItemsBadge">1</span>
+                                                </div>
+                                            </div>
                                         </div>
 
                                         <div class="row g-2">
-                                            <!-- First row: English item fields -->
-                                            <div class="col-md-6">
-                                                {{ form.item_name|as_crispy_field }}
-                                            </div>
+                                            <!-- First row: Item descriptions -->
                                             <div class="col-md-6">
                                                 {{ form.item_description|as_crispy_field }}
-                                            </div>
-
-                                            <!-- Second row: Tamil item fields -->
-                                            <div class="col-md-6">
-                                                {{ form.item_name_tamil|as_crispy_field }}
                                             </div>
                                             <div class="col-md-6">
                                                 {{ form.item_description_tamil|as_crispy_field }}
                                             </div>
 
-                                            <!-- Third row: Today's 22K Gold Price (left) and Gold Karat (right) -->
+                                            <!-- Second row: Today's 22K Gold Price (left) and Gold Karat (right) -->
                                             <div class="col-md-6">
                                                 {{ form.market_price_22k|as_crispy_field }}
                                             </div>
@@ -210,7 +250,7 @@
                                                 {{ form.gold_karat|as_crispy_field }}
                                             </div>
 
-                                            <!-- Fourth row: Weight fields -->
+                                            <!-- Third row: Weight fields -->
                                             <div class="col-md-4">
                                                 {{ form.gross_weight|as_crispy_field }}
                                             </div>
@@ -219,27 +259,6 @@
                                             </div>
                                             <div class="col-md-4">
                                                 {{ form.net_weight|as_crispy_field }}
-                                            </div>
-
-                                            <!-- Total Items Count Display -->
-                                            <div class="col-md-12">
-                                                <div id="totalItemsDisplay" style="display: none;">
-                                                    <div class="d-flex align-items-center justify-content-end">
-                                                        <small class="text-muted me-2">Total Items:</small>
-                                                        <div class="input-group input-group-sm"
-                                                            style="max-width: 120px;">
-                                                            <span class="input-group-text bg-success text-white py-0">
-                                                                <i class="fas fa-list-ol"></i>
-                                                            </span>
-                                                            <input type="text" class="form-control form-control-sm py-0"
-                                                                id="calculatedTotalItems" readonly>
-                                                        </div>
-                                                        <small class="ms-2 text-muted fst-italic"
-                                                            style="font-size: 0.7rem;">
-                                                            (from "ring-6, chain-1")
-                                                        </small>
-                                                    </div>
-                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -673,9 +692,6 @@
 
         // Initialize loan calculator
         // The calculator is automatically initialized by the loan-calculator.js file
-
-        // Show the scheme-info div that's hidden by default
-        $('#scheme-info').removeClass('d-none');
 
         // Camera functionality
         const cameraStream = document.getElementById('cameraStream');
@@ -1526,53 +1542,6 @@
             });
         }
 
-        // Calculate and display Total Items count from item name
-        function updateTotalItemsCount() {
-            // Show the total items section by default
-            $('#totalItemsDisplay').show();
-
-            const itemName = $('#id_item_name').val() || '';
-            let totalItems = 0;
-
-            // Pattern to match formats like "ring-6" or "earrings-2"
-            const pattern = /(\w+)-(\d+)/g;
-            let match;
-            let itemsFound = false;
-
-            // Find all matches in the item name
-            while ((match = pattern.exec(itemName)) !== null) {
-                const count = parseInt(match[2], 10);
-                if (!isNaN(count)) {
-                    totalItems += count;
-                    itemsFound = true;
-                }
-            }
-
-            // If no pattern matches found, default to 1
-            if (!itemsFound) {
-                totalItems = 1;
-            }
-
-            // Update the field with the calculated value
-            $('#calculatedTotalItems').val(totalItems);
-
-            return totalItems;
-        }
-
-        // Set initial value and attach event listener
-        updateTotalItemsCount();
-        $('#id_item_name').on('input', updateTotalItemsCount);
-
-        // Original loan form JS code
-        const KARAT_PURITY = {
-            '24': 0.999,
-            '22': 0.916,
-            '21': 0.875,
-            '20': 0.833,
-            '18': 0.750,
-            '14': 0.583
-        };
-
         // Debounce function to prevent multiple rapid updates
         function debounce(func, wait) {
             let timeout;
@@ -1583,8 +1552,352 @@
                 };
                 clearTimeout(timeout);
                 timeout = setTimeout(later, wait);
+            };
+        }
+
+        // ==========================================
+        // Dynamic Item Rows & Count Management
+        // ==========================================
+        let _itemRowCounter = 0;
+
+        const ORNAMENT_DICTIONARY_EN_TO_TA = {
+            'ring': 'மோதிரம்',
+            'rings': 'மோதிரங்கள்',
+            'chain': 'சங்கிலி',
+            'chains': 'சங்கிலிகள்',
+            'bangle': 'வளையல்',
+            'bangles': 'வளையல்கள்',
+            'necklace': 'நெக்லஸ்',
+            'necklaces': 'நெக்லஸ்கள்',
+            'stud': 'தோடு',
+            'studs': 'தோடுகள்',
+            'earring': 'கம்மல்',
+            'earrings': 'கம்மல்கள்',
+            'coin': 'நாணயம்',
+            'coins': 'நாணயங்கள்',
+            'gold coin': 'தங்க நாணயம்',
+            'pendant': 'டாலர்',
+            'pendants': 'டாலர்கள்',
+            'bracelet': 'காப்பு',
+            'bracelets': 'காப்புகள்',
+            'anklet': 'கொலுசு',
+            'anklets': 'கொலுசுகள்',
+            'waist chain': 'ஒட்டியாணம்',
+            'ottiyanam': 'ஒட்டியாணம்',
+            'nose pin': 'மூக்குத்தி',
+            'mookuthi': 'மூக்குத்தி',
+            'kasu': 'காசு',
+            'haram': 'ஹாரம்',
+            'choker': 'சோக்கர்',
+            'mangalsutra': 'தாலி கொடி',
+            'thali': 'தாலி'
+        };
+
+        const ORNAMENT_DICTIONARY_TA_TO_EN = {};
+        Object.keys(ORNAMENT_DICTIONARY_EN_TO_TA).forEach(k => {
+            const ta = ORNAMENT_DICTIONARY_EN_TO_TA[k];
+            if (!ORNAMENT_DICTIONARY_TA_TO_EN[ta]) {
+                ORNAMENT_DICTIONARY_TA_TO_EN[ta] = k.charAt(0).toUpperCase() + k.slice(1);
+            }
+        });
+
+        function performTransliteration(text, direction, callback) {
+            if (!text || !text.trim()) {
+                callback('');
+                return;
+            }
+            const cleanText = text.trim();
+            const lowerText = cleanText.toLowerCase();
+
+            // Check dictionary first for instant conversion
+            if (direction === 'to_tamil' && ORNAMENT_DICTIONARY_EN_TO_TA[lowerText]) {
+                callback(ORNAMENT_DICTIONARY_EN_TO_TA[lowerText]);
+            } else if (direction === 'to_english' && ORNAMENT_DICTIONARY_TA_TO_EN[cleanText]) {
+                callback(ORNAMENT_DICTIONARY_TA_TO_EN[cleanText]);
+            }
+
+            // Also call backend API to handle any words or sentences
+            $.get('{% url "transliterate_between_english_tamil" %}', {
+                text: cleanText,
+                direction: direction
+            }).done(function (response) {
+                if (response && response.result) {
+                    callback(response.result);
+                }
+            }).fail(function (err) {
+                console.warn('Transliteration API error:', err);
+            });
+        }
+
+        function createItemRowHtml(rowId, nameEn = '', nameTa = '', count = 1) {
+            return `
+                <div class="item-input-row row g-2 align-items-center mb-2" data-row-id="${rowId}">
+                    <div class="col-md-5 col-12">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-white text-muted"><i class="fas fa-tag"></i></span>
+                            <input type="text" class="form-control form-control-sm item-name-en" 
+                                placeholder="Item Name (e.g. Ring, Chain)" value="${escapeHtml(nameEn)}">
+                        </div>
+                    </div>
+                    <div class="col-md-4 col-7">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-white text-muted"><i class="fas fa-language"></i></span>
+                            <input type="text" class="form-control form-control-sm item-name-ta" 
+                                placeholder="பொருள் பெயர் (எ.கா. மோதிரம்)" value="${escapeHtml(nameTa)}">
+                        </div>
+                    </div>
+                    <div class="col-md-2 col-3">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-white text-muted px-2" title="Quantity"><small class="fw-semibold">Qty</small></span>
+                            <input type="number" class="form-control form-control-sm item-count text-center px-1" 
+                                min="1" step="1" value="${count}">
+                        </div>
+                    </div>
+                    <div class="col-md-1 col-2 text-end">
+                        <button type="button" class="btn btn-sm btn-outline-danger remove-item-row-btn w-100 py-1" 
+                            title="Remove this item">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        function attachItemRowEvents($row) {
+            const $enInput = $row.find('.item-name-en');
+            const $taInput = $row.find('.item-name-ta');
+            const $countInput = $row.find('.item-count');
+            const $removeBtn = $row.find('.remove-item-row-btn');
+
+            let userTypingEn = false;
+            let userTypingTa = false;
+
+            // English -> Tamil Transliteration
+            const handleEnInput = debounce(function () {
+                const text = ($enInput.val() || '').trim();
+                if (!text) {
+                    $taInput.val('');
+                    syncItemsToFormFields();
+                    return;
+                }
+                performTransliteration(text, 'to_tamil', function (result) {
+                    if (result && !userTypingTa) {
+                        $taInput.val(result);
+                        syncItemsToFormFields();
+                    }
+                });
+            }, 250);
+
+            // Tamil -> English Transliteration
+            const handleTaInput = debounce(function () {
+                const text = ($taInput.val() || '').trim();
+                if (!text) {
+                    $enInput.val('');
+                    syncItemsToFormFields();
+                    return;
+                }
+                performTransliteration(text, 'to_english', function (result) {
+                    if (result && !userTypingEn) {
+                        $enInput.val(result);
+                        syncItemsToFormFields();
+                    }
+                });
+            }, 250);
+
+            $enInput.on('focus', function () {
+                userTypingEn = true;
+                userTypingTa = false;
+            });
+
+            $enInput.on('blur', function () {
+                userTypingEn = false;
+            });
+
+            $enInput.on('input keyup', function () {
+                userTypingEn = true;
+                userTypingTa = false;
+                syncItemsToFormFields();
+                handleEnInput();
+            });
+
+            $taInput.on('focus', function () {
+                userTypingTa = true;
+                userTypingEn = false;
+            });
+
+            $taInput.on('blur', function () {
+                userTypingTa = false;
+            });
+
+            $taInput.on('input keyup', function () {
+                userTypingTa = true;
+                userTypingEn = false;
+                syncItemsToFormFields();
+                handleTaInput();
+            });
+
+            $countInput.on('input change', function () {
+                let val = parseInt($(this).val(), 10);
+                if (isNaN(val) || val < 1) {
+                    $(this).val(1);
+                }
+                syncItemsToFormFields();
+            });
+
+            $removeBtn.on('click', function () {
+                const totalRows = $('#dynamicItemRowsContainer .item-input-row').length;
+                if (totalRows > 1) {
+                    $row.slideUp(150, function () {
+                        $(this).remove();
+                        updateRemoveButtonStates();
+                        syncItemsToFormFields();
+                    });
+                } else {
+                    // Clear the only row instead of deleting
+                    $enInput.val('');
+                    $taInput.val('');
+                    $countInput.val(1);
+                    syncItemsToFormFields();
+                }
+            });
+        }
+
+        function updateRemoveButtonStates() {
+            const $rows = $('#dynamicItemRowsContainer .item-input-row');
+            if ($rows.length <= 1) {
+                $rows.find('.remove-item-row-btn').attr('title', 'Clear item');
+            } else {
+                $rows.find('.remove-item-row-btn').attr('title', 'Remove this item');
             }
         }
+
+        function addItemRow(nameEn = '', nameTa = '', count = 1, focus = false) {
+            _itemRowCounter++;
+            const rowHtml = createItemRowHtml(_itemRowCounter, nameEn, nameTa, count);
+            const $newRow = $(rowHtml).appendTo('#dynamicItemRowsContainer');
+            attachItemRowEvents($newRow);
+            updateRemoveButtonStates();
+            syncItemsToFormFields();
+            if (focus) {
+                $newRow.find('.item-name-en').focus();
+            }
+            return $newRow;
+        }
+
+        function syncItemsToFormFields() {
+            const enTokens = [];
+            const taTokens = [];
+            let totalItems = 0;
+
+            $('#dynamicItemRowsContainer .item-input-row').each(function () {
+                const nameEn = ($(this).find('.item-name-en').val() || '').trim();
+                const nameTa = ($(this).find('.item-name-ta').val() || '').trim();
+                let count = parseInt($(this).find('.item-count').val(), 10);
+                if (isNaN(count) || count < 1) {
+                    count = 1;
+                }
+
+                if (nameEn || nameTa) {
+                    totalItems += count;
+
+                    // Format as Name-Count if count > 1, or Name if count == 1
+                    const enFormatted = nameEn ? (count > 1 ? `${nameEn}-${count}` : nameEn) : (nameTa ? (count > 1 ? `${nameTa}-${count}` : nameTa) : '');
+                    const taFormatted = nameTa ? (count > 1 ? `${nameTa}-${count}` : nameTa) : (nameEn ? (count > 1 ? `${nameEn}-${count}` : nameEn) : '');
+
+                    if (enFormatted) enTokens.push(enFormatted);
+                    if (taFormatted) taTokens.push(taFormatted);
+                }
+            });
+
+            const displayTotal = totalItems > 0 ? totalItems : 1;
+            const aggregatedEn = enTokens.join(', ');
+            const aggregatedTa = taTokens.join(', ');
+
+            $('#id_item_name').val(aggregatedEn);
+            $('#id_item_name_tamil').val(aggregatedTa);
+            $('#calculatedTotalItems').val(displayTotal);
+            $('#calculatedTotalItemsBadge').text(displayTotal);
+            $('#headerTotalItemsCount').text(displayTotal);
+
+            return displayTotal;
+        }
+
+        function parseExistingItemNames() {
+            const rawEn = ($('#id_item_name').val() || '').trim();
+            const rawTa = ($('#id_item_name_tamil').val() || '').trim();
+
+            $('#dynamicItemRowsContainer').empty();
+
+            if (!rawEn && !rawTa) {
+                addItemRow('', '', 1);
+                return;
+            }
+
+            const enTokens = rawEn ? rawEn.split(/[,;\n|]+/).map(t => t.trim()).filter(Boolean) : [];
+            const taTokens = rawTa ? rawTa.split(/[,;\n|]+/).map(t => t.trim()).filter(Boolean) : [];
+
+            const maxLen = Math.max(enTokens.length, taTokens.length, 1);
+            const qtyPattern = /^(.*?)\s*[-x:(]\s*(\d+)\s*\)?$/i;
+
+            for (let i = 0; i < maxLen; i++) {
+                const enTok = enTokens[i] || '';
+                const taTok = taTokens[i] || '';
+
+                let nameEn = enTok;
+                let nameTa = taTok;
+                let count = 1;
+
+                if (enTok) {
+                    const matchEn = enTok.match(qtyPattern);
+                    if (matchEn) {
+                        nameEn = matchEn[1].trim();
+                        count = parseInt(matchEn[2], 10) || 1;
+                    }
+                }
+
+                if (taTok) {
+                    const matchTa = taTok.match(qtyPattern);
+                    if (matchTa) {
+                        nameTa = matchTa[1].trim();
+                        if (!enTok) {
+                            count = parseInt(matchTa[2], 10) || 1;
+                        }
+                    }
+                }
+
+                addItemRow(nameEn, nameTa, count);
+            }
+
+            syncItemsToFormFields();
+        }
+
+        // Attach Add Item button handler and parse existing items
+        $('#addItemRowBtn').on('click', function () {
+            addItemRow('', '', 1, true);
+        });
+
+        // Initialize dynamic rows
+        parseExistingItemNames();
+
+        // Original loan form JS code
+        const KARAT_PURITY = {
+            '24': 0.999,
+            '22': 0.916,
+            '21': 0.875,
+            '20': 0.833,
+            '18': 0.750,
+            '14': 0.583
+        };
 
         function setupBidirectionalTransliteration(sourceSelector, targetSelector, direction) {
             const $source = $(sourceSelector);
@@ -2008,8 +2321,6 @@
         // Bind events
         $('#id_gross_weight, #id_stone_weight').on('input', calculateNetWeight);
         $('#id_market_price_22k, #id_gold_karat, #id_net_weight').on('input', calculateGoldValue);
-        setupBidirectionalTransliteration('#id_item_name', '#id_item_name_tamil', 'to_tamil');
-        setupBidirectionalTransliteration('#id_item_name_tamil', '#id_item_name', 'to_english');
         setupBidirectionalTransliteration('#id_item_description', '#id_item_description_tamil', 'to_tamil');
         setupBidirectionalTransliteration('#id_item_description_tamil', '#id_item_description', 'to_english');
         $('#id_customer').on('change', updateCustomerTamilPreview);
@@ -2059,8 +2370,10 @@
             }
             // In edit mode: use the server-saved value as-is — do NOT recalculate.
             // Recalculation only happens when the user changes a field.
-            const savedDeductionAmt = parseFloat($('#id_distribution_amount_with_deduction').val()) || 0;
+            const rawDeduct = $('#id_distribution_amount_with_deduction').val();
+            const savedDeductionAmt = rawDeduct ? Math.round(parseFloat(rawDeduct)) : 0;
             if (savedDeductionAmt > 0) {
+                $('#id_distribution_amount_with_deduction').val(savedDeductionAmt);
                 $.get(`/transactions/number_to_words/${savedDeductionAmt}`, function (response) {
                     $('#distributionWithDeductionWords').text(response.words + ' Rupees Only');
                 });
@@ -2108,6 +2421,9 @@
 
         // Add form submission handling
         $('#loanForm').on('submit', function (event) {
+            // Ensure aggregated item names are up to date before submit
+            syncItemsToFormFields();
+
             // Store current photos in localStorage before submit
             if (itemPhotos.length > 0) {
                 localStorage.setItem('tempItemPhotos', JSON.stringify(itemPhotos));
@@ -2152,6 +2468,9 @@
         const continueIterateBtn = document.getElementById('continueIterateBtn');
         if (continueIterateBtn) {
             continueIterateBtn.addEventListener('click', function () {
+                // Ensure items are synced before capturing form data
+                syncItemsToFormFields();
+
                 // Store current form data in sessionStorage
                 const formData = {
                     branch: $('#id_branch').val(),
@@ -2202,6 +2521,9 @@
                     if (formData.gold_karat) $('#id_gold_karat').val(formData.gold_karat);
                     if (formData.scheme) $('#id_scheme').val(formData.scheme);
 
+                    // Re-parse restored item names into dynamic input rows
+                    parseExistingItemNames();
+
                     // Trigger the scheme info update if scheme is selected
                     if (formData.scheme) {
                         $('#id_scheme').trigger('change');
@@ -2221,6 +2543,16 @@
         });
 
         // Clear photos when creating a new loan - IMPROVED VERSION
+        $(document).ready(function () {
+            const currentDeductVal = $('#id_distribution_amount_with_deduction').val();
+            if (currentDeductVal) {
+                const roundedDeduct = Math.round(parseFloat(currentDeductVal));
+                if (!isNaN(roundedDeduct)) {
+                    $('#id_distribution_amount_with_deduction').val(roundedDeduct);
+                }
+            }
+        });
+
         {% if not form.instance.pk %}
         $(document).ready(function () {
             const hasFormErrors = {% if form.errors %}true{% else %}false{% endif %};

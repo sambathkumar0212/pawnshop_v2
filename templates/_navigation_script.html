@@ -115,9 +115,9 @@
     // Force re-highlight after page transitions
     $(document).on('DOMContentLoaded', highlightActiveNavigation);
     
-    // Close alerts automatically after 5 seconds
+    // Close flash message alerts automatically after 5 seconds
     window.setTimeout(function() {
-        $(".alert").fadeTo(500, 0).slideUp(500, function() {
+        $(".alert.alert-dismissible, #messagesContainer .alert, .messages .alert").not("#scheme-info, .no-auto-dismiss, .permanent-alert").fadeTo(500, 0).slideUp(500, function() {
             $(this).remove();
         });
     }, 5000);
