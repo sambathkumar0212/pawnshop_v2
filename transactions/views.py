@@ -497,7 +497,7 @@ def build_loan_pdf_language_context(loan, current_language):
                 monthly_rate = (Decimal(str(rate)) / Decimal('12')).quantize(Decimal('0.01'))
                 interest_amount = (original_dist * monthly_rate / Decimal('100')).quantize(Decimal('0.01'))
                 rate_val = f"{monthly_rate:.2f}%"
-                amount_val = f"Rs {interest_amount:,.2f}"
+                amount_val = f"Rs {round(interest_amount):,}"
             except Exception:
                 rate_val = f"{rate}%"
                 amount_val = ""
@@ -1095,15 +1095,15 @@ class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, Lis
             try:
                 monthly_interest = 0
                 if hasattr(loan, 'monthly_interest_amount'):
-                    monthly_interest = float(loan.monthly_interest_amount())
+                    monthly_interest = round(float(loan.monthly_interest_amount()))
                 
                 total_payable = 0
                 if hasattr(loan, 'total_payable_till_date'):
-                    total_payable = float(loan.total_payable_till_date)
+                    total_payable = round(float(loan.total_payable_till_date))
                 
                 amount_paid = 0
                 if hasattr(loan, 'amount_paid'):
-                    amount_paid = float(loan.amount_paid)
+                    amount_paid = round(float(loan.amount_paid))
                 
                 remaining_balance = total_payable - amount_paid
             except:
@@ -1128,8 +1128,8 @@ class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, Lis
                 loan.customer.email if loan.customer and hasattr(loan.customer, 'email') else '',
                 loan.branch.name if loan.branch else '',
                 str(len(loan.item_photo_list)) if hasattr(loan, 'item_photo_list') and loan.item_photo_list else '0',
-                float(loan.principal_amount) if loan.principal_amount else 0,
-                float(loan.distribution_amount) if hasattr(loan, 'distribution_amount') and loan.distribution_amount else 0,
+                round(float(loan.principal_amount)) if loan.principal_amount else 0,
+                round(float(loan.distribution_amount)) if hasattr(loan, 'distribution_amount') and loan.distribution_amount else 0,
                 float(loan.interest_rate) if loan.interest_rate else 0,
                 loan.issue_date.strftime('%Y-%m-%d') if loan.issue_date else '',
                 loan.due_date.strftime('%Y-%m-%d') if loan.due_date else '',
@@ -1158,15 +1158,15 @@ class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, Lis
         try:
             monthly_interest = 0
             if hasattr(loan, 'monthly_interest_amount'):
-                monthly_interest = float(loan.monthly_interest_amount())
+                monthly_interest = round(float(loan.monthly_interest_amount()))
 
             total_payable = 0
             if hasattr(loan, 'total_payable_till_date'):
-                total_payable = float(loan.total_payable_till_date)
+                total_payable = round(float(loan.total_payable_till_date))
 
             amount_paid = 0
             if hasattr(loan, 'amount_paid'):
-                amount_paid = float(loan.amount_paid)
+                amount_paid = round(float(loan.amount_paid))
 
             remaining_balance = total_payable - amount_paid
         except Exception:
@@ -3156,9 +3156,9 @@ class LoanScheduleView(LoginRequiredMixin, RoleBranchAccessMixin, View):
             writer.writerow(['Month', 'Principal', 'Monthly Interest', 'Total Amount'])
             for idx, r in enumerate(rows, start=1):
                 # cumulative interest = monthly_interest * idx
-                cum_interest = (r['interest'] * Decimal(idx)).quantize(Decimal('0.01'))
-                writer.writerow([r['month'], r.get('principal_display') or format(r['principal'], '0.2f'), format(r['interest'], '0.2f'), format(r['total_amount'], '0.2f')])
-            writer.writerow([final_row['month'], format(final_row['principal'], '0.2f'), format(final_row['interest'], '0.2f'), format(final_row['total_amount'], '0.2f')])
+                cum_interest = round(r['interest'] * Decimal(idx))
+                writer.writerow([r['month'], r.get('principal_display') or format(round(r['principal']), 'd'), format(round(r['interest']), 'd'), format(round(r['total_amount']), 'd')])
+            writer.writerow([final_row['month'], format(round(final_row['principal']), 'd'), format(round(final_row['interest']), 'd'), format(round(final_row['total_amount']), 'd')])
             return response
 
         if download == 'pdf':
@@ -3201,7 +3201,7 @@ class LoanScheduleView(LoginRequiredMixin, RoleBranchAccessMixin, View):
                 
                 # Add customer details at the top
                 customer_name = f"{loan.customer.first_name} {loan.customer.last_name}"
-                principal_amount = f"Rs {loan.principal_amount:,.2f}"
+                principal_amount = f"Rs {loan.principal_amount:,.0f}"
                 loan_date = loan.issue_date.strftime('%d-%m-%Y')
                 due_date = loan.due_date.strftime('%d-%m-%Y')
 
@@ -3231,7 +3231,7 @@ class LoanScheduleView(LoginRequiredMixin, RoleBranchAccessMixin, View):
 
                 table_data = [[ 'S.No.', 'Month', 'Principal(Dist+Prc)', 'Monthly Interest', 'Customer Signature', 'Office Sign & Seal' ]]
                 for idx, r in enumerate(rows, start=1):
-                    table_data.append([str(idx), r['month'], r.get('principal_display') or format(r['principal'], '0.2f'), f"{r['interest']:.2f}", '', ''])
+                    table_data.append([str(idx), r['month'], r.get('principal_display') or format(round(r['principal']), 'd'), f"{round(r['interest']):,}", '', ''])
 
                 col_widths = [0.6*inch, 1.0*inch, 1.6*inch, 1.4*inch, 1.9*inch, 1.9*inch]
                 table = Table(table_data, colWidths=col_widths, rowHeights=[0.35*inch] + [0.9*inch]*(len(table_data)-1))

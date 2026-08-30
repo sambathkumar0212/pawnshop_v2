@@ -114,7 +114,7 @@
                             <td class="text-center font-monospace">{{ it.gold_karat }}K</td>
                             <td class="text-end font-monospace">{{ it.gross_weight }}</td>
                             <td class="text-end font-monospace fw-bold">{{ it.net_weight }}</td>
-                            <td class="text-end font-monospace text-success">₹{{ it.item_valuation|floatformat:2|intcomma }}</td>
+                            <td class="text-end font-monospace text-success">₹{{ it.item_valuation|floatformat:0|intcomma }}</td>
                             <td class="text-center">
                                 <span class="badge bg-success">RELEASED</span>
                             </td>
@@ -151,7 +151,7 @@
                             <td class="text-center font-monospace">{{ it.gold_karat }}K</td>
                             <td class="text-end font-monospace">{{ it.gross_weight }}</td>
                             <td class="text-end font-monospace fw-bold">{{ it.net_weight }}</td>
-                            <td class="text-end font-monospace text-primary">₹{{ it.item_valuation|floatformat:2|intcomma }}</td>
+                            <td class="text-end font-monospace text-primary">₹{{ it.item_valuation|floatformat:0|intcomma }}</td>
                             <td class="text-center">
                                 <span class="badge bg-primary">IN VAULT</span>
                             </td>
@@ -176,16 +176,16 @@
                     <table class="table table-sm table-borderless small mb-0">
                         <tr>
                             <td class="text-muted">Principal Amount Repaid:</td>
-                            <td class="text-end font-monospace fw-bold text-success">₹{{ record.principal_paid|floatformat:2|intcomma }}</td>
+                            <td class="text-end font-monospace fw-bold text-success">₹{{ record.principal_paid|floatformat:0|intcomma }}</td>
                         </tr>
                         <tr>
                             <td class="text-muted">Interest / Charges Paid:</td>
-                            <td class="text-end font-monospace fw-bold text-dark">₹{{ record.interest_paid|floatformat:2|intcomma }}</td>
+                            <td class="text-end font-monospace fw-bold text-dark">₹{{ record.interest_paid|floatformat:0|intcomma }}</td>
                         </tr>
                         <tr class="border-top">
                             <td class="fw-bold text-dark">Total Cash/Bank Received:</td>
                             <td class="text-end font-monospace fw-bold text-primary fs-6">
-                                ₹{{ record.principal_paid|add:record.interest_paid|floatformat:2|intcomma }}
+                                ₹{{ record.principal_paid|add:record.interest_paid|floatformat:0|intcomma }}
                             </td>
                         </tr>
                         {% if record.payment %}
@@ -203,15 +203,15 @@
                     <table class="table table-sm table-borderless small mb-0">
                         <tr>
                             <td class="text-muted">Previous Principal Outstanding:</td>
-                            <td class="text-end font-monospace">₹{{ record.previous_outstanding_principal|floatformat:2|intcomma }}</td>
+                            <td class="text-end font-monospace">₹{{ record.previous_outstanding_principal|floatformat:0|intcomma }}</td>
                         </tr>
                         <tr>
                             <td class="fw-bold text-dark">New Principal Outstanding:</td>
-                            <td class="text-end font-monospace fw-bold text-dark">₹{{ record.new_outstanding_principal|floatformat:2|intcomma }}</td>
+                            <td class="text-end font-monospace fw-bold text-dark">₹{{ record.new_outstanding_principal|floatformat:0|intcomma }}</td>
                         </tr>
                         <tr>
                             <td class="text-muted">Retained Gold Collateral Valuation:</td>
-                            <td class="text-end font-monospace text-primary">₹{{ record.remaining_gold_value|floatformat:2|intcomma }}</td>
+                            <td class="text-end font-monospace text-primary">₹{{ record.remaining_gold_value|floatformat:0|intcomma }}</td>
                         </tr>
                         <tr class="border-top">
                             <td class="fw-bold text-dark">Resulting Statutory LTV Ratio:</td>

@@ -686,7 +686,7 @@
                                     {{ labels.monthly_interest }}:
                                 </span>
                                 <span class="field-content financial-value">
-                                    Rs {{ loan.monthly_interest.amount|floatformat:2 }}
+                                    Rs {{ loan.monthly_interest.amount|floatformat:0 }}
                                     ({{ loan.monthly_interest.rate }}% monthly)
                                 </span>
                             </div>

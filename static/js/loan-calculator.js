@@ -35,9 +35,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Function to format currency
     function formatCurrency(amount) {
-        return 'Rs: ' + parseFloat(amount).toLocaleString('en-IN', {
-            maximumFractionDigits: 2,
-            minimumFractionDigits: 2
+        return 'Rs: ' + Math.round(parseFloat(amount) || 0).toLocaleString('en-IN', {
+            maximumFractionDigits: 0,
+            minimumFractionDigits: 0
         });
     }
     

@@ -80,23 +80,23 @@
                         </li>
                         <li class="list-group-item d-flex justify-content-between px-0 py-2 border-top">
                             <span class="text-muted">Current Principal</span>
-                            <span class="fw-bold font-monospace text-dark">₹{{ loan_principal|floatformat:2|intcomma }}</span>
+                            <span class="fw-bold font-monospace text-dark">₹{{ loan_principal|floatformat:0|intcomma }}</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between px-0 py-2">
                             <span class="text-muted">Interest Accrued (Today)</span>
-                            <span class="fw-bold font-monospace text-danger">₹{{ today_interest|floatformat:2|intcomma }}</span>
+                            <span class="fw-bold font-monospace text-danger">₹{{ today_interest|floatformat:0|intcomma }}</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between px-0 py-2 bg-light rounded">
                             <span class="fw-bold text-primary"><i class="fas fa-rupee-sign me-1"></i>Today's Net Payable</span>
-                            <span class="fw-bold font-monospace text-primary fs-5">₹{{ today_net_payable|floatformat:2|intcomma }}</span>
+                            <span class="fw-bold font-monospace text-primary fs-5">₹{{ today_net_payable|floatformat:0|intcomma }}</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between px-0 py-2">
                             <span class="text-muted">Already Paid</span>
-                            <span class="fw-bold font-monospace text-success">₹{{ loan.amount_paid|floatformat:2|intcomma }}</span>
+                            <span class="fw-bold font-monospace text-success">₹{{ loan.amount_paid|floatformat:0|intcomma }}</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between px-0 py-2">
                             <span class="fw-bold text-danger">Net Outstanding Due</span>
-                            <span class="fw-bold font-monospace text-danger">₹{{ remaining_balance|floatformat:2|intcomma }}</span>
+                            <span class="fw-bold font-monospace text-danger">₹{{ remaining_balance|floatformat:0|intcomma }}</span>
                         </li>
                     </ul>
 
@@ -123,7 +123,7 @@
                         {% for p in payments %}
                         <div class="d-flex justify-content-between align-items-center py-1 border-bottom small">
                             <span class="text-muted">{{ p.payment_date|date:"d M Y" }}</span>
-                            <span class="fw-bold font-monospace text-success">₹{{ p.amount|floatformat:2|intcomma }}</span>
+                            <span class="fw-bold font-monospace text-success">₹{{ p.amount|floatformat:0|intcomma }}</span>
                             <a href="{% url 'payment_receipt' p.id %}" target="_blank" class="btn btn-xs btn-outline-primary" style="font-size: 0.65rem; padding: 2px 6px;">
                                 <i class="fas fa-print"></i>
                             </a>
@@ -309,10 +309,10 @@
 
 {% block extra_scripts %}
 <script>
-const LOAN_PRINCIPAL    = {{ loan_principal|floatformat:2 }};
-const TODAY_INTEREST    = {{ today_interest|floatformat:2 }};
-const REMAINING_BALANCE = {{ remaining_balance|floatformat:2 }};
-const NET_PAYABLE_TODAY = {{ today_net_payable|floatformat:2 }};
+const LOAN_PRINCIPAL    = {{ loan_principal|floatformat:0 }};
+const TODAY_INTEREST    = {{ today_interest|floatformat:0 }};
+const REMAINING_BALANCE = {{ remaining_balance|floatformat:0 }};
+const NET_PAYABLE_TODAY = {{ today_net_payable|floatformat:0 }};
 
 document.addEventListener('DOMContentLoaded', function () {
     const liveInput  = document.getElementById('liveAmountInput');

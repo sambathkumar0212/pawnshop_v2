@@ -243,7 +243,7 @@
             <div class="p-2 d-flex align-items-center justify-content-between h-100 rounded-3 text-white shadow-sm" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
                 <div>
                     <span class="text-uppercase fw-semibold" style="font-size: 0.68rem; letter-spacing: 0.04em; color: rgba(255,255,255,0.85);">Portfolio Total</span>
-                    <div class="fw-bold fs-5 text-white lh-1 my-1">Rs {{ total_outstanding|default:0.00|floatformat:2 }}</div>
+                    <div class="fw-bold fs-5 text-white lh-1 my-1">Rs {{ total_outstanding|default:0|floatformat:0 }}</div>
                     <small class="d-block" style="font-size: 0.68rem; color: rgba(255,255,255,0.85);">Active Principal</small>
                 </div>
                 <div class="rounded-circle p-2 d-flex align-items-center justify-content-center" style="background: rgba(255, 255, 255, 0.2); width: 34px; height: 34px;">
@@ -519,14 +519,14 @@
 
                                     <!-- Principal Column -->
                                     <td>
-                                        <div class="fw-bold" style="color: #0f172a;">Rs {{ loan.principal_amount|floatformat:2 }}</div>
+                                        <div class="fw-bold" style="color: #0f172a;">Rs {{ loan.principal_amount|floatformat:0 }}</div>
                                         <small class="text-muted" style="font-size: 0.74rem;">#{{ loan.loan_number }}</small>
                                     </td>
 
                                     <!-- Monthly Interest Column -->
                                     <td>
                                         <span class="badge bg-light text-dark border" style="font-size: 0.74rem;">{{ loan|monthly_interest_rate }}%/mo</span>
-                                        <small class="d-block text-muted" style="font-size: 0.74rem;">Rs {{ loan|monthly_interest_amount|floatformat:2 }}/mo</small>
+                                        <small class="d-block text-muted" style="font-size: 0.74rem;">Rs {{ loan|monthly_interest_amount|floatformat:0 }}/mo</small>
                                     </td>
 
                                     <!-- Start Date Column -->

@@ -1,4 +1,4 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
 
@@ -196,7 +196,7 @@
                             </a>
                         </td>
                         <td>
-                            <span class="badge bg-success">Rs: {{ payment.amount|floatformat:2 }}</span>
+                            <span class="badge bg-success">Rs: {{ payment.amount|floatformat:0 }}</span>
                         </td>
                         <td>
                             <small class="text-muted">{{ payment.payment_date|date:"d-m-Y" }}</small>

@@ -163,7 +163,7 @@
                                 <div class="small text-muted">{{ loan.customer.phone }} | {{ loan.branch.name }}</div>
                             </td>
                             <td class="text-end font-monospace fw-bold fs-6 text-dark">
-                                ₹{{ loan.principal_amount|floatformat:2|intcomma }}
+                                ₹{{ loan.principal_amount|floatformat:0|intcomma }}
                             </td>
                             <td>
                                 {% if loan.approval_tier == 1 %}
@@ -259,7 +259,7 @@
                                         <div class="modal-body text-start">
                                             <div class="alert alert-info small mb-3">
                                                 <strong>Customer:</strong> {{ loan.customer.full_name }}<br>
-                                                <strong>Principal Amount:</strong> ₹{{ loan.principal_amount|floatformat:2|intcomma }}<br>
+                                                <strong>Principal Amount:</strong> ₹{{ loan.principal_amount|floatformat:0|intcomma }}<br>
                                                 <strong>Required Approval Level:</strong> Tier {{ loan.approval_tier }}
                                             </div>
                                             <div class="mb-3">

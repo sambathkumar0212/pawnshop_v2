@@ -200,7 +200,7 @@
                                 Current Principal
                                 <i class="fas fa-info-circle text-muted ms-1" style="font-size: 0.75rem;"></i>
                             </span>
-                            <h4 class="mb-0 fw-bold rupee-symbol text-success">Rs: {{ loan.principal_amount|floatformat:2|intcomma }}</h4>
+                            <h4 class="mb-0 fw-bold rupee-symbol text-success">Rs: {{ loan.principal_amount|floatformat:0|intcomma }}</h4>
                         </div>
                         <div class="bg-light rounded p-2 text-success">
                             <i class="fas fa-hand-holding-usd fa-lg"></i>
@@ -220,14 +220,14 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <span class="text-muted small text-uppercase d-block mb-1">Today's Net Payable</span>
-                            <h4 class="mb-0 fw-bold rupee-symbol text-danger">Rs: {{ today_net_payable|floatformat:2|intcomma }}</h4>
+                            <h4 class="mb-0 fw-bold rupee-symbol text-danger">Rs: {{ today_net_payable|floatformat:0|intcomma }}</h4>
                         </div>
                         <div class="bg-light rounded p-2 text-danger">
                             <i class="fas fa-calculator fa-lg"></i>
                         </div>
                     </div>
                     <div class="mt-2 small text-muted">
-                        <i class="fas fa-percentage me-1 text-danger"></i><strong>Today's Accrued Int:</strong> Rs: {{ today_interest_due|floatformat:2|intcomma }}
+                        <i class="fas fa-percentage me-1 text-danger"></i><strong>Today's Accrued Int:</strong> Rs: {{ today_interest_due|floatformat:0|intcomma }}
                     </div>
                 </div>
             </div>
@@ -239,7 +239,7 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <span class="text-muted small text-uppercase d-block mb-1">Total Amount Paid</span>
-                            <h4 class="mb-0 fw-bold rupee-symbol text-primary">Rs: {{ loan.amount_paid|floatformat:2|intcomma }}</h4>
+                            <h4 class="mb-0 fw-bold rupee-symbol text-primary">Rs: {{ loan.amount_paid|floatformat:0|intcomma }}</h4>
                         </div>
                         <div class="bg-light rounded p-2 text-primary">
                             <i class="fas fa-cash-register fa-lg"></i>
@@ -354,14 +354,14 @@
                         <div class="col-6">
                             <div class="border rounded p-2 h-100 bg-light border-primary border-opacity-25">
                                 <div class="text-muted small mb-1"><i class="fas fa-hand-holding-usd me-1 text-primary"></i>Distribution Amount <span class="badge bg-secondary text-white" style="font-size:.65rem;">Processing Fee Deducted</span></div>
-                                <div class="fw-bold text-dark rupee-symbol" style="font-size:.95rem;">Rs {{ loan.original_distribution_amount|floatformat:2 }}</div>
+                                <div class="fw-bold text-dark rupee-symbol" style="font-size:.95rem;">Rs {{ loan.original_distribution_amount|floatformat:0 }}</div>
                                 <div class="text-muted" style="font-size:.7rem;">Principal &minus; Processing Fee (1st month interest not deducted)</div>
                             </div>
                         </div>
                         <div class="col-6">
                             <div class="border rounded p-2 h-100 bg-light border-success border-opacity-25">
                                 <div class="text-muted small mb-1"><i class="fas fa-money-check-alt me-1 text-success"></i>Distribution with Deduction <span class="badge bg-success text-white" style="font-size:.65rem;">Net Disbursed</span></div>
-                                <div class="fw-bold text-success rupee-symbol" style="font-size:.95rem;">Rs {{ loan.distribution_amount_with_deduction|floatformat:2 }}</div>
+                                <div class="fw-bold text-success rupee-symbol" style="font-size:.95rem;">Rs {{ loan.distribution_amount_with_deduction|floatformat:0 }}</div>
                                 <div class="text-muted" style="font-size:.7rem;">
                                     Deducted:
                                     {% if loan.is_processing_fee_paid %}<span class="badge bg-warning text-dark" style="font-size:.6rem;">Processing Fee</span>{% endif %}
@@ -393,7 +393,7 @@
                         <div class="col-6 col-md-4 col-lg-2">
                             <div class="border rounded p-2 h-100 bg-light">
                                 <div class="text-muted small mb-1"><i class="fas fa-calendar-week me-1 text-success"></i>Monthly Int.</div>
-                                <div class="fw-bold text-success rupee-symbol" style="font-size:.85rem;">Rs {{ loan|monthly_interest_amount|floatformat:2 }}</div>
+                                <div class="fw-bold text-success rupee-symbol" style="font-size:.85rem;">Rs {{ loan|monthly_interest_amount|floatformat:0 }}</div>
                             </div>
                         </div>
 
@@ -401,7 +401,7 @@
                         <div class="col-6 col-md-4 col-lg-2">
                             <div class="border rounded p-2 h-100 bg-light">
                                 <div class="text-muted small mb-1"><i class="fas fa-coins me-1 text-warning"></i>Daily Int.</div>
-                                <div class="fw-bold text-warning rupee-symbol" style="font-size:.85rem;">Rs {{ loan.daily_interest_amount|floatformat:2 }}</div>
+                                <div class="fw-bold text-warning rupee-symbol" style="font-size:.85rem;">Rs {{ loan.daily_interest_amount|floatformat:0 }}</div>
                             </div>
                         </div>
 
@@ -435,7 +435,7 @@
                             <div class="border rounded p-2 h-100 bg-light">
                                 <div class="text-muted small mb-1"><i class="fas fa-chart-line me-1 text-primary"></i>Accrued Int.</div>
                                 <div class="fw-bold text-primary rupee-symbol" style="font-size:.85rem;">
-                                    Rs {{ loan.monthly_interest_till_date|floatformat:2 }}
+                                    Rs {{ loan.monthly_interest_till_date|floatformat:0 }}
                                     <div class="text-muted fw-normal" style="font-size:.7rem;">{% if loan.scheme.is_days_based %}Daily{% else %}Monthly{% endif %} basis</div>
                                 </div>
                             </div>
@@ -447,13 +447,13 @@
                         <div class="col-6">
                             <div class="border rounded p-2 bg-light">
                                 <div class="text-muted small mb-1"><i class="fas fa-calendar-alt me-1"></i>Accrued (Monthly)</div>
-                                <div class="fw-bold text-dark rupee-symbol" style="font-size:.85rem;">Rs {{ loan.interest_till_date_monthly_basis|floatformat:2 }}</div>
+                                <div class="fw-bold text-dark rupee-symbol" style="font-size:.85rem;">Rs {{ loan.interest_till_date_monthly_basis|floatformat:0 }}</div>
                             </div>
                         </div>
                         <div class="col-6">
                             <div class="border rounded p-2 bg-light">
                                 <div class="text-muted small mb-1"><i class="fas fa-sun me-1"></i>Accrued (Daily)</div>
-                                <div class="fw-bold text-dark rupee-symbol" style="font-size:.85rem;">Rs {{ loan.interest_till_date_daily_basis|floatformat:2 }}</div>
+                                <div class="fw-bold text-dark rupee-symbol" style="font-size:.85rem;">Rs {{ loan.interest_till_date_daily_basis|floatformat:0 }}</div>
                             </div>
                         </div>
                     </div>
@@ -462,7 +462,7 @@
                     <div class="mt-2">
                         <div class="d-flex justify-content-between mb-1">
                             <label class="text-muted small">Repayment Progress</label>
-                            <small class="text-muted rupee-symbol">Paid: Rs {{ loan.amount_paid|floatformat:2 }} &nbsp;/&nbsp; Total Due: Rs {{ loan.total_payable_till_date|floatformat:0 }}</small>
+                            <small class="text-muted rupee-symbol">Paid: Rs {{ loan.amount_paid|floatformat:0 }} &nbsp;/&nbsp; Total Due: Rs {{ loan.total_payable_till_date|floatformat:0 }}</small>
                         </div>
                         <div class="progress" style="height:10px;">
                             {% if loan.total_payable_till_date > 0 %}
@@ -567,7 +567,7 @@
                     <div class="d-flex justify-content-between mb-2">
                         <span class="text-muted">Repledge Status:</span>
                         <span class="fw-bold {% if loan.repledge_amount %}text-danger{% else %}text-success{% endif %}">
-                            {% if loan.repledge_amount %}Repledged (Rs: {{ loan.repledge_amount|floatformat:2 }}){% else %}<i class="fas fa-check-circle me-1"></i>In Custody{% endif %}
+                            {% if loan.repledge_amount %}Repledged (Rs: {{ loan.repledge_amount|floatformat:0 }}){% else %}<i class="fas fa-check-circle me-1"></i>In Custody{% endif %}
                         </span>
                     </div>
                     {% if loan.repledge_date %}
@@ -801,7 +801,7 @@
                             </tr>
                             <tr>
                                 <td class="text-muted py-2 ps-2">Disbursed Amount</td>
-                                <td class="fw-bold py-2 text-end pe-2 text-success rupee-symbol">Rs {{ loan.disbursement_detail.amount|floatformat:2|intcomma }}</td>
+                                <td class="fw-bold py-2 text-end pe-2 text-success rupee-symbol">Rs {{ loan.disbursement_detail.amount|floatformat:0|intcomma }}</td>
                             </tr>
                             {% if loan.disbursement_detail.payment_mode != 'CASH' %}
                             <tr>
@@ -830,7 +830,7 @@
                         <tbody>
                             <tr>
                                 <td class="text-muted py-2 ps-2">Disbursed Amount</td>
-                                <td class="fw-bold py-2 text-end pe-2 text-success rupee-symbol">Rs {{ loan.original_distribution_amount|floatformat:2|intcomma }}</td>
+                                <td class="fw-bold py-2 text-end pe-2 text-success rupee-symbol">Rs {{ loan.original_distribution_amount|floatformat:0|intcomma }}</td>
                             </tr>
                             <tr>
                                 <td class="text-muted py-2 ps-2">Compliance Rule</td>
@@ -877,7 +877,7 @@
                                 <tr>
                                     <td class="font-monospace fw-bold text-primary">{{ rel.release_number }}</td>
                                     <td>{{ rel.release_date|date:"d M Y" }}</td>
-                                    <td class="text-end font-monospace text-success fw-bold rupee-symbol">Rs {{ rel.principal_paid|floatformat:2|intcomma }}</td>
+                                    <td class="text-end font-monospace text-success fw-bold rupee-symbol">Rs {{ rel.principal_paid|floatformat:0|intcomma }}</td>
                                     <td class="text-center">
                                         <a href="{% url 'loan_partial_release_voucher' loan.loan_number rel.id %}" target="_blank" class="btn btn-outline-primary btn-xs py-0 px-2">
                                             <i class="fas fa-print me-1"></i>Voucher
@@ -932,7 +932,7 @@
                                 {% for payment in payments %}
                                 <tr>
                                     <td>{{ payment.payment_date|date:"M d, Y" }}</td>
-                                    <td class="fw-bold rupee-symbol text-success">Rs: {{ payment.amount|floatformat:2|intcomma }}</td>
+                                    <td class="fw-bold rupee-symbol text-success">Rs: {{ payment.amount|floatformat:0|intcomma }}</td>
                                     <td><span class="badge bg-light text-dark border">{{ payment.get_payment_method_display }}</span></td>
                                 </tr>
                                 {% endfor %}
@@ -954,7 +954,7 @@
             <div class="card mb-3 shadow-sm border-0">
                 <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
                     <h5 class="mb-0"><i class="fas fa-moon text-primary me-2"></i>Daily Interest Accrual (EOD)</h5>
-                    <span class="badge bg-success font-monospace">Accrued: ₹{{ loan.accrued_interest|floatformat:2|intcomma }}</span>
+                    <span class="badge bg-success font-monospace">Accrued: ₹{{ loan.accrued_interest|floatformat:0|intcomma }}</span>
                 </div>
                 <div class="card-body p-0">
                     {% if loan.accrual_logs.all %}
@@ -979,8 +979,8 @@
                                             {{ acc.irac_status }}
                                         </span>
                                     </td>
-                                    <td class="text-end font-monospace text-success fw-bold">+₹{{ acc.daily_interest_accrued|floatformat:2 }}</td>
-                                    <td class="text-end font-monospace fw-bold text-dark">₹{{ acc.cumulative_interest|floatformat:2 }}</td>
+                                    <td class="text-end font-monospace text-success fw-bold">+₹{{ acc.daily_interest_accrued|floatformat:0 }}</td>
+                                    <td class="text-end font-monospace fw-bold text-dark">₹{{ acc.cumulative_interest|floatformat:0 }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -1015,7 +1015,7 @@
                                 {% for extension in extensions %}
                                 <tr>
                                     <td>{{ extension.extension_date|date:"M d, Y" }}</td>
-                                    <td class="rupee-symbol font-monospace text-dark">Rs: {{ extension.fee|floatformat:2 }}</td>
+                                    <td class="rupee-symbol font-monospace text-dark">Rs: {{ extension.fee|floatformat:0 }}</td>
                                     <td class="fw-bold text-primary">{{ extension.new_due_date|date:"M d, Y" }}</td>
                                 </tr>
                                 {% endfor %}
@@ -1113,22 +1113,22 @@
                                          <td>{{ item.days }} Days</td>
                                          <td>
                                              <span class="badge bg-success mb-1">{{ item.disciplined_rate|floatformat:2 }}% p.a.</span>
-                                             <div class="small text-muted rupee-symbol">Int: Rs: {{ item.disciplined_cum_interest|floatformat:2 }}</div>
+                                             <div class="small text-muted rupee-symbol">Int: Rs: {{ item.disciplined_cum_interest|floatformat:0 }}</div>
                                          </td>
-                                         <td class="rupee-symbol fw-bold text-success">Rs: {{ item.disciplined_closing|floatformat:2 }}</td>
+                                         <td class="rupee-symbol fw-bold text-success">Rs: {{ item.disciplined_closing|floatformat:0 }}</td>
                                          <td>
                                              <span class="badge bg-danger mb-1">{{ item.delayed_rate|floatformat:2 }}% p.a.</span>
-                                             <div class="small text-muted rupee-symbol">Int: Rs: {{ item.delayed_cum_interest|floatformat:2 }}</div>
+                                             <div class="small text-muted rupee-symbol">Int: Rs: {{ item.delayed_cum_interest|floatformat:0 }}</div>
                                          </td>
-                                         <td class="rupee-symbol fw-bold text-danger">Rs: {{ item.delayed_closing|floatformat:2 }}</td>
-                                         <td class="rupee-symbol fw-bold text-primary">Rs: {{ item.savings|floatformat:2 }}</td>
+                                         <td class="rupee-symbol fw-bold text-danger">Rs: {{ item.delayed_closing|floatformat:0 }}</td>
+                                         <td class="rupee-symbol fw-bold text-primary">Rs: {{ item.savings|floatformat:0 }}</td>
                                      </tr>
                                      {% endfor %}
                                  </tbody>
                              </table>
                          </div>
                          <small class="text-muted fst-italic d-block mt-2" style="font-size: 0.75rem;">
-                             * Closing Total Amount = Principal Amount (Rs: {{ loan.principal_amount|floatformat:2 }}) + Cumulative Interest accrued under that payment behavior.
+                             * Closing Total Amount = Principal Amount (Rs: {{ loan.principal_amount|floatformat:0 }}) + Cumulative Interest accrued under that payment behavior.
                          </small>
                      </div>
                      {% endwith %}
@@ -1202,7 +1202,7 @@
                             <td class="text-muted w-50 py-1"><i class="fas fa-hand-holding-usd me-2 text-warning"></i>Repledge Amount</td>
                             <td class="fw-bold text-success py-1">
                                 {% if loan.repledge_amount %}
-                                Rs: {{ loan.repledge_amount|floatformat:2 }}
+                                Rs: {{ loan.repledge_amount|floatformat:0 }}
                                 {% else %}
                                 Not Repledged
                                 {% endif %}

@@ -80,7 +80,7 @@
                             <table class="table table-bordered">
                                 <tr>
                                     <th width="30%">Principal Amount</th>
-                                    <td>Rs: {{ principal_amount|floatformat:2 }}</td>
+                                    <td>Rs: {{ principal_amount|floatformat:0 }}</td>
                                 </tr>
                                 <tr>
                                     <th>Interest Amount (till today)</th>
@@ -92,7 +92,7 @@
                                 </tr>
                                 <tr>
                                     <th>Amount Already Paid</th>
-                                    <td>Rs: {{ amount_paid|floatformat:2 }}</td>
+                                    <td>Rs: {{ amount_paid|floatformat:0 }}</td>
                                 </tr>
                                 <tr class="table-primary">
                                     <th>Net Amount Due</th>
