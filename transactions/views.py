@@ -31,6 +31,18 @@ from urllib.parse import urlparse
 from utils.download_utils import DownloadMixin
 from utils.translation import translate_text
 
+try:
+    from xhtml2pdf import pisa
+except ImportError:
+    pisa = None
+
+try:
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+except ImportError:
+    pdfmetrics = None
+    TTFont = None
+
 
 import functools
 

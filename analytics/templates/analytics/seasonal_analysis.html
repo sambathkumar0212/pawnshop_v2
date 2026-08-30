@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Seasonal Analysis - Risk Analytics{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800"><i class="fas fa-calendar-alt me-2 text-primary"></i>Seasonal Loan Analysis</h1>
+        <a href="{% url 'analytics:dashboard' %}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left me-1"></i>Back to Analytics Dashboard
+        </a>
+    </div>
+
+    <!-- Branch Filter -->
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3 align-items-center">
+                <div class="col-auto">
+                    <label class="col-form-label fw-bold">Filter by Branch:</label>
+                </div>
+                <div class="col-auto">
+                    <select name="branch" class="form-select" onchange="this.form.submit()">
+                        <option value="">All Branches</option>
+                        {% for branch in branches %}
+                            <option value="{{ branch.id }}" {% if selected_branch_id == branch.id|stringformat:"s" %}selected{% endif %}>
+                                {{ branch.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Summary Metrics -->
+    {% if seasonal_data.peak_season %}
+    <div class="row mb-4">
+        <div class="col-md-4 mb-3">
+            <div class="card border-start border-success border-4 shadow py-2">
+                <div class="card-body">
+                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Peak Season Month</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">Month {{ seasonal_data.peak_season.month }} (Rs {{ seasonal_data.peak_season.total_amount|floatformat:2|intcomma }})</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card border-start border-warning border-4 shadow py-2">
+                <div class="card-body">
+                    <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Low Season Month</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">Month {{ seasonal_data.low_season.month }} (Rs {{ seasonal_data.low_season.total_amount|floatformat:2|intcomma }})</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card border-start border-info border-4 shadow py-2">
+                <div class="card-body">
+                    <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Seasonality Index</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ seasonal_data.seasonality_index|default:0|floatformat:2 }}x</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Monthly Breakdown Table -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 bg-white">
+            <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-chart-bar me-2"></i>Monthly Loan Disbursement Patterns</h6>
+        </div>
+        <div class="card-body">
+            {% if seasonal_data.monthly_patterns %}
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Month</th>
+                            <th>Total Loans</th>
+                            <th>Total Disbursed (Rs)</th>
+                            <th>Average Ticket Size (Rs)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for month, stats in seasonal_data.monthly_patterns.items %}
+                        <tr>
+                            <td class="fw-bold">Month {{ month }}</td>
+                            <td>{{ stats.count }}</td>
+                            <td>{{ stats.total_amount|floatformat:2|intcomma }}</td>
+                            <td>{{ stats.average_amount|floatformat:2|intcomma }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-info-circle fa-2x mb-2 text-secondary"></i>
+                <p>No seasonal historical data found for the selected branch.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

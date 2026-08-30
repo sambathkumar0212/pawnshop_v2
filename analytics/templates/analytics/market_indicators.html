@@ -31,14 +31,11 @@
                             <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
                                 Latest Gold Price</div>
                             <div class="h5 mb-0 font-weight-bold text-gray-800">
-                                {% for indicator in indicators %}
-                                    {% if indicator.indicator_type == 'gold_price' %}
-                                        Rs: {{ indicator.value|floatformat:0 }}/g
-                                        {% break %}
-                                    {% endif %}
-                                {% empty %}
+                                {% if latest_indicators.gold_price %}
+                                    Rs: {{ latest_indicators.gold_price|floatformat:0 }}/g
+                                {% else %}
                                     Not Available
-                                {% endfor %}
+                                {% endif %}
                             </div>
                         </div>
                         <div class="col-auto">
@@ -57,14 +54,11 @@
                             <div class="text-xs font-weight-bold text-secondary text-uppercase mb-1">
                                 Latest Silver Price</div>
                             <div class="h5 mb-0 font-weight-bold text-gray-800">
-                                {% for indicator in indicators %}
-                                    {% if indicator.indicator_type == 'silver_price' %}
-                                        Rs: {{ indicator.value|floatformat:0 }}/g
-                                        {% break %}
-                                    {% endif %}
-                                {% empty %}
+                                {% if latest_indicators.silver_price %}
+                                    Rs: {{ latest_indicators.silver_price|floatformat:0 }}/g
+                                {% else %}
                                     Not Available
-                                {% endfor %}
+                                {% endif %}
                             </div>
                         </div>
                         <div class="col-auto">
@@ -83,14 +77,11 @@
                             <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
                                 Inflation Rate</div>
                             <div class="h5 mb-0 font-weight-bold text-gray-800">
-                                {% for indicator in indicators %}
-                                    {% if indicator.indicator_type == 'inflation_rate' %}
-                                        {{ indicator.value|floatformat:1 }}%
-                                        {% break %}
-                                    {% endif %}
-                                {% empty %}
+                                {% if latest_indicators.inflation_rate %}
+                                    {{ latest_indicators.inflation_rate|floatformat:1 }}%
+                                {% else %}
                                     Not Available
-                                {% endfor %}
+                                {% endif %}
                             </div>
                         </div>
                         <div class="col-auto">
@@ -109,14 +100,11 @@
                             <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
                                 Interest Rate</div>
                             <div class="h5 mb-0 font-weight-bold text-gray-800">
-                                {% for indicator in indicators %}
-                                    {% if indicator.indicator_type == 'interest_rate' %}
-                                        {{ indicator.value|floatformat:1 }}%
-                                        {% break %}
-                                    {% endif %}
-                                {% empty %}
+                                {% if latest_indicators.interest_rate %}
+                                    {{ latest_indicators.interest_rate|floatformat:1 }}%
+                                {% else %}
                                     Not Available
-                                {% endfor %}
+                                {% endif %}
                             </div>
                         </div>
                         <div class="col-auto">

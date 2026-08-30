@@ -233,6 +233,12 @@ def market_indicators(request):
     """Market indicators management"""
     indicators = MarketIndicator.objects.all().order_by('-date', 'indicator_type')
     
+    # Compute latest value for each indicator type
+    latest_indicators = {}
+    for ind in indicators:
+        if ind.indicator_type not in latest_indicators:
+            latest_indicators[ind.indicator_type] = ind.value
+    
     # Pagination
     paginator = Paginator(indicators, 50)
     page_number = request.GET.get('page')
@@ -240,6 +246,7 @@ def market_indicators(request):
     
     context = {
         'indicators': indicators_page,
+        'latest_indicators': latest_indicators,
     }
     
     return render(request, 'analytics/market_indicators.html', context)
