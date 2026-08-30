@@ -74,6 +74,7 @@ urlpatterns = [
     path('schemes/', include('schemes.urls')),  # Schemes management URLs
     path('gst/', include('gst.urls')),  # GST management URLs
     path('analytics/', include('analytics.urls')),  # Risk Analytics and Business Intelligence URLs
+    path('accounting/', include('accounting.urls')),  # General Ledger & Double-Entry Accounting
     path('api/', include('rest_framework.urls')),
     path('dashboard/', include('accounts.urls')),  # Keep accounts as dashboard
     path('i18n/set-language/', set_language, name='set_language'),  # Language switcher

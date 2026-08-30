@@ -537,3 +537,217 @@ def inventory_search(request):
     }
     
     return render(request, 'inventory/search_results.html', context)
+
+
+# ============================================================================
+# ENTERPRISE VAULT ASSET CUSTODY & POUCH MANAGEMENT (Muthoot / Manappuram)
+# ============================================================================
+
+from .models import VaultPouch, VaultAuditLog
+
+
+class VaultExplorerView(LoginRequiredMixin, ListView):
+    """Interactive Safe & Vault Custody Explorer with barcode search & statistics"""
+    model = VaultPouch
+    template_name = 'inventory/vault_explorer.html'
+    context_object_name = 'pouches'
+    paginate_by = 25
+
+    def get_queryset(self):
+        queryset = VaultPouch.objects.select_related('loan', 'loan__customer', 'branch', 'custodian_maker', 'custodian_checker')
+        user = self.request.user
+
+        # Organization & Branch Isolation
+        if hasattr(user, 'organization') and user.organization:
+            queryset = queryset.filter(branch__organization=user.organization)
+        if not user.is_superuser and hasattr(user, 'branch') and user.branch:
+            queryset = queryset.filter(branch=user.branch)
+
+        # Search Query (Pouch No, Seal Barcode, Loan No, Customer Name, Locker)
+        q = self.request.GET.get('q', '').strip()
+        if q:
+            queryset = queryset.filter(
+                Q(pouch_number__icontains=q) |
+                Q(seal_barcode__icontains=q) |
+                Q(safe_locker_number__icontains=q) |
+                Q(shelf_rack_number__icontains=q) |
+                Q(loan__loan_number__icontains=q) |
+                Q(loan__customer__first_name__icontains=q) |
+                Q(loan__customer__last_name__icontains=q) |
+                Q(loan__customer__phone__icontains=q)
+            )
+
+        # Status Filter
+        status_filter = self.request.GET.get('status', '').strip()
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+
+        # Safe Locker Filter
+        locker_filter = self.request.GET.get('locker', '').strip()
+        if locker_filter:
+            queryset = queryset.filter(safe_locker_number=locker_filter)
+
+        # Branch Filter (for Admins / Regional Managers)
+        branch_id = self.request.GET.get('branch_id', '').strip()
+        if branch_id and branch_id.isdigit():
+            queryset = queryset.filter(branch_id=int(branch_id))
+
+        return queryset.order_by('-created_at')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+
+        base_qs = VaultPouch.objects.all()
+        if hasattr(user, 'organization') and user.organization:
+            base_qs = base_qs.filter(branch__organization=user.organization)
+        if not user.is_superuser and hasattr(user, 'branch') and user.branch:
+            base_qs = base_qs.filter(branch=user.branch)
+
+        # Summary KPIs
+        context['total_pouches'] = base_qs.count()
+        context['vaulted_count'] = base_qs.filter(status='vaulted').count()
+        context['pending_inward_count'] = base_qs.filter(status='pending_inward').count()
+        context['released_count'] = base_qs.filter(status='released').count()
+        
+        weight_agg = base_qs.filter(status__in=['vaulted', 'pending_inward']).aggregate(
+            total_net=Sum('net_weight'),
+            total_gross=Sum('gross_weight')
+        )
+        context['total_vault_net_weight'] = weight_agg['total_net'] or 0
+        context['total_vault_gross_weight'] = weight_agg['total_gross'] or 0
+
+        # Unique Safe Lockers for filter dropdown
+        context['available_lockers'] = base_qs.values_list('safe_locker_number', flat=True).distinct()
+        
+        # Branches list for admin filter
+        if user.is_superuser or (hasattr(user, 'role') and user.role and user.role.name.lower() in ['regional manager', 'admin', 'zonal head']):
+            from branches.models import Branch
+            if hasattr(user, 'organization') and user.organization:
+                context['branches_list'] = Branch.objects.filter(organization=user.organization, is_active=True)
+            else:
+                context['branches_list'] = Branch.objects.filter(is_active=True)
+
+        context['search_q'] = self.request.GET.get('q', '')
+        context['selected_status'] = self.request.GET.get('status', '')
+        context['selected_locker'] = self.request.GET.get('locker', '')
+        context['selected_branch'] = self.request.GET.get('branch_id', '')
+        return context
+
+
+@login_required
+def verify_vault_inward(request, pk):
+    """Dual-Custody Inward Verification by Joint Keyholder / Manager"""
+    pouch = get_object_or_404(VaultPouch, pk=pk)
+    
+    # Check permissions / branch match
+    if not request.user.is_superuser and pouch.branch != request.user.branch:
+        messages.error(request, "Permission Denied: You cannot verify pouches for other branches.")
+        return redirect('vault_explorer')
+
+    if request.method == 'POST':
+        remarks = request.POST.get('remarks', '').strip()
+        
+        pouch.status = 'vaulted'
+        pouch.custodian_checker = request.user
+        pouch.inward_verified_at = timezone.now()
+        pouch.save()
+
+        VaultAuditLog.objects.create(
+            pouch=pouch,
+            action='inward_verified',
+            performed_by=pouch.custodian_maker,
+            verified_by=request.user,
+            new_location=f"{pouch.safe_locker_number} [{pouch.shelf_rack_number}]",
+            remarks=remarks or f"Dual-custody verification completed by {request.user.get_full_name() or request.user.username}. Security seal {pouch.seal_barcode} intact."
+        )
+
+        messages.success(request, f"✓ Pouch #{pouch.pouch_number} verified and secured in Vault ({pouch.safe_locker_number}).")
+        return redirect('vault_explorer')
+
+    return render(request, 'inventory/verify_inward_modal.html', {'pouch': pouch})
+
+
+@login_required
+def vault_pouch_label(request, pk):
+    """Printable High-Resolution Pouch Barcode & QR Label (Thermal / A4)"""
+    pouch = get_object_or_404(
+        VaultPouch.objects.select_related('loan', 'loan__customer', 'branch', 'custodian_maker', 'custodian_checker'),
+        pk=pk
+    )
+    loan = pouch.loan
+    items = loan.loanitem_set.select_related('item', 'item__category').all() if loan else []
+
+    context = {
+        'pouch': pouch,
+        'loan': loan,
+        'items': items,
+        'customer': loan.customer if loan else None,
+        'branch': pouch.branch,
+        'now': timezone.now(),
+    }
+    return render(request, 'inventory/pouch_label.html', context)
+
+
+@login_required
+def release_vault_pouch(request, pk):
+    """Release Pouch Guard: strictly blocks release unless loan is repaid or foreclosed"""
+    pouch = get_object_or_404(VaultPouch.objects.select_related('loan', 'branch'), pk=pk)
+
+    if not request.user.is_superuser and pouch.branch != request.user.branch:
+        messages.error(request, "Permission Denied: Cannot release items belonging to another branch.")
+        return redirect('vault_explorer')
+
+    # Security rule: Check if loan is closed/repaid
+    if pouch.loan and pouch.loan.status not in ['repaid', 'foreclosed']:
+        messages.error(
+            request,
+            f"❌ SECURITY VIOLATION: Pouch #{pouch.pouch_number} cannot be released! Loan #{pouch.loan.loan_number} is currently '{pouch.loan.get_status_display().upper()}'. Release is only permitted after full loan repayment or foreclosure."
+        )
+        return redirect('vault_explorer')
+
+    if request.method == 'POST':
+        notes = request.POST.get('release_notes', '').strip()
+        pouch.status = 'released'
+        pouch.released_at = timezone.now()
+        pouch.released_by = request.user
+        pouch.save()
+
+        VaultAuditLog.objects.create(
+            pouch=pouch,
+            action='released',
+            performed_by=request.user,
+            remarks=notes or f"Gold released to customer after loan closure. Verified by {request.user.username}."
+        )
+
+        messages.success(request, f"✓ Gold Pouch #{pouch.pouch_number} released successfully.")
+        return redirect('vault_explorer')
+
+    return render(request, 'inventory/release_pouch_modal.html', {'pouch': pouch})
+
+
+@login_required
+def audit_check_pouch(request, pk):
+    """Surprise Physical Audit Verification"""
+    pouch = get_object_or_404(VaultPouch, pk=pk)
+
+    if request.method == 'POST':
+        auditor_notes = request.POST.get('auditor_notes', '').strip()
+        is_discrepancy = request.POST.get('is_discrepancy') == 'on'
+        
+        action = 'discrepancy' if is_discrepancy else 'audit_verified'
+        
+        VaultAuditLog.objects.create(
+            pouch=pouch,
+            action=action,
+            performed_by=request.user,
+            remarks=auditor_notes or ("Physical count and seal verified match." if not is_discrepancy else "DISCREPANCY FLAGGED DURING SURPRISE AUDIT!")
+        )
+
+        if is_discrepancy:
+            messages.warning(request, f"⚠️ Discrepancy logged for Pouch #{pouch.pouch_number}. Management alerted.")
+        else:
+            messages.success(request, f"✓ Physical audit verified for Pouch #{pouch.pouch_number}.")
+
+    return redirect('vault_explorer')
+

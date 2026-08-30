@@ -2,7 +2,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
-from .models import Loan, Payment, LoanExtension, Sale, LoanItem
+from .models import Loan, Payment, LoanExtension, Sale, LoanItem, DisbursementTransaction
 from inventory.models import Item, Category
 from inventory.forms import ItemForm
 from accounts.models import Customer
@@ -63,12 +63,15 @@ def _get_form_categories():
     """Return a dict of {name: Category} for all loan-form categories.
 
     The first call does at most 2 DB queries (SELECT + optional INSERT for any
-    missing rows).  Subsequent calls within the same server process return the
+    missing rows). Subsequent calls within the same server process return the
     cached dict with zero DB queries.
     """
     global _category_cache
-    if _category_cache is not None:
-        return _category_cache
+    if _category_cache is not None and len(_category_cache) > 0:
+        # Verify cached category objects exist in active DB (handles test runner DB resets)
+        first_cat = next(iter(_category_cache.values()), None)
+        if first_cat and Category.objects.filter(pk=first_cat.pk).exists():
+            return _category_cache
 
     try:
         # Single SELECT to fetch all existing categories at once
@@ -77,7 +80,7 @@ def _get_form_categories():
         missing_names = [n for n in _CATEGORY_NAMES if n not in existing]
         if missing_names:
             # Bulk-create any categories that don't exist yet (one INSERT)
-            new_cats = Category.objects.bulk_create(
+            Category.objects.bulk_create(
                 [
                     Category(name=n, description=_CATEGORY_DESCRIPTIONS.get(n, n))
                     for n in missing_names
@@ -90,7 +93,7 @@ def _get_form_categories():
 
         _category_cache = existing
     except Exception:
-        # If DB is not ready yet (e.g. during tests), fall back gracefully
+        # If DB is not ready yet, fall back gracefully
         _category_cache = {}
 
     return _category_cache
@@ -134,8 +137,13 @@ class LoanForm(forms.ModelForm):
         max_digits=10,
         decimal_places=0,
         label="Distribution Amount",
-        widget=forms.NumberInput(attrs={
-            'data-show-words': 'true'  # Custom attribute to identify fields that need words display
+        widget=forms.TextInput(attrs={
+            'data-show-words': 'true',
+            'class': 'form-control no-spin',
+            'inputmode': 'numeric',
+            'pattern': '[0-9]*',
+            'placeholder': 'e.g. 50000',
+            'autocomplete': 'off'
         })
     )
     distribution_amount_with_deduction = forms.DecimalField(
@@ -143,11 +151,11 @@ class LoanForm(forms.ModelForm):
         max_digits=10,
         decimal_places=0,
         label="Distribution Amount with Deduction",
-        widget=forms.NumberInput(attrs={
+        widget=forms.TextInput(attrs={
             'data-show-words': 'true',
             'readonly': 'readonly',
-            'class': 'form-control bg-light',
-            'step': '1'
+            'class': 'form-control bg-light no-spin',
+            'inputmode': 'numeric'
         })
     )
 
@@ -190,77 +198,76 @@ class LoanForm(forms.ModelForm):
         required=False
     )
     item_description = forms.CharField(
-        required=False,  # Making it optional
+        required=False,
         label='Item Description',
-        help_text='Optional: Detailed description of the item including any distinguishing marks or damaged parts',
         widget=forms.TextInput(attrs={'class': 'form-control'})
     )
     item_description_tamil = forms.CharField(
         required=False,
         label='Item Description (Tamil)',
-        help_text='Tamil item description will auto-fill while you type',
-        widget=forms.TextInput(attrs={'class': 'form-control'})
+        widget=forms.HiddenInput()
     )
     item_category = forms.ModelChoiceField(
         required=True,
         queryset=Category.objects.all(),  # Will filter in __init__
-        label='Ornament Type',
-        help_text="Select the type of gold ornament"
+        label='Ornament Type'
     )
     gold_karat = forms.ChoiceField(
         required=False,
         choices=KARAT_CHOICES,
         initial='22',
-        help_text="Select the purity of gold"
+        label='Purity'
     )
     market_price_22k = forms.DecimalField(
         required=False,
         max_digits=10,
         decimal_places=2,
         label="Today's 22K Gold Price (per gram)",
-        help_text="Enter today's market price for 22K gold per gram",
-        widget=forms.TextInput()  # Changed to TextInput
+        widget=forms.HiddenInput()
     )
     gross_weight = forms.DecimalField(
         required=False,
         max_digits=7,
         decimal_places=3,
-        help_text="Total weight of the ornament in grams",
-        widget=forms.NumberInput(attrs={'step': '0.001'})  # Added step to ensure 3 decimal places
-    )
-    net_weight = forms.DecimalField(
-        required=False,
-        max_digits=7,
-        decimal_places=3,
-        widget=forms.NumberInput(attrs={
-            'style': 'width: 100%;',  # Changed from 50% to 100% to increase size
-            'step': '0.001'  # Added step to ensure 3 decimal places
-        }),
-        help_text="Weight of pure gold content in grams"
+        label='Gross Wt (g)',
+        widget=forms.NumberInput(attrs={'step': '0.001', 'placeholder': '0.000'})
     )
     stone_weight = forms.DecimalField(
         required=False,
         max_digits=7,
         decimal_places=3,
-        help_text="Weight of stones if any in grams",
-        widget=forms.NumberInput(attrs={'step': '0.001'})  # Added step to ensure 3 decimal places
+        label='Stone Wt (g)',
+        widget=forms.NumberInput(attrs={'step': '0.001', 'placeholder': '0.000'})
+    )
+    items_json = forms.CharField(
+        required=False,
+        widget=forms.HiddenInput()
+    )
+    net_weight = forms.DecimalField(
+        required=False,
+        max_digits=7,
+        decimal_places=3,
+        label='Net Gold Wt (g)',
+        widget=forms.NumberInput(attrs={
+            'style': 'width: 100%;',
+            'step': '0.001',
+            'placeholder': '0.000'
+        })
     )
     interest_rate = forms.DecimalField(
         max_digits=5,
         decimal_places=2,
-        disabled=True,  # We'll set this programmatically based on scheme
-        required=False,  # Add this line to make it not required for form submission
-        help_text="Interest rate per year"
+        disabled=True,
+        required=False
     )
     processing_fee = forms.DecimalField(
         max_digits=10,
         decimal_places=0,
         initial=0,
-        help_text="",
         widget=forms.NumberInput(attrs={
-            'step': '1',  # Only allow whole numbers
-            'min': '0',   # Prevent negative values
-            'pattern': '[0-9]*'  # Only allow digits
+            'step': '1',
+            'min': '0',
+            'pattern': '[0-9]*'
         })
     )
     
@@ -268,29 +275,47 @@ class LoanForm(forms.ModelForm):
     loan_document = forms.FileField(
         required=False,
         label='Loan Document',
-        help_text='Upload loan agreement or related documents (PDF, DOC, DOCX, JPG, PNG). File will be automatically named using customer and item names.',
         widget=forms.FileInput(attrs={
             'accept': '.pdf,.doc,.docx,.jpg,.jpeg,.png',
-            'class': 'form-control'
+            'class': 'form-control form-control-sm'
         })
     )
     is_first_month_interest_paid = forms.BooleanField(
         required=False,
-        label='Is first month interest paid?',
-        help_text='',
+        label='1st Month Interest Paid upfront',
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
     )
     is_processing_fee_paid = forms.BooleanField(
         required=False,
-        label='Is processing fees paid?',
-        help_text='',
+        label='Processing Fee Paid upfront',
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+    pouch_number = forms.CharField(
+        required=False,
+        label='Vault Pouch No / Barcode',
+        widget=forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'e.g. PCH-00123'})
+    )
+    safe_locker_number = forms.CharField(
+        required=False,
+        initial='Safe-01 / Locker-A1',
+        label='Safe & Locker Number',
+        widget=forms.TextInput(attrs={'class': 'form-control form-control-sm'})
+    )
+    shelf_rack_number = forms.CharField(
+        required=False,
+        initial='Rack-01 / Tray-A1',
+        label='Shelf / Rack / Tray',
+        widget=forms.TextInput(attrs={'class': 'form-control form-control-sm'})
+    )
+    seal_barcode = forms.CharField(
+        required=False,
+        label='Security Seal Barcode',
+        widget=forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'e.g. SEAL-889922'})
     )
     gold_location = forms.CharField(
         required=False,
         label='Gold Location',
-        help_text='Locker/Location where the gold is stored',
-        widget=forms.TextInput(attrs={'class': 'form-control'})
+        widget=forms.TextInput(attrs={'class': 'form-control form-control-sm'})
     )
     repledge_date = forms.DateField(
         required=False,
@@ -311,6 +336,45 @@ class LoanForm(forms.ModelForm):
         label='Gold Status Others (Notes)',
         help_text='Any other notes or details about the gold status',
         widget=forms.Textarea(attrs={'rows': 2, 'class': 'form-control'})
+    )
+
+    # Section 269SS/269T Compliance: Disbursal Payout Mode & Customer Bank Information
+    disbursement_mode = forms.ChoiceField(
+        choices=DisbursementTransaction.DISBURSEMENT_MODE_CHOICES,
+        initial='CASH',
+        required=True,
+        label="Disbursal Payout Mode",
+        widget=forms.Select(attrs={'class': 'form-select form-select-sm', 'id': 'id_disbursement_mode'})
+    )
+    bank_account_number = forms.CharField(
+        max_length=50,
+        required=False,
+        label="Beneficiary Account Number",
+        widget=forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'e.g. 50100234567890'})
+    )
+    bank_ifsc_code = forms.CharField(
+        max_length=20,
+        required=False,
+        label="Bank IFSC Code",
+        widget=forms.TextInput(attrs={'class': 'form-control form-control-sm text-uppercase', 'placeholder': 'e.g. HDFC0001234'})
+    )
+    bank_name = forms.CharField(
+        max_length=100,
+        required=False,
+        label="Bank & Branch Name",
+        widget=forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'e.g. HDFC Bank, Salem Main'})
+    )
+    bank_beneficiary_name = forms.CharField(
+        max_length=150,
+        required=False,
+        label="Beneficiary / Account Holder Name",
+        widget=forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'As per Bank Passbook'})
+    )
+    disbursement_utr = forms.CharField(
+        max_length=100,
+        required=False,
+        label="Bank UTR / Transaction Reference",
+        widget=forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'UTR / IMPS Ref (Optional)'})
     )
 
     class Meta:
@@ -356,7 +420,15 @@ class LoanForm(forms.ModelForm):
         self.fields['principal_amount'] = forms.DecimalField(
             max_digits=10,
             decimal_places=0,
-            help_text=""  # Removing help text as we'll display amount in words instead
+            help_text="",
+            widget=forms.TextInput(attrs={
+                'data-show-words': 'true',
+                'class': 'form-control no-spin',
+                'inputmode': 'numeric',
+                'pattern': '[0-9]*',
+                'placeholder': 'e.g. 50000',
+                'autocomplete': 'off'
+            })
         )
 
         # Update processing_fee field to use integer values
@@ -365,7 +437,12 @@ class LoanForm(forms.ModelForm):
             decimal_places=0,
             initial=0,
             help_text="",
-            widget=forms.TextInput()  # Changed to TextInput
+            widget=forms.TextInput(attrs={
+                'class': 'form-control no-spin',
+                'inputmode': 'numeric',
+                'pattern': '[0-9]*',
+                'autocomplete': 'off'
+            })
         )
 
         # Configure customer field - filter by organization first
@@ -387,6 +464,9 @@ class LoanForm(forms.ModelForm):
         
         # Add data attribute to customer field to support setting branch based on customer's branch
         self.fields['customer'].widget.attrs['data-branch-update'] = 'true'
+
+        if 'processing_fee' in self.fields:
+            self.fields['processing_fee'].required = False
         
         # Configure branch field - filter by organization
         if self.user and hasattr(self.user, 'organization') and self.user.organization:
@@ -448,28 +528,159 @@ class LoanForm(forms.ModelForm):
             
         # If this is an existing loan, populate the item fields
         if self.instance and self.instance.pk:
-            # Get the first loan item associated with this loan
-            loan_item = self.instance.loanitem_set.first()
-            if loan_item:
-                # Populate all item-related fields from the existing data
-                self.fields['item_name'].initial = loan_item.item.name
-                self.fields['item_name_tamil'].initial = loan_item.item.tamil_name
-                self.fields['item_description'].initial = loan_item.item.description
-                self.fields['item_description_tamil'].initial = loan_item.item.tamil_description
-                self.fields['item_category'].initial = loan_item.item.category
-                
-                # Convert Decimal to string for gold_karat field
-                if loan_item.gold_karat:
-                    # Convert to string and remove decimal part if it's .00
-                    karat_str = str(loan_item.gold_karat)
-                    if karat_str.endswith('.00'):
-                        karat_str = karat_str.split('.')[0]
-                    self.fields['gold_karat'].initial = karat_str
-                
-                self.fields['gross_weight'].initial = loan_item.gross_weight
-                self.fields['net_weight'].initial = loan_item.net_weight
-                self.fields['stone_weight'].initial = loan_item.stone_weight
-                self.fields['market_price_22k'].initial = loan_item.market_price_22k
+            loan_items = list(self.instance.loanitem_set.select_related('item').all())
+            if not loan_items:
+                loan_items = list(getattr(self.instance, 'loan_items', self.instance.loanitem_set).select_related('item').all())
+
+            if loan_items:
+                import json
+                items_data = []
+                en_names = []
+                ta_names = []
+                total_gross = Decimal('0.000')
+                total_stone = Decimal('0.000')
+                total_net = Decimal('0.000')
+                first_item = loan_items[0].item
+
+                for li in loan_items:
+                    item = li.item
+                    it_name = item.name if item else 'Gold Ornament'
+                    it_ta = (getattr(item, 'tamil_name', '') or getattr(item, 'name_tamil', '') or '').strip()
+                    it_qty = getattr(li, 'quantity', 1) or 1
+                    it_karat_raw = li.gold_karat if li.gold_karat is not None else 22
+                    try:
+                        it_karat = int(it_karat_raw) if float(it_karat_raw).is_integer() else float(it_karat_raw)
+                    except Exception:
+                        it_karat = 22
+                    it_gross = float(li.gross_weight or 0.0)
+                    it_stone = float(li.stone_weight or 0.0)
+                    it_net = float(li.net_weight or max(0, it_gross - it_stone))
+
+                    total_gross += Decimal(str(it_gross))
+                    total_stone += Decimal(str(it_stone))
+                    total_net += Decimal(str(it_net))
+
+                    en_formatted = f"{it_name}-{it_qty}" if it_qty > 1 else it_name
+                    ta_formatted = f"{it_ta}-{it_qty}" if (it_ta and it_qty > 1) else (it_ta or en_formatted)
+                    en_names.append(en_formatted)
+                    if it_ta:
+                        ta_names.append(ta_formatted)
+
+                    items_data.append({
+                        'name': it_name,
+                        'name_tamil': it_ta,
+                        'quantity': it_qty,
+                        'karat': it_karat,
+                        'gross_weight': it_gross,
+                        'stone_weight': it_stone,
+                        'net_weight': it_net
+                    })
+
+                items_json_str = json.dumps(items_data)
+                self.initial['items_json'] = items_json_str
+                if 'items_json' in self.fields:
+                    self.fields['items_json'].initial = items_json_str
+
+                aggregated_en = ', '.join(en_names)
+                aggregated_ta = ', '.join(ta_names) if ta_names else ''
+                self.initial['item_name'] = aggregated_en
+                self.fields['item_name'].initial = aggregated_en
+                self.initial['item_name_tamil'] = aggregated_ta
+                self.fields['item_name_tamil'].initial = aggregated_ta
+
+                if first_item:
+                    self.initial['item_description'] = first_item.description or ''
+                    self.fields['item_description'].initial = first_item.description or ''
+                    first_item_ta_desc = getattr(first_item, 'tamil_description', '') or ''
+                    self.initial['item_description_tamil'] = first_item_ta_desc
+                    self.fields['item_description_tamil'].initial = first_item_ta_desc
+                    if first_item.category:
+                        self.initial['item_category'] = first_item.category
+                        self.fields['item_category'].initial = first_item.category
+
+                # Karat of first item or dominant
+                last_karat = str(loan_items[0].gold_karat) if loan_items[0].gold_karat else '22'
+                if last_karat.endswith('.00') or last_karat.endswith('.0'):
+                    last_karat = last_karat.split('.')[0]
+                self.initial['gold_karat'] = last_karat
+                self.fields['gold_karat'].initial = last_karat
+
+                self.initial['gross_weight'] = total_gross
+                self.fields['gross_weight'].initial = total_gross
+                self.initial['stone_weight'] = total_stone
+                self.fields['stone_weight'].initial = total_stone
+                self.initial['net_weight'] = total_net
+                self.fields['net_weight'].initial = total_net
+                if loan_items[0].market_price_22k is not None:
+                    self.initial['market_price_22k'] = loan_items[0].market_price_22k
+                    self.fields['market_price_22k'].initial = loan_items[0].market_price_22k
+            elif hasattr(self.instance, 'items') and self.instance.items.exists():
+                import json
+                items_data = []
+                en_names = []
+                ta_names = []
+                total_gross = Decimal('0.000')
+                total_stone = Decimal('0.000')
+                total_net = Decimal('0.000')
+                legacy_items = list(self.instance.items.all())
+                first_item = legacy_items[0] if legacy_items else None
+
+                for it in legacy_items:
+                    it_name = it.name or 'Gold Ornament'
+                    it_ta = (getattr(it, 'tamil_name', '') or getattr(it, 'name_tamil', '') or '').strip()
+                    it_gross = float(getattr(it, 'gross_weight', 0.0) or getattr(it, 'weight', 0.0) or 0.0)
+                    it_stone = float(getattr(it, 'stone_weight', 0.0) or 0.0)
+                    it_net = float(getattr(it, 'net_weight', 0.0) or max(0, it_gross - it_stone))
+
+                    total_gross += Decimal(str(it_gross))
+                    total_stone += Decimal(str(it_stone))
+                    total_net += Decimal(str(it_net))
+
+                    en_names.append(it_name)
+                    if it_ta:
+                        ta_names.append(it_ta)
+
+                    items_data.append({
+                        'name': it_name,
+                        'name_tamil': it_ta,
+                        'quantity': 1,
+                        'karat': 22,
+                        'gross_weight': it_gross,
+                        'stone_weight': it_stone,
+                        'net_weight': it_net
+                    })
+
+                items_json_str = json.dumps(items_data)
+                self.initial['items_json'] = items_json_str
+                if 'items_json' in self.fields:
+                    self.fields['items_json'].initial = items_json_str
+
+                aggregated_en = ', '.join(en_names)
+                aggregated_ta = ', '.join(ta_names) if ta_names else ''
+                self.initial['item_name'] = aggregated_en
+                self.fields['item_name'].initial = aggregated_en
+                self.initial['item_name_tamil'] = aggregated_ta
+                self.fields['item_name_tamil'].initial = aggregated_ta
+
+                if first_item:
+                    self.initial['item_description'] = first_item.description or ''
+                    self.fields['item_description'].initial = first_item.description or ''
+                    first_item_ta_desc = getattr(first_item, 'tamil_description', '') or ''
+                    self.initial['item_description_tamil'] = first_item_ta_desc
+                    self.fields['item_description_tamil'].initial = first_item_ta_desc
+                    if first_item.category:
+                        self.initial['item_category'] = first_item.category
+                        self.fields['item_category'].initial = first_item.category
+
+                self.initial['gold_karat'] = '22'
+                self.fields['gold_karat'].initial = '22'
+                self.initial['gross_weight'] = total_gross
+                self.fields['gross_weight'].initial = total_gross
+                self.initial['stone_weight'] = total_stone
+                self.fields['stone_weight'].initial = total_stone
+                self.initial['net_weight'] = total_net
+                self.fields['net_weight'].initial = total_net
+
 
             if 'processing_fee' in self.fields and self.instance.processing_fee is not None:
                 self.initial['processing_fee'] = self.instance.processing_fee
@@ -491,6 +702,67 @@ class LoanForm(forms.ModelForm):
                         pass
                 self.initial['distribution_amount_with_deduction'] = deduct_val
                 self.fields['distribution_amount_with_deduction'].initial = deduct_val
+
+            # Populate vault pouch fields if exists
+            try:
+                if hasattr(self.instance, 'vault_pouch') and self.instance.vault_pouch:
+                    vp = self.instance.vault_pouch
+                    self.fields['pouch_number'].initial = vp.pouch_number
+                    self.fields['safe_locker_number'].initial = vp.safe_locker_number
+                    self.fields['shelf_rack_number'].initial = vp.shelf_rack_number
+                    self.fields['seal_barcode'].initial = vp.seal_barcode
+            except Exception:
+                pass
+
+            # Populate disbursement details if exists
+            try:
+                if hasattr(self.instance, 'disbursement_detail') and self.instance.disbursement_detail:
+                    dd = self.instance.disbursement_detail
+                    self.fields['disbursement_mode'].initial = dd.payment_mode
+                    self.fields['bank_account_number'].initial = dd.account_number
+                    self.fields['bank_ifsc_code'].initial = dd.ifsc_code
+                    self.fields['bank_name'].initial = dd.bank_name
+                    self.fields['bank_beneficiary_name'].initial = dd.beneficiary_name
+                    self.fields['disbursement_utr'].initial = dd.utr_number
+            except Exception:
+                pass
+        else:
+            # New loan creation: initialize market_price_22k from Central Daily Gold Rate
+            try:
+                from schemes.models import DailyGoldRate
+                org = getattr(self.user, 'organization', None) if self.user else None
+                rate_obj = DailyGoldRate.get_current_rate(organization=org)
+                if rate_obj and 'market_price_22k' in self.fields:
+                    self.fields['market_price_22k'].initial = rate_obj.rate_22k_per_gram
+            except Exception:
+                pass
+
+        # If customer already selected, pre-populate customer's saved bank account details
+        initial_customer = self.initial.get('customer') or getattr(self.instance, 'customer', None)
+        if initial_customer:
+            try:
+                cust_obj = initial_customer if isinstance(initial_customer, Customer) else Customer.objects.filter(pk=initial_customer).first()
+                if cust_obj:
+                    if 'bank_account_number' in self.fields and not self.fields['bank_account_number'].initial:
+                        self.fields['bank_account_number'].initial = cust_obj.bank_account_number
+                    if 'bank_ifsc_code' in self.fields and not self.fields['bank_ifsc_code'].initial:
+                        self.fields['bank_ifsc_code'].initial = cust_obj.bank_ifsc_code
+                    if 'bank_name' in self.fields and not self.fields['bank_name'].initial:
+                        self.fields['bank_name'].initial = cust_obj.bank_name
+                    if 'bank_beneficiary_name' in self.fields and not self.fields['bank_beneficiary_name'].initial:
+                        self.fields['bank_beneficiary_name'].initial = cust_obj.bank_beneficiary_name or cust_obj.full_name
+            except Exception:
+                pass
+
+        # Set Today's 22K Gold Price as HiddenInput (displayed as top-header badge label)
+        if 'market_price_22k' in self.fields:
+            self.fields['market_price_22k'].widget = forms.HiddenInput()
+
+        for field_name in ['customer', 'scheme', 'branch']:
+            if field_name in self.fields:
+                self.fields[field_name].widget.attrs['class'] = 'form-select form-select-sm'
+        if 'issue_date' in self.fields:
+            self.fields['issue_date'].widget.attrs['class'] = 'form-control form-control-sm'
 
         # Set up crispy form layout
         self.helper = FormHelper()
@@ -531,7 +803,16 @@ class LoanForm(forms.ModelForm):
                 Column('issue_date', css_class='col-md-4'),
                 Column('due_date', css_class='col-md-4'),
             ),
-            HTML('<h5 class="mt-4 mb-3 border-bottom pb-2 text-secondary"><i class="fas fa-gem me-2"></i>Gold Status Information</h5>'),
+            HTML('<h5 class="mt-4 mb-3 border-bottom pb-2 text-secondary"><i class="fas fa-shield-alt me-2"></i>Vault Custody & Security Pouch Tracking</h5>'),
+            Row(
+                Column('pouch_number', css_class='col-md-6'),
+                Column('seal_barcode', css_class='col-md-6'),
+            ),
+            Row(
+                Column('safe_locker_number', css_class='col-md-6'),
+                Column('shelf_rack_number', css_class='col-md-6'),
+            ),
+            HTML('<h5 class="mt-4 mb-3 border-bottom pb-2 text-secondary"><i class="fas fa-gem me-2"></i>Gold Repledge & Status Information</h5>'),
             Row(
                 Column('gold_location', css_class='col-md-6'),
                 Column('repledge_date', css_class='col-md-6'),
@@ -625,9 +906,9 @@ class LoanForm(forms.ModelForm):
 
         # Ensure principal_amount and processing_fee are integers
         try:
-            if 'principal_amount' in cleaned_data:
+            if cleaned_data.get('principal_amount') is not None and cleaned_data.get('principal_amount') != '':
                 cleaned_data['principal_amount'] = int(float(cleaned_data['principal_amount']))
-            if 'processing_fee' in cleaned_data:
+            if cleaned_data.get('processing_fee') is not None and cleaned_data.get('processing_fee') != '':
                 cleaned_data['processing_fee'] = int(float(cleaned_data['processing_fee']))
         except (ValueError, TypeError):
             raise ValidationError("Please enter valid whole numbers for principal amount and processing fee")
@@ -662,11 +943,18 @@ class LoanForm(forms.ModelForm):
             for field in missing_fields:
                 self.add_error(field, 'This field is required when creating a new item.')
 
-        # Calculate allowed principal amount range if creating new item
+        # Calculate allowed principal amount range using Central Daily Rate & Strict RBI LTV Cap
         if all(cleaned_data.get(f) for f in ['market_price_22k', 'gold_karat', 'net_weight']):
             market_price = Decimal(str(cleaned_data['market_price_22k']))
             selected_karat = cleaned_data['gold_karat']
             net_weight = Decimal(str(cleaned_data['net_weight']))
+
+            from schemes.models import DailyGoldRate
+            org = getattr(self.user, 'organization', None) if self.user else None
+            rate_obj = DailyGoldRate.get_current_rate(organization=org)
+            if rate_obj and rate_obj.rate_22k_per_gram:
+                market_price = Decimal(str(rate_obj.rate_22k_per_gram))
+                cleaned_data['market_price_22k'] = market_price
 
             # Calculate gold value based on market price for 22K and purity ratio
             karat_purities = {
@@ -695,19 +983,90 @@ class LoanForm(forms.ModelForm):
             }
 
             base_22k_purity = Decimal('0.916')
-            karat_purity = karat_purities.get(str(selected_karat), base_22k_purity)
-            purity_ratio = karat_purity / base_22k_purity
-            gold_value = market_price * net_weight * purity_ratio
 
-            # Calculate allowed principal range
-            min_principal = round(gold_value * Decimal('0.50'))
-            max_principal = round(gold_value * Decimal('0.90'))
+            items_json_str = cleaned_data.get('items_json') or self.data.get('items_json') or ''
+            gold_value = Decimal('0.00')
+
+            if items_json_str:
+                try:
+                    import json
+                    parsed_items = json.loads(items_json_str)
+                    if isinstance(parsed_items, list) and len(parsed_items) > 0:
+                        for it in parsed_items:
+                            it_net = Decimal(str(it.get('net_weight') or 0))
+                            if it_net <= 0:
+                                it_gross = Decimal(str(it.get('gross_weight') or 0))
+                                it_stone = Decimal(str(it.get('stone_weight') or 0))
+                                it_net = max(Decimal('0'), it_gross - it_stone)
+                            it_karat = str(it.get('karat') or '22').replace('.0', '').replace('.00', '').strip()
+                            it_purity = karat_purities.get(it_karat, base_22k_purity)
+                            it_ratio = it_purity / base_22k_purity
+                            gold_value += it_net * it_ratio * market_price
+                except Exception:
+                    gold_value = Decimal('0.00')
+
+            if gold_value <= 0:
+                karat_purity = karat_purities.get(str(selected_karat), base_22k_purity)
+                purity_ratio = karat_purity / base_22k_purity
+                gold_value = market_price * net_weight * purity_ratio
+
+            # Determine statutory RBI Cap (Default 75.00%, Hard ceiling 90.00% under RBI norms)
+            rbi_ltv_cap = rate_obj.maximum_ltv_percentage if rate_obj else Decimal('75.00')
+            if rbi_ltv_cap > Decimal('90.00'):
+                rbi_ltv_cap = Decimal('90.00')
+
+            effective_ltv = rbi_ltv_cap
+            max_principal = round(gold_value * (effective_ltv / Decimal('100.0')))
+            min_principal = round(gold_value * Decimal('0.10'))
 
             if principal_amount:
-                if principal_amount < min_principal:
-                    self.add_error('principal_amount', f'Principal amount must be at least ₹{min_principal:,} (50% of gold value)')
-                elif principal_amount > max_principal:
-                    self.add_error('principal_amount', f'Principal amount cannot exceed ₹{max_principal:,} (90% of gold value)')
+                if principal_amount > max_principal:
+                    self.add_error(
+                        'principal_amount',
+                        f'Principal amount of ₹{principal_amount:,} exceeds the maximum eligible loan of ₹{max_principal:,} (RBI LTV Cap: {effective_ltv}%, Gold Value: ₹{gold_value:,.2f})'
+                    )
+                elif principal_amount < min_principal:
+                    self.add_error(
+                        'principal_amount',
+                        f'Principal amount must be at least ₹{min_principal:,} (10% of gold value)'
+                    )
+
+        # -------------------------------------------------------------------
+        # Section 269SS Statutory Compliance: Loan Disbursal Rules
+        # -------------------------------------------------------------------
+        payout_amount = cleaned_data.get('distribution_amount')
+        if payout_amount is None and principal_amount is not None:
+            payout_amount = principal_amount - (cleaned_data.get('processing_fee') or 0)
+
+        disb_mode = cleaned_data.get('disbursement_mode') or 'CASH'
+        bank_acc = (cleaned_data.get('bank_account_number') or '').strip()
+        bank_ifsc = (cleaned_data.get('bank_ifsc_code') or '').strip().upper()
+
+        if payout_amount is not None:
+            try:
+                payout_decimal = Decimal(str(payout_amount))
+            except (InvalidOperation, TypeError, ValueError):
+                payout_decimal = Decimal('0')
+
+            if payout_decimal >= Decimal('20000.00'):
+                if disb_mode == 'CASH':
+                    self.add_error(
+                        'disbursement_mode',
+                        f"Section 269SS Statutory Violation: Loan disbursal of ₹{payout_decimal:,.2f} is ₹20,000 or more and CANNOT be disbursed in Cash. "
+                        f"Under Section 269SS of the Income Tax Act, you must select Bank Transfer (NEFT/RTGS/IMPS), UPI, or Cheque."
+                    )
+                elif disb_mode in ['BANK_TRANSFER', 'NEFT', 'IMPS', 'RTGS']:
+                    if not bank_acc:
+                        self.add_error('bank_account_number', 'Beneficiary bank account number is required for bank transfer disbursals.')
+                    if not bank_ifsc:
+                        self.add_error('bank_ifsc_code', 'Bank IFSC code is required for bank transfer disbursals.')
+                    elif not re.match(r'^[A-Z]{4}0[A-Z0-9]{6}$', bank_ifsc):
+                        self.add_error('bank_ifsc_code', 'Invalid IFSC code format (expected 11 chars: 4 uppercase letters, 0, 6 letters/digits e.g. HDFC0001234).')
+            else:
+                # Disbursals < ₹20,000: Validate IFSC if entered
+                if disb_mode in ['BANK_TRANSFER', 'NEFT', 'IMPS', 'RTGS']:
+                    if bank_ifsc and not re.match(r'^[A-Z]{4}0[A-Z0-9]{6}$', bank_ifsc):
+                        self.add_error('bank_ifsc_code', 'Invalid IFSC code format (e.g. HDFC0001234).')
 
         return cleaned_data
 
@@ -740,8 +1099,58 @@ class LoanForm(forms.ModelForm):
             with transaction.atomic():
                 instance.save()
                 
-                # Check if this is an update or new loan
-                if instance.pk and instance.loanitem_set.exists():
+                # Check if multi-item JSON is provided
+                items_json_str = self.cleaned_data.get('items_json') or self.data.get('items_json') or ''
+                parsed_items = []
+                if items_json_str:
+                    try:
+                        import json
+                        raw_parsed = json.loads(items_json_str)
+                        if isinstance(raw_parsed, list):
+                            parsed_items = [x for x in raw_parsed if isinstance(x, dict) and (x.get('name') or x.get('name_tamil'))]
+                    except Exception:
+                        parsed_items = []
+
+                if parsed_items and len(parsed_items) > 0:
+                    # Multi-item structure: clear prior loan items for this loan
+                    instance.loanitem_set.all().delete()
+                    for it_data in parsed_items:
+                        it_name = (it_data.get('name') or it_data.get('name_tamil') or 'Gold Ornament').strip()
+                        it_ta = (it_data.get('name_tamil') or '').strip()
+                        it_qty = int(it_data.get('quantity', 1) or 1)
+                        it_karat = Decimal(str(it_data.get('karat') or self.cleaned_data.get('gold_karat') or 22.0))
+                        it_gross = Decimal(str(it_data.get('gross_weight') or 0.0))
+                        it_stone = Decimal(str(it_data.get('stone_weight') or 0.0))
+                        it_net = Decimal(str(it_data.get('net_weight') or max(0, it_gross - it_stone)))
+
+                        new_item = Item(
+                            name=it_name,
+                            description=self.cleaned_data.get('item_description', ''),
+                            tamil_name=it_ta,
+                            tamil_description=self.cleaned_data.get('item_description_tamil', ''),
+                            tamil_brand='',
+                            tamil_model='',
+                            tamil_tags='',
+                            tamil_notes='',
+                            category=self.cleaned_data['item_category'],
+                            status='pawned',
+                            branch=instance.branch if instance.branch else (self.user.branch if self.user else None),
+                            created_by=self.user
+                        )
+                        new_item.save()
+
+                        loan_item = LoanItem(
+                            loan=instance,
+                            item=new_item,
+                            quantity=it_qty,
+                            gold_karat=it_karat,
+                            gross_weight=it_gross,
+                            net_weight=it_net,
+                            stone_weight=it_stone,
+                            market_price_22k=self.cleaned_data['market_price_22k']
+                        )
+                        loan_item.save()
+                elif instance.pk and instance.loanitem_set.exists():
                     # Update existing loan item information
                     loan_item = instance.loanitem_set.first()
                     if loan_item:
@@ -804,6 +1213,126 @@ class LoanForm(forms.ModelForm):
                             item.status = 'pledged'
                             item.save()
                             LoanItem.objects.create(loan=instance, item=item)
+
+                # Synchronize physical VaultPouch record (Enterprise Gold Custody)
+                try:
+                    from inventory.models import VaultPouch, VaultAuditLog
+                    
+                    target_branch = instance.branch or (self.user.branch if self.user and hasattr(self.user, 'branch') else None)
+                    if not target_branch:
+                        from branches.models import Branch
+                        target_branch = Branch.objects.first()
+
+                    pouch_no = self.cleaned_data.get('pouch_number') or f"PCH-{target_branch.id if target_branch else '0'}-{instance.loan_number}"
+                    safe_loc = self.cleaned_data.get('safe_locker_number') or (instance.gold_location or 'Safe-01 / Locker-A1')
+                    rack_loc = self.cleaned_data.get('shelf_rack_number') or 'Rack-01 / Tray-A1'
+                    seal_bc = self.cleaned_data.get('seal_barcode') or ''
+                    
+                    # Compute weights
+                    gross_wt = self.cleaned_data.get('gross_weight') or Decimal('0.000')
+                    net_wt = self.cleaned_data.get('net_weight') or Decimal('0.000')
+                    item_qty = _extract_item_quantity_from_name(self.cleaned_data.get('item_name', ''))
+
+                    pouch = getattr(instance, 'vault_pouch', None)
+                    if not pouch:
+                        pouch = VaultPouch.objects.filter(loan=instance).first()
+
+                    if not pouch:
+                        pouch = VaultPouch.objects.create(
+                            pouch_number=pouch_no,
+                            loan=instance,
+                            branch=target_branch,
+                            safe_locker_number=safe_loc,
+                            shelf_rack_number=rack_loc,
+                            seal_barcode=seal_bc,
+                            gross_weight=gross_wt,
+                            net_weight=net_wt,
+                            item_count=item_qty,
+                            custodian_maker=self.user,
+                            status='pending_inward'
+                        )
+                        VaultAuditLog.objects.create(
+                            pouch=pouch,
+                            action='sealed',
+                            performed_by=self.user,
+                            new_location=f"{safe_loc} [{rack_loc}]",
+                            remarks=f"Gold sealed in security pouch #{pouch_no} for Loan #{instance.loan_number}"
+                        )
+                    else:
+                        old_loc = f"{pouch.safe_locker_number} [{pouch.shelf_rack_number}]"
+                        new_loc = f"{safe_loc} [{rack_loc}]"
+                        if pouch_no:
+                            pouch.pouch_number = pouch_no
+                        pouch.safe_locker_number = safe_loc
+                        pouch.shelf_rack_number = rack_loc
+                        pouch.seal_barcode = seal_bc
+                        pouch.gross_weight = gross_wt
+                        pouch.net_weight = net_wt
+                        pouch.item_count = item_qty
+                        pouch.save()
+
+                        if old_loc != new_loc:
+                            VaultAuditLog.objects.create(
+                                pouch=pouch,
+                                action='location_moved',
+                                performed_by=self.user,
+                                old_location=old_loc,
+                                new_location=new_loc,
+                                remarks="Locker/Rack location updated via loan form edit"
+                            )
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).warning(f"Error syncing VaultPouch on loan save: {e}")
+
+                # Synchronize DisbursementTransaction record (Section 269SS/269T Compliance)
+                try:
+                    disb_mode = self.cleaned_data.get('disbursement_mode', 'CASH')
+                    bank_acc = self.cleaned_data.get('bank_account_number') or ''
+                    bank_ifsc = (self.cleaned_data.get('bank_ifsc_code') or '').upper()
+                    bank_name = self.cleaned_data.get('bank_name') or ''
+                    beneficiary = self.cleaned_data.get('bank_beneficiary_name') or (instance.customer.full_name if instance.customer else '')
+                    utr = self.cleaned_data.get('disbursement_utr') or ''
+                    
+                    disbursal_amt = instance.distribution_amount
+                    if disbursal_amt is None:
+                        disbursal_amt = (instance.principal_amount or Decimal('0')) - (instance.processing_fee or Decimal('0'))
+
+                    DisbursementTransaction.objects.update_or_create(
+                        loan=instance,
+                        defaults={
+                            'payment_mode': disb_mode,
+                            'amount': disbursal_amt,
+                            'account_number': bank_acc,
+                            'ifsc_code': bank_ifsc,
+                            'bank_name': bank_name,
+                            'beneficiary_name': beneficiary,
+                            'utr_number': utr,
+                            'disbursed_by': self.user if hasattr(self, 'user') and self.user and self.user.is_authenticated else None,
+                            'bank_status': 'PROCESSED'
+                        }
+                    )
+
+                    # Synchronize customer profile bank details if provided
+                    if instance.customer and bank_acc and bank_ifsc:
+                        cust = instance.customer
+                        cust_updated = False
+                        if not cust.bank_account_number or cust.bank_account_number != bank_acc:
+                            cust.bank_account_number = bank_acc
+                            cust_updated = True
+                        if not cust.bank_ifsc_code or cust.bank_ifsc_code != bank_ifsc:
+                            cust.bank_ifsc_code = bank_ifsc
+                            cust_updated = True
+                        if bank_name and (not cust.bank_name or cust.bank_name != bank_name):
+                            cust.bank_name = bank_name
+                            cust_updated = True
+                        if beneficiary and (not cust.bank_beneficiary_name or cust.bank_beneficiary_name != beneficiary):
+                            cust.bank_beneficiary_name = beneficiary
+                            cust_updated = True
+                        if cust_updated:
+                            cust.save(update_fields=['bank_account_number', 'bank_ifsc_code', 'bank_name', 'bank_beneficiary_name'])
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).warning(f"Error syncing DisbursementTransaction on loan save: {e}")
         
         return instance
 
@@ -1185,3 +1714,38 @@ class SaleForm(forms.ModelForm):
             instance.save()
             
         return instance
+
+
+class PaymentRecordForm(forms.ModelForm):
+    class Meta:
+        model = Payment
+        fields = ['amount', 'payment_date', 'payment_method', 'reference_number', 'notes']
+        widgets = {
+            'amount': forms.NumberInput(attrs={
+                'class': 'form-control form-control-lg font-monospace fw-bold',
+                'step': '0.01',
+                'id': 'id_amount',
+                'placeholder': '0.00'
+            }),
+            'payment_date': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date',
+                'id': 'id_payment_date'
+            }),
+            'payment_method': forms.Select(attrs={
+                'class': 'form-select',
+                'id': 'id_payment_method'
+            }),
+            'reference_number': forms.TextInput(attrs={
+                'class': 'form-control',
+                'id': 'id_reference_number',
+                'placeholder': 'e.g. UTR / Cheque / Txn ID'
+            }),
+            'notes': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 2,
+                'id': 'id_notes',
+                'placeholder': 'Optional remarks or payment notes...'
+            }),
+        }
+

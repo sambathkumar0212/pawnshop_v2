@@ -353,6 +353,13 @@ class Customer(models.Model):
     face_encoding = models.BinaryField(null=True, blank=True, help_text="Binary data for facial recognition")
     notes = models.TextField(blank=True)
     notes_tamil = models.TextField(blank=True)
+    
+    # Bank Account Details (Section 269SS/269T Compliance & Digital Payouts)
+    bank_account_number = models.CharField(max_length=50, blank=True, null=True, help_text="Bank Account Number")
+    bank_ifsc_code = models.CharField(max_length=20, blank=True, null=True, help_text="Bank IFSC Code")
+    bank_name = models.CharField(max_length=100, blank=True, null=True, help_text="Bank Name")
+    bank_beneficiary_name = models.CharField(max_length=150, blank=True, null=True, help_text="Beneficiary / Account Holder Name")
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(
@@ -431,18 +438,14 @@ class Customer(models.Model):
             mime = 'image/png' if clean_payload.startswith('iVBOR') else 'image/jpeg'
             return f"data:{mime};base64,{clean_payload}"
 
-        # Fallback: try to pick a photo from this customer's latest loans.
+        # Fallback: try to pick a face capture from this customer's latest loans.
         try:
             from transactions.models import Loan
-            from transactions.views import process_item_photos_for_display
 
             loans = Loan.objects.filter(customer=self).order_by('-created_at')
             for loan in loans:
-                if getattr(loan, 'customer_face_capture', None):
-                    return loan.customer_face_capture
-                photos = process_item_photos_for_display(loan.item_photos)
-                if photos:
-                    return photos[0]
+                if getattr(loan, 'customer_face_capture', None) and loan.customer_face_capture.strip():
+                    return loan.customer_face_capture.strip()
         except Exception:
             pass
 

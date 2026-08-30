@@ -277,3 +277,400 @@ class BranchSettingsUpdateView(LoginRequiredMixin, PermissionRequiredMixin, Upda
         response = super().form_valid(form)
         messages.success(self.request, 'Branch settings have been updated successfully.')
         return response
+
+
+# ==============================================================================
+# Task 1.4: Branch Cash Drawer, Cash Till & Daily Cash Scroll (EOD Reconciliation)
+# ==============================================================================
+from django.views import View
+from decimal import Decimal
+from .models import CashTill, CashScrollEntry
+from .forms_till import CashTillOpenForm, CashTillReconciliationForm, CashBankDepositForm
+from transactions.models import Payment, Loan, DisbursementTransaction
+
+
+class CashTillDashboardView(LoginRequiredMixin, View):
+    """
+    Live Cash Drawer, Real-Time Cash Scroll & Reconciliation Dashboard for Branch Operations.
+    """
+    template_name = 'branches/cash_till_dashboard.html'
+
+    def get_user_branch(self, request):
+        branch_id = request.GET.get('branch_id')
+        if branch_id and (request.user.is_superuser or getattr(request.user, 'role', None) in ['admin', 'manager', 'regional_manager']):
+            return get_object_or_404(Branch, pk=branch_id)
+        if getattr(request.user, 'branch', None):
+            return request.user.branch
+        return Branch.objects.filter(is_active=True).first()
+
+    def get(self, request):
+        branch = self.get_user_branch(request)
+        if not branch:
+            messages.warning(request, "No active branch found. Please create or assign a branch first.")
+            return redirect('branch_list')
+
+        today = timezone.now().date()
+        
+        # Get or find today's active till for current cashier and branch
+        till = CashTill.objects.filter(branch=branch, date=today, cashier=request.user).first()
+        if not till:
+            # Fallback: check if another cashier opened a till for this branch today
+            till = CashTill.objects.filter(branch=branch, date=today).first()
+
+        previous_till = CashTill.objects.filter(branch=branch, date__lt=today).order_by('-date').first()
+        suggested_opening = Decimal('0.00')
+        if previous_till:
+            suggested_opening = previous_till.closing_balance_physical or previous_till.closing_balance_system or Decimal('0.00')
+
+        feed_items = []
+        if till:
+            till.sync_live_transactions()
+
+            # Compile live transaction scroll feed
+            # 1. Opening entry
+            feed_items.append({
+                'time': till.created_at,
+                'type': 'OPENING',
+                'type_display': 'Opening Balance',
+                'direction': 'IN',
+                'amount': till.opening_balance,
+                'ref': 'BOD-REGISTER',
+                'narrative': f"Opening drawer cash registered by {till.cashier.get_full_name() or till.cashier.username}",
+                'user': till.cashier
+            })
+
+            # 2. Manual cash scroll entries (Bank deposits, petty cash, etc.)
+            for entry in till.entries.exclude(entry_type='OPENING'):
+                feed_items.append({
+                    'time': entry.created_at,
+                    'type': entry.entry_type,
+                    'type_display': entry.get_entry_type_display(),
+                    'direction': entry.direction,
+                    'amount': entry.amount,
+                    'ref': entry.reference_id or 'VOUCHER',
+                    'narrative': entry.description,
+                    'user': entry.created_by
+                })
+
+            # 3. Cash loan repayments today
+            repayments = Payment.objects.filter(
+                loan__branch=branch,
+                payment_date=today,
+                payment_method__iexact='cash'
+            ).select_related('loan', 'loan__customer', 'received_by')
+            for p in repayments:
+                feed_items.append({
+                    'time': p.created_at if hasattr(p, 'created_at') else timezone.now(),
+                    'type': 'LOAN_REPAYMENT',
+                    'type_display': 'Loan Repayment (Cash)',
+                    'direction': 'IN',
+                    'amount': p.amount,
+                    'ref': f"LN-{p.loan.loan_number}",
+                    'narrative': f"Repayment from {p.loan.customer.full_name} for Loan #{p.loan.loan_number}",
+                    'user': p.received_by
+                })
+
+            # 4. Cash loan disbursals today
+            disbursements = DisbursementTransaction.objects.filter(
+                loan__branch=branch,
+                disbursed_at__date=today,
+                payment_mode='CASH'
+            ).select_related('loan', 'loan__customer', 'disbursed_by')
+            for d in disbursements:
+                feed_items.append({
+                    'time': d.disbursed_at,
+                    'type': 'LOAN_DISBURSAL',
+                    'type_display': 'Loan Disbursal (Cash)',
+                    'direction': 'OUT',
+                    'amount': d.amount,
+                    'ref': f"LN-{d.loan.loan_number}",
+                    'narrative': f"Disbursed to {d.loan.customer.full_name} for Loan #{d.loan.loan_number}",
+                    'user': d.disbursed_by
+                })
+
+            # Sort feed items descending by time
+            feed_items.sort(key=lambda x: x['time'] or timezone.now(), reverse=True)
+
+        all_branches = Branch.objects.filter(is_active=True)
+
+        context = {
+            'branch': branch,
+            'all_branches': all_branches,
+            'today': today,
+            'till': till,
+            'suggested_opening': suggested_opening,
+            'feed_items': feed_items,
+            'deposit_form': CashBankDepositForm(),
+        }
+        return render(request, self.template_name, context)
+
+
+class CashTillOpenView(LoginRequiredMixin, View):
+    """BOD Open Register View"""
+    template_name = 'branches/cash_till_open.html'
+
+    def get_user_branch(self, request):
+        branch_id = request.GET.get('branch_id')
+        if branch_id and (request.user.is_superuser or getattr(request.user, 'role', None) in ['admin', 'manager', 'regional_manager']):
+            return get_object_or_404(Branch, pk=branch_id)
+        if getattr(request.user, 'branch', None):
+            return request.user.branch
+        return Branch.objects.filter(is_active=True).first()
+
+    def get(self, request):
+        branch = self.get_user_branch(request)
+        today = timezone.now().date()
+        
+        # Check if already opened
+        existing_till = CashTill.objects.filter(branch=branch, date=today, cashier=request.user).first()
+        if existing_till:
+            messages.info(request, "Today's cash till is already open.")
+            return redirect('cash_till_dashboard')
+
+        previous_till = CashTill.objects.filter(branch=branch, date__lt=today).order_by('-date').first()
+        suggested_opening = Decimal('0.00')
+        if previous_till:
+            suggested_opening = previous_till.closing_balance_physical or previous_till.closing_balance_system or Decimal('0.00')
+
+        form = CashTillOpenForm(initial={'opening_balance': suggested_opening})
+        context = {
+            'branch': branch,
+            'today': today,
+            'previous_till': previous_till,
+            'suggested_opening': suggested_opening,
+            'form': form
+        }
+        return render(request, self.template_name, context)
+
+    def post(self, request):
+        branch = self.get_user_branch(request)
+        today = timezone.now().date()
+        
+        form = CashTillOpenForm(request.POST)
+        if form.is_valid():
+            till, created = CashTill.objects.get_or_create(
+                branch=branch,
+                cashier=request.user,
+                date=today,
+                defaults={
+                    'opening_balance': form.cleaned_data['opening_balance'],
+                    'status': 'open'
+                }
+            )
+            if not created:
+                till.opening_balance = form.cleaned_data['opening_balance']
+                till.status = 'open'
+                till.save()
+
+            # Create opening balance scroll entry
+            CashScrollEntry.objects.create(
+                till=till,
+                entry_type='OPENING',
+                direction='IN',
+                amount=till.opening_balance,
+                reference_id=f"BOD-{today.strftime('%Y%m%d')}",
+                description=f"Beginning of Day cash drawer opened with ₹{till.opening_balance:,.2f}",
+                created_by=request.user
+            )
+
+            till.sync_live_transactions()
+            messages.success(request, f"Cash register successfully opened for {branch.name} with ₹{till.opening_balance:,.2f}.")
+            return redirect('cash_till_dashboard')
+
+        context = {
+            'branch': branch,
+            'today': today,
+            'form': form
+        }
+        return render(request, self.template_name, context)
+
+
+class CashTillReconcileView(LoginRequiredMixin, View):
+    """EOD Denomination Count and Physical Reconciliation View"""
+    template_name = 'branches/cash_till_reconcile.html'
+
+    def get(self, request, pk):
+        till = get_object_or_404(CashTill, pk=pk)
+        till.sync_live_transactions()
+        form = CashTillReconciliationForm(instance=till)
+        context = {
+            'till': till,
+            'form': form,
+        }
+        return render(request, self.template_name, context)
+
+    def post(self, request, pk):
+        till = get_object_or_404(CashTill, pk=pk)
+        till.sync_live_transactions()
+        form = CashTillReconciliationForm(request.POST, instance=till)
+        if form.is_valid():
+            till = form.save(commit=False)
+            till.closing_balance_physical = form.cleaned_data['closing_balance_physical']
+            till.denomination_breakdown = form.cleaned_data['denomination_breakdown']
+            
+            variance = till.closing_balance_physical - till.closing_balance_system
+            if variance == 0:
+                till.status = 'reconciled'
+                messages.success(request, f"EOD Physical Cash matched system balance perfectly (₹{till.closing_balance_physical:,.2f}). Ready for Manager Sign-off.")
+            else:
+                till.status = 'mismatched'
+                direction_str = "Excess" if variance > 0 else "Shortage"
+                messages.warning(request, f"EOD Cash Discrepancy noted: {direction_str} of ₹{abs(variance):,.2f}. Discrepancy reason recorded.")
+
+            till.save()
+            return redirect('cash_till_dashboard')
+
+        context = {
+            'till': till,
+            'form': form,
+        }
+        return render(request, self.template_name, context)
+
+
+class CashTillManagerSignoffView(LoginRequiredMixin, View):
+    """Branch Manager / Admin Sign-off & Day Closure View"""
+    def post(self, request, pk):
+        till = get_object_or_404(CashTill, pk=pk)
+        
+        # Verify manager permissions
+        is_manager = request.user.is_superuser or getattr(request.user, 'role', None) in ['admin', 'manager', 'regional_manager'] or request.user == till.branch.manager
+        if not is_manager:
+            messages.error(request, "Permission Denied: Only Branch Manager or Administrator can sign off and close the daily cash register.")
+            return redirect('cash_till_dashboard')
+
+        till.sync_live_transactions()
+        till.status = 'closed'
+        till.verified_by_manager = request.user
+        till.reconciled_at = timezone.now()
+        till.save()
+
+        messages.success(request, f"Daily Cash Register for {till.branch.name} ({till.date}) has been verified and officially CLOSED by Manager {request.user.get_full_name() or request.user.username}.")
+        return redirect('cash_till_dashboard')
+
+
+class CashTillBankDepositView(LoginRequiredMixin, View):
+    """Record Cash transfer from Till to Bank / CIT"""
+    def post(self, request, pk):
+        till = get_object_or_404(CashTill, pk=pk)
+        form = CashBankDepositForm(request.POST)
+        if form.is_valid():
+            deposit_entry = form.save(commit=False)
+            deposit_entry.till = till
+            deposit_entry.entry_type = 'BANK_DEPOSIT'
+            deposit_entry.direction = 'OUT'
+            deposit_entry.created_by = request.user
+            deposit_entry.save()
+
+            till.sync_live_transactions()
+            messages.success(request, f"Cash deposit of ₹{deposit_entry.amount:,.2f} to Bank/CIT recorded successfully.")
+        else:
+            messages.error(request, "Failed to record cash deposit. Please check the entered fields.")
+        return redirect('cash_till_dashboard')
+
+
+class CashTillPrintScrollView(LoginRequiredMixin, View):
+    """Printable A4 Daily Cash Scroll & EOD Reconciliation Certificate"""
+    template_name = 'branches/cash_till_print.html'
+
+    def get(self, request, pk):
+        till = get_object_or_404(CashTill, pk=pk)
+        till.sync_live_transactions()
+        
+        # Build chronological stream
+        feed_items = []
+        feed_items.append({
+            'time': till.created_at,
+            'type_display': 'Opening Balance (BOD)',
+            'direction': 'IN',
+            'amount': till.opening_balance,
+            'ref': 'BOD-REGISTER',
+            'narrative': f"Opening drawer cash registered by {till.cashier.get_full_name() or till.cashier.username}",
+            'user': till.cashier
+        })
+
+        for entry in till.entries.exclude(entry_type='OPENING'):
+            feed_items.append({
+                'time': entry.created_at,
+                'type_display': entry.get_entry_type_display(),
+                'direction': entry.direction,
+                'amount': entry.amount,
+                'ref': entry.reference_id or 'VOUCHER',
+                'narrative': entry.description,
+                'user': entry.created_by
+            })
+
+        repayments = Payment.objects.filter(
+            loan__branch=till.branch,
+            payment_date=till.date,
+            payment_method__iexact='cash'
+        ).select_related('loan', 'loan__customer', 'received_by')
+        for p in repayments:
+            feed_items.append({
+                'time': p.created_at if hasattr(p, 'created_at') else timezone.now(),
+                'type_display': 'Loan Repayment (Cash)',
+                'direction': 'IN',
+                'amount': p.amount,
+                'ref': f"LN-{p.loan.loan_number}",
+                'narrative': f"Repayment from {p.loan.customer.full_name}",
+                'user': p.received_by
+            })
+
+        disbursements = DisbursementTransaction.objects.filter(
+            loan__branch=till.branch,
+            disbursed_at__date=till.date,
+            payment_mode='CASH'
+        ).select_related('loan', 'loan__customer', 'disbursed_by')
+        for d in disbursements:
+            feed_items.append({
+                'time': d.disbursed_at,
+                'type_display': 'Loan Disbursal (Cash)',
+                'direction': 'OUT',
+                'amount': d.amount,
+                'ref': f"LN-{d.loan.loan_number}",
+                'narrative': f"Disbursal to {d.loan.customer.full_name}",
+                'user': d.disbursed_by
+            })
+
+        feed_items.sort(key=lambda x: x['time'] or timezone.now())
+
+        context = {
+            'till': till,
+            'feed_items': feed_items,
+            'now': timezone.now(),
+        }
+        return render(request, self.template_name, context)
+
+
+class CashTillHistoryListView(LoginRequiredMixin, ListView):
+    """Historical list of branch cash registers with filters"""
+    model = CashTill
+    template_name = 'branches/cash_till_history.html'
+    context_object_name = 'tills'
+    paginate_by = 20
+
+    def get_queryset(self):
+        queryset = CashTill.objects.select_related('branch', 'cashier', 'verified_by_manager').all()
+        user = self.request.user
+        if not user.is_superuser and getattr(user, 'role', None) not in ['admin', 'regional_manager']:
+            if getattr(user, 'branch', None):
+                queryset = queryset.filter(branch=user.branch)
+        
+        branch_id = self.request.GET.get('branch_id')
+        if branch_id:
+            queryset = queryset.filter(branch_id=branch_id)
+            
+        start_date = self.request.GET.get('start_date')
+        if start_date:
+            queryset = queryset.filter(date__gte=start_date)
+            
+        end_date = self.request.GET.get('end_date')
+        if end_date:
+            queryset = queryset.filter(date__lte=end_date)
+            
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['all_branches'] = Branch.objects.filter(is_active=True)
+        return context
+

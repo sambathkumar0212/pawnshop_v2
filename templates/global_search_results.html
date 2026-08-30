@@ -1,0 +1,582 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load i18n %}
+
+{% block title %}
+{% if query %}Search Results for "{{ query }}" - Pawnshop Management{% else %}Global Search - Pawnshop Management{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .search-entity-card {
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+    }
+    .search-entity-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+        border-color: #cbd5e1;
+    }
+    .nav-pills .nav-link {
+        font-size: 0.85rem;
+        font-weight: 600;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        color: #475569;
+    }
+    .nav-pills .nav-link.active {
+        background-color: #0f172a;
+        color: #ffffff;
+    }
+    .highlight-match {
+        background-color: #fef08a;
+        padding: 0 2px;
+        border-radius: 2px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+    <!-- ── Search Header & Big Search Input ── -->
+    <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px;">
+        <div class="card-body p-4 text-white">
+            <div class="row align-items-center g-3">
+                <div class="col-lg-6">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="bg-white bg-opacity-10 rounded-circle p-3 d-flex align-items-center justify-content-center" style="width: 52px; height: 52px;">
+                            <i class="fas fa-globe text-warning fa-2x"></i>
+                        </div>
+                        <div>
+                            <h3 class="fw-bold mb-1 text-white">Global Search</h3>
+                            <p class="text-white text-opacity-75 small mb-0">
+                                Search across customers, loan numbers, city, ornaments (English &amp; தமிழ்), vault pouches, inventory &amp; sales
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <form action="{% url 'global_search' %}" method="GET" class="d-flex gap-2">
+                        <div class="input-group input-group-lg shadow">
+                            <span class="input-group-text bg-white border-0 text-muted ps-3">
+                                <i class="fas fa-search text-primary"></i>
+                            </span>
+                            <input type="search" name="q" value="{{ query }}" class="form-control border-0 font-monospace"
+                                   placeholder="Search customer, loan #, city, ornament name..." autofocus>
+                            <button type="submit" class="btn btn-primary px-4 fw-bold">
+                                Search
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if query %}
+        <!-- ── Search Stats & Navigation Filter Tabs ── -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+            <div>
+                <h5 class="fw-bold mb-1 text-dark">
+                    Found <span class="badge bg-primary fs-6">{{ total_results }} result{{ total_results|pluralize }}</span> for "<span class="text-primary">{{ query }}</span>"
+                </h5>
+                <small class="text-muted">Filtered based on your branch and role access privileges.</small>
+            </div>
+
+            <!-- Filter Tabs -->
+            <ul class="nav nav-pills gap-1 bg-white p-1 rounded-pill border shadow-sm" id="searchTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {% if active_tab == 'all' or not active_tab %}active{% endif %}" id="tab-all-btn" data-bs-toggle="pill" data-bs-target="#tab-all" type="button">
+                        <i class="fas fa-layer-group me-1"></i> All Results <span class="badge bg-secondary ms-1">{{ counts.all }}</span>
+                    </button>
+                </li>
+                {% if counts.loans > 0 %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {% if active_tab == 'loans' %}active{% endif %}" id="tab-loans-btn" data-bs-toggle="pill" data-bs-target="#tab-loans" type="button">
+                        <i class="fas fa-hand-holding-usd text-success me-1"></i> Loans <span class="badge bg-success ms-1">{{ counts.loans }}</span>
+                    </button>
+                </li>
+                {% endif %}
+                {% if counts.customers > 0 %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {% if active_tab == 'customers' %}active{% endif %}" id="tab-customers-btn" data-bs-toggle="pill" data-bs-target="#tab-customers" type="button">
+                        <i class="fas fa-users text-primary me-1"></i> Customers <span class="badge bg-primary ms-1">{{ counts.customers }}</span>
+                    </button>
+                </li>
+                {% endif %}
+                {% if counts.ornaments > 0 %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {% if active_tab == 'ornaments' %}active{% endif %}" id="tab-ornaments-btn" data-bs-toggle="pill" data-bs-target="#tab-ornaments" type="button">
+                        <i class="fas fa-gem text-warning me-1"></i> Ornaments <span class="badge bg-warning text-dark ms-1">{{ counts.ornaments }}</span>
+                    </button>
+                </li>
+                {% endif %}
+                {% if counts.vault > 0 %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {% if active_tab == 'vault' %}active{% endif %}" id="tab-vault-btn" data-bs-toggle="pill" data-bs-target="#tab-vault" type="button">
+                        <i class="fas fa-shield-alt text-warning me-1"></i> Vault Pouches <span class="badge bg-dark ms-1">{{ counts.vault }}</span>
+                    </button>
+                </li>
+                {% endif %}
+                {% if counts.inventory > 0 %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {% if active_tab == 'inventory' %}active{% endif %}" id="tab-inventory-btn" data-bs-toggle="pill" data-bs-target="#tab-inventory" type="button">
+                        <i class="fas fa-box-open text-info me-1"></i> Inventory <span class="badge bg-info text-dark ms-1">{{ counts.inventory }}</span>
+                    </button>
+                </li>
+                {% endif %}
+                {% if counts.sales > 0 %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {% if active_tab == 'sales' %}active{% endif %}" id="tab-sales-btn" data-bs-toggle="pill" data-bs-target="#tab-sales" type="button">
+                        <i class="fas fa-shopping-cart text-danger me-1"></i> Sales <span class="badge bg-danger ms-1">{{ counts.sales }}</span>
+                    </button>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+
+        {% if total_results == 0 %}
+            <!-- No Results State -->
+            <div class="card border-0 shadow-sm text-center py-5">
+                <div class="card-body">
+                    <div class="rounded-circle bg-light d-inline-flex p-4 mb-3 text-muted">
+                        <i class="fas fa-search fa-3x opacity-50"></i>
+                    </div>
+                    <h4 class="fw-bold text-dark mb-2">No matches found for "{{ query }}"</h4>
+                    <p class="text-muted mx-auto" style="max-width: 500px;">
+                        We couldn't find any customers, loans, ornaments, or vault records matching your keyword.
+                    </p>
+                    <div class="d-flex justify-content-center gap-2 mt-3">
+                        <a href="{% url 'customer_list' %}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-users me-1"></i> Browse Customers
+                        </a>
+                        <a href="{% url 'loan_list' %}" class="btn btn-outline-success btn-sm">
+                            <i class="fas fa-hand-holding-usd me-1"></i> Browse Loans
+                        </a>
+                        <a href="{% url 'vault_explorer' %}" class="btn btn-outline-warning text-dark btn-sm">
+                            <i class="fas fa-shield-alt me-1"></i> Vault Explorer
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+
+            <!-- Tab Content Area -->
+            <div class="tab-content" id="searchTabContent">
+
+                <!-- ══════════════ TAB 1: ALL RESULTS ══════════════ -->
+                <div class="tab-pane fade show active" id="tab-all" role="tabpanel">
+
+                    <!-- 1. Loans Section -->
+                    {% if loans %}
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="fw-bold text-dark mb-0">
+                                <i class="fas fa-hand-holding-usd text-success me-2"></i>Loans ({{ loans|length }})
+                            </h5>
+                        </div>
+                        <div class="row g-3">
+                            {% for loan in loans|slice:":6" %}
+                            <div class="col-md-6 col-lg-4">
+                                <div class="card search-entity-card h-100 bg-white p-3">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div>
+                                            <span class="badge bg-light text-primary border font-monospace fw-bold mb-1">
+                                                {{ loan.loan_number }}
+                                            </span>
+                                            <h6 class="fw-bold text-dark mb-0">{{ loan.customer.full_name }}</h6>
+                                        </div>
+                                        <span class="badge {% if loan.status == 'active' %}bg-success{% elif loan.status == 'approved' %}bg-primary{% elif loan.status == 'pending_approval' %}bg-warning text-dark{% elif loan.status == 'closed' or loan.status == 'repaid' %}bg-secondary{% else %}bg-danger{% endif %}">
+                                            {{ loan.get_status_display }}
+                                        </span>
+                                    </div>
+                                    <div class="small text-muted mb-2">
+                                        <div><i class="fas fa-phone me-1 text-secondary"></i>{{ loan.customer.phone|default:"No phone" }} &bull; <i class="fas fa-map-marker-alt me-1 text-secondary"></i>{{ loan.customer.city|default:loan.branch.name }}</div>
+                                        <div><i class="fas fa-calendar-alt me-1 text-secondary"></i>Issued: {{ loan.issue_date|date:"d M Y" }} &bull; Due: {{ loan.due_date|date:"d M Y" }}</div>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center mt-auto pt-2 border-top">
+                                        <div>
+                                            <small class="text-muted d-block" style="font-size:0.7rem;">Principal</small>
+                                            <span class="fw-bold text-success font-monospace rupee-symbol">Rs {{ loan.principal_amount|floatformat:0|intcomma }}</span>
+                                        </div>
+                                        <a href="{% url 'loan_detail' loan.loan_number %}" class="btn btn-outline-primary btn-sm px-3 fw-semibold">
+                                            View Loan <i class="fas fa-arrow-right ms-1"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- 2. Customers Section -->
+                    {% if customers %}
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="fw-bold text-dark mb-0">
+                                <i class="fas fa-users text-primary me-2"></i>Customers ({{ customers|length }})
+                            </h5>
+                        </div>
+                        <div class="row g-3">
+                            {% for c in customers|slice:":6" %}
+                            <div class="col-md-6 col-lg-4">
+                                <div class="card search-entity-card h-100 bg-white p-3">
+                                    <div class="d-flex align-items-center gap-3 mb-2">
+                                        <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center fw-bold" style="width:46px;height:46px;font-size:1.1rem;">
+                                            {{ c.first_name|slice:":1" }}{{ c.last_name|slice:":1" }}
+                                        </div>
+                                        <div>
+                                            <h6 class="fw-bold text-dark mb-0">{{ c.full_name }}</h6>
+                                            <small class="text-muted font-monospace"><i class="fas fa-hashtag me-1"></i>ID #{{ c.id }}</small>
+                                        </div>
+                                    </div>
+                                    <div class="small text-muted mb-2">
+                                        <div><i class="fas fa-phone me-1 text-primary"></i><strong>Phone:</strong> {{ c.phone|default:"—" }}</div>
+                                        <div><i class="fas fa-city me-1 text-info"></i><strong>City:</strong> {{ c.city|default:"—" }} {% if c.state %}({{ c.state }}){% endif %}</div>
+                                        {% if c.id_number %}
+                                        <div><i class="fas fa-id-card me-1 text-secondary"></i><strong>ID Doc:</strong> <span class="font-monospace">{{ c.id_number }}</span></div>
+                                        {% endif %}
+                                        {% if c.branch %}
+                                        <div><i class="fas fa-building me-1 text-secondary"></i><strong>Branch:</strong> {{ c.branch.name }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center mt-auto pt-2 border-top">
+                                        <span class="badge bg-light text-dark border">
+                                            <i class="fas fa-hand-holding-usd me-1 text-success"></i>{{ c.loans.count }} Loan{{ c.loans.count|pluralize }}
+                                        </span>
+                                        <a href="{% url 'customer_detail' c.pk %}" class="btn btn-outline-primary btn-sm px-3 fw-semibold">
+                                            Profile <i class="fas fa-arrow-right ms-1"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- 3. Pawned Ornaments Section -->
+                    {% if loan_items %}
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="fw-bold text-dark mb-0">
+                                <i class="fas fa-gem text-warning me-2"></i>Pawned Ornaments ({{ loan_items|length }})
+                            </h5>
+                        </div>
+                        <div class="card border-0 shadow-sm">
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle mb-0 small">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Ornament / Description</th>
+                                            <th class="text-center">Karat</th>
+                                            <th class="text-end">Gross Wt</th>
+                                            <th class="text-end">Net Gold</th>
+                                            <th class="text-end">Valuation</th>
+                                            <th>Linked Loan</th>
+                                            <th>Borrower</th>
+                                            <th class="text-center">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in loan_items|slice:":10" %}
+                                        <tr>
+                                            <td>
+                                                <span class="fw-bold text-dark">{{ item.item.name }}</span>
+                                                {% if item.item.tamil_name %}
+                                                <span class="badge bg-warning-subtle text-warning-emphasis border ms-1">{{ item.item.tamil_name }}</span>
+                                                {% endif %}
+                                                {% if item.item.description %}
+                                                <small class="text-muted d-block">{{ item.item.description }}</small>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-center"><span class="badge bg-warning text-dark">{{ item.gold_karat }}K</span></td>
+                                            <td class="text-end font-monospace">{{ item.gross_weight|floatformat:3 }}g</td>
+                                            <td class="text-end font-monospace fw-bold text-primary">{{ item.net_weight|floatformat:3 }}g</td>
+                                            <td class="text-end font-monospace text-success fw-bold rupee-symbol">Rs {{ item.item_valuation|floatformat:0|intcomma }}</td>
+                                            <td>
+                                                <a href="{% url 'loan_detail' item.loan.loan_number %}" class="font-monospace fw-bold text-decoration-none">
+                                                    {{ item.loan.loan_number }}
+                                                </a>
+                                            </td>
+                                            <td>{{ item.loan.customer.full_name }}</td>
+                                            <td class="text-center">
+                                                <a href="{% url 'loan_detail' item.loan.loan_number %}" class="btn btn-outline-primary btn-xs py-0 px-2">
+                                                    View Loan
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- 4. Vault & Security Pouches Section -->
+                    {% if vault_pouches %}
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="fw-bold text-dark mb-0">
+                                <i class="fas fa-shield-alt text-warning me-2"></i>Vault &amp; Security Pouches ({{ vault_pouches|length }})
+                            </h5>
+                        </div>
+                        <div class="row g-3">
+                            {% for vp in vault_pouches|slice:":6" %}
+                            <div class="col-md-6 col-lg-4">
+                                <div class="card search-entity-card h-100 bg-white p-3">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div>
+                                            <span class="badge bg-dark font-monospace mb-1">
+                                                <i class="fas fa-barcode me-1"></i>{{ vp.pouch_number }}
+                                            </span>
+                                            <h6 class="fw-bold text-dark mb-0">Safe: {{ vp.safe_locker_number }} {% if vp.shelf_rack_number %}(Tray {{ vp.shelf_rack_number }}){% endif %}</h6>
+                                        </div>
+                                        <span class="badge bg-{% if vp.status == 'vaulted' %}success{% elif vp.status == 'pending_inward' %}warning text-dark{% else %}secondary{% endif %}">
+                                            {{ vp.get_status_display }}
+                                        </span>
+                                    </div>
+                                    <div class="small text-muted mb-2">
+                                        <div><i class="fas fa-shield-alt me-1 text-warning"></i><strong>Seal Barcode:</strong> <span class="font-monospace text-dark">{{ vp.seal_barcode|default:"—" }}</span></div>
+                                        {% if vp.loan %}
+                                        <div><i class="fas fa-hand-holding-usd me-1 text-success"></i><strong>Loan:</strong> <a href="{% url 'loan_detail' vp.loan.loan_number %}" class="fw-bold font-monospace">{{ vp.loan.loan_number }}</a> ({{ vp.loan.customer.full_name }})</div>
+                                        {% endif %}
+                                        <div><i class="fas fa-building me-1 text-secondary"></i><strong>Branch:</strong> {{ vp.branch.name }}</div>
+                                    </div>
+                                    <div class="mt-auto pt-2 border-top text-end">
+                                        <a href="{% url 'vault_explorer' %}?q={{ vp.pouch_number }}" class="btn btn-outline-primary btn-sm px-3 fw-semibold">
+                                            <i class="fas fa-external-link-alt me-1"></i> Vault Explorer
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                </div>
+
+                <!-- ══════════════ TAB 2: LOANS ONLY ══════════════ -->
+                {% if counts.loans > 0 %}
+                <div class="tab-pane fade" id="tab-loans" role="tabpanel">
+                    <div class="row g-3">
+                        {% for loan in loans %}
+                        <div class="col-md-6 col-lg-4">
+                            <div class="card search-entity-card h-100 bg-white p-3">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <span class="badge bg-light text-primary border font-monospace fw-bold mb-1">
+                                            {{ loan.loan_number }}
+                                        </span>
+                                        <h6 class="fw-bold text-dark mb-0">{{ loan.customer.full_name }}</h6>
+                                    </div>
+                                    <span class="badge {% if loan.status == 'active' %}bg-success{% elif loan.status == 'approved' %}bg-primary{% elif loan.status == 'pending_approval' %}bg-warning text-dark{% elif loan.status == 'closed' or loan.status == 'repaid' %}bg-secondary{% else %}bg-danger{% endif %}">
+                                        {{ loan.get_status_display }}
+                                    </span>
+                                </div>
+                                <div class="small text-muted mb-2">
+                                    <div><i class="fas fa-phone me-1 text-secondary"></i>{{ loan.customer.phone|default:"No phone" }} &bull; <i class="fas fa-map-marker-alt me-1 text-secondary"></i>{{ loan.customer.city|default:loan.branch.name }}</div>
+                                    <div><i class="fas fa-calendar-alt me-1 text-secondary"></i>Issued: {{ loan.issue_date|date:"d M Y" }} &bull; Due: {{ loan.due_date|date:"d M Y" }}</div>
+                                    <div><i class="fas fa-layer-group me-1 text-info"></i>Scheme: {{ loan.scheme.name }}</div>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mt-auto pt-2 border-top">
+                                    <div>
+                                        <small class="text-muted d-block" style="font-size:0.7rem;">Principal Amount</small>
+                                        <span class="fw-bold text-success font-monospace rupee-symbol">Rs {{ loan.principal_amount|floatformat:0|intcomma }}</span>
+                                    </div>
+                                    <a href="{% url 'loan_detail' loan.loan_number %}" class="btn btn-outline-primary btn-sm px-3 fw-semibold">
+                                        View Loan <i class="fas fa-arrow-right ms-1"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- ══════════════ TAB 3: CUSTOMERS ONLY ══════════════ -->
+                {% if counts.customers > 0 %}
+                <div class="tab-pane fade" id="tab-customers" role="tabpanel">
+                    <div class="row g-3">
+                        {% for c in customers %}
+                        <div class="col-md-6 col-lg-4">
+                            <div class="card search-entity-card h-100 bg-white p-3">
+                                <div class="d-flex align-items-center gap-3 mb-2">
+                                    <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center fw-bold" style="width:46px;height:46px;font-size:1.1rem;">
+                                        {{ c.first_name|slice:":1" }}{{ c.last_name|slice:":1" }}
+                                    </div>
+                                    <div>
+                                        <h6 class="fw-bold text-dark mb-0">{{ c.full_name }}</h6>
+                                        <small class="text-muted font-monospace"><i class="fas fa-hashtag me-1"></i>ID #{{ c.id }}</small>
+                                    </div>
+                                </div>
+                                <div class="small text-muted mb-2">
+                                    <div><i class="fas fa-phone me-1 text-primary"></i><strong>Phone:</strong> {{ c.phone|default:"—" }}</div>
+                                    <div><i class="fas fa-city me-1 text-info"></i><strong>City:</strong> {{ c.city|default:"—" }} {% if c.state %}({{ c.state }}){% endif %}</div>
+                                    {% if c.address %}
+                                    <div><i class="fas fa-map-pin me-1 text-secondary"></i><strong>Address:</strong> {{ c.address|truncatechars:45 }}</div>
+                                    {% endif %}
+                                    {% if c.id_number %}
+                                    <div><i class="fas fa-id-card me-1 text-secondary"></i><strong>ID Doc:</strong> <span class="font-monospace">{{ c.id_number }}</span></div>
+                                    {% endif %}
+                                    {% if c.branch %}
+                                    <div><i class="fas fa-building me-1 text-secondary"></i><strong>Branch:</strong> {{ c.branch.name }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mt-auto pt-2 border-top">
+                                    <span class="badge bg-light text-dark border">
+                                        <i class="fas fa-hand-holding-usd me-1 text-success"></i>{{ c.loans.count }} Loan{{ c.loans.count|pluralize }}
+                                    </span>
+                                    <a href="{% url 'customer_detail' c.pk %}" class="btn btn-outline-primary btn-sm px-3 fw-semibold">
+                                        Profile <i class="fas fa-arrow-right ms-1"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- ══════════════ TAB 4: ORNAMENTS ONLY ══════════════ -->
+                {% if counts.ornaments > 0 %}
+                <div class="tab-pane fade" id="tab-ornaments" role="tabpanel">
+                    <div class="card border-0 shadow-sm">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0 small">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Ornament / Description</th>
+                                        <th class="text-center">Karat</th>
+                                        <th class="text-end">Gross Wt</th>
+                                        <th class="text-end">Net Gold</th>
+                                        <th class="text-end">Valuation</th>
+                                        <th>Linked Loan</th>
+                                        <th>Borrower</th>
+                                        <th>Branch</th>
+                                        <th class="text-center">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in loan_items %}
+                                    <tr>
+                                        <td>
+                                            <span class="fw-bold text-dark">{{ item.item.name }}</span>
+                                            {% if item.item.tamil_name %}
+                                            <span class="badge bg-warning-subtle text-warning-emphasis border ms-1">{{ item.item.tamil_name }}</span>
+                                            {% endif %}
+                                            {% if item.item.description %}
+                                            <small class="text-muted d-block">{{ item.item.description }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center"><span class="badge bg-warning text-dark font-monospace">{{ item.gold_karat }}K</span></td>
+                                        <td class="text-end font-monospace">{{ item.gross_weight|floatformat:3 }}g</td>
+                                        <td class="text-end font-monospace fw-bold text-primary">{{ item.net_weight|floatformat:3 }}g</td>
+                                        <td class="text-end font-monospace text-success fw-bold rupee-symbol">Rs {{ item.item_valuation|floatformat:0|intcomma }}</td>
+                                        <td>
+                                            <a href="{% url 'loan_detail' item.loan.loan_number %}" class="font-monospace fw-bold text-decoration-none">
+                                                {{ item.loan.loan_number }}
+                                            </a>
+                                        </td>
+                                        <td>{{ item.loan.customer.full_name }}</td>
+                                        <td><span class="badge bg-light text-secondary border">{{ item.loan.branch.name }}</span></td>
+                                        <td class="text-center">
+                                            <a href="{% url 'loan_detail' item.loan.loan_number %}" class="btn btn-outline-primary btn-xs py-0 px-2">
+                                                View Loan
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- ══════════════ TAB 5: VAULT POUCHES ONLY ══════════════ -->
+                {% if counts.vault > 0 %}
+                <div class="tab-pane fade" id="tab-vault" role="tabpanel">
+                    <div class="row g-3">
+                        {% for vp in vault_pouches %}
+                        <div class="col-md-6 col-lg-4">
+                            <div class="card search-entity-card h-100 bg-white p-3">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <span class="badge bg-dark font-monospace mb-1">
+                                            <i class="fas fa-barcode me-1"></i>{{ vp.pouch_number }}
+                                        </span>
+                                        <h6 class="fw-bold text-dark mb-0">Safe: {{ vp.safe_locker_number }} {% if vp.shelf_rack_number %}(Tray {{ vp.shelf_rack_number }}){% endif %}</h6>
+                                    </div>
+                                    <span class="badge bg-{% if vp.status == 'vaulted' %}success{% elif vp.status == 'pending_inward' %}warning text-dark{% else %}secondary{% endif %}">
+                                        {{ vp.get_status_display }}
+                                    </span>
+                                </div>
+                                <div class="small text-muted mb-2">
+                                    <div><i class="fas fa-shield-alt me-1 text-warning"></i><strong>Seal Barcode:</strong> <span class="font-monospace text-dark">{{ vp.seal_barcode|default:"—" }}</span></div>
+                                    {% if vp.loan %}
+                                    <div><i class="fas fa-hand-holding-usd me-1 text-success"></i><strong>Loan:</strong> <a href="{% url 'loan_detail' vp.loan.loan_number %}" class="fw-bold font-monospace">{{ vp.loan.loan_number }}</a> ({{ vp.loan.customer.full_name }})</div>
+                                    {% endif %}
+                                    <div><i class="fas fa-building me-1 text-secondary"></i><strong>Branch:</strong> {{ vp.branch.name }}</div>
+                                </div>
+                                <div class="mt-auto pt-2 border-top text-end">
+                                    <a href="{% url 'vault_explorer' %}?q={{ vp.pouch_number }}" class="btn btn-outline-primary btn-sm px-3 fw-semibold">
+                                        <i class="fas fa-external-link-alt me-1"></i> Vault Explorer
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+            </div>
+        {% endif %}
+
+    {% else %}
+        <!-- Initial Search Welcome State -->
+        <div class="row g-4 justify-content-center">
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm p-4 text-center">
+                    <div class="my-4">
+                        <i class="fas fa-search-dollar fa-4x text-primary mb-3 opacity-75"></i>
+                        <h4 class="fw-bold text-dark">Search Anything across the Pawnshop</h4>
+                        <p class="text-muted mx-auto" style="max-width: 540px;">
+                            Enter a borrower name, mobile number, loan number (e.g. <code>FMG-2026...</code>), city, ornament name (in English or தமிழ்), or vault pouch barcode.
+                        </p>
+                    </div>
+
+                    <div class="row g-3 text-start mt-2">
+                        <div class="col-md-4">
+                            <div class="border rounded p-3 h-100 bg-light">
+                                <div class="fw-bold text-primary mb-1"><i class="fas fa-users me-1"></i> By Customer / City</div>
+                                <div class="small text-muted">Type customer's first name, last name, phone number, city, or Aadhaar/ID number.</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="border rounded p-3 h-100 bg-light">
+                                <div class="fw-bold text-success mb-1"><i class="fas fa-hand-holding-usd me-1"></i> By Loan Number</div>
+                                <div class="small text-muted">Type full or partial loan number (e.g. <code>0001</code> or <code>FMG-20260818</code>).</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="border rounded p-3 h-100 bg-light">
+                                <div class="fw-bold text-warning-emphasis mb-1"><i class="fas fa-gem me-1"></i> By Ornaments / Vault</div>
+                                <div class="small text-muted">Search ornament names (Ring, Chain, வளையல்), pouch numbers or seal barcodes.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+</div>
+{% endblock %}

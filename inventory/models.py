@@ -238,7 +238,7 @@ class ItemAttribute(models.Model):
     def __str__(self):
         return f"{self.item.name} - {self.name}: {self.value}"
 
-# Add the missing models
+from django.utils import timezone
 
 class Appraisal(models.Model):
     item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='appraisals')
@@ -275,3 +275,169 @@ class InventoryAudit(models.Model):
     
     def __str__(self):
         return f"Audit for {self.item.name} - {self.action}"
+
+
+class VaultPouch(models.Model):
+    """Physical tamper-proof security pouch for pledged gold custody (Muthoot / Manappuram standard)"""
+    STATUS_CHOICES = (
+        ('pending_inward', 'Pending Dual Inward'),
+        ('vaulted', 'Vaulted (Secured in Safe)'),
+        ('in_transit', 'In Transit'),
+        ('released', 'Released to Customer'),
+        ('auctioned', 'Sent for Auction'),
+    )
+
+    pouch_number = models.CharField(
+        max_length=60,
+        unique=True,
+        db_index=True,
+        help_text="Unique pouch barcode/identifier"
+    )
+    loan = models.OneToOneField(
+        'transactions.Loan',
+        on_delete=models.CASCADE,
+        related_name='vault_pouch',
+        null=True,
+        blank=True,
+        help_text="Associated loan for this gold pouch"
+    )
+    branch = models.ForeignKey(
+        'branches.Branch',
+        on_delete=models.PROTECT,
+        related_name='vault_pouches'
+    )
+    safe_locker_number = models.CharField(
+        max_length=100,
+        default='Safe-01 / Locker-A1',
+        db_index=True,
+        help_text="Designated safe and locker compartment"
+    )
+    shelf_rack_number = models.CharField(
+        max_length=100,
+        blank=True,
+        default='Rack-01 / Tray-A1',
+        help_text="Specific rack, tray, or shelf within locker"
+    )
+    seal_barcode = models.CharField(
+        max_length=100,
+        blank=True,
+        db_index=True,
+        help_text="Tamper-evident security seal strip barcode number"
+    )
+    status = models.CharField(
+        max_length=30,
+        choices=STATUS_CHOICES,
+        default='pending_inward',
+        db_index=True
+    )
+    gross_weight = models.DecimalField(
+        max_digits=10,
+        decimal_places=3,
+        default=0.000,
+        help_text="Total gross weight in grams"
+    )
+    net_weight = models.DecimalField(
+        max_digits=10,
+        decimal_places=3,
+        default=0.000,
+        help_text="Total pure/net gold weight in grams"
+    )
+    item_count = models.PositiveIntegerField(
+        default=1,
+        help_text="Total number of ornaments sealed inside"
+    )
+    custodian_maker = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='vault_pouches_packed',
+        help_text="Staff/Appraiser who packed and sealed the pouch"
+    )
+    custodian_checker = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='vault_pouches_verified',
+        help_text="Branch Manager / Joint Keyholder who verified & locked into vault"
+    )
+    sealed_at = models.DateTimeField(default=timezone.now)
+    inward_verified_at = models.DateTimeField(null=True, blank=True)
+    released_at = models.DateTimeField(null=True, blank=True)
+    released_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='vault_pouches_released'
+    )
+    notes = models.TextField(blank=True, help_text="Audit and location notes")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Vault Pouch'
+        verbose_name_plural = 'Vault Pouches'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['branch', 'status']),
+            models.Index(fields=['safe_locker_number', 'shelf_rack_number']),
+        ]
+
+    def __str__(self):
+        return f"Pouch #{self.pouch_number} ({self.get_status_display()}) - {self.branch.name}"
+
+    @property
+    def location_display(self):
+        loc = self.safe_locker_number
+        if self.shelf_rack_number:
+            loc += f" [{self.shelf_rack_number}]"
+        return loc
+
+
+class VaultAuditLog(models.Model):
+    """Audit trail for pouch verification, safe movements, and periodic physical audits"""
+    ACTION_CHOICES = (
+        ('sealed', 'Pouch Sealed & Registered'),
+        ('inward_verified', 'Dual-Custody Inward Verified'),
+        ('location_moved', 'Relocated to New Safe/Rack'),
+        ('audit_verified', 'Physical Audit Verified (Count & Weight Match)'),
+        ('discrepancy', 'Audit Discrepancy Flagged'),
+        ('released', 'Gold Released to Customer'),
+        ('auctioned', 'Transferred to Auction Lot'),
+    )
+
+    pouch = models.ForeignKey(
+        VaultPouch,
+        on_delete=models.CASCADE,
+        related_name='audit_logs'
+    )
+    action = models.CharField(max_length=40, choices=ACTION_CHOICES)
+    performed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='vault_audits_performed'
+    )
+    verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='vault_audits_verified',
+        help_text="Joint keyholder or supervisor witness"
+    )
+    old_location = models.CharField(max_length=200, blank=True)
+    new_location = models.CharField(max_length=200, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    remarks = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = 'Vault Audit Log'
+        verbose_name_plural = 'Vault Audit Logs'
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"{self.pouch.pouch_number} - {self.get_action_display()} on {self.timestamp.strftime('%Y-%m-%d %H:%M')}"
+

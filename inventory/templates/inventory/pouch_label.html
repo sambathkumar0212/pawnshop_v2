@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vault Pouch Label - #{{ pouch.pouch_number }}</title>
+    <!-- JsBarcode for crisp scannable barcodes -->
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <!-- QRCode.js -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        body {
+            background-color: #f4f6f9;
+            color: #1a202c;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .label-container {
+            width: 105mm;
+            min-height: 148mm; /* A6 standard / thermal pouch tag */
+            background: #ffffff;
+            border: 2px solid #000;
+            border-radius: 6px;
+            padding: 12px;
+            position: relative;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #000;
+            padding-bottom: 8px;
+            margin-bottom: 8px;
+        }
+        .org-title {
+            font-size: 16px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .branch-sub {
+            font-size: 11px;
+            color: #4a5568;
+        }
+        .tag-banner {
+            background: #000;
+            color: #fff;
+            text-align: center;
+            font-size: 11px;
+            font-weight: bold;
+            padding: 3px 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+        .barcode-section {
+            text-align: center;
+            margin-bottom: 8px;
+        }
+        .barcode-svg {
+            max-width: 90%;
+            height: 45px;
+        }
+        .details-grid {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            margin-bottom: 8px;
+        }
+        .details-grid td {
+            padding: 3px 4px;
+            vertical-align: top;
+        }
+        .details-grid tr:nth-child(even) {
+            background-color: #f7fafc;
+        }
+        .field-label {
+            font-weight: 700;
+            color: #4a5568;
+            width: 40%;
+        }
+        .field-value {
+            font-weight: 600;
+            color: #1a202c;
+        }
+        .highlight-box {
+            border: 1.5px solid #000;
+            padding: 6px;
+            background: #fffdf5;
+            margin-bottom: 8px;
+            border-radius: 4px;
+        }
+        .weight-row {
+            display: flex;
+            justify-content: space-between;
+            text-align: center;
+        }
+        .weight-col {
+            flex: 1;
+        }
+        .weight-title {
+            font-size: 9px;
+            text-transform: uppercase;
+            color: #718096;
+            font-weight: bold;
+        }
+        .weight-val {
+            font-size: 14px;
+            font-weight: 900;
+            color: #000;
+        }
+        .signatures-table {
+            width: 100%;
+            border-top: 1.5px solid #000;
+            margin-top: 10px;
+            padding-top: 6px;
+            font-size: 9px;
+            text-align: center;
+        }
+        .signatures-table td {
+            padding-top: 25px;
+            border-top: 1px dashed #cbd5e0;
+            font-weight: 700;
+        }
+        .action-toolbar {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 1000;
+        }
+        .btn {
+            background: #2b6cb0;
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        .btn-close-view {
+            background: #718096;
+        }
+
+        @media print {
+            body {
+                background: none;
+                padding: 0;
+                margin: 0;
+            }
+            .action-toolbar {
+                display: none !important;
+            }
+            .label-container {
+                box-shadow: none;
+                border: 1.5px solid #000;
+                page-break-inside: avoid;
+                margin: 0 auto;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="action-toolbar">
+        <button class="btn" onclick="window.print()">🖨️ Print Label</button>
+        <button class="btn btn-close-view" onclick="window.close()">✖ Close</button>
+    </div>
+
+    <div class="label-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="org-title">{{ branch.organization.name|default:"First Money Gold" }}</div>
+            <div class="branch-sub">{{ branch.name }} | Ph: {{ branch.phone }}</div>
+        </div>
+
+        <div class="tag-banner">
+            🔒 Tamper-Proof Gold Vault Pouch
+        </div>
+
+        <!-- Pouch Barcode -->
+        <div class="barcode-section">
+            <svg id="pouchBarcode" class="barcode-svg"></svg>
+            <div style="font-size: 11px; font-weight: bold; letter-spacing: 1px;">{{ pouch.pouch_number }}</div>
+        </div>
+
+        <!-- Key Weight & Safe Location Box -->
+        <div class="highlight-box">
+            <div class="weight-row">
+                <div class="weight-col">
+                    <div class="weight-title">Net Weight</div>
+                    <div class="weight-val" style="color: #2b6cb0;">{{ pouch.net_weight }} g</div>
+                </div>
+                <div class="weight-col" style="border-left: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0;">
+                    <div class="weight-title">Gross Weight</div>
+                    <div class="weight-val">{{ pouch.gross_weight }} g</div>
+                </div>
+                <div class="weight-col">
+                    <div class="weight-title">Items Count</div>
+                    <div class="weight-val">{{ pouch.item_count }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Details Grid -->
+        <table class="details-grid">
+            <tr>
+                <td class="field-label">Loan Number:</td>
+                <td class="field-value" style="font-size: 12px; font-weight: 800;">
+                    #{{ loan.loan_number|default:"N/A" }}
+                </td>
+            </tr>
+            <tr>
+                <td class="field-label">Customer Name:</td>
+                <td class="field-value">{{ customer.first_name }} {{ customer.last_name }}</td>
+            </tr>
+            <tr>
+                <td class="field-label">Safe & Locker:</td>
+                <td class="field-value" style="font-weight: 800; color: #b7791f;">
+                    {{ pouch.safe_locker_number }} {% if pouch.shelf_rack_number %}[{{ pouch.shelf_rack_number }}]{% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td class="field-label">Security Seal Strip:</td>
+                <td class="field-value" style="font-family: monospace;">{{ pouch.seal_barcode|default:"SEAL-OK" }}</td>
+            </tr>
+            <tr>
+                <td class="field-label">Sealed Date:</td>
+                <td class="field-value">{{ pouch.sealed_at|date:"d/m/Y h:i A" }}</td>
+            </tr>
+            {% if items %}
+            <tr>
+                <td class="field-label">Ornaments:</td>
+                <td class="field-value">
+                    {% for item in items %}
+                        {{ item.item.name }} ({{ item.gold_karat }}){% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                </td>
+            </tr>
+            {% endif %}
+        </table>
+
+        <!-- Signatures Table -->
+        <table class="signatures-table">
+            <tr>
+                <td style="width: 33%;">
+                    Appraiser (Maker)<br>
+                    <span style="font-size: 8px; color: #718096;">{{ pouch.custodian_maker.username|default:"Appraiser" }}</span>
+                </td>
+                <td style="width: 34%;">
+                    Joint Custodian (Checker)<br>
+                    <span style="font-size: 8px; color: #718096;">{{ pouch.custodian_checker.username|default:"Branch Mgr" }}</span>
+                </td>
+                <td style="width: 33%;">
+                    Customer Signature<br>
+                    <span style="font-size: 8px; color: #718096;">Pledgor</span>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <script>
+        // Generate crisp Code 128 Barcode
+        try {
+            JsBarcode("#pouchBarcode", "{{ pouch.pouch_number }}", {
+                format: "CODE128",
+                width: 1.6,
+                height: 40,
+                displayValue: false,
+                margin: 0
+            });
+        } catch(e) {
+            console.error("Barcode rendering error:", e);
+        }
+    </script>
+</body>
+</html>

@@ -37,6 +37,7 @@ from utils.default_photos import get_default_person_photo
 class CustomLoginView(LoginView):
     template_name = 'accounts/login.html'
     redirect_authenticated_user = True
+    extra_context = {'hide_sidebar': True}
     
     def form_valid(self, form):
         user = form.get_user()
@@ -1555,6 +1556,7 @@ class FaceEnrollmentView(LoginRequiredMixin, TemplateView):
 class FaceLoginView(TemplateView):
     """View for Face ID login"""
     template_name = 'accounts/face_login.html'
+    extra_context = {'hide_sidebar': True}
 
 
 class SubscriptionPlansView(LoginRequiredMixin, TemplateView):
@@ -1917,4 +1919,264 @@ class VerifyEmailView(View):
             
         except OrganizationVerificationToken.DoesNotExist:
             return JsonResponse({'success': False, 'message': 'Invalid verification link.'}, status=400)
+
+
+class GlobalSearchView(LoginRequiredMixin, RoleBranchAccessMixin, View):
+    """Global multi-entity search across Customers, Loans, Pawned Ornaments, Vault Pouches, Inventory, and Sales."""
+    template_name = 'global_search_results.html'
+
+    def get(self, request, *args, **kwargs):
+        from django.urls import reverse
+        query = request.GET.get('q', '').strip()
+        active_tab = request.GET.get('type', 'all').strip().lower()
+
+        user = request.user
+        allowed_branches = self.get_allowed_branches(user)
+
+        customers = []
+        loans = []
+        loan_items = []
+        vault_pouches = []
+        inventory_items = []
+        sales = []
+
+        if query:
+            # 1. Customers Search (Name, Phone, City, ID Number, Address)
+            c_qs = Customer.objects.all()
+            if allowed_branches is not None:
+                c_qs = c_qs.filter(branch__in=allowed_branches)
+            if getattr(user, 'organization', None):
+                c_qs = c_qs.filter(branch__organization=user.organization)
+
+            c_query = Q(first_name__icontains=query) | \
+                      Q(last_name__icontains=query) | \
+                      Q(first_name_tamil__icontains=query) | \
+                      Q(last_name_tamil__icontains=query) | \
+                      Q(phone__icontains=query) | \
+                      Q(email__icontains=query) | \
+                      Q(city__icontains=query) | \
+                      Q(city_tamil__icontains=query) | \
+                      Q(state__icontains=query) | \
+                      Q(zip_code__icontains=query) | \
+                      Q(address__icontains=query) | \
+                      Q(id_number__icontains=query)
+            if query.isdigit():
+                c_query |= Q(id=int(query))
+            customers = list(c_qs.filter(c_query).select_related('branch').distinct()[:50])
+
+            # 2. Loans Search (Loan #, Customer Name, Phone, City, Notes, Ornaments)
+            l_qs = Loan.objects.all()
+            if allowed_branches is not None:
+                l_qs = l_qs.filter(branch__in=allowed_branches)
+            if getattr(user, 'organization', None):
+                l_qs = l_qs.filter(branch__organization=user.organization)
+
+            l_query = Q(loan_number__icontains=query) | \
+                      Q(customer__first_name__icontains=query) | \
+                      Q(customer__last_name__icontains=query) | \
+                      Q(customer__phone__icontains=query) | \
+                      Q(customer__city__icontains=query) | \
+                      Q(customer__city_tamil__icontains=query) | \
+                      Q(reappraisal_notes__icontains=query) | \
+                      Q(rejection_reason__icontains=query) | \
+                      Q(gold_location__icontains=query) | \
+                      Q(loanitem__item__name__icontains=query) | \
+                      Q(loanitem__item__tamil_name__icontains=query)
+            loans = list(l_qs.filter(l_query).select_related('customer', 'branch', 'scheme').prefetch_related('loanitem_set').distinct()[:50])
+
+            # 3. Pawned Ornaments (LoanItems)
+            from transactions.models import LoanItem
+            li_qs = LoanItem.objects.all()
+            if allowed_branches is not None:
+                li_qs = li_qs.filter(loan__branch__in=allowed_branches)
+            if getattr(user, 'organization', None):
+                li_qs = li_qs.filter(loan__branch__organization=user.organization)
+
+            li_query = Q(item__name__icontains=query) | \
+                       Q(item__tamil_name__icontains=query) | \
+                       Q(item__description__icontains=query) | \
+                       Q(loan__loan_number__icontains=query) | \
+                       Q(loan__customer__first_name__icontains=query) | \
+                       Q(loan__customer__last_name__icontains=query) | \
+                       Q(loan__customer__city__icontains=query)
+            loan_items = list(li_qs.filter(li_query).select_related('item', 'loan', 'loan__customer', 'loan__branch')[:50])
+
+            # 4. Vault & Security Pouches
+            from inventory.models import VaultPouch
+            vp_qs = VaultPouch.objects.all()
+            if allowed_branches is not None:
+                vp_qs = vp_qs.filter(branch__in=allowed_branches)
+            if getattr(user, 'organization', None):
+                vp_qs = vp_qs.filter(branch__organization=user.organization)
+
+            vp_query = Q(pouch_number__icontains=query) | \
+                       Q(seal_barcode__icontains=query) | \
+                       Q(safe_locker_number__icontains=query) | \
+                       Q(shelf_rack_number__icontains=query) | \
+                       Q(loan__loan_number__icontains=query) | \
+                       Q(loan__customer__first_name__icontains=query) | \
+                       Q(loan__customer__last_name__icontains=query)
+            vault_pouches = list(vp_qs.filter(vp_query).select_related('loan', 'loan__customer', 'branch')[:50])
+
+            # 5. Inventory Items (General Inventory)
+            i_qs = Item.objects.all()
+            if allowed_branches is not None:
+                i_qs = i_qs.filter(branch__in=allowed_branches)
+            if getattr(user, 'organization', None):
+                i_qs = i_qs.filter(branch__organization=user.organization)
+
+            i_query = Q(name__icontains=query) | \
+                      Q(item_id__icontains=query) | \
+                      Q(description__icontains=query) | \
+                      Q(brand__icontains=query) | \
+                      Q(model__icontains=query) | \
+                      Q(serial_number__icontains=query)
+            inventory_items = list(i_qs.filter(i_query).select_related('category', 'branch')[:50])
+
+            # 6. Sales
+            s_qs = Sale.objects.all()
+            if allowed_branches is not None:
+                s_qs = s_qs.filter(branch__in=allowed_branches)
+            if getattr(user, 'organization', None):
+                s_qs = s_qs.filter(branch__organization=user.organization)
+
+            s_query = Q(transaction_number__icontains=query) | \
+                      Q(customer__first_name__icontains=query) | \
+                      Q(customer__last_name__icontains=query) | \
+                      Q(item__name__icontains=query)
+            sales = list(s_qs.filter(s_query).select_related('customer', 'item', 'branch')[:30])
+
+        total_results = len(customers) + len(loans) + len(loan_items) + len(vault_pouches) + len(inventory_items) + len(sales)
+
+        context = {
+            'query': query,
+            'active_tab': active_tab,
+            'customers': customers,
+            'loans': loans,
+            'loan_items': loan_items,
+            'vault_pouches': vault_pouches,
+            'inventory_items': inventory_items,
+            'sales': sales,
+            'total_results': total_results,
+            'counts': {
+                'all': total_results,
+                'customers': len(customers),
+                'loans': len(loans),
+                'ornaments': len(loan_items),
+                'vault': len(vault_pouches),
+                'inventory': len(inventory_items),
+                'sales': len(sales),
+            }
+        }
+        return render(request, self.template_name, context)
+
+
+class GlobalSearchAjaxView(LoginRequiredMixin, RoleBranchAccessMixin, View):
+    """AJAX instant autocomplete search endpoint returning top results per category."""
+    def get(self, request, *args, **kwargs):
+        from django.urls import reverse
+        query = request.GET.get('q', '').strip()
+        if not query or len(query) < 2:
+            return JsonResponse({'query': query, 'total_count': 0, 'results': {}})
+
+        user = request.user
+        allowed_branches = self.get_allowed_branches(user)
+
+        # 1. Customers (top 4)
+        c_qs = Customer.objects.all()
+        if allowed_branches is not None:
+            c_qs = c_qs.filter(branch__in=allowed_branches)
+        if getattr(user, 'organization', None):
+            c_qs = c_qs.filter(branch__organization=user.organization)
+
+        c_query = Q(first_name__icontains=query) | Q(last_name__icontains=query) | Q(phone__icontains=query) | Q(city__icontains=query) | Q(id_number__icontains=query)
+        if query.isdigit():
+            c_query |= Q(id=int(query))
+        customers_raw = c_qs.filter(c_query).select_related('branch')[:4]
+        customers = []
+        for c in customers_raw:
+            customers.append({
+                'id': c.id,
+                'title': c.full_name,
+                'subtitle': f"{c.phone or 'No phone'} • {c.city or 'Unknown City'} • {c.branch.name if c.branch else ''}",
+                'url': reverse('customer_detail', kwargs={'pk': c.pk}),
+                'badge': f"ID #{c.id}",
+                'badge_class': 'bg-primary'
+            })
+
+        # 2. Loans (top 4)
+        l_qs = Loan.objects.all()
+        if allowed_branches is not None:
+            l_qs = l_qs.filter(branch__in=allowed_branches)
+        if getattr(user, 'organization', None):
+            l_qs = l_qs.filter(branch__organization=user.organization)
+
+        l_query = Q(loan_number__icontains=query) | Q(customer__first_name__icontains=query) | Q(customer__last_name__icontains=query) | Q(customer__phone__icontains=query) | Q(customer__city__icontains=query)
+        loans_raw = l_qs.filter(l_query).select_related('customer', 'branch')[:4]
+        loans = []
+        for l in loans_raw:
+            loans.append({
+                'id': l.loan_number,
+                'title': f"Loan #{l.loan_number} (₹{l.principal_amount:,.0f})",
+                'subtitle': f"{l.customer.full_name} • {l.branch.name if l.branch else ''}",
+                'url': reverse('loan_detail', kwargs={'loan_number': l.loan_number}),
+                'badge': l.get_status_display(),
+                'badge_class': 'bg-success' if l.status in ['active', 'approved'] else 'bg-secondary'
+            })
+
+        # 3. Ornaments (top 4)
+        from transactions.models import LoanItem
+        li_qs = LoanItem.objects.all()
+        if allowed_branches is not None:
+            li_qs = li_qs.filter(loan__branch__in=allowed_branches)
+        if getattr(user, 'organization', None):
+            li_qs = li_qs.filter(loan__branch__organization=user.organization)
+
+        li_query = Q(item__name__icontains=query) | Q(item__tamil_name__icontains=query) | Q(item__description__icontains=query)
+        ornaments_raw = li_qs.filter(li_query).select_related('item', 'loan', 'loan__customer')[:4]
+        ornaments = []
+        for oi in ornaments_raw:
+            tamil = f" ({oi.item.tamil_name})" if oi.item.tamil_name else ""
+            ornaments.append({
+                'id': oi.id,
+                'title': f"{oi.item.name}{tamil} - {oi.gold_karat}K, {oi.net_weight}g",
+                'subtitle': f"Loan #{oi.loan.loan_number} • {oi.loan.customer.full_name}",
+                'url': reverse('loan_detail', kwargs={'loan_number': oi.loan.loan_number}),
+                'badge': f"₹{oi.item_valuation:,.0f}" if oi.item_valuation else "Pawned",
+                'badge_class': 'bg-warning text-dark'
+            })
+
+        # 4. Vault Pouches (top 3)
+        from inventory.models import VaultPouch
+        vp_qs = VaultPouch.objects.all()
+        if allowed_branches is not None:
+            vp_qs = vp_qs.filter(branch__in=allowed_branches)
+        if getattr(user, 'organization', None):
+            vp_qs = vp_qs.filter(branch__organization=user.organization)
+
+        vp_query = Q(pouch_number__icontains=query) | Q(seal_barcode__icontains=query) | Q(safe_locker_number__icontains=query) | Q(loan__loan_number__icontains=query)
+        vault_raw = vp_qs.filter(vp_query).select_related('loan', 'branch')[:3]
+        vault_pouches = []
+        for vp in vault_raw:
+            vault_pouches.append({
+                'id': vp.id,
+                'title': f"Pouch #{vp.pouch_number} (Safe {vp.safe_locker_number})",
+                'subtitle': f"Seal: {vp.seal_barcode or '—'} • Loan #{vp.loan.loan_number if vp.loan else 'Unassigned'}",
+                'url': reverse('vault_explorer') + f"?q={vp.pouch_number}",
+                'badge': vp.get_status_display(),
+                'badge_class': 'bg-info text-dark'
+            })
+
+        total = len(customers) + len(loans) + len(ornaments) + len(vault_pouches)
+        return JsonResponse({
+            'query': query,
+            'total_count': total,
+            'results': {
+                'customers': customers,
+                'loans': loans,
+                'ornaments': ornaments,
+                'vault_pouches': vault_pouches
+            }
+        })
+
 

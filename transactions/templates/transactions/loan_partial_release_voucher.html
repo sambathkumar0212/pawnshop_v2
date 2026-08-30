@@ -1,0 +1,257 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Partial Ornament Release Voucher - {{ record.release_number }}{% endblock %}
+
+{% block extra_css %}
+<style>
+@media print {
+    .no-print, nav, .sidebar, header, footer, .navbar {
+        display: none !important;
+    }
+    body {
+        background-color: #fff !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    .voucher-card {
+        border: 2px solid #000 !important;
+        box-shadow: none !important;
+        page-break-inside: avoid;
+    }
+    .container-fluid {
+        max-width: 100% !important;
+        padding: 0 !important;
+    }
+}
+.voucher-card {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    background: #fff;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Action Bar (No Print) -->
+    <div class="d-flex justify-content-between align-items-center mb-4 no-print">
+        <div>
+            <a href="{% url 'loan_detail' loan.loan_number %}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left me-1"></i>Back to Loan
+            </a>
+        </div>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-primary btn-sm fw-bold shadow-sm" onclick="window.print();">
+                <i class="fas fa-print me-1"></i>Print Voucher
+            </button>
+            <a href="{% url 'loan_partial_release' loan.loan_number %}" class="btn btn-outline-warning text-dark btn-sm">
+                <i class="fas fa-plus-circle me-1"></i>Another Release
+            </a>
+        </div>
+    </div>
+
+    <!-- Official Legal Voucher Document -->
+    <div class="voucher-card p-4 p-md-5 shadow-sm">
+        <!-- Header -->
+        <div class="row align-items-center border-bottom pb-4 mb-4">
+            <div class="col-8">
+                <h3 class="fw-bold text-dark mb-1 font-monospace">FIRST MONEY GOLD</h3>
+                <h5 class="fw-semibold text-primary mb-1">PARTIAL ORNAMENT RELEASE VOUCHER</h5>
+                <p class="text-muted small mb-0">
+                    {{ loan.branch.name }} | {{ loan.branch.address }}, {{ loan.branch.city }}, {{ loan.branch.state }} - {{ loan.branch.zip_code }}<br>
+                    Phone: {{ loan.branch.phone|default:"N/A" }} | GSTIN: {{ loan.branch.gstin|default:"33AAAAA0000A1Z5" }}
+                </p>
+            </div>
+            <div class="col-4 text-end">
+                <div class="border p-2 rounded bg-light text-center">
+                    <div class="text-muted small text-uppercase fw-bold">Release Voucher #</div>
+                    <div class="fw-bold fs-6 font-monospace text-primary">{{ record.release_number }}</div>
+                    <div class="small text-muted font-monospace mt-1">Date: {{ record.release_date|date:"d-M-Y" }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Borrower & Loan Meta -->
+        <div class="row g-3 mb-4 bg-light p-3 rounded border">
+            <div class="col-md-6">
+                <div class="small text-muted text-uppercase fw-bold">Borrower Details</div>
+                <div class="fw-bold text-dark fs-6">{{ loan.customer.full_name }}</div>
+                <div class="small text-muted">Phone: {{ loan.customer.phone }} | ID: {{ loan.customer.get_id_type_display }}: {{ loan.customer.id_number }}</div>
+                <div class="small text-muted">Address: {{ loan.customer.address|default:"Salem, Tamil Nadu" }}</div>
+            </div>
+            <div class="col-md-6 text-md-end">
+                <div class="small text-muted text-uppercase fw-bold">Pawn Loan Reference</div>
+                <div class="fw-bold text-primary fs-6 font-monospace">Loan #{{ loan.loan_number }}</div>
+                <div class="small text-muted">Scheme: {{ loan.scheme.name }} ({{ loan.interest_rate }}% p.a.)</div>
+                <div class="small text-muted">Issue Date: {{ loan.issue_date|date:"d-M-Y" }} | Due Date: {{ loan.due_date|date:"d-M-Y" }}</div>
+            </div>
+        </div>
+
+        <!-- Section 1: Released Ornaments (Handed Over to Borrower) -->
+        <div class="mb-4">
+            <h6 class="fw-bold text-success text-uppercase border-bottom pb-2 mb-3">
+                <i class="fas fa-check-circle me-1"></i>1. Ornaments Released to Customer (Handed Over)
+            </h6>
+            <div class="table-responsive">
+                <table class="table table-bordered table-sm align-middle small mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 40px;" class="text-center">#</th>
+                            <th>Ornament Description</th>
+                            <th class="text-center" style="width: 80px;">Karat</th>
+                            <th class="text-end" style="width: 110px;">Gross Wt (g)</th>
+                            <th class="text-end" style="width: 110px;">Net Wt (g)</th>
+                            <th class="text-end" style="width: 130px;">Valuation (₹)</th>
+                            <th class="text-center" style="width: 100px;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for it in released_items %}
+                        <tr>
+                            <td class="text-center font-monospace">{{ forloop.counter }}</td>
+                            <td class="fw-bold text-dark">{{ it.item.name }}</td>
+                            <td class="text-center font-monospace">{{ it.gold_karat }}K</td>
+                            <td class="text-end font-monospace">{{ it.gross_weight }}</td>
+                            <td class="text-end font-monospace fw-bold">{{ it.net_weight }}</td>
+                            <td class="text-end font-monospace text-success">₹{{ it.item_valuation|floatformat:2|intcomma }}</td>
+                            <td class="text-center">
+                                <span class="badge bg-success">RELEASED</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Section 2: Retained Ornaments (In Safe Vault Custody) -->
+        <div class="mb-4">
+            <h6 class="fw-bold text-primary text-uppercase border-bottom pb-2 mb-3">
+                <i class="fas fa-vault me-1"></i>2. Ornaments Retained in Safe Custody (Continuing Pledge)
+            </h6>
+            <div class="table-responsive">
+                <table class="table table-bordered table-sm align-middle small mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 40px;" class="text-center">#</th>
+                            <th>Ornament Description</th>
+                            <th class="text-center" style="width: 80px;">Karat</th>
+                            <th class="text-end" style="width: 110px;">Gross Wt (g)</th>
+                            <th class="text-end" style="width: 110px;">Net Wt (g)</th>
+                            <th class="text-end" style="width: 130px;">Valuation (₹)</th>
+                            <th class="text-center" style="width: 100px;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for it in retained_items %}
+                        <tr>
+                            <td class="text-center font-monospace">{{ forloop.counter }}</td>
+                            <td class="fw-bold text-dark">{{ it.item.name }}</td>
+                            <td class="text-center font-monospace">{{ it.gold_karat }}K</td>
+                            <td class="text-end font-monospace">{{ it.gross_weight }}</td>
+                            <td class="text-end font-monospace fw-bold">{{ it.net_weight }}</td>
+                            <td class="text-end font-monospace text-primary">₹{{ it.item_valuation|floatformat:2|intcomma }}</td>
+                            <td class="text-center">
+                                <span class="badge bg-primary">IN VAULT</span>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-2 text-muted fst-italic">
+                                All ornaments have been released. Loan account fully discharged.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Section 3: Financial Reconciliation -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <div class="border rounded p-3 bg-light h-100">
+                    <div class="small fw-bold text-uppercase text-muted mb-2">Part-Payment Breakdown</div>
+                    <table class="table table-sm table-borderless small mb-0">
+                        <tr>
+                            <td class="text-muted">Principal Amount Repaid:</td>
+                            <td class="text-end font-monospace fw-bold text-success">₹{{ record.principal_paid|floatformat:2|intcomma }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Interest / Charges Paid:</td>
+                            <td class="text-end font-monospace fw-bold text-dark">₹{{ record.interest_paid|floatformat:2|intcomma }}</td>
+                        </tr>
+                        <tr class="border-top">
+                            <td class="fw-bold text-dark">Total Cash/Bank Received:</td>
+                            <td class="text-end font-monospace fw-bold text-primary fs-6">
+                                ₹{{ record.principal_paid|add:record.interest_paid|floatformat:2|intcomma }}
+                            </td>
+                        </tr>
+                        {% if record.payment %}
+                        <tr>
+                            <td class="text-muted small">Payment Mode &amp; Ref:</td>
+                            <td class="text-end font-monospace small">{{ record.payment.get_payment_method_display }} ({{ record.payment.reference_number|default:"Cash Receipt" }})</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="border rounded p-3 bg-light h-100">
+                    <div class="small fw-bold text-uppercase text-muted mb-2">Updated Loan &amp; Collateral Balance</div>
+                    <table class="table table-sm table-borderless small mb-0">
+                        <tr>
+                            <td class="text-muted">Previous Principal Outstanding:</td>
+                            <td class="text-end font-monospace">₹{{ record.previous_outstanding_principal|floatformat:2|intcomma }}</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-bold text-dark">New Principal Outstanding:</td>
+                            <td class="text-end font-monospace fw-bold text-dark">₹{{ record.new_outstanding_principal|floatformat:2|intcomma }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Retained Gold Collateral Valuation:</td>
+                            <td class="text-end font-monospace text-primary">₹{{ record.remaining_gold_value|floatformat:2|intcomma }}</td>
+                        </tr>
+                        <tr class="border-top">
+                            <td class="fw-bold text-dark">Resulting Statutory LTV Ratio:</td>
+                            <td class="text-end font-monospace fw-bold text-success fs-6">
+                                {{ record.new_ltv_percentage }}% (Safe ≤ 75%)
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 4: Legal Acknowledgment & Signatures -->
+        <div class="border-top pt-4 mt-2">
+            <p class="small text-muted mb-4 fst-italic">
+                "I hereby acknowledge receipt of the specified gold ornaments in sound physical condition. I agree that the remaining ornaments shall continue to be held as valid security under Loan #{{ loan.loan_number }} for the new balance of ₹{{ record.new_outstanding_principal|floatformat:2|intcomma }}."
+            </p>
+
+            <div class="row pt-4 text-center">
+                <div class="col-4">
+                    {% if record.customer_signature_data %}
+                    <img src="{{ record.customer_signature_data }}" alt="Customer Signature" style="max-height: 50px; max-width: 180px;" class="mb-1">
+                    {% else %}
+                    <div style="height: 50px;"></div>
+                    {% endif %}
+                    <div class="border-top pt-1 small fw-bold text-dark">Customer Signature / Thumb</div>
+                    <div class="text-muted small">{{ loan.customer.full_name }}</div>
+                </div>
+                <div class="col-4">
+                    <div style="height: 50px;"></div>
+                    <div class="border-top pt-1 small fw-bold text-dark">Witness / Receiving Staff</div>
+                    <div class="text-muted small">{{ record.witness_name|default:"Branch Custodian" }}</div>
+                </div>
+                <div class="col-4">
+                    <div style="height: 50px;"></div>
+                    <div class="border-top pt-1 small fw-bold text-dark">Branch Manager / Cashier</div>
+                    <div class="text-muted small">{{ record.released_by.username|default:"Authorized Signatory" }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

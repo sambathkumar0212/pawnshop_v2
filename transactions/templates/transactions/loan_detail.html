@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load humanize %}
 {% load loan_tags %}
 {% load custom_filters %}
 {% load loan_filters %}
@@ -14,14 +15,7 @@
         <div class="col">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <div class="d-flex align-items-center gap-2">
-                        <h2 class="mb-0"><i class="fas fa-hand-holding-usd me-2"></i>Loan Details</h2>
-                        {% if loan.branch %}
-                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-2 py-1 fs-6 align-middle">
-                            <i class="fas fa-building me-1"></i>{{ loan.branch.name }}
-                        </span>
-                        {% endif %}
-                    </div>
+                    <h2 class="mb-0"><i class="fas fa-hand-holding-usd me-2"></i>Loan Details</h2>
                     <nav aria-label="breadcrumb" class="mt-1">
                         <ol class="breadcrumb mb-0">
                             <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
@@ -30,123 +24,235 @@
                         </ol>
                     </nav>
                 </div>
-                <div class="btn-group">
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <!-- Primary Financial Actions -->
                     {% if loan.status == 'active' %}
-                    <a href="{% url 'payment_create' loan.loan_number %}" class="btn btn-success me-2">
-                        <i class="fas fa-dollar-sign"></i> Make Payment
+                    <a href="{% url 'payment_create' loan.loan_number %}" class="btn btn-success shadow-sm fw-semibold">
+                        <i class="fas fa-dollar-sign me-1"></i> Make Payment
                     </a>
-                    <a href="{% url 'loan_extend' loan.loan_number %}" class="btn btn-info me-2">
-                        <i class="fas fa-calendar-plus"></i> Extend Loan
+                    <a href="{% url 'loan_partial_release' loan.loan_number %}" class="btn btn-warning text-dark shadow-sm fw-semibold" title="Release specific ornaments upon principal payment">
+                        <i class="fas fa-hand-holding-usd me-1"></i> Part-Release Gold
                     </a>
-                    <a href="{% url 'loan_foreclose' loan.loan_number %}" class="btn btn-warning me-2">
-                        <i class="fas fa-gavel"></i> Foreclose Loan
+                    {% elif loan.status == 'approved' %}
+                    <a href="{% url 'loan_partial_release' loan.loan_number %}" class="btn btn-warning text-dark shadow-sm fw-semibold" title="Release specific ornaments upon principal payment">
+                        <i class="fas fa-hand-holding-usd me-1"></i> Part-Release Gold
                     </a>
                     {% endif %}
 
-                    <!-- Edit Loan - Available only for authorized users -->
-                    {% if user.is_superuser or user.role and user.role.name|lower in 'manager,admin,director,supervisor,head'|split:',' %}
-                    <a href="{% url 'loan_update' loan.loan_number %}" class="btn btn-outline-primary me-2">
-                        <i class="fas fa-edit"></i> Edit Loan
-                    </a>
-                    <a href="{% url 'loan_delete' loan.loan_number %}" class="btn btn-outline-danger me-2">
-                        <i class="fas fa-trash"></i> Delete Loan
-                    </a>
-                    {% endif %}
-                    <a href="{% url 'loan_edit_logs' loan.loan_number %}" class="btn btn-outline-secondary me-2">
-                        <i class="fas fa-history"></i> Edit Logs
-                    </a>
+                    <!-- Documents & Reports Dropdown -->
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary dropdown-toggle shadow-sm fw-semibold" type="button" id="docsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-file-alt me-1 text-primary"></i> Documents &amp; Print
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="docsDropdown" style="min-width: 240px; font-size: 0.88rem;">
+                            <li><h6 class="dropdown-header text-uppercase text-muted" style="font-size: 0.7rem; letter-spacing: 0.5px;">Loan Documentation</h6></li>
+                            <li>
+                                <a class="dropdown-item py-2" href="{% url 'loan_document' loan.loan_number %}" target="_blank">
+                                    <i class="fas fa-file-pdf text-danger me-2"></i> Download Agreement (PDF)
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item py-2" href="{% url 'loan_tiered_schedule_download' loan.loan_number %}" target="_blank">
+                                    <i class="fas fa-file-download text-primary me-2"></i> Tiered Schedule (PDF)
+                                </a>
+                            </li>
+                            {% if loan.partial_releases.all %}
+                            <li>
+                                <a class="dropdown-item py-2" href="{% url 'loan_partial_release_voucher' loan.loan_number loan.partial_releases.all.0.id %}" target="_blank">
+                                    <i class="fas fa-receipt text-success me-2"></i> Release Voucher <span class="badge bg-success-subtle text-success border border-success-subtle ms-1" style="font-size: 0.65rem;">Latest</span>
+                                </a>
+                            </li>
+                            {% endif %}
+                            {% if loan.vault_pouch %}
+                            <li>
+                                <a class="dropdown-item py-2" href="{% url 'vault_pouch_label' loan.vault_pouch.id %}" target="_blank">
+                                    <i class="fas fa-barcode text-dark me-2"></i> Vault Pouch Barcode
+                                </a>
+                            </li>
+                            {% endif %}
+                            {% if loan.status == 'defaulted' or loan.status == 'active' and loan.is_overdue %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item py-2 text-danger" href="{% url 'loan_expiry_notice' loan.loan_number %}" target="_blank">
+                                    <i class="fas fa-exclamation-triangle text-danger me-2"></i> Expiry / Demand Notice
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </div>
 
-                    <!-- Download Agreement - Available for all loan statuses -->
-                    <a href="{% url 'loan_document' loan.loan_number %}" class="btn btn-outline-secondary me-2"
-                        target="_blank">
-                        <i class="fas fa-file-pdf"></i> Download Agreement
-                    </a>
-                    <a href="{% url 'loan_tiered_schedule_download' loan.loan_number %}"
-                        class="btn btn-outline-primary me-2" target="_blank">
-                        <i class="fas fa-file-download me-1"></i> Download Tiered Schedule
-                    </a>
-                    {% if loan.status == 'defaulted' %}
-                    <a href="{% url 'loan_expiry_notice' loan.loan_number %}" class="btn btn-outline-danger me-2"
-                        target="_blank">
-                        <i class="fas fa-file-alt"></i> Expiry Notice
-                    </a>
-                    {% elif loan.status == 'active' and loan.is_overdue %}
-                    <a href="{% url 'loan_expiry_notice' loan.loan_number %}" class="btn btn-outline-danger me-2"
-                        target="_blank">
-                        <i class="fas fa-file-alt"></i> Expiry Notice
-                    </a>
-                    {% endif %}
-                    <button class="btn btn-outline-warning text-dark me-2" data-bs-toggle="modal" data-bs-target="#goldStatusModal">
-                        <i class="fas fa-gem me-1"></i> Gold Status
-                    </button>
+                    <!-- Manage & Settings Dropdown -->
+                    <div class="dropdown">
+                        <button class="btn btn-outline-dark dropdown-toggle shadow-sm fw-semibold" type="button" id="manageDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-cog me-1 text-secondary"></i> Manage Loan
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="manageDropdown" style="min-width: 220px; font-size: 0.88rem;">
+                            <li><h6 class="dropdown-header text-uppercase text-muted" style="font-size: 0.7rem; letter-spacing: 0.5px;">Loan Operations</h6></li>
+                            <li>
+                                <button class="dropdown-item py-2" type="button" data-bs-toggle="modal" data-bs-target="#goldStatusModal">
+                                    <i class="fas fa-gem text-warning me-2"></i> Gold Location / Status
+                                </button>
+                            </li>
+                            {% if loan.status == 'active' %}
+                            <li>
+                                <a class="dropdown-item py-2" href="{% url 'loan_extend' loan.loan_number %}">
+                                    <i class="fas fa-calendar-plus text-info me-2"></i> Extend Loan Tenure
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item py-2 text-warning" href="{% url 'loan_foreclose' loan.loan_number %}">
+                                    <i class="fas fa-gavel text-warning me-2"></i> Foreclose Loan
+                                </a>
+                            </li>
+                            {% endif %}
+                            <li>
+                                <a class="dropdown-item py-2" href="{% url 'loan_edit_logs' loan.loan_number %}">
+                                    <i class="fas fa-history text-secondary me-2"></i> Audit &amp; Edit Logs
+                                </a>
+                            </li>
+
+                            {% if user.is_superuser or user.role and user.role.name|lower in 'manager,admin,director,supervisor,head'|split:',' %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header text-uppercase text-muted" style="font-size: 0.7rem; letter-spacing: 0.5px;">Administrative</h6></li>
+                            <li>
+                                <a class="dropdown-item py-2" href="{% url 'loan_update' loan.loan_number %}">
+                                    <i class="fas fa-edit text-primary me-2"></i> Edit Loan Record
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item py-2 text-danger" href="{% url 'loan_delete' loan.loan_number %}" onclick="return confirm('Are you sure you want to permanently delete this loan record?');">
+                                    <i class="fas fa-trash text-danger me-2"></i> Delete Loan
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-    <div class="row">
-        <!-- KPI Cards -->
-        <div class="col-md-6 col-lg-3 mb-3">
+
+    <!-- Tiered Maker-Checker Approval Status Banner (Task 2.1) -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-3 d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="fs-2">
+                    {% if loan.status == 'approved' or loan.status == 'active' %}
+                    <i class="fas fa-check-circle text-success"></i>
+                    {% elif loan.status == 'rejected' %}
+                    <i class="fas fa-times-circle text-danger"></i>
+                    {% else %}
+                    <i class="fas fa-hourglass-half text-warning"></i>
+                    {% endif %}
+                </div>
+                <div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <span class="badge {% if loan.status == 'approved' or loan.status == 'active' %}bg-success{% elif loan.status == 'rejected' %}bg-danger{% else %}bg-warning text-dark{% endif %} fs-6">
+                            {{ loan.get_status_display }}
+                        </span>
+                        <span class="badge bg-dark font-monospace">
+                            {% if loan.approval_tier == 1 %}Tier 1 (≤ ₹2L)
+                            {% elif loan.approval_tier == 2 %}Tier 2 (₹2L-₹10L)
+                            {% else %}Tier 3 (> ₹10L){% endif %}
+                        </span>
+                        <span class="badge {% if loan.irac_status == 'STANDARD' %}bg-success{% elif loan.irac_status == 'SMA_0' %}bg-info text-dark{% elif loan.irac_status == 'SMA_1' or loan.irac_status == 'SMA_2' %}bg-warning text-dark{% else %}bg-danger{% endif %} font-monospace">
+                            <i class="fas fa-shield-alt me-1"></i>{{ loan.get_irac_status_display }} ({{ loan.provisioning_percentage }}% Prov.)
+                        </span>
+                    </div>
+                    <div class="small text-muted mt-1">
+                        <strong>Maker:</strong> {{ loan.maker_name }} | 
+                        <strong>BM Sign-off:</strong> {% if loan.checker_bm %}<span class="text-success fw-bold">{{ loan.checker_bm_name }} ({{ loan.checker_bm_at|date:"d M, H:i" }})</span>{% else %}<span class="text-warning">Pending</span>{% endif %}
+                        {% if loan.approval_tier >= 2 %}
+                        | <strong>RO Sign-off:</strong> {% if loan.checker_ro %}<span class="text-success fw-bold">{{ loan.checker_ro_name }} ({{ loan.checker_ro_at|date:"d M, H:i" }})</span>{% else %}<span class="text-warning">Pending Regional Manager</span>{% endif %}
+                        {% endif %}
+                        {% if loan.approval_tier == 3 %}
+                        | <strong>HO Sign-off:</strong> {% if loan.checker_ho %}<span class="text-success fw-bold">{{ loan.checker_ho_name }} ({{ loan.checker_ho_at|date:"d M, H:i" }})</span>{% else %}<span class="text-warning">Pending Credit Committee</span>{% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex align-items-center gap-2">
+                <a href="{% url 'loan_approval_queue' %}" class="btn btn-outline-dark btn-sm">
+                    <i class="fas fa-tasks me-1"></i>Approval Queue
+                </a>
+            </div>
+        </div>
+        {% if loan.rejection_reason %}
+        <div class="card-footer bg-danger text-white small py-2">
+            <i class="fas fa-exclamation-triangle me-1"></i><strong>Rejection Reason:</strong> {{ loan.rejection_reason }}
+        </div>
+        {% elif loan.reappraisal_notes %}
+        <div class="card-footer bg-warning text-dark small py-2">
+            <i class="fas fa-info-circle me-1"></i><strong>Re-appraisal Instructions:</strong> {{ loan.reappraisal_notes }}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 1. KPI Metric Cards Row -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-6 col-lg-3">
             <div class="card border-start border-success border-4 shadow-sm h-100" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ loan.principal_amount|number_to_words|title }} Rupees Only" style="cursor: help;">
                 <div class="card-body p-3">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <span class="text-muted small text-uppercase d-block mb-1">
-                                Principal Amount
+                                Current Principal
                                 <i class="fas fa-info-circle text-muted ms-1" style="font-size: 0.75rem;"></i>
                             </span>
-                            <h4 class="mb-0 fw-bold rupee-symbol text-success">Rs: {{ loan.principal_amount|floatformat:2 }}</h4>
+                            <h4 class="mb-0 fw-bold rupee-symbol text-success">Rs: {{ loan.principal_amount|floatformat:2|intcomma }}</h4>
                         </div>
                         <div class="bg-light rounded p-2 text-success">
                             <i class="fas fa-hand-holding-usd fa-lg"></i>
                         </div>
                     </div>
                     <div class="mt-2 small text-muted" style="line-height: 1.4;">
-                        <div><i class="fas fa-arrow-circle-right me-1 text-primary"></i><strong>Distribution:</strong> Rs: {{ loan.distribution_amount|default:loan.principal_amount|floatformat:2 }}</div>
-                        <div><i class="fas fa-check-circle me-1 text-success"></i><strong>With Deduction:</strong> Rs: {{ loan.distribution_amount_with_deduction|floatformat:2 }}</div>
+                        <div><i class="fas fa-shield-alt me-1 text-primary"></i><strong>Current LTV:</strong> <span class="fw-bold {% if current_ltv > 75 %}text-warning{% else %}text-success{% endif %}">{{ current_ltv }}%</span></div>
+                        <div><i class="fas fa-gem me-1 text-warning"></i><strong>Vault Gold:</strong> {{ total_net_wt|floatformat:3 }}g ({{ total_items_qty }} pcs)</div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-6 col-lg-3 mb-3">
+        <div class="col-md-6 col-lg-3">
             <div class="card border-start border-danger border-4 shadow-sm h-100">
                 <div class="card-body p-3">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="text-muted small text-uppercase d-block mb-1">Net Payable (Still Due)</span>
-                            <h4 class="mb-0 fw-bold rupee-symbol text-danger">Rs: {{ loan.net_payable_still_due|floatformat:0 }}</h4>
+                            <span class="text-muted small text-uppercase d-block mb-1">Today's Net Payable</span>
+                            <h4 class="mb-0 fw-bold rupee-symbol text-danger">Rs: {{ today_net_payable|floatformat:2|intcomma }}</h4>
                         </div>
                         <div class="bg-light rounded p-2 text-danger">
-                            <i class="fas fa-exclamation-triangle fa-lg"></i>
+                            <i class="fas fa-calculator fa-lg"></i>
                         </div>
                     </div>
                     <div class="mt-2 small text-muted">
-                        Accrued Today: Rs: {{ loan.total_payable_till_date|floatformat:0 }}
+                        <i class="fas fa-percentage me-1 text-danger"></i><strong>Today's Accrued Int:</strong> Rs: {{ today_interest_due|floatformat:2|intcomma }}
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-6 col-lg-3 mb-3">
+        <div class="col-md-6 col-lg-3">
             <div class="card border-start border-primary border-4 shadow-sm h-100">
                 <div class="card-body p-3">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="text-muted small text-uppercase d-block mb-1">Amount Paid</span>
-                            <h4 class="mb-0 fw-bold rupee-symbol text-primary">Rs: {{ loan.amount_paid|floatformat:2 }}</h4>
+                            <span class="text-muted small text-uppercase d-block mb-1">Total Amount Paid</span>
+                            <h4 class="mb-0 fw-bold rupee-symbol text-primary">Rs: {{ loan.amount_paid|floatformat:2|intcomma }}</h4>
                         </div>
                         <div class="bg-light rounded p-2 text-primary">
                             <i class="fas fa-cash-register fa-lg"></i>
                         </div>
                     </div>
                     <div class="mt-2 small text-muted">
-                        Remaining Principal: Rs: {{ loan.remaining_balance|floatformat:0 }}
+                        <i class="fas fa-history me-1 text-primary"></i><strong>Payments:</strong> {{ payments.count }} recorded
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-6 col-lg-3 mb-3">
+        <div class="col-md-6 col-lg-3">
             <div class="card border-start border-warning border-4 shadow-sm h-100">
                 <div class="card-body p-3">
                     <div class="d-flex justify-content-between align-items-center">
@@ -169,10 +275,13 @@
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Loan Parameters (left) + Sidebar (right) in same row -->
+    <!-- 2. Main Parameters & Borrower Profile Row -->
+    <div class="row g-3 mb-4">
+        <!-- Loan Parameters (col-lg-8) -->
         <div class="col-lg-8">
-            <div class="card mb-4 shadow-sm border-0">
+            <div class="card shadow-sm border-0 h-100">
                 <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
                     <div class="d-flex align-items-center gap-2">
                         <h5 class="mb-0"><i class="fas fa-file-invoice-dollar me-2"></i>Loan Parameters</h5>
@@ -245,14 +354,14 @@
                         <div class="col-6">
                             <div class="border rounded p-2 h-100 bg-light border-primary border-opacity-25">
                                 <div class="text-muted small mb-1"><i class="fas fa-hand-holding-usd me-1 text-primary"></i>Distribution Amount <span class="badge bg-secondary text-white" style="font-size:.65rem;">Processing Fee Deducted</span></div>
-                                <div class="fw-bold text-dark" style="font-size:.95rem;">Rs {{ loan.distribution_amount|default:loan.principal_amount|floatformat:2 }}</div>
+                                <div class="fw-bold text-dark rupee-symbol" style="font-size:.95rem;">Rs {{ loan.original_distribution_amount|floatformat:2 }}</div>
                                 <div class="text-muted" style="font-size:.7rem;">Principal &minus; Processing Fee (1st month interest not deducted)</div>
                             </div>
                         </div>
                         <div class="col-6">
                             <div class="border rounded p-2 h-100 bg-light border-success border-opacity-25">
                                 <div class="text-muted small mb-1"><i class="fas fa-money-check-alt me-1 text-success"></i>Distribution with Deduction <span class="badge bg-success text-white" style="font-size:.65rem;">Net Disbursed</span></div>
-                                <div class="fw-bold text-success" style="font-size:.95rem;">Rs {{ loan.distribution_amount_with_deduction|floatformat:2 }}</div>
+                                <div class="fw-bold text-success rupee-symbol" style="font-size:.95rem;">Rs {{ loan.distribution_amount_with_deduction|floatformat:2 }}</div>
                                 <div class="text-muted" style="font-size:.7rem;">
                                     Deducted:
                                     {% if loan.is_processing_fee_paid %}<span class="badge bg-warning text-dark" style="font-size:.6rem;">Processing Fee</span>{% endif %}
@@ -284,7 +393,7 @@
                         <div class="col-6 col-md-4 col-lg-2">
                             <div class="border rounded p-2 h-100 bg-light">
                                 <div class="text-muted small mb-1"><i class="fas fa-calendar-week me-1 text-success"></i>Monthly Int.</div>
-                                <div class="fw-bold text-success" style="font-size:.85rem;">Rs {{ loan|monthly_interest_amount|floatformat:2 }}</div>
+                                <div class="fw-bold text-success rupee-symbol" style="font-size:.85rem;">Rs {{ loan|monthly_interest_amount|floatformat:2 }}</div>
                             </div>
                         </div>
 
@@ -292,7 +401,7 @@
                         <div class="col-6 col-md-4 col-lg-2">
                             <div class="border rounded p-2 h-100 bg-light">
                                 <div class="text-muted small mb-1"><i class="fas fa-coins me-1 text-warning"></i>Daily Int.</div>
-                                <div class="fw-bold text-warning" style="font-size:.85rem;">Rs {{ loan.daily_interest_amount|floatformat:2 }}</div>
+                                <div class="fw-bold text-warning rupee-symbol" style="font-size:.85rem;">Rs {{ loan.daily_interest_amount|floatformat:2 }}</div>
                             </div>
                         </div>
 
@@ -300,7 +409,7 @@
                         <div class="col-6 col-md-4 col-lg-2">
                             <div class="border rounded p-2 h-100 bg-light">
                                 <div class="text-muted small mb-1"><i class="fas fa-receipt me-1 text-secondary"></i>Processing Fee</div>
-                                <div class="fw-bold text-dark" style="font-size:.85rem;">
+                                <div class="fw-bold text-dark rupee-symbol" style="font-size:.85rem;">
                                     Rs {{ loan.processing_fee }}
                                     {% if loan.is_processing_fee_paid %}<span class="badge bg-success ms-1" style="font-size:.65rem;">Paid</span>{% endif %}
                                 </div>
@@ -325,7 +434,7 @@
                         <div class="col-6 col-md-4 col-lg-2">
                             <div class="border rounded p-2 h-100 bg-light">
                                 <div class="text-muted small mb-1"><i class="fas fa-chart-line me-1 text-primary"></i>Accrued Int.</div>
-                                <div class="fw-bold text-primary" style="font-size:.85rem;">
+                                <div class="fw-bold text-primary rupee-symbol" style="font-size:.85rem;">
                                     Rs {{ loan.monthly_interest_till_date|floatformat:2 }}
                                     <div class="text-muted fw-normal" style="font-size:.7rem;">{% if loan.scheme.is_days_based %}Daily{% else %}Monthly{% endif %} basis</div>
                                 </div>
@@ -338,13 +447,13 @@
                         <div class="col-6">
                             <div class="border rounded p-2 bg-light">
                                 <div class="text-muted small mb-1"><i class="fas fa-calendar-alt me-1"></i>Accrued (Monthly)</div>
-                                <div class="fw-bold text-dark" style="font-size:.85rem;">Rs {{ loan.interest_till_date_monthly_basis|floatformat:2 }}</div>
+                                <div class="fw-bold text-dark rupee-symbol" style="font-size:.85rem;">Rs {{ loan.interest_till_date_monthly_basis|floatformat:2 }}</div>
                             </div>
                         </div>
                         <div class="col-6">
                             <div class="border rounded p-2 bg-light">
                                 <div class="text-muted small mb-1"><i class="fas fa-sun me-1"></i>Accrued (Daily)</div>
-                                <div class="fw-bold text-dark" style="font-size:.85rem;">Rs {{ loan.interest_till_date_daily_basis|floatformat:2 }}</div>
+                                <div class="fw-bold text-dark rupee-symbol" style="font-size:.85rem;">Rs {{ loan.interest_till_date_daily_basis|floatformat:2 }}</div>
                             </div>
                         </div>
                     </div>
@@ -353,7 +462,7 @@
                     <div class="mt-2">
                         <div class="d-flex justify-content-between mb-1">
                             <label class="text-muted small">Repayment Progress</label>
-                            <small class="text-muted">Paid: Rs {{ loan.amount_paid|floatformat:2 }} &nbsp;/&nbsp; Total Due: Rs {{ loan.total_payable_till_date|floatformat:0 }}</small>
+                            <small class="text-muted rupee-symbol">Paid: Rs {{ loan.amount_paid|floatformat:2 }} &nbsp;/&nbsp; Total Due: Rs {{ loan.total_payable_till_date|floatformat:0 }}</small>
                         </div>
                         <div class="progress" style="height:10px;">
                             {% if loan.total_payable_till_date > 0 %}
@@ -396,83 +505,22 @@
                     {% endif %}
                 </div>
             </div>
-            <!-- Payment History -->
-            <div class="card mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-                    <h5 class="mb-0"><i class="fas fa-history me-2"></i>Payment History</h5>
-                    {% if payments %}
-                    <div class="dropdown">
-                        <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button"
-                            id="downloadPaymentDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-download me-1"></i> {% trans "Download" %}
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="downloadPaymentDropdown">
-                            <li>
-                                <h6 class="dropdown-header">{% trans "Export Payment History" %}</h6>
-                            </li>
-                            <li><a class="dropdown-item"
-                                    href="{% url 'loan_payment_history_download' loan.loan_number %}?format=pdf&lang=en"><i
-                                        class="fas fa-file-pdf text-danger me-2"></i> PDF ({% trans "English" %})</a>
-                            </li>
-                            <li><a class="dropdown-item"
-                                    href="{% url 'loan_payment_history_download' loan.loan_number %}?format=csv&lang=en"><i
-                                        class="fas fa-file-csv text-success me-2"></i> CSV ({% trans "English" %})</a>
-                            </li>
-                            <li>
-                                <hr class="dropdown-divider">
-                            </li>
-                            <li><a class="dropdown-item"
-                                    href="{% url 'loan_payment_history_download' loan.loan_number %}?format=pdf&lang=ta"><i
-                                        class="fas fa-file-pdf text-danger me-2"></i> PDF (தமிழ்)</a></li>
-                            <li><a class="dropdown-item"
-                                    href="{% url 'loan_payment_history_download' loan.loan_number %}?format=csv&lang=ta"><i
-                                        class="fas fa-file-csv text-success me-2"></i> CSV (தமிழ்)</a></li>
-                        </ul>
-                    </div>
-                    {% endif %}
-                </div>
-                <div class="card-body">
-                    {% if payments %}
-                    <div class="table-responsive">
-                        <table class="table table-hover table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Amount</th>
-                                    <th>Method</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for payment in payments %}
-                                <tr>
-                                    <td>{{ payment.payment_date|date:"M d, Y" }}</td>
-                                    <td>Rs: {{ payment.amount|floatformat:2 }}</td>
-                                    <td>{{ payment.get_payment_method_display }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <p class="text-muted mb-0">No payments recorded yet.</p>
-                    {% endif %}
-                </div>
-            </div>
         </div>
 
-        <!-- Sidebar: Borrower Profile + Pawned Ornaments + Extension History -->
+        <!-- Borrower Profile & Gold Status (col-lg-4) -->
         <div class="col-lg-4">
             <!-- Borrower Profile Card -->
-            <div class="card mb-4 shadow-sm border-0">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="fas fa-user-circle me-2"></i>Borrower Profile</h5>
+            <div class="card mb-3 shadow-sm border-0">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
+                    <h5 class="mb-0"><i class="fas fa-user-circle me-2 text-primary"></i>Borrower Profile</h5>
+                    <span class="badge bg-light text-dark border font-monospace">ID: #{{ loan.customer.id }}</span>
                 </div>
                 <div class="card-body text-center py-3">
                     {% if loan.customer_face_capture %}
                     <div class="position-relative d-inline-block mb-3">
                         <img src="{{ loan.customer_face_capture }}" alt="Customer Photo"
                             class="rounded border shadow-sm customer-photo"
-                            style="width: 120px; height: 120px; object-fit: contain; cursor: pointer; background-color: #f8f9fa;"
+                            style="width: 110px; height: 110px; object-fit: contain; cursor: pointer; background-color: #f8f9fa;"
                             data-bs-toggle="modal" data-bs-target="#customerPhotoModal">
                         <div class="position-absolute bottom-0 end-0">
                             <span class="badge bg-primary rounded-circle p-2 shadow" style="cursor: pointer;">
@@ -491,66 +539,94 @@
                         <i class="fas fa-phone me-1"></i>{{ loan.customer.phone|mobile_format|default:"No phone number" }}
                     </p>
                     {% if loan.branch %}
-                    <p class="text-muted small mb-2">
+                    <p class="text-muted small mb-3">
                         <i class="fas fa-building me-1 text-primary"></i><strong>Branch:</strong> {{ loan.branch.name }}
                     </p>
                     {% endif %}
                     <div class="d-grid">
-                        <a href="{% url 'customer_detail' loan.customer.id %}" class="btn btn-outline-primary btn-sm">
+                        <a href="{% url 'customer_detail' loan.customer.id %}" class="btn btn-outline-primary btn-sm fw-semibold">
                             <i class="fas fa-id-card me-1"></i>View Full Customer Profile
                         </a>
                     </div>
                 </div>
             </div>
 
-            <!-- Pawned Ornaments Details Card -->
-            <div class="card mb-4 shadow-sm border-0">
-                <div class="card-header d-flex justify-content-between align-items-center bg-light">
-                    <h5 class="mb-0"><i class="fas fa-gem me-2"></i>Pawned Ornaments</h5>
-                    {% if loan_items %}
-                    {% with total_count=0 %}
-                    {% for item in loan_items %}
-                    {% with item_count=item.item.name|calculate_total_items %}
-                    {% if item_count > 0 %}
-                    {% with new_total=total_count|add:item_count %}
-                    {% if forloop.last %}
-                    <span class="badge bg-success">Qty: {{ new_total }}</span>
+            <!-- Gold Physical Location / Repledge Status Card -->
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
+                    <h6 class="mb-0 fw-bold"><i class="fas fa-map-marker-alt text-warning me-2"></i>Gold Custody Location</h6>
+                    <button class="btn btn-xs btn-outline-warning text-dark py-0 px-2 fw-semibold" data-bs-toggle="modal" data-bs-target="#goldStatusModal" style="font-size: 0.75rem;">
+                        <i class="fas fa-edit me-1"></i>Update
+                    </button>
+                </div>
+                <div class="card-body p-3 small">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Storage Location:</span>
+                        <span class="fw-bold text-dark">{{ loan.gold_location|default:"Branch Vault" }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Repledge Status:</span>
+                        <span class="fw-bold {% if loan.repledge_amount %}text-danger{% else %}text-success{% endif %}">
+                            {% if loan.repledge_amount %}Repledged (Rs: {{ loan.repledge_amount|floatformat:2 }}){% else %}<i class="fas fa-check-circle me-1"></i>In Custody{% endif %}
+                        </span>
+                    </div>
+                    {% if loan.repledge_date %}
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Repledge Date:</span>
+                        <span class="fw-bold text-dark">{{ loan.repledge_date|date:"d M Y" }}</span>
+                    </div>
                     {% endif %}
-                    {% endwith %}
-                    {% endif %}
-                    {% endwith %}
-                    {% endfor %}
-                    {% endwith %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Collateral Assets & Custody Compliance Row -->
+    <div class="row g-3 mb-4">
+        <!-- Pawned Ornaments & Collateral Details (col-lg-7) -->
+        <div class="col-lg-7">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center flex-wrap gap-2 py-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <h5 class="mb-0"><i class="fas fa-gem text-warning me-2"></i>Pawned Ornaments</h5>
+                        <span class="badge bg-primary font-monospace">{{ total_items_qty|default:loan_items|length }} Item{{ total_items_qty|pluralize }}</span>
+                    </div>
+                    {% if loan.status == 'active' or loan.status == 'approved' %}
+                    <a href="{% url 'loan_partial_release' loan.loan_number %}" class="btn btn-warning btn-sm text-dark fw-bold shadow-xs">
+                        <i class="fas fa-hand-holding-usd me-1"></i>Part-Release Gold
+                    </a>
                     {% endif %}
                 </div>
                 <div class="card-body">
-                    <table class="table table-sm table-striped border rounded mb-3 small">
-                        <tbody>
-                            {% for item in loan_items|slice:":1" %}
-                            <tr>
-                                <td class="text-muted py-2 ps-2">Karat Purity</td>
-                                <td class="fw-bold py-2 text-end pe-2">{{ item.gold_karat }}K</td>
-                            </tr>
-                            <tr>
-                                <td class="text-muted py-2 ps-2">Gross Weight</td>
-                                <td class="fw-bold py-2 text-end pe-2">{{ item.gross_weight }}g</td>
-                            </tr>
-                            <tr>
-                                <td class="text-muted py-2 ps-2">Net Weight</td>
-                                <td class="fw-bold py-2 text-end pe-2">{{ item.net_weight }}g</td>
-                            </tr>
-                            <tr>
-                                <td class="text-muted py-2 ps-2">Stone Weight</td>
-                                <td class="fw-bold py-2 text-end pe-2">{{ item.stone_weight }}g</td>
-                            </tr>
-                            <tr>
-                                <td class="text-muted py-2 ps-2">Market Price (22K)</td>
-                                <td class="fw-bold py-2 text-end pe-2 rupee-symbol">Rs: {{ item.market_price_22k|floatformat:2 }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                    <!-- Weight & Valuation Quick Stats Bar -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-6 col-sm-3">
+                            <div class="border rounded p-2 text-center bg-light">
+                                <small class="text-muted d-block" style="font-size: 0.72rem;">Gross Weight</small>
+                                <span class="fw-bold font-monospace text-dark">{{ total_gross_wt|floatformat:3 }}g</span>
+                            </div>
+                        </div>
+                        <div class="col-6 col-sm-3">
+                            <div class="border rounded p-2 text-center bg-light">
+                                <small class="text-muted d-block" style="font-size: 0.72rem;">Stone Weight</small>
+                                <span class="fw-bold font-monospace text-muted">{{ total_stone_wt|floatformat:3 }}g</span>
+                            </div>
+                        </div>
+                        <div class="col-6 col-sm-3">
+                            <div class="border rounded p-2 text-center bg-light border-primary border-opacity-25">
+                                <small class="text-muted d-block" style="font-size: 0.72rem;">Net Gold Weight</small>
+                                <span class="fw-bold font-monospace text-primary">{{ total_net_wt|floatformat:3 }}g</span>
+                            </div>
+                        </div>
+                        <div class="col-6 col-sm-3">
+                            <div class="border rounded p-2 text-center bg-light border-success border-opacity-25">
+                                <small class="text-muted d-block" style="font-size: 0.72rem;">Collateral Value</small>
+                                <span class="fw-bold font-monospace text-success rupee-symbol">Rs {{ total_collateral_valuation|floatformat:0|intcomma }}</span>
+                            </div>
+                        </div>
+                    </div>
 
+                    <!-- Pledged Item Photos Gallery -->
                     {% if loan.item_photos %}
                     <div class="mb-3">
                         <h6 class="text-muted small fw-bold mb-2"><i class="fas fa-camera me-1"></i>Pledged Item Photos</h6>
@@ -586,33 +662,349 @@
                     </div>
                     {% endif %}
 
-                    <h6 class="text-muted small fw-bold mb-2"><i class="fas fa-list me-1"></i>Collateral Description</h6>
-                    <div class="list-group list-group-flush border rounded mb-0 small">
-                        {% for item in loan_items %}
-                        <div class="list-group-item py-2">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="fw-bold text-primary">{{ item.item.name }}</span>
-                                <span class="badge bg-secondary">{{ item.gold_karat }}K</span>
-                            </div>
-                            {% if item.item.description %}
-                            <small class="text-muted d-block mt-1">{{ item.item.description }}</small>
-                            {% endif %}
-                        </div>
-                        {% endfor %}
+                    <!-- Ornaments Items Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm align-middle mb-0 small">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Ornament / Item</th>
+                                    <th class="text-center">Karat</th>
+                                    <th class="text-end">Gross Wt</th>
+                                    <th class="text-end">Stone</th>
+                                    <th class="text-end">Net Wt</th>
+                                    <th class="text-end">Valuation</th>
+                                    <th class="text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in loan_items %}
+                                <tr>
+                                    <td>
+                                        <span class="fw-bold text-dark">{{ item.item.name }}</span>
+                                        {% if item.item.tamil_name %}
+                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle ms-1" style="font-size: 0.68rem;">{{ item.item.tamil_name }}</span>
+                                        {% endif %}
+                                        <span class="badge bg-light text-muted border ms-1 font-monospace" style="font-size: 0.65rem;">x{{ item.quantity|default:1 }}</span>
+                                        {% if item.item.description %}
+                                        <small class="text-muted d-block" style="font-size: 0.75rem;">{{ item.item.description }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-warning text-dark font-monospace">{{ item.gold_karat }}K</span>
+                                    </td>
+                                    <td class="text-end font-monospace">{{ item.gross_weight|floatformat:3 }}g</td>
+                                    <td class="text-end font-monospace text-muted">{{ item.stone_weight|floatformat:3|default:"0.000" }}g</td>
+                                    <td class="text-end font-monospace fw-bold text-primary">{{ item.net_weight|floatformat:3 }}g</td>
+                                    <td class="text-end font-monospace text-success fw-bold rupee-symbol">Rs {{ item.item_valuation|floatformat:0|intcomma }}</td>
+                                    <td class="text-center">
+                                        {% if item.status == 'released' %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="fas fa-check-circle me-1"></i>Released</span>
+                                        {% else %}
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle"><i class="fas fa-vault me-1"></i>In Vault</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted py-3">No individual ornament details found.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Vault Custody & Disbursement Details (col-lg-5) -->
+        <div class="col-lg-5">
+            <!-- Vault & Security Pouch Card -->
+            <div class="card mb-3 shadow-sm border-0">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
+                    <h5 class="mb-0"><i class="fas fa-shield-alt text-warning me-2"></i>Vault &amp; Security Pouch</h5>
+                    {% if loan.vault_pouch %}
+                    <span class="badge bg-{% if loan.vault_pouch.status == 'vaulted' %}success{% elif loan.vault_pouch.status == 'pending_inward' %}warning text-dark{% else %}secondary{% endif %}">
+                        {{ loan.vault_pouch.get_status_display }}
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="card-body p-3">
+                    {% if loan.vault_pouch %}
+                    <table class="table table-sm table-striped border rounded mb-3 small">
+                        <tbody>
+                            <tr>
+                                <td class="text-muted py-2 ps-2">Pouch Number</td>
+                                <td class="fw-bold py-2 text-end pe-2 font-monospace">{{ loan.vault_pouch.pouch_number }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted py-2 ps-2">Security Seal Strip</td>
+                                <td class="fw-bold py-2 text-end pe-2 font-monospace text-secondary">{{ loan.vault_pouch.seal_barcode|default:"—" }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted py-2 ps-2">Safe & Locker / Tray</td>
+                                <td class="fw-bold py-2 text-end pe-2 text-primary">
+                                    {{ loan.vault_pouch.safe_locker_number }} {% if loan.vault_pouch.shelf_rack_number %}({{ loan.vault_pouch.shelf_rack_number }}){% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted py-2 ps-2">Pouch Packed By</td>
+                                <td class="fw-bold py-2 text-end pe-2">{{ loan.vault_pouch.custodian_maker.username|default:"Appraiser" }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted py-2 ps-2">Joint Custodian Checked</td>
+                                <td class="fw-bold py-2 text-end pe-2">
+                                    {% if loan.vault_pouch.custodian_checker %}
+                                    <span class="text-success"><i class="fas fa-check-circle me-1"></i>{{ loan.vault_pouch.custodian_checker.username }}</span>
+                                    {% else %}
+                                    <span class="text-warning fst-italic">Pending Sign-off</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'vault_pouch_label' loan.vault_pouch.id %}" target="_blank" class="btn btn-outline-dark btn-sm flex-fill fw-semibold">
+                            <i class="fas fa-barcode me-1"></i> Print Label
+                        </a>
+                        <a href="{% url 'vault_explorer' %}?q={{ loan.vault_pouch.pouch_number }}" class="btn btn-outline-primary btn-sm flex-fill fw-semibold">
+                            <i class="fas fa-external-link-alt me-1"></i> Vault Explorer
+                        </a>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-3 text-muted">
+                        <i class="fas fa-shield-alt fa-2x mb-2 text-secondary opacity-50"></i>
+                        <p class="small mb-0">No security pouch linked to this loan.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Disbursement & Payout Details Card -->
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
+                    <h5 class="mb-0"><i class="fas fa-university text-primary me-2"></i>Disbursement &amp; Payout</h5>
+                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle" title="Income Tax Section 269SS Compliance">
+                        Sec 269SS
+                    </span>
+                </div>
+                <div class="card-body p-3">
+                    {% if loan.disbursement_detail %}
+                    <table class="table table-sm table-striped border rounded mb-0 small">
+                        <tbody>
+                            <tr>
+                                <td class="text-muted py-2 ps-2">Payout Mode</td>
+                                <td class="fw-bold py-2 text-end pe-2">
+                                    <span class="badge bg-{% if loan.disbursement_detail.payment_mode == 'CASH' %}success{% else %}primary{% endif %}">
+                                        {{ loan.disbursement_detail.get_payment_mode_display }}
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted py-2 ps-2">Disbursed Amount</td>
+                                <td class="fw-bold py-2 text-end pe-2 text-success rupee-symbol">Rs {{ loan.disbursement_detail.amount|floatformat:2|intcomma }}</td>
+                            </tr>
+                            {% if loan.disbursement_detail.payment_mode != 'CASH' %}
+                            <tr>
+                                <td class="text-muted py-2 ps-2">Beneficiary Name</td>
+                                <td class="fw-bold py-2 text-end pe-2">{{ loan.disbursement_detail.beneficiary_name|default:loan.customer.full_name }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted py-2 ps-2">Account Number</td>
+                                <td class="fw-bold py-2 text-end pe-2 font-monospace">{{ loan.disbursement_detail.account_number|default:"—" }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted py-2 ps-2">Bank &amp; IFSC</td>
+                                <td class="fw-bold py-2 text-end pe-2">{{ loan.disbursement_detail.bank_name|default:"Bank" }} <span class="font-monospace text-muted">({{ loan.disbursement_detail.ifsc_code|default:"—" }})</span></td>
+                            </tr>
+                            {% if loan.disbursement_detail.utr_number %}
+                            <tr>
+                                <td class="text-muted py-2 ps-2">UTR / Ref No.</td>
+                                <td class="fw-bold py-2 text-end pe-2 font-monospace text-primary">{{ loan.disbursement_detail.utr_number }}</td>
+                            </tr>
+                            {% endif %}
+                            {% endif %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <table class="table table-sm table-striped border rounded mb-0 small">
+                        <tbody>
+                            <tr>
+                                <td class="text-muted py-2 ps-2">Disbursed Amount</td>
+                                <td class="fw-bold py-2 text-end pe-2 text-success rupee-symbol">Rs {{ loan.original_distribution_amount|floatformat:2|intcomma }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted py-2 ps-2">Compliance Rule</td>
+                                <td class="fw-bold py-2 text-end pe-2">
+                                    {% if loan.distribution_amount >= 20000 %}
+                                    <span class="badge bg-primary">Bank Transfer (Mandatory)</span>
+                                    {% else %}
+                                    <span class="badge bg-success">Cash Allowed (&lt;₹20k)</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Transaction & History Logs Row -->
+    <div class="row g-3 mb-4">
+        <!-- Left Column: Partial Release History & Payment History (col-lg-6) -->
+        <div class="col-lg-6">
+            <!-- Partial Ornament Release Records Card -->
+            <div class="card mb-3 shadow-sm border-0">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
+                    <h5 class="mb-0"><i class="fas fa-hand-holding-usd text-warning me-2"></i>Partial Release History</h5>
+                    <span class="badge bg-dark font-monospace">{{ loan.partial_releases.count }} Release{{ loan.partial_releases.count|pluralize }}</span>
+                </div>
+                <div class="card-body p-0">
+                    {% if loan.partial_releases.all %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm align-middle mb-0 small">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Voucher #</th>
+                                    <th>Date</th>
+                                    <th class="text-end">Principal Repaid</th>
+                                    <th class="text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for rel in loan.partial_releases.all %}
+                                <tr>
+                                    <td class="font-monospace fw-bold text-primary">{{ rel.release_number }}</td>
+                                    <td>{{ rel.release_date|date:"d M Y" }}</td>
+                                    <td class="text-end font-monospace text-success fw-bold rupee-symbol">Rs {{ rel.principal_paid|floatformat:2|intcomma }}</td>
+                                    <td class="text-center">
+                                        <a href="{% url 'loan_partial_release_voucher' loan.loan_number rel.id %}" target="_blank" class="btn btn-outline-primary btn-xs py-0 px-2">
+                                            <i class="fas fa-print me-1"></i>Voucher
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="p-3 text-muted small text-center">
+                        <i class="fas fa-info-circle me-1 text-secondary"></i>No partial ornament releases recorded for this loan.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Payment History Card -->
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center flex-wrap gap-2 py-2">
+                    <h5 class="mb-0"><i class="fas fa-history me-2 text-primary"></i>Payment History</h5>
+                    {% if payments %}
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button"
+                            id="downloadPaymentDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-download me-1"></i> {% trans "Download" %}
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="downloadPaymentDropdown">
+                            <li><h6 class="dropdown-header">{% trans "Export Payment History" %}</h6></li>
+                            <li><a class="dropdown-item" href="{% url 'loan_payment_history_download' loan.loan_number %}?format=pdf&lang=en"><i class="fas fa-file-pdf text-danger me-2"></i> PDF ({% trans "English" %})</a></li>
+                            <li><a class="dropdown-item" href="{% url 'loan_payment_history_download' loan.loan_number %}?format=csv&lang=en"><i class="fas fa-file-csv text-success me-2"></i> CSV ({% trans "English" %})</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'loan_payment_history_download' loan.loan_number %}?format=pdf&lang=ta"><i class="fas fa-file-pdf text-danger me-2"></i> PDF (தமிழ்)</a></li>
+                            <li><a class="dropdown-item" href="{% url 'loan_payment_history_download' loan.loan_number %}?format=csv&lang=ta"><i class="fas fa-file-csv text-success me-2"></i> CSV (தமிழ்)</a></li>
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-body p-0">
+                    {% if payments %}
+                    <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
+                        <table class="table table-hover table-sm align-middle mb-0 small">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Amount</th>
+                                    <th>Method</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payment in payments %}
+                                <tr>
+                                    <td>{{ payment.payment_date|date:"M d, Y" }}</td>
+                                    <td class="fw-bold rupee-symbol text-success">Rs: {{ payment.amount|floatformat:2|intcomma }}</td>
+                                    <td><span class="badge bg-light text-dark border">{{ payment.get_payment_method_display }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="p-3 text-muted small text-center">
+                        <i class="fas fa-info-circle me-1 text-secondary"></i>No payments recorded yet.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: EOD Daily Accruals & Extensions (col-lg-6) -->
+        <div class="col-lg-6">
+            <!-- EOD Daily Interest Accrual History Card -->
+            <div class="card mb-3 shadow-sm border-0">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
+                    <h5 class="mb-0"><i class="fas fa-moon text-primary me-2"></i>Daily Interest Accrual (EOD)</h5>
+                    <span class="badge bg-success font-monospace">Accrued: ₹{{ loan.accrued_interest|floatformat:2|intcomma }}</span>
+                </div>
+                <div class="card-body p-0">
+                    {% if loan.accrual_logs.all %}
+                    <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
+                        <table class="table table-hover align-middle mb-0 small">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Rate</th>
+                                    <th>Asset Health</th>
+                                    <th class="text-end">Daily (₹)</th>
+                                    <th class="text-end">Cumulative (₹)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for acc in loan.accrual_logs.all %}
+                                <tr>
+                                    <td class="font-monospace">{{ acc.date|date:"d M Y" }}</td>
+                                    <td>{{ acc.annual_rate }}%</td>
+                                    <td>
+                                        <span class="badge {% if acc.irac_status == 'STANDARD' %}bg-success{% elif acc.irac_status == 'SMA_0' %}bg-info text-dark{% elif acc.irac_status == 'SMA_1' or acc.irac_status == 'SMA_2' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                                            {{ acc.irac_status }}
+                                        </span>
+                                    </td>
+                                    <td class="text-end font-monospace text-success fw-bold">+₹{{ acc.daily_interest_accrued|floatformat:2 }}</td>
+                                    <td class="text-end font-monospace fw-bold text-dark">₹{{ acc.cumulative_interest|floatformat:2 }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="p-3 text-muted small text-center">
+                        <i class="fas fa-info-circle me-1 text-secondary"></i>No EOD daily interest accruals logged yet. Accruals run automatically during daily EOD batch.
+                    </div>
+                    {% endif %}
                 </div>
             </div>
 
             <!-- Extension History Card -->
-            <div class="card mb-4 shadow-sm border-0">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="fas fa-calendar-plus me-2"></i>Extension History</h5>
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
+                    <h5 class="mb-0"><i class="fas fa-calendar-plus me-2 text-info"></i>Extension History</h5>
+                    <span class="badge bg-secondary font-monospace">{{ extensions.count }} Extension{{ extensions.count|pluralize }}</span>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-0">
                     {% if extensions %}
                     <div class="table-responsive">
-                        <table class="table table-hover table-sm">
-                            <thead>
+                        <table class="table table-hover table-sm align-middle mb-0 small">
+                            <thead class="table-light">
                                 <tr>
                                     <th>Date</th>
                                     <th>Fee</th>
@@ -623,15 +1015,17 @@
                                 {% for extension in extensions %}
                                 <tr>
                                     <td>{{ extension.extension_date|date:"M d, Y" }}</td>
-                                    <td>Rs: {{ extension.fee|floatformat:2 }}</td>
-                                    <td>{{ extension.new_due_date|date:"M d, Y" }}</td>
+                                    <td class="rupee-symbol font-monospace text-dark">Rs: {{ extension.fee|floatformat:2 }}</td>
+                                    <td class="fw-bold text-primary">{{ extension.new_due_date|date:"M d, Y" }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
                     {% else %}
-                    <p class="text-muted mb-0 small">No extensions recorded.</p>
+                    <div class="p-3 text-muted small text-center">
+                        <i class="fas fa-info-circle me-1 text-secondary"></i>No loan extensions recorded.
+                    </div>
                     {% endif %}
                 </div>
             </div>
@@ -736,14 +1130,13 @@
                          <small class="text-muted fst-italic d-block mt-2" style="font-size: 0.75rem;">
                              * Closing Total Amount = Principal Amount (Rs: {{ loan.principal_amount|floatformat:2 }}) + Cumulative Interest accrued under that payment behavior.
                          </small>
-                      </div>
-                      {% endwith %}
                      </div>
-                 </div>
-             </div>
-         </div>
-     </div>
-     {% endif %}
+                     {% endwith %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <!-- Photo Modal -->

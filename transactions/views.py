@@ -10,7 +10,7 @@ from io import BytesIO
 import csv
 from .models import Loan, Payment, LoanExtension, Sale
 from accounts.mixins import RoleBranchAccessMixin
-from .forms import LoanForm, SaleForm, LoanExtensionForm
+from .forms import LoanForm, SaleForm, LoanExtensionForm, PaymentRecordForm
 from .utils import ManagerPermissionMixin
 from django.db.models import Q
 from num2words import num2words
@@ -242,7 +242,7 @@ def get_branch_bill_details(branch):
 def build_loan_pdf_language_context(loan, current_language):
     use_tamil = str(current_language).startswith('ta')
     customer = loan.customer
-    loan_items = list(loan.loanitem_set.select_related('item'))
+    loan_items = list(loan.loanitem_set.exclude(status='released').select_related('item'))
     branch = loan.branch
 
     customer_name_en = customer.full_name if customer else ''
@@ -334,6 +334,8 @@ def build_loan_pdf_language_context(loan, current_language):
         'gold_karat': 'Gold Karat',
         'gross_weight': 'Gross Weight(g)',
         'net_weight': 'Net Weight(g)',
+        'qty': 'Qty',
+        'total': 'Total',
         'total_items': 'Total Items',
         'pledged_gold_item_photos': 'Pledged Gold Item Photos',
         'item': 'Item',
@@ -373,6 +375,8 @@ def build_loan_pdf_language_context(loan, current_language):
             'gold_karat': 'தங்க சுத்தம்',
             'gross_weight': 'மொத்த எடை (கி)',
             'net_weight': 'நிகர எடை (கி)',
+            'qty': 'அளவு',
+            'total': 'மொத்தம்',
             'total_items': 'மொத்த பொருட்கள்',
             'pledged_gold_item_photos': 'அடமான பொருள் புகைப்படங்கள்',
             'item': 'பொருள்',
@@ -468,7 +472,6 @@ def build_loan_pdf_language_context(loan, current_language):
     tiered_rates = []
     s = loan.scheme
     if s and s.interest_rate_structure:
-        from decimal import Decimal
         # Try to sort the keys naturally if they are ranges
         # e.g., '0-30', '30-60', '60-90', '90-365', '365+'
         sorted_keys = sorted(s.interest_rate_structure.keys(), key=lambda k: [int(x) if x.isdigit() else 999999 for x in k.replace('+', '').split('-') if x])
@@ -493,12 +496,24 @@ def build_loan_pdf_language_context(loan, current_language):
                 'amount': amount_val
             })
 
+    total_gross_weight = sum(
+        Decimal(str(loan_item.gross_weight or 0))
+        for loan_item in loan_items
+    ) if loan_items else Decimal('0.000')
+
+    total_net_weight = sum(
+        Decimal(str(loan_item.net_weight or 0))
+        for loan_item in loan_items
+    ) if loan_items else Decimal('0.000')
+
     return {
         'current_language': current_language,
         'labels': labels,
         'localized_items': localized_items,
         'unique_item_names_count': unique_item_names_count,
         'total_items_count': total_items_count,
+        'total_gross_weight': total_gross_weight,
+        'total_net_weight': total_net_weight,
         'customer_name_display': customer_name_en,
         'customer_phone_display': customer_phone_display,
         'customer_address_display': customer_address_ta if use_tamil else customer_address_en,
@@ -539,6 +554,48 @@ def get_loan_total_items_count(loan):
     return len(loan_items)
 
 
+ORNAMENT_DICT_EN_TO_TA = {
+    # Ornaments
+    'ring': 'மோதிரம்', 'rings': 'மோதிரங்கள்', 'mothiram': 'மோதிரம்', 'modhiram': 'மோதிரம்', 'mothirangal': 'மோதிரங்கள்',
+    'chain': 'சங்கிலி', 'chains': 'சங்கிலிகள்', 'sangili': 'சங்கிலி', 'sangilikal': 'சங்கிலிகள்',
+    'bangle': 'வளையல்', 'bangles': 'வளையல்கள்', 'valaiyal': 'வளையல்', 'valaiyalkal': 'வளையல்கள்', 'kappu': 'காப்பு',
+    'necklace': 'நெக்லஸ்', 'necklaces': 'நெக்லஸ்கள்', 'aarum': 'ஹாரம்', 'haram': 'ஹாரம்', 'choker': 'சோக்கர்',
+    'stud': 'தோடு', 'studs': 'தோடுகள்', 'thodu': 'தோடு', 'thodukal': 'தோடுகள்',
+    'earring': 'கம்மல்', 'earrings': 'கம்மல்கள்', 'kammal': 'கம்மல்', 'kammalkal': 'கம்மல்கள்', 'jimikki': 'ஜிமிக்கி', 'jhumka': 'ஜிமிக்கி', 'mattal': 'மாட்டல்',
+    'coin': 'நாணயம்', 'coins': 'நாணயங்கள்', 'gold coin': 'தங்க நாணயம்', 'kasu': 'காசு', 'kasumaalai': 'காசுமாலை',
+    'pendant': 'டாலர்', 'pendants': 'டாலர்கள்', 'dollar': 'டாலர்', 'dolar': 'டாலர்', 'locket': 'லாக்கெட்',
+    'bracelet': 'காப்பு', 'bracelets': 'காப்புகள்', 'bracelete': 'காப்பு',
+    'anklet': 'கொலுசு', 'anklets': 'கொலுசுகள்', 'golusu': 'கொலுசு', 'kolusu': 'கொலுசு', 'kolusukal': 'கொலுசுகள்',
+    'waist chain': 'ஒட்டியாணம்', 'ottiyanam': 'ஒட்டியாணம்', 'oddiyanam': 'ஒட்டியாணம்',
+    'nose pin': 'மூக்குத்தி', 'mookuthi': 'மூக்குத்தி', 'nattu': 'மூக்குத்தி', 'bullaku': 'புல்லாக்கு',
+    'mangalsutra': 'தாலி கொடி', 'thali': 'தாலி', 'thaali': 'தாலி', 'kodi': 'கொடி', 'mugappu': 'முகப்பு',
+    'metti': 'மெட்டி', 'minji': 'மிஞ்சி', 'vanki': 'வங்கி',
+
+    # Metals & Materials
+    'gold': 'தங்கம்', 'thangam': 'தங்கம்', 'thanga': 'தங்க',
+    'silver': 'வெள்ளி', 'velli': 'வெள்ளி',
+    'stone': 'கல்', 'stones': 'கற்கள்', 'kal': 'கல்', 'kallu': 'கல்',
+    'ruby': 'ரூபி கல்', 'emerald': 'மரகதம்', 'pearl': 'முத்து', 'coral': 'பவளம்',
+    'red': 'சிவப்பு', 'white': 'வெள்ளை', 'green': 'பச்சை', 'blue': 'நீல',
+
+    # Description & Conditions
+    'lock': 'லாக்', 'hook': 'கொக்கி', 'screw': 'திருகு', 'kdm': 'கே.டி.எம்', 'hallmark': 'ஹால்மார்க்',
+    '916': '916', 'seal': 'முத்திரை', 'old': 'பழைய', 'new': 'புதிய', 'antique': 'ஆன்டிக்',
+    'fancy': 'ஃபேன்ஸி', 'damage': 'சேதம்', 'damaged': 'சேதமடைந்தது', 'broken': 'உடைந்தது',
+    'scratch': 'கீறல்', 'pair': 'ஜோடி', 'single': 'ஒற்றை', 'cut': 'கட்', 'joint': 'ஜாயிண்ட்',
+    'with': 'உடன்', 'without': 'இல்லாமல்', 'and': 'மற்றும்', 'piece': 'பீஸ்', 'pieces': 'பீஸ்கள்',
+    'plain': 'ப்ளெயின்', 'hollow': 'ஹாலோ', 'casting': 'காஸ்டிங்', 'rope': 'ரோப்',
+
+    # Loan & Scheme Terms
+    'scheme': 'திட்டம்', 'loan': 'கடன்', 'gold loan': 'தங்கக் கடன்', 'classic': 'கிளாசிக்',
+    'express': 'எக்ஸ்பிரஸ்', 'super': 'சூப்பர்', 'regular': 'ரெகுலர்', 'standard': 'ஸ்டாண்டர்ட்',
+    'special': 'ஸ்பெஷல்', 'prime': 'பிரைம்', 'silver scheme': 'வெள்ளித் திட்டம்', 'bullet': 'புல்லட்',
+    'monthly': 'மாதாந்திர', 'annual': 'ஆண்டு'
+}
+
+ORNAMENT_DICT_TA_TO_EN = {v: k.title() for k, v in ORNAMENT_DICT_EN_TO_TA.items()}
+
+
 def transliterate_between_english_tamil(request):
     text = (request.GET.get('text') or '').strip()
     direction = request.GET.get('direction', 'to_tamil')
@@ -546,156 +603,201 @@ def transliterate_between_english_tamil(request):
     if not text:
         return JsonResponse({'result': ''})
 
+    clean_lower = text.lower().strip()
+
+    # 1. Fast Dictionary Lookup (Exact match — instant, no network)
+    if direction == 'to_tamil':
+        if clean_lower in ORNAMENT_DICT_EN_TO_TA:
+            return JsonResponse({'result': ORNAMENT_DICT_EN_TO_TA[clean_lower]})
+    else:
+        if text in ORNAMENT_DICT_TA_TO_EN:
+            return JsonResponse({'result': ORNAMENT_DICT_TA_TO_EN[text]})
+
+    # 2. MyMemory Translation API (free, no API key, handles names & sentences)
     try:
-        import requests
+        import requests as req
 
         source_lang = 'ta' if direction == 'to_english' else 'en'
         target_lang = 'en' if direction == 'to_english' else 'ta'
-        translated_result = ''
-        for _ in range(2):
-            response = requests.get(
-                'https://translate.googleapis.com/translate_a/single',
-                params={
-                    'client': 'gtx',
-                    'sl': source_lang,
-                    'tl': target_lang,
-                    'dt': 't',
-                    'q': text,
-                },
-                headers={
-                    'User-Agent': 'Mozilla/5.0',
-                    'Accept': 'application/json,text/plain,*/*',
-                },
-                timeout=10,
-            )
-            response.raise_for_status()
-            payload = json.loads(response.content.decode('utf-8', errors='replace'))
-            translated_result = ''.join(part[0] for part in payload[0] if part and part[0]).strip()
-            if translated_result and translated_result != text and translated_result.replace('?', '').strip():
-                return JsonResponse({'result': translated_result})
+        langpair = f'{source_lang}|{target_lang}'
+
+        response = req.get(
+            'https://api.mymemory.translated.net/get',
+            params={'q': text, 'langpair': langpair},
+            timeout=5,
+        )
+        if response.status_code == 200:
+            data = response.json()
+            translated = (data.get('responseData') or {}).get('translatedText', '').strip()
+            # MyMemory returns 'PLEASE SELECT' or similar on errors
+            if translated and translated != text and 'PLEASE' not in translated.upper() and 'SELECT' not in translated.upper():
+                return JsonResponse({'result': translated})
     except Exception:
         pass
 
-    try:
-        from indic_transliteration import sanscript
-        from indic_transliteration.sanscript import transliterate
+    # 3. Word-by-word Dictionary + Phonetic Fallback (last resort)
+    if direction == 'to_tamil':
+        words = text.split()
+        translated_parts = []
+        for w in words:
+            wl = w.lower().strip('.,:;()-[]{}')
+            if wl in ORNAMENT_DICT_EN_TO_TA:
+                translated_parts.append(ORNAMENT_DICT_EN_TO_TA[wl])
+            else:
+                translated_parts.append(w)
+        return JsonResponse({'result': ' '.join(translated_parts)})
 
-        if direction == 'to_english':
-            result = transliterate(text, sanscript.TAMIL, sanscript.ITRANS)
-        else:
-            result = transliterate(text, sanscript.ITRANS, sanscript.TAMIL)
+    return JsonResponse({'result': text})
 
-        return JsonResponse({'result': result})
-    except Exception as exc:
-        return JsonResponse({'result': text, 'error': str(exc)}, status=200)
 
 
 # --- Number to words helpers (English and Tamil) ---
 def amount_to_english_words(amount):
-    """Convert a numeric amount to English words (rupees and paise).
-
-    Falls back to simple formatting if num2words fails for a value.
-    """
+    """Convert a numeric amount to English words formatted as 'X Rupees Only'."""
     try:
-        dec = Decimal(amount)
+        dec = Decimal(str(amount))
     except Exception:
         return ''
 
     rupees = int(dec)
-    paise = int((dec - rupees) * 100)
+    paise = int(round((dec - Decimal(rupees)) * 100))
 
     try:
-        # Prefer en_IN if available for Indian grouping, else en
         try:
-            words_rupees = num2words(rupees, lang='en_IN')
+            words_rupees = num2words(rupees, lang='en_IN').title()
         except Exception:
-            words_rupees = num2words(rupees, lang='en')
-        words = f"{words_rupees.capitalize()} rupees"
+            words_rupees = num2words(rupees, lang='en').title()
+
+        words = f"{words_rupees} Rupees"
         if paise:
-            words_paise = num2words(paise, lang='en')
-            words += f" and {words_paise} paise"
+            words_paise = num2words(paise, lang='en').title()
+            words += f" and {words_paise} Paise"
+        words += " Only"
         return words
     except Exception:
-        # Fallback to simple string
-        return f"{rupees} rupees{(' and ' + str(paise) + ' paise') if paise else ''}"
+        return f"{rupees:,} Rupees Only"
 
 
 def _int_to_tamil_under_thousand(n):
     """Convert integer < 1000 to Tamil words."""
+    if n <= 0:
+        return ''
+    
     ones = {
-        0: 'ÃƒÂ Ã‚Â®Ã‚ÂªÃƒÂ Ã‚Â¯Ã¢â‚¬Å¡ÃƒÂ Ã‚Â®Ã…â€œÃƒÂ Ã‚Â¯Ã‚ÂÃƒÂ Ã‚Â®Ã‚Â¯ÃƒÂ Ã‚Â®Ã‚Â®ÃƒÂ Ã‚Â¯Ã‚Â', 1: 'ÃƒÂ Ã‚Â®Ã¢â‚¬â„¢ÃƒÂ Ã‚Â®Ã‚Â©ÃƒÂ Ã‚Â¯Ã‚ÂÃƒÂ Ã‚Â®Ã‚Â±ÃƒÂ Ã‚Â¯Ã‚Â', 2: 'ÃƒÂ Ã‚Â®Ã¢â‚¬Â¡ÃƒÂ Ã‚Â®Ã‚Â°ÃƒÂ Ã‚Â®Ã‚Â£ÃƒÂ Ã‚Â¯Ã‚ÂÃƒÂ Ã‚Â®Ã…Â¸ÃƒÂ Ã‚Â¯Ã‚Â', 3: 'ÃƒÂ Ã‚Â®Ã‚Â®ÃƒÂ Ã‚Â¯Ã¢â‚¬Å¡ÃƒÂ Ã‚Â®Ã‚Â©ÃƒÂ Ã‚Â¯Ã‚ÂÃƒÂ Ã‚Â®Ã‚Â±ÃƒÂ Ã‚Â¯Ã‚Â', 4: 'ÃƒÂ Ã‚Â®Ã‚Â¨ÃƒÂ Ã‚Â®Ã‚Â¾ÃƒÂ Ã‚Â®Ã‚Â©ÃƒÂ Ã‚Â¯Ã‚ÂÃƒÂ Ã‚Â®Ã¢â‚¬Â¢ÃƒÂ Ã‚Â¯Ã‚Â', 5: 'ÃƒÂ Ã‚Â®Ã‚ÂÃƒÂ Ã‚Â®Ã‚Â¨ÃƒÂ Ã‚Â¯Ã‚ÂÃƒÂ Ã‚Â®Ã‚Â¤ÃƒÂ Ã‚Â¯Ã‚Â',
-        6: 'ÃƒÂ Ã‚Â®Ã¢â‚¬Â ÃƒÂ Ã‚Â®Ã‚Â±ÃƒÂ Ã‚Â¯Ã‚Â', 7: 'ÃƒÂ Ã‚Â®Ã‚ÂÃƒÂ Ã‚Â®Ã‚Â´ÃƒÂ Ã‚Â¯Ã‚Â', 8: 'ÃƒÂ Ã‚Â®Ã…Â½ÃƒÂ Ã‚Â®Ã…Â¸ÃƒÂ Ã‚Â¯Ã‚ÂÃƒÂ Ã‚Â®Ã…Â¸ÃƒÂ Ã‚Â¯Ã‚Â', 9: 'ÃƒÂ Ã‚Â®Ã¢â‚¬â„¢ÃƒÂ Ã‚Â®Ã‚Â©ÃƒÂ Ã‚Â¯Ã‚ÂÃƒÂ Ã‚Â®Ã‚ÂªÃƒÂ Ã‚Â®Ã‚Â¤ÃƒÂ Ã‚Â¯Ã‚Â', 10: 'ÃƒÂ Ã‚Â®Ã‚ÂªÃƒÂ Ã‚Â®Ã‚Â¤ÃƒÂ Ã‚Â¯Ã‚ÂÃƒÂ Ã‚Â®Ã‚Â¤ÃƒÂ Ã‚Â¯Ã‚Â', 11: 'ÃƒÂ Ã‚Â®Ã‚ÂªÃƒÂ Ã‚Â®Ã‚Â¤ÃƒÂ Ã‚Â®Ã‚Â¿ÃƒÂ Ã‚Â®Ã‚Â©ÃƒÂ Ã‚Â¯Ã…Â ÃƒÂ Ã‚Â®Ã‚Â©ÃƒÂ Ã‚Â¯Ã‚ÂÃƒÂ Ã‚Â®Ã‚Â±ÃƒÂ Ã‚Â¯Ã‚Â',
-        12: 'ÃƒÂ Ã‚Â®Ã‚ÂªÃƒÂ Ã‚Â®Ã‚Â©ÃƒÂ Ã‚Â®Ã‚Â¿ÃƒÂ Ã‚Â®Ã‚Â°ÃƒÂ Ã‚Â®Ã‚Â£ÃƒÂ Ã‚Â¯Ã‚ÂÃƒÂ Ã‚Â®Ã…Â¸ÃƒÂ Ã‚Â¯Ã‚Â', 13: 'ÃƒÂ Ã‚Â®Ã‚ÂªÃƒÂ Ã‚Â®Ã‚Â¤ÃƒÂ Ã‚Â®Ã‚Â¿ÃƒÂ Ã‚Â®Ã‚Â©ÃƒÂ Ã‚Â¯Ã‚ÂÃƒÂ Ã‚Â®Ã‚Â®ÃƒÂ Ã‚Â¯Ã¢â‚¬Å¡ÃƒÂ Ã‚Â®Ã‚Â©ÃƒÂ Ã‚Â¯Ã‚ÂÃƒÂ Ã‚Â®Ã‚Â±ÃƒÂ Ã‚Â¯Ã‚Â', 14: 'ÃƒÂ Ã‚Â®Ã‚ÂªÃƒÂ Ã‚Â®Ã‚Â¤ÃƒÂ Ã‚Â®Ã‚Â¿ÃƒÂ Ã‚Â®Ã‚Â©ÃƒÂ Ã‚Â®Ã‚Â¾ÃƒÂ Ã‚Â®Ã‚Â©ÃƒÂ Ã‚Â¯Ã‚ÂÃƒÂ Ã‚Â®Ã¢â‚¬Â¢ÃƒÂ Ã‚Â¯Ã‚Â', 15: 'ÃƒÂ Ã‚Â®Ã‚ÂªÃƒÂ Ã‚Â®Ã‚Â¤ÃƒÂ Ã‚Â®Ã‚Â¿ÃƒÂ Ã‚Â®Ã‚Â©ÃƒÂ Ã‚Â¯Ã‹â€ ÃƒÂ Ã‚Â®Ã‚Â¨ÃƒÂ Ã‚Â¯Ã‚ÂÃƒÂ Ã‚Â®Ã‚Â¤ÃƒÂ Ã‚Â¯Ã‚Â',
-        16: 'ÃƒÂ Ã‚Â®Ã‚ÂªÃƒÂ Ã‚Â®Ã‚Â¤ÃƒÂ Ã‚Â®Ã‚Â¿ÃƒÂ Ã‚Â®Ã‚Â©ÃƒÂ Ã‚Â®Ã‚Â¾ÃƒÂ Ã‚Â®Ã‚Â±ÃƒÂ Ã‚Â¯Ã‚Â', 17: 'ÃƒÂ Ã‚Â®Ã‚ÂªÃƒÂ Ã‚Â®Ã‚Â¤ÃƒÂ Ã‚Â®Ã‚Â¿ÃƒÂ Ã‚Â®Ã‚Â©ÃƒÂ Ã‚Â¯Ã¢â‚¬Â¡ÃƒÂ Ã‚Â®Ã‚Â´ÃƒÂ Ã‚Â¯Ã‚Â', 18: 'ÃƒÂ Ã‚Â®Ã‚ÂªÃƒÂ Ã‚Â®Ã‚Â¤ÃƒÂ Ã‚Â®Ã‚Â¿ÃƒÂ Ã‚Â®Ã‚Â©ÃƒÂ Ã‚Â¯Ã¢â‚¬Â ÃƒÂ Ã‚Â®Ã…Â¸ÃƒÂ Ã‚Â¯Ã‚ÂÃƒÂ Ã‚Â®Ã…Â¸ÃƒÂ Ã‚Â¯Ã‚Â', 19: 'ÃƒÂ Ã‚Â®Ã‚ÂªÃƒÂ Ã‚Â®Ã‚Â¤ÃƒÂ Ã‚Â¯Ã‚ÂÃƒÂ Ã‚Â®Ã‚Â¤ÃƒÂ Ã‚Â¯Ã…Â ÃƒÂ Ã‚Â®Ã‚Â©ÃƒÂ Ã‚Â¯Ã‚ÂÃƒÂ Ã‚Â®Ã‚ÂªÃƒÂ Ã‚Â®Ã‚Â¤ÃƒÂ Ã‚Â¯Ã‚Â'
+        1: 'ஒன்று', 2: 'இரண்டு', 3: 'மூன்று', 4: 'நான்கு', 5: 'ஐந்து',
+        6: 'ஆறு', 7: 'ஏழு', 8: 'எட்டு', 9: 'ஒன்பது', 10: 'பத்து',
+        11: 'பதினொன்று', 12: 'பன்னிரண்டு', 13: 'பதின்மூன்று', 14: 'பதினான்கு', 15: 'பதினைந்து',
+        16: 'பதினாறு', 17: 'பதினேழு', 18: 'பதினெட்டு', 19: 'பத்தொன்பது'
     }
-    tens = {
-        20: 'ÃƒÂ Ã‚Â®Ã¢â‚¬Â¡ÃƒÂ Ã‚Â®Ã‚Â°ÃƒÂ Ã‚Â¯Ã‚ÂÃƒÂ Ã‚Â®Ã‚ÂªÃƒÂ Ã‚Â®Ã‚Â¤ÃƒÂ Ã‚Â¯Ã‚Â', 30: 'ÃƒÂ Ã‚Â®Ã‚Â®ÃƒÂ Ã‚Â¯Ã‚ÂÃƒÂ Ã‚Â®Ã‚ÂªÃƒÂ Ã‚Â¯Ã‚ÂÃƒÂ Ã‚Â®Ã‚ÂªÃƒÂ Ã‚Â®Ã‚Â¤ÃƒÂ Ã‚Â¯Ã‚Â', 40: 'ÃƒÂ Ã‚Â®Ã‚Â¨ÃƒÂ Ã‚Â®Ã‚Â¾ÃƒÂ Ã‚Â®Ã‚Â±ÃƒÂ Ã‚Â¯Ã‚ÂÃƒÂ Ã‚Â®Ã‚ÂªÃƒÂ Ã‚Â®Ã‚Â¤ÃƒÂ Ã‚Â¯Ã‚Â', 50: 'ÃƒÂ Ã‚Â®Ã‚ÂÃƒÂ Ã‚Â®Ã‚Â®ÃƒÂ Ã‚Â¯Ã‚ÂÃƒÂ Ã‚Â®Ã‚ÂªÃƒÂ Ã‚Â®Ã‚Â¤ÃƒÂ Ã‚Â¯Ã‚Â', 60: 'ÃƒÂ Ã‚Â®Ã¢â‚¬Â¦ÃƒÂ Ã‚Â®Ã‚Â±ÃƒÂ Ã‚Â¯Ã‚ÂÃƒÂ Ã‚Â®Ã‚ÂªÃƒÂ Ã‚Â®Ã‚Â¤ÃƒÂ Ã‚Â¯Ã‚Â',
-        70: 'ÃƒÂ Ã‚Â®Ã…Â½ÃƒÂ Ã‚Â®Ã‚Â´ÃƒÂ Ã‚Â¯Ã‚ÂÃƒÂ Ã‚Â®Ã‚ÂªÃƒÂ Ã‚Â®Ã‚Â¤ÃƒÂ Ã‚Â¯Ã‚Â', 80: 'ÃƒÂ Ã‚Â®Ã…Â½ÃƒÂ Ã‚Â®Ã‚Â£ÃƒÂ Ã‚Â¯Ã‚ÂÃƒÂ Ã‚Â®Ã‚ÂªÃƒÂ Ã‚Â®Ã‚Â¤ÃƒÂ Ã‚Â¯Ã‚Â', 90: 'ÃƒÂ Ã‚Â®Ã‚Â¤ÃƒÂ Ã‚Â¯Ã…Â ÃƒÂ Ã‚Â®Ã‚Â£ÃƒÂ Ã‚Â¯Ã‚ÂÃƒÂ Ã‚Â®Ã‚Â£ÃƒÂ Ã‚Â¯Ã¢â‚¬Å¡ÃƒÂ Ã‚Â®Ã‚Â±ÃƒÂ Ã‚Â¯Ã‚Â'
+    
+    tens_exact = {
+        20: 'இருபது', 30: 'முப்பது', 40: 'நாற்பது', 50: 'ஐம்பது',
+        60: 'அறுபது', 70: 'எழுபது', 80: 'எண்பது', 90: 'தொண்ணூறு'
+    }
+    
+    tens_prefix = {
+        20: 'இருபத்து', 30: 'முப்பத்து', 40: 'நாற்பத்து', 50: 'ஐம்பத்து',
+        60: 'அறுபத்து', 70: 'எழுபத்து', 80: 'எண்பத்து', 90: 'தொண்ணூற்று'
+    }
+    
+    hundreds_exact = {
+        100: 'நூறு', 200: 'இருநூறு', 300: 'முந்நூறு', 400: 'நானூறு',
+        500: 'ஐந்நூறு', 600: 'அறுநூறு', 700: 'எழுநூறு', 800: 'எண்ணூறு', 900: 'தொள்ளாயிரம்'
+    }
+    
+    hundreds_prefix = {
+        100: 'நூற்று', 200: 'இருநூற்று', 300: 'முந்நூற்று', 400: 'நானூற்று',
+        500: 'ஐந்நூற்று', 600: 'அறுநூற்று', 700: 'எழுநூற்று', 800: 'எண்ணூற்று', 900: 'தொள்ளாயிரத்து'
     }
 
     parts = []
+    
+    # Hundreds
     if n >= 100:
-        h = n // 100
-        if h > 0:
-            if h == 1:
-                parts.append('ÃƒÂ Ã‚Â®Ã‚Â¨ÃƒÂ Ã‚Â¯Ã¢â‚¬Å¡ÃƒÂ Ã‚Â®Ã‚Â±ÃƒÂ Ã‚Â¯Ã‚Â')
-            else:
-                parts.append(ones.get(h, '') + ' ÃƒÂ Ã‚Â®Ã‚Â¨ÃƒÂ Ã‚Â¯Ã¢â‚¬Å¡ÃƒÂ Ã‚Â®Ã‚Â±ÃƒÂ Ã‚Â¯Ã‚Â')
-        n = n % 100
-
-    if n >= 20:
-        t = (n // 10) * 10
-        if t in tens:
-            parts.append(tens[t])
-            r = n % 10
-            if r:
-                parts.append(ones.get(r, ''))
+        h_val = (n // 100) * 100
+        rem = n % 100
+        if rem == 0:
+            return hundreds_exact.get(h_val, '')
         else:
-            parts.append(ones.get(n, ''))
+            parts.append(hundreds_prefix.get(h_val, ''))
+            n = rem
+
+    # Tens and units
+    if n >= 20:
+        t_val = (n // 10) * 10
+        rem = n % 10
+        if rem == 0:
+            parts.append(tens_exact.get(t_val, ''))
+        else:
+            parts.append(tens_prefix.get(t_val, ''))
+            parts.append(ones.get(rem, ''))
     elif n > 0:
         parts.append(ones.get(n, ''))
 
     return ' '.join([p for p in parts if p])
 
 
+def _int_to_tamil_units(n):
+    """Convert small integer (e.g. for count of thousands, lakhs) with proper prefix."""
+    unit_prefixes = {
+        1: 'ஒரு', 2: 'இரண்டு', 3: 'மூன்று', 4: 'நான்கு', 5: 'ஐந்து',
+        6: 'ஆறு', 7: 'ஏழு', 8: 'எட்டு', 9: 'ஒன்பது'
+    }
+    if n in unit_prefixes:
+        return unit_prefixes[n]
+    return _int_to_tamil_under_thousand(n)
+
+
 def number_to_tamil_words(amount):
-    """Convert numeric amount to Tamil words (Indian grouping)."""
+    """Convert numeric amount to clean Tamil words (Indian grouping)."""
     try:
-        dec = Decimal(amount)
+        dec = Decimal(str(amount))
     except Exception:
         return ''
 
     rupees = int(dec)
-    paise = int((dec - rupees) * 100)
+    paise = int(round((dec - Decimal(rupees)) * 100))
 
-    if rupees == 0:
-        rupees_words = 'ÃƒÂ Ã‚Â®Ã…Â¡ÃƒÂ Ã‚Â¯Ã‚ÂÃƒÂ Ã‚Â®Ã‚Â´ÃƒÂ Ã‚Â®Ã‚Â¿ÃƒÂ Ã‚Â®Ã‚Â¯ÃƒÂ Ã‚Â®Ã‚Â®ÃƒÂ Ã‚Â¯Ã‚Â'
+    if rupees == 0 and paise == 0:
+        return 'பூஜ்ஜியம் ரூபாய் மட்டும்'
+
+    parts = []
+
+    # Crores (1,00,00,000)
+    crores = rupees // 10000000
+    if crores:
+        parts.append(f"{_int_to_tamil_units(crores)} கோடி")
+    rupees = rupees % 10000000
+
+    # Lakhs (1,00,000)
+    lakhs = rupees // 100000
+    if lakhs:
+        parts.append(f"{_int_to_tamil_units(lakhs)} லட்சம்")
+    rupees = rupees % 100000
+
+    # Thousands (1,000)
+    thousands = rupees // 1000
+    if thousands:
+        parts.append(f"{_int_to_tamil_units(thousands)} ஆயிரம்")
+    rupees = rupees % 1000
+
+    # Under Thousand
+    if rupees:
+        parts.append(_int_to_tamil_under_thousand(rupees))
+
+    rupees_str = ' '.join([p for p in parts if p]).strip()
+    if rupees_str:
+        result = f"{rupees_str} ரூபாய் மட்டும்"
     else:
-        parts = []
-        crore = rupees // 10000000
-        if crore:
-            parts.append(f"{_int_to_tamil_under_thousand(crore)} ÃƒÂ Ã‚Â®Ã¢â‚¬Â¢ÃƒÂ Ã‚Â¯Ã¢â‚¬Â¹ÃƒÂ Ã‚Â®Ã…Â¸ÃƒÂ Ã‚Â®Ã‚Â¿")
-        rupees = rupees % 10000000
+        result = ''
 
-        lakh = rupees // 100000
-        if lakh:
-            parts.append(f"{_int_to_tamil_under_thousand(lakh)} ÃƒÂ Ã‚Â®Ã‚Â²ÃƒÂ Ã‚Â®Ã…Â¸ÃƒÂ Ã‚Â¯Ã‚ÂÃƒÂ Ã‚Â®Ã…Â¡ÃƒÂ Ã‚Â®Ã‚Â®ÃƒÂ Ã‚Â¯Ã‚Â")
-        rupees = rupees % 100000
+    if paise > 0:
+        paise_str = _int_to_tamil_under_thousand(paise)
+        if result:
+            result = f"{rupees_str} ரூபாய் {paise_str} பைசா மட்டும்"
+        else:
+            result = f"{paise_str} பைசா மட்டும்"
 
-        thousand = rupees // 1000
-        if thousand:
-            parts.append(f"{_int_to_tamil_under_thousand(thousand)} ÃƒÂ Ã‚Â®Ã¢â‚¬Â ÃƒÂ Ã‚Â®Ã‚Â¯ÃƒÂ Ã‚Â®Ã‚Â¿ÃƒÂ Ã‚Â®Ã‚Â°ÃƒÂ Ã‚Â®Ã‚Â®ÃƒÂ Ã‚Â¯Ã‚Â")
-        rupees = rupees % 1000
-
-        if rupees:
-            parts.append(_int_to_tamil_under_thousand(rupees))
-
-        rupees_words = ' '.join([p for p in parts if p])
-
-    result = f"{rupees_words} ÃƒÂ Ã‚Â®Ã‚Â°ÃƒÂ Ã‚Â¯Ã¢â‚¬Å¡ÃƒÂ Ã‚Â®Ã‚ÂªÃƒÂ Ã‚Â®Ã‚Â¾ÃƒÂ Ã‚Â®Ã‚Â¯ÃƒÂ Ã‚Â¯Ã‚Â"
-    if paise:
-        paise_words = _int_to_tamil_under_thousand(paise)
-        result = f"{result} {paise_words} ÃƒÂ Ã‚Â®Ã‚ÂªÃƒÂ Ã‚Â®Ã‚Â£ÃƒÂ Ã‚Â¯Ã‹â€ "
     return result
 
 
@@ -1137,7 +1239,6 @@ class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, Lis
         # Calculate statistics efficiently - SINGLE QUERY with annotations
         from django.utils import timezone
         from django.db.models import Count, Q, Sum, F, Case, When
-        from decimal import Decimal
         
         today = timezone.now().date()
         
@@ -1560,11 +1661,50 @@ class LoanDetailView(LoginRequiredMixin, RoleBranchAccessMixin, DetailView):
         # Add payments and other related data to context
         context['payments'] = loan.payments.all().order_by('-payment_date')
         context['extensions'] = loan.extensions.all().order_by('-extension_date')
-        context['loan_items'] = loan.loanitem_set.all()
+        
+        # Fetch active vs released loan items
+        all_loan_items = list(loan.loanitem_set.all().select_related('item'))
+        if not all_loan_items:
+            all_loan_items = list(LoanItem.objects.filter(loan=loan).select_related('item'))
+            
+        active_loan_items = [it for it in all_loan_items if it.status != 'released']
+        released_loan_items = [it for it in all_loan_items if it.status == 'released']
+
+        context['loan_items'] = all_loan_items
+        context['active_loan_items'] = active_loan_items
+        context['released_loan_items'] = released_loan_items
+        
+        # Calculate active in-vault collateral totals
+        total_items_qty = sum(it.quantity or 1 for it in active_loan_items)
+        total_gross_wt = sum(it.gross_weight or Decimal('0.000') for it in active_loan_items)
+        total_net_wt = sum(it.net_weight or Decimal('0.000') for it in active_loan_items)
+        total_stone_wt = sum(it.stone_weight or Decimal('0.000') for it in active_loan_items)
+        total_collateral_valuation = sum(it.item_valuation for it in active_loan_items)
+        
+        context['total_items_qty'] = total_items_qty
+        context['total_gross_wt'] = total_gross_wt
+        context['total_net_wt'] = total_net_wt
+        context['total_stone_wt'] = total_stone_wt
+        context['total_collateral_valuation'] = total_collateral_valuation
+
+        # Live LTV based on current principal and active collateral
+        if total_collateral_valuation > Decimal('0.00'):
+            context['current_ltv'] = ((loan.principal_amount / total_collateral_valuation) * Decimal('100')).quantize(Decimal('0.01'))
+        else:
+            context['current_ltv'] = Decimal('0.00')
+
+        # Live Accrued Interest & Net Payable Today
+        try:
+            from transactions.services_partial_release import get_loan_current_interest_due
+            today_interest_due = get_loan_current_interest_due(loan)
+            context['today_interest_due'] = today_interest_due
+            context['today_net_payable'] = loan.principal_amount + today_interest_due
+        except Exception:
+            context['today_interest_due'] = Decimal('0.00')
+            context['today_net_payable'] = loan.principal_amount
         
         # Process item photos for the template using centralized function
         context['item_photos_list'] = process_item_photos_for_display(loan.item_photos)
-        print(f"Retrieved {len(context['item_photos_list'])} item photos from database for loan {loan.loan_number}")
             
         return context
 
@@ -1756,6 +1896,11 @@ class LoanUpdateView(LoginRequiredMixin, RoleBranchAccessMixin, UpdateView):
     def get_success_url(self):
         return reverse('loan_detail', kwargs={'loan_number': self.object.loan_number})
     
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+    
     def get_initial(self):
         initial = super().get_initial()
         if self.object:
@@ -1912,14 +2057,16 @@ class LoanEditLogsView(LoginRequiredMixin, RoleBranchAccessMixin, DetailView):
 
 class PaymentCreateView(LoginRequiredMixin, RoleBranchAccessMixin, CreateView):
     model = Payment
+    form_class = PaymentRecordForm
     template_name = 'transactions/payment_form.html'
-    fields = ['amount', 'payment_date', 'payment_method', 'reference_number', 'notes']
     
     def get_initial(self):
         """Set default values for form fields"""
         initial = super().get_initial()
         # Set payment_date to today's date
         initial['payment_date'] = timezone.now().date()
+        # Default payment method to cash
+        initial['payment_method'] = 'cash'
         return initial
     
     def get_context_data(self, **kwargs):
@@ -1929,14 +2076,29 @@ class PaymentCreateView(LoginRequiredMixin, RoleBranchAccessMixin, CreateView):
         # enforce branch access
         self.check_object_branch_access(loan, branch_attr='branch')
         context['loan'] = loan
-        
+
         # Calculate remaining balance for full payment
         try:
             remaining_balance = loan.total_payable_till_date - loan.amount_paid
             context['remaining_balance'] = max(remaining_balance, 0)
         except:
             context['remaining_balance'] = 0
-            
+
+        # Today's accrued interest & net payable for live calculator
+        try:
+            from transactions.services_partial_release import get_loan_current_interest_due
+            today_interest = get_loan_current_interest_due(loan)
+            context['today_interest'] = today_interest
+            context['today_net_payable'] = loan.principal_amount + today_interest
+            context['loan_principal'] = loan.principal_amount
+        except Exception:
+            context['today_interest'] = Decimal('0.00')
+            context['today_net_payable'] = loan.principal_amount
+            context['loan_principal'] = loan.principal_amount
+
+        # Payment history
+        context['payments'] = loan.payments.order_by('-payment_date')[:10]
+
         return context
     
     def form_valid(self, form):
@@ -1950,51 +2112,121 @@ class PaymentCreateView(LoginRequiredMixin, RoleBranchAccessMixin, CreateView):
             messages.error(self.request, f'Cannot record payment for loan {loan_number}. Current status: {loan.get_status_display()}')
             return redirect('loan_detail', loan_number=loan_number)
         
+        # Section 269ST Compliance: Daily cash repayment ceiling of ₹1,99,999 per customer across all branches
+        payment_method = form.cleaned_data.get('payment_method')
+        payment_date = form.cleaned_data.get('payment_date') or timezone.now().date()
+        payment_amount = form.cleaned_data.get('amount') or Decimal('0.00')
+
+        if str(payment_method).lower() == 'cash':
+            from django.db.models import Sum
+            same_day_cash = Payment.objects.filter(
+                loan__customer=loan.customer,
+                payment_date=payment_date,
+                payment_method__iexact='cash'
+            ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+            if same_day_cash + Decimal(str(payment_amount)) >= Decimal('200000.00'):
+                max_allowed = max(Decimal('0.00'), Decimal('199999.00') - same_day_cash)
+                form.add_error(
+                    'payment_method',
+                    f"Section 269ST Statutory Violation: Total daily cash repayments from a customer across all branches cannot reach or exceed ₹2,00,000 (Statutory maximum cash allowed per day is ₹1,99,999). "
+                    f"Today's existing cash repayments for {loan.customer.full_name}: ₹{same_day_cash:,.2f}. "
+                    f"Maximum cash remaining for today: ₹{max_allowed:,.2f}. "
+                    f"Please select a digital payment mode (Bank Transfer, UPI, Cheque, or NetBanking)."
+                )
+                return self.form_invalid(form)
+
         form.instance.loan = loan
         form.instance.received_by = self.request.user
         
-        # Calculate remaining balance before this payment
+        # Calculate remaining balance before this payment and prevent excess payment
         try:
-            remaining_balance = loan.total_payable_till_date - loan.amount_paid
-            payment_amount = form.instance.amount
+            remaining_balance = max(Decimal('0.00'), loan.total_payable_till_date - loan.amount_paid)
+            if payment_amount > remaining_balance:
+                form.add_error(
+                    'amount',
+                    f"Payment amount of ₹{payment_amount:,.2f} exceeds the outstanding balance of ₹{remaining_balance:,.2f}. "
+                    f"Maximum payable amount is ₹{remaining_balance:,.2f}."
+                )
+                return self.form_invalid(form)
             
             # Check if this payment will fully settle the loan
-            will_close_loan = payment_amount >= remaining_balance
-            
+            will_close_loan = (payment_amount == remaining_balance and remaining_balance > 0)
+        except Exception:
+            will_close_loan = False
+            remaining_balance = Decimal('0.00')
+
+        try:
+            from transactions.services_partial_release import get_loan_current_interest_due
+            current_interest_due = get_loan_current_interest_due(loan)
+
+            interest_paid = min(payment_amount, current_interest_due)
+            principal_paid = max(Decimal('0.00'), payment_amount - current_interest_due)
+
+            if not form.instance.notes:
+                form.instance.notes = f"Part Payment (Interest: ₹{interest_paid:,.2f}, Principal: ₹{principal_paid:,.2f})"
+
             # Save the payment first
             response = super().form_valid(form)
-            
-            # If payment fully settles the loan, close it
-            if will_close_loan and remaining_balance > 0:
+
+            # Update Loan Financials: reduce principal_amount if payment exceeded accrued interest
+            old_principal = loan.principal_amount
+            if principal_paid > Decimal('0.00'):
+                loan.principal_amount = max(Decimal('0.00'), loan.principal_amount - principal_paid)
+                if interest_paid > Decimal('0.00'):
+                    loan.accrued_interest = max(Decimal('0.00'), Decimal(str(loan.accrued_interest)) - interest_paid)
+            elif interest_paid > Decimal('0.00'):
+                loan.accrued_interest = max(Decimal('0.00'), Decimal(str(loan.accrued_interest)) - interest_paid)
+
+            # If payment fully settles the loan (or principal reduced to 0), close it
+            if will_close_loan or loan.principal_amount <= Decimal('0.00'):
                 loan.status = 'closed'
                 loan.closure_date = timezone.now().date()
                 loan.closed_by = self.request.user
                 loan.save()
 
-                # Log payment and closure with status change and payment detail
                 try:
                     from accounts.models import LoanEditLog
-                    old_status = 'active' if loan.status == 'closed' else 'unknown'
                     LoanEditLog.objects.create(
                         loan=loan,
                         edited_by=self.request.user,
                         change_type='payment',
-                        description=f'Loan closed by payment from {self.request.user.get_full_name() or self.request.user.username}',
+                        description=f'Loan closed by full payment of ₹{payment_amount:,.2f}',
                         changes={
-                            'status': {'old': old_status, 'new': 'closed'},
+                            'status': {'old': 'active', 'new': 'closed'},
+                            'principal_amount': {'old': str(old_principal), 'new': '0.00'},
                             'payment_amount': {'old': None, 'new': str(payment_amount)}
                         }
                     )
                 except Exception:
                     pass
-                
+
                 messages.success(
-                    self.request, 
-                    f'Payment recorded successfully! Loan {loan_number} has been automatically closed as the full amount has been paid.'
+                    self.request,
+                    f'Payment of ₹{payment_amount:,.2f} recorded successfully! Loan {loan_number} has been fully settled and closed.'
                 )
             else:
-                messages.success(self.request, 'Payment recorded successfully!')
-                
+                loan.save()
+                try:
+                    from accounts.models import LoanEditLog
+                    LoanEditLog.objects.create(
+                        loan=loan,
+                        edited_by=self.request.user,
+                        change_type='payment',
+                        description=f'Part Payment of ₹{payment_amount:,.2f} (Interest: ₹{interest_paid:,.2f}, Principal: ₹{principal_paid:,.2f})',
+                        changes={
+                            'principal_amount': {'old': str(old_principal), 'new': str(loan.principal_amount)},
+                            'payment_amount': {'old': None, 'new': str(payment_amount)}
+                        }
+                    )
+                except Exception:
+                    pass
+
+                messages.success(
+                    self.request,
+                    f'Part Payment of ₹{payment_amount:,.2f} recorded! Interest cleared: ₹{interest_paid:,.2f}, Principal reduced from ₹{old_principal:,.2f} to ₹{loan.principal_amount:,.2f}.'
+                )
+
             return response
             
         except Exception as e:
@@ -2145,7 +2377,7 @@ class LoanDocumentView(LoginRequiredMixin, RoleBranchAccessMixin, View):
             else:
                 customer_photo = loan.customer_face_capture
 
-        loan_items = loan.loanitem_set.all()
+        loan_items = loan.loanitem_set.exclude(status='released')
         language_context = build_loan_pdf_language_context(loan, current_language)
 
         # Same filename logic used by template-based method
@@ -2267,8 +2499,8 @@ class LoanDocumentView(LoginRequiredMixin, RoleBranchAccessMixin, View):
             else:
                 customer_photo = loan.customer_face_capture
         
-        # Ensure we have loan items
-        loan_items = loan.loanitem_set.all()
+        # Ensure we have loan items (active pledged items)
+        loan_items = loan.loanitem_set.exclude(status='released')
         language_context = build_loan_pdf_language_context(loan, current_language)
         print(f"Found {loan_items.count()} loan items")
         
@@ -2809,10 +3041,15 @@ class LoanScheduleView(LoginRequiredMixin, RoleBranchAccessMixin, View):
         except Exception:
             proc_fee_d = Decimal('0')
 
+        # Current outstanding principal (reduced by part payments)
+        current_principal_d = Decimal(str(getattr(loan, 'principal_amount', 0) or 0))
+        # Interest base = min(original distribution, current outstanding principal)
+        interest_base_d = min(dist_amt_d, current_principal_d) if dist_amt_d > 0 and current_principal_d > 0 else dist_amt_d
+
         if dist_amt_d > Decimal('0'):
             principal = (dist_amt_d + proc_fee_d).quantize(Decimal('0.01'))
         else:
-            principal = Decimal(str(getattr(loan, 'principal_amount', 0) or 0))
+            principal = current_principal_d
 
         rate_annual = Decimal(str(getattr(loan, 'interest_rate', 0) or 0))
         today = timezone.now().date()
@@ -2842,8 +3079,8 @@ class LoanScheduleView(LoginRequiredMixin, RoleBranchAccessMixin, View):
         principal_per_month = (principal / Decimal(num_months)).quantize(Decimal('0.01'))
         last_month_principal = (principal - principal_per_month * (num_months - 1)).quantize(Decimal('0.01'))
 
-        # Interest is calculated on distribution amount only (not including processing fee)
-        monthly_interest_const = (dist_amt_d * monthly_rate).quantize(Decimal('0.01'))
+        # Interest is calculated on current outstanding amount (not original if reduced by part payments)
+        monthly_interest_const = (interest_base_d * monthly_rate).quantize(Decimal('0.01'))
 
         # Log diagnostics for inspection
         try:
@@ -3406,11 +3643,16 @@ class LoanEMIScheduleView(LoginRequiredMixin, RoleBranchAccessMixin, View):
         except Exception:
             proc_fee_d = Decimal('0')
         
+        # Current outstanding principal (reflects part payments)
+        current_principal_d = Decimal(str(getattr(loan, 'principal_amount', 0) or 0))
+        # Interest base = min(original distribution, current outstanding principal)
+        interest_base_d = min(dist_amt_d, current_principal_d) if dist_amt_d > 0 and current_principal_d > 0 else dist_amt_d
+
         # Total principal = distribution + processing fee
         if dist_amt_d > Decimal('0'):
             principal = (dist_amt_d + proc_fee_d).quantize(Decimal('0.01'))
         else:
-            principal = Decimal(str(getattr(loan, 'principal_amount', 0) or 0))
+            principal = current_principal_d
         
         rate_annual = Decimal(str(getattr(loan, 'interest_rate', 0) or 0))
         issue_date = getattr(loan, 'issue_date', None)
@@ -3431,8 +3673,8 @@ class LoanEMIScheduleView(LoginRequiredMixin, RoleBranchAccessMixin, View):
         one_plus_r = Decimal('1') + monthly_rate
         one_plus_r_n = one_plus_r ** num_months
         
-        # EMI calculation based on distribution amount only
-        emi_interest = (dist_amt_d * monthly_rate * one_plus_r_n / (one_plus_r_n - Decimal('1'))).quantize(Decimal('0.01'))
+        # EMI calculation based on current outstanding interest base (tracks part payments)
+        emi_interest = (interest_base_d * monthly_rate * one_plus_r_n / (one_plus_r_n - Decimal('1'))).quantize(Decimal('0.01'))
         
         # Add prorated processing fee to each EMI
         processing_fee_per_month = (proc_fee_d / Decimal(num_months)).quantize(Decimal('0.01'))
@@ -3440,7 +3682,7 @@ class LoanEMIScheduleView(LoginRequiredMixin, RoleBranchAccessMixin, View):
         
         # Generate schedule
         rows = []
-        remaining_principal = dist_amt_d
+        remaining_principal = interest_base_d
         remaining_proc_fee = proc_fee_d
         total_interest_paid = Decimal('0')
         
@@ -3754,4 +3996,164 @@ def number_to_words(request, number):
         return JsonResponse({'words': words})
     except (ValueError, TypeError):
         return JsonResponse({'words': 'Invalid number'}, status=400)
+
+
+def get_customer_bank_details(request, customer_id):
+    """API endpoint to fetch customer's bank details for auto-populating loan form"""
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+    
+    try:
+        from accounts.models import Customer
+        customer = Customer.objects.get(pk=customer_id)
+        return JsonResponse({
+            'success': True,
+            'bank_account_number': customer.bank_account_number or '',
+            'bank_ifsc_code': customer.bank_ifsc_code or '',
+            'bank_name': customer.bank_name or '',
+            'bank_beneficiary_name': customer.bank_beneficiary_name or customer.full_name or '',
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=404)
+
+
+# ==============================================================================
+# Task 2.1: Tiered Maker-Checker Loan Approval Workflow & Approval Queue
+# ==============================================================================
+class LoanApprovalQueueView(LoginRequiredMixin, View):
+    """
+    Real-time Loan Approval Queue for Branch Managers, Regional Managers & Head Office.
+    Provides appraisal dossier, KYC verification, gold valuation metrics, and digital sign-off.
+    """
+    template_name = 'transactions/loan_approval_queue.html'
+
+    def get_accessible_loans(self, request):
+        user = request.user
+        role = getattr(user, 'role', None)
+        role_type = getattr(role, 'role_type', None) if role else str(getattr(user, 'role', ''))
+
+        qs = Loan.objects.select_related('customer', 'branch', 'scheme', 'maker', 'checker_bm', 'checker_ro', 'checker_ho').all()
+
+        # Role-based hierarchy scoping
+        if user.is_superuser or role_type in ['admin', 'headoffice', 'finance_manager']:
+            # Enterprise-wide
+            pass
+        elif role_type == 'regional_manager':
+            # Regional Manager: scoped to user's assigned regions
+            if hasattr(user, 'regions') and user.regions.exists():
+                qs = qs.filter(branch__region__in=user.regions.all())
+            elif user.branch and user.branch.region:
+                qs = qs.filter(branch__region=user.branch.region)
+            # RM sees Tier 2 & Tier 3 loans
+            qs = qs.filter(approval_tier__in=[2, 3])
+        elif role_type == 'branch_manager' or (user.branch and user == user.branch.manager):
+            # Branch Manager: scoped to their branch
+            if user.branch:
+                qs = qs.filter(branch=user.branch)
+        else:
+            # Frontline staff/appraisers only see loans they created
+            qs = qs.filter(maker=user)
+
+        return qs
+
+    def get(self, request):
+        base_qs = self.get_accessible_loans(request)
+        tab = request.GET.get('tab', 'pending')
+        tier = request.GET.get('tier')
+        branch_id = request.GET.get('branch_id')
+
+        # Filter by tab
+        if tab == 'pending':
+            loans = base_qs.filter(status='pending_approval')
+        elif tab == 'approved':
+            loans = base_qs.filter(status='approved')
+        elif tab == 'rejected':
+            loans = base_qs.filter(status='rejected')
+        elif tab == 'disbursed':
+            loans = base_qs.filter(status='active')
+        else:
+            loans = base_qs.filter(status__in=['pending_approval', 'approved', 'rejected'])
+
+        if tier and tier.isdigit():
+            loans = loans.filter(approval_tier=int(tier))
+        if branch_id and branch_id.isdigit():
+            loans = loans.filter(branch_id=int(branch_id))
+
+        loans = loans.order_by('-created_at')
+
+        # Metrics for badges
+        pending_count = base_qs.filter(status='pending_approval').count()
+        approved_count = base_qs.filter(status='approved').count()
+        rejected_count = base_qs.filter(status='rejected').count()
+        
+        tier1_pending = base_qs.filter(status='pending_approval', approval_tier=1).count()
+        tier2_pending = base_qs.filter(status='pending_approval', approval_tier=2).count()
+        tier3_pending = base_qs.filter(status='pending_approval', approval_tier=3).count()
+
+        from branches.models import Branch
+        all_branches = Branch.objects.filter(is_active=True)
+
+        context = {
+            'loans': loans,
+            'tab': tab,
+            'pending_count': pending_count,
+            'approved_count': approved_count,
+            'rejected_count': rejected_count,
+            'tier1_pending': tier1_pending,
+            'tier2_pending': tier2_pending,
+            'tier3_pending': tier3_pending,
+            'all_branches': all_branches,
+            'selected_branch': branch_id,
+            'selected_tier': tier,
+        }
+        return render(request, self.template_name, context)
+
+
+class LoanApproveActionView(LoginRequiredMixin, View):
+    """Action to approve loan application for current tier"""
+    def post(self, request, pk):
+        loan = get_object_or_404(Loan, pk=pk)
+        if not loan.can_user_approve(request.user):
+            messages.error(request, f"Permission Denied: You are not authorized to approve Tier {loan.approval_tier} for Loan #{loan.loan_number}.")
+            return redirect('loan_approval_queue')
+
+        notes = request.POST.get('approval_notes', '')
+        new_status = loan.approve(request.user, notes)
+
+        if new_status == 'approved':
+            messages.success(request, f"Loan #{loan.loan_number} (₹{loan.principal_amount:,.2f}) has received FINAL APPROVAL and is now READY FOR DISBURSAL.")
+        else:
+            messages.info(request, f"Tier Approval granted for Loan #{loan.loan_number}. Advanced to next checker level.")
+
+        return redirect('loan_approval_queue')
+
+
+class LoanRejectActionView(LoginRequiredMixin, View):
+    """Action to reject loan application with mandatory reason"""
+    def post(self, request, pk):
+        loan = get_object_or_404(Loan, pk=pk)
+        reason = request.POST.get('rejection_reason', '').strip()
+        if not reason:
+            messages.error(request, "Rejection reason is mandatory when declining a loan application.")
+            return redirect('loan_approval_queue')
+
+        loan.reject(request.user, reason)
+        messages.warning(request, f"Loan application #{loan.loan_number} has been officially REJECTED. Reason recorded.")
+        return redirect('loan_approval_queue')
+
+
+class LoanReappraisalActionView(LoginRequiredMixin, View):
+    """Action to send loan back for physical re-appraisal / weight re-verification"""
+    def post(self, request, pk):
+        loan = get_object_or_404(Loan, pk=pk)
+        notes = request.POST.get('reappraisal_notes', '').strip()
+        if not notes:
+            messages.error(request, "Re-appraisal notes / instructions are required.")
+            return redirect('loan_approval_queue')
+
+        loan.request_reappraisal(request.user, notes)
+        messages.info(request, f"Loan #{loan.loan_number} sent back to Appraiser for physical re-appraisal.")
+        return redirect('loan_approval_queue')
+
+
 

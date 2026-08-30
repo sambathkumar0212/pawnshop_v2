@@ -71,6 +71,10 @@ urlpatterns = [
     # Deployment status check (no login required for easy access)
     path('deployment-status/', views.check_deployment_status, name='deployment_status'),
     
+    # Global Search
+    path('search/', views.GlobalSearchView.as_view(), name='global_search'),
+    path('search/api/', views.GlobalSearchAjaxView.as_view(), name='global_search_api'),
+    
     # Dashboard
     path('', views.DashboardView.as_view(), name='dashboard'),
     

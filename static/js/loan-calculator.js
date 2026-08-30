@@ -436,6 +436,14 @@ document.addEventListener('DOMContentLoaded', function() {
         processingFeeInput.addEventListener('input', calculateLoanMetrics);
     }
     
+    if (distributionAmountInput) {
+        distributionAmountInput.addEventListener('input', function() {
+            if (typeof window.recalculateFromDistributionAmount === 'function') {
+                window.recalculateFromDistributionAmount();
+            }
+        });
+    }
+    
     const isFirstMonthPaidInput = document.getElementById('id_is_first_month_interest_paid');
     if (isFirstMonthPaidInput) {
         isFirstMonthPaidInput.addEventListener('change', function() {

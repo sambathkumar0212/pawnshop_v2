@@ -7,223 +7,86 @@
 
 {% block extra_css %}
 <style>
-    .page-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 2rem 0;
-        margin-bottom: 2rem;
-        border-radius: 0.5rem;
-    }
-    
-    .form-section {
+    /* Compact High-Density Customer Form */
+    .form-card {
         background: #ffffff;
-        border: 1px solid #e3e6f0;
-        border-radius: 0.75rem;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
-        transition: all 0.3s ease;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+        margin-bottom: 0.75rem;
     }
     
-    .form-section:hover {
-        box-shadow: 0 0.25rem 2rem 0 rgba(58, 59, 69, 0.2);
-        transform: translateY(-2px);
-    }
-    
-    .section-header {
+    .form-card-header {
+        padding: 0.5rem 0.875rem;
+        background-color: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+        border-top-left-radius: 7px;
+        border-top-right-radius: 7px;
         display: flex;
         align-items: center;
-        margin-bottom: 1.5rem;
-        padding-bottom: 0.75rem;
-        border-bottom: 2px solid #f8f9fc;
+        gap: 0.5rem;
     }
-    
-    .section-icon {
-        width: 2.5rem;
-        height: 2.5rem;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 1rem;
-        font-size: 1.1rem;
-    }
-    
-    .section-title {
-        font-size: 1.25rem;
+
+    .form-card-header h6 {
+        font-size: 0.85rem;
         font-weight: 600;
-        color: #5a5c69;
         margin: 0;
+        color: #0f172a;
     }
     
-    .form-control, .form-select {
-        border: 1.5px solid #d1d3e2;
-        border-radius: 0.5rem;
-        padding: 0.75rem 1rem;
-        font-size: 0.95rem;
-        transition: all 0.2s ease;
+    .form-card-body {
+        padding: 0.75rem 0.875rem;
     }
-    
-    .form-control:focus, .form-select:focus {
-        border-color: #667eea;
-        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-    }
-    
+
     .form-label {
+        font-size: 0.8rem;
         font-weight: 600;
-        color: #5a5c69;
-        margin-bottom: 0.5rem;
-        font-size: 0.9rem;
+        color: #475569;
+        margin-bottom: 0.2rem;
+    }
+
+    .form-control, .form-select {
+        font-size: 0.84rem;
+        padding: 0.35rem 0.6rem;
+        border-color: #cbd5e1;
+        border-radius: 6px;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
     }
     
     .required-field::after {
         content: " *";
-        color: #e74a3b;
+        color: #dc2626;
         font-weight: bold;
     }
-    
-    .id-capture-section {
-        background: #f8f9fc;
-        border: 2px dashed #d1d3e2;
-        border-radius: 0.75rem;
-        padding: 1.5rem;
+
+    .media-box {
+        background: #f8fafc;
+        border: 1.5px dashed #cbd5e1;
+        border-radius: 6px;
+        padding: 0.5rem;
         text-align: center;
-        transition: all 0.3s ease;
+        transition: all 0.2s ease;
     }
-    
-    .id-capture-section:hover {
-        border-color: #667eea;
-        background: #f4f6ff;
+    .media-box:hover {
+        border-color: #3b82f6;
+        background: #eff6ff;
     }
-    
-    .capture-options {
-        display: flex;
-        gap: 1rem;
-        justify-content: center;
-        flex-wrap: wrap;
-        margin-bottom: 1rem;
-    }
-    
-    .capture-option {
-        flex: 1;
-        min-width: 200px;
-        max-width: 250px;
-    }
-    
-    .btn-capture {
-        width: 100%;
-        padding: 0.75rem 1rem;
-        border-radius: 0.5rem;
-        font-weight: 600;
-        transition: all 0.3s ease;
-    }
-    
-    .btn-upload {
-        background: #1cc88a;
-        border-color: #1cc88a;
-        color: white;
-    }
-    
-    .btn-upload:hover {
-        background: #17a673;
-        border-color: #17a673;
-        transform: translateY(-2px);
-    }
-    
-    .btn-camera {
-        background: #36b9cc;
-        border-color: #36b9cc;
-        color: white;
-    }
-    
-    .btn-camera:hover {
-        background: #2c9faf;
-        border-color: #2c9faf;
-        transform: translateY(-2px);
-    }
-    
-    .image-preview-container {
-        margin-top: 1rem;
-        padding: 1rem;
-        background: white;
-        border-radius: 0.5rem;
-        border: 1px solid #e3e6f0;
-    }
-    
-    #id-image-preview {
-        width: 100%;
-        max-width: 360px;
-        max-height: 320px;
+
+    #profile-photo-preview, #id-image-preview {
+        max-width: 100%;
+        max-height: 140px;
         object-fit: contain;
-        border-radius: 0.5rem;
-        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        border-radius: 4px;
+        border: 1px solid #e2e8f0;
         margin: 0 auto;
         display: block;
     }
 
-    #profile-photo-preview {
-        width: 100%;
-        max-width: 360px;
-        max-height: 320px;
-        object-fit: contain;
-        border-radius: 0.5rem;
-        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-        margin: 0 auto;
-        display: block;
-    }
-    
-    .action-buttons {
-        display: flex;
-        gap: 1rem;
-        justify-content: flex-end;
-        margin-top: 2rem;
-        padding-top: 2rem;
-        border-top: 2px solid #f8f9fc;
-    }
-    
-    .btn-primary-custom {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border: none;
-        color: white;
-        padding: 0.75rem 2rem;
-        border-radius: 0.5rem;
-        font-weight: 600;
-        transition: all 0.3s ease;
-    }
-    
-    .btn-primary-custom:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 0.5rem 1rem rgba(102, 126, 234, 0.3);
-    }
-    
-    .btn-secondary-custom {
-        background: #6c757d;
-        border: none;
-        color: white;
-        padding: 0.75rem 2rem;
-        border-radius: 0.5rem;
-        font-weight: 600;
-        transition: all 0.3s ease;
-    }
-    
-    .btn-secondary-custom:hover {
-        background: #5a6268;
-        transform: translateY(-2px);
-    }
-    
-    .alert-custom {
-        border: none;
-        border-radius: 0.75rem;
-        padding: 1rem 1.5rem;
-        margin-bottom: 1.5rem;
-    }
-    
-    .alert-danger-custom {
-        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
-        color: white;
-    }
-    
-    /* Camera container styles */
+    /* Camera container modal */
     #camera-container {
         display: none;
         position: fixed;
@@ -235,513 +98,366 @@
         z-index: 1050;
         padding: 1rem;
     }
-    
     .camera-inner {
         position: relative;
-        max-width: 640px;
+        max-width: 580px;
         margin: 2rem auto;
         background: white;
-        padding: 2rem;
-        border-radius: 1rem;
-        box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.3);
-    }
-    
-    .camera-title {
-        text-align: center;
-        font-size: 1.5rem;
-        font-weight: 600;
-        color: #5a5c69;
-        margin-bottom: 1.5rem;
-    }
-    
-    #camera-video {
-        width: 100%;
-        border-radius: 0.5rem;
-        border: 2px solid #e3e6f0;
-    }
-    
-    .camera-controls {
-        margin-top: 1.5rem;
-        text-align: center;
-        display: flex;
-        gap: 0.75rem;
-        justify-content: center;
-        flex-wrap: wrap;
-    }
-    
-    /* Responsive design */
-    @media (max-width: 768px) {
-        .page-header {
-            padding: 1.5rem 0;
-        }
-        
-        .form-section {
-            padding: 1rem;
-        }
-        
-        .capture-options {
-            flex-direction: column;
-        }
-        
-        .capture-option {
-            max-width: none;
-        }
-        
-        .action-buttons {
-            flex-direction: column;
-        }
-        
-        .camera-inner {
-            margin: 1rem auto;
-            padding: 1.5rem;
-        }
+        padding: 1.25rem;
+        border-radius: 8px;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
-    <!-- Page Header -->
-    <div class="page-header">
-        <div class="container">
-            <div class="row align-items-center">
-                <div class="col-md-8">
-                    <h1 class="mb-2">
-                        <i class="fas fa-user-plus me-3"></i>
-                        {% if form.instance.pk %}Edit Customer{% else %}Add New Customer{% endif %}
-                    </h1>
-                    <p class="mb-0 opacity-75">
-                        {% if form.instance.pk %}
-                            Update customer information and documents
-                        {% else %}
-                            Create a new customer profile with complete information
-                        {% endif %}
-                    </p>
-                </div>
-                <div class="col-md-4 text-md-end">
-                    <a href="{% url 'customer_list' %}" class="btn btn-light btn-lg">
-                        <i class="fas fa-arrow-left me-2"></i>Back to Customers
+<div class="container-fluid py-2 px-3" style="background-color: #f8fafc; min-height: 90vh;">
+    <form method="post" enctype="multipart/form-data" novalidate id="customer-form">
+        {% csrf_token %}
+
+        <!-- Compact Top Action Header -->
+        <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+            <div class="d-flex align-items-center gap-2">
+                <h5 class="mb-0 fw-bold" style="color: #0f172a;">
+                    <i class="fas fa-user-edit text-primary me-2"></i>
+                    {% if form.instance.pk %}
+                        Edit Customer: {{ form.instance.first_name }} {{ form.instance.last_name }}
+                    {% else %}
+                        Add New Customer
+                    {% endif %}
+                </h5>
+                {% if form.instance.pk %}
+                    <span class="badge bg-light text-secondary border">ID #{{ form.instance.id }}</span>
+                {% endif %}
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                {% if form.instance.pk %}
+                    <a href="{% url 'customer_detail' form.instance.pk %}" class="btn btn-white border btn-sm text-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>Back to Customer
                     </a>
-                </div>
+                {% else %}
+                    <a href="{% url 'customer_list' %}" class="btn btn-white border btn-sm text-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>Back to Customers
+                    </a>
+                {% endif %}
+                <button type="submit" class="btn btn-primary btn-sm px-3 shadow-xs">
+                    <i class="fas fa-save me-1"></i>{% if form.instance.pk %}Save Changes{% else %}Create Customer{% endif %}
+                </button>
             </div>
         </div>
-    </div>
 
-    <div class="container">
-        <form method="post" enctype="multipart/form-data" novalidate id="customer-form">
-            {% csrf_token %}
-            
-            {% if form.errors %}
-            <div class="alert alert-danger-custom alert-custom">
-                <h5 class="mb-2"><i class="fas fa-exclamation-triangle me-2"></i>Please correct the following errors:</h5>
-                <ul class="mb-0">
-                    {% for field, errors in form.errors.items %}
-                        {% for error in errors %}
-                            <li>{{ field|title }}: {{ error }}</li>
-                        {% endfor %}
+        {% if form.errors %}
+        <div class="alert alert-danger py-2 px-3 mb-2" style="font-size: 0.85rem;">
+            <div class="fw-bold mb-1"><i class="fas fa-exclamation-triangle me-1"></i>Please correct the following errors:</div>
+            <ul class="mb-0 ps-3">
+                {% for field, errors in form.errors.items %}
+                    {% for error in errors %}
+                        <li>{{ field|title }}: {{ error }}</li>
                     {% endfor %}
-                </ul>
-            </div>
-            {% endif %}
-            
-            <!-- Hidden fields for camera data -->
-            <input type="hidden" name="camera_image_data" id="camera_image_data" value="{% if request.POST.camera_image_data %}{{ request.POST.camera_image_data }}{% endif %}">
-            <input type="hidden" name="profile_photo_data" id="profile_photo_data" value="{% if request.POST.profile_photo_data %}{{ request.POST.profile_photo_data }}{% elif form.instance.profile_photo %}{{ form.instance.profile_photo|escapejs }}{% endif %}">
-            <input type="hidden" name="remove_profile_photo" id="remove_profile_photo" value="0">
-            <input type="hidden" name="remove_id_image" id="remove_id_image" value="0">
-            
-            <!-- Branch Assignment Section -->
-            <div class="form-section">
-                <div class="section-header">
-                    <div class="section-icon" style="background: linear-gradient(135deg, #e74a3b 0%, #c0392b 100%); color: white;">
-                        <i class="fas fa-building"></i>
-                    </div>
-                    <h3 class="section-title">Branch Assignment</h3>
-                </div>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <!-- Hidden inputs for camera capture -->
+        <input type="hidden" name="camera_image_data" id="camera_image_data" value="{% if request.POST.camera_image_data %}{{ request.POST.camera_image_data }}{% endif %}">
+        <input type="hidden" name="profile_photo_data" id="profile_photo_data" value="{% if request.POST.profile_photo_data %}{{ request.POST.profile_photo_data }}{% elif form.instance.profile_photo %}{{ form.instance.profile_photo|escapejs }}{% endif %}">
+        <input type="hidden" name="remove_profile_photo" id="remove_profile_photo" value="0">
+        <input type="hidden" name="remove_id_image" id="remove_id_image" value="0">
+
+        <!-- 2-Column Space-Optimized Grid -->
+        <div class="row g-2">
+            <!-- Left 8 Columns: Form Fields -->
+            <div class="col-lg-8">
                 
-                <div class="row">
-                    <div class="col-md-8 mb-3">
-                        <label for="id_branch" class="form-label required-field">Branch</label>
-                        <select name="branch" id="id_branch" class="form-select" required>
-                            <option value="">Select a branch</option>
-                            {% for branch in form.branch.field.queryset %}
-                            <option value="{{ branch.pk }}" 
-                                {% if form.branch.value|stringformat:"s" == branch.pk|stringformat:"s" or form.instance.branch_id == branch.pk or form.branch.initial == branch or form.branch.initial == branch.pk %}selected{% endif %}
-                                data-address="{{ branch.address|default:'' }}"
-                                data-city="{{ branch.city|default:'' }}"
-                                data-state="{{ branch.state|default:'' }}"
-                                data-phone="{{ branch.phone|default:'' }}"
-                                data-email="{{ branch.email|default:'' }}">
-                                {{ branch.name }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                        {% if form.branch.errors %}
-                        <div class="invalid-feedback d-block">{{ form.branch.errors.0 }}</div>
-                        {% endif %}
-                        <small class="form-text text-muted">
-                            <i class="fas fa-info-circle me-1"></i>
-                            Select the branch where this customer will be managed
+                <!-- Section 1: Basic & Personal Info -->
+                <div class="form-card">
+                    <div class="form-card-header">
+                        <i class="fas fa-user-circle text-primary"></i>
+                        <h6>1. Basic & Personal Information</h6>
+                        <small class="text-muted ms-auto" style="font-size: 0.72rem;">
+                            <i class="fas fa-language me-1"></i>English & Tamil auto-transliteration active
                         </small>
                     </div>
-                    <div class="col-md-4 mb-3">
-                        <div id="branch-info-card" class="card border-0" style="background: #f8f9fc; display: none;">
-                            <div class="card-body p-3">
-                                <h6 class="card-title text-primary mb-2">
-                                    <i class="fas fa-building me-1"></i>Branch Details
-                                </h6>
-                                <div id="branch-address" class="mb-2" style="display: none;">
-                                    <small class="text-muted d-block">
-                                        <i class="fas fa-map-marker-alt me-1"></i>
-                                        <span id="branch-address-text"></span>
-                                    </small>
+                    <div class="form-card-body">
+                        <!-- Branch & Contact Row -->
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-6">
+                                <label for="id_branch" class="form-label required-field">Assigned Branch</label>
+                                <select name="branch" id="id_branch" class="form-select form-select-sm" required>
+                                    <option value="">Select a branch</option>
+                                    {% for branch in form.branch.field.queryset %}
+                                    <option value="{{ branch.pk }}" 
+                                        {% if form.branch.value|stringformat:"s" == branch.pk|stringformat:"s" or form.instance.branch_id == branch.pk or form.branch.initial == branch or form.branch.initial == branch.pk %}selected{% endif %}
+                                        data-address="{{ branch.address|default:'' }}"
+                                        data-city="{{ branch.city|default:'' }}"
+                                        data-state="{{ branch.state|default:'' }}"
+                                        data-phone="{{ branch.phone|default:'' }}"
+                                        data-email="{{ branch.email|default:'' }}">
+                                        {{ branch.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                {% if form.branch.errors %}
+                                <div class="invalid-feedback d-block">{{ form.branch.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <div id="branch-info-card" class="p-1 px-2 rounded bg-light border" style="display: none; font-size: 0.75rem;">
+                                    <span class="fw-semibold text-primary d-block" id="branch-address-text"></span>
+                                    <span class="text-muted me-2" id="branch-phone-text"></span>
+                                    <span class="text-muted" id="branch-email-text"></span>
                                 </div>
-                                <div id="branch-contact" class="mb-1" style="display: none;">
-                                    <small class="text-muted d-block">
-                                        <i class="fas fa-phone me-1"></i>
-                                        <span id="branch-phone-text"></span>
-                                    </small>
-                                </div>
-                                <div id="branch-email" class="mb-1" style="display: none;">
-                                    <small class="text-muted d-block">
-                                        <i class="fas fa-envelope me-1"></i>
-                                        <span id="branch-email-text"></span>
-                                    </small>
+                            </div>
+                        </div>
+
+                        <!-- Name Row -->
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-6">
+                                <label for="id_first_name" class="form-label required-field">First Name</label>
+                                {{ form.first_name|add_class:"form-control form-control-sm" }}
+                                {% if form.first_name.errors %}<div class="invalid-feedback d-block">{{ form.first_name.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="id_first_name_tamil" class="form-label">First Name (Tamil)</label>
+                                {{ form.first_name_tamil|add_class:"form-control form-control-sm" }}
+                                {% if form.first_name_tamil.errors %}<div class="invalid-feedback d-block">{{ form.first_name_tamil.errors.0 }}</div>{% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-6">
+                                <label for="id_last_name" class="form-label required-field">Last Name</label>
+                                {{ form.last_name|add_class:"form-control form-control-sm" }}
+                                {% if form.last_name.errors %}<div class="invalid-feedback d-block">{{ form.last_name.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="id_last_name_tamil" class="form-label">Last Name (Tamil)</label>
+                                {{ form.last_name_tamil|add_class:"form-control form-control-sm" }}
+                                {% if form.last_name_tamil.errors %}<div class="invalid-feedback d-block">{{ form.last_name_tamil.errors.0 }}</div>{% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Phone, Email, DOB Row -->
+                        <div class="row g-2">
+                            <div class="col-md-4">
+                                <label for="id_phone" class="form-label required-field">Mobile Phone</label>
+                                {{ form.phone|add_class:"form-control form-control-sm" }}
+                                {% if form.phone.errors %}<div class="invalid-feedback d-block">{{ form.phone.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-4">
+                                <label for="id_email" class="form-label">Email Address</label>
+                                {{ form.email|add_class:"form-control form-control-sm" }}
+                                {% if form.email.errors %}<div class="invalid-feedback d-block">{{ form.email.errors.0 }}</div>{% endif %}
+                            </div>
+                            {% if form.date_of_birth %}
+                            <div class="col-md-4">
+                                <label for="id_date_of_birth" class="form-label">Date of Birth</label>
+                                {{ form.date_of_birth|add_class:"form-control form-control-sm" }}
+                                {% if form.date_of_birth.errors %}<div class="invalid-feedback d-block">{{ form.date_of_birth.errors.0 }}</div>{% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 2: Residential Address -->
+                <div class="form-card">
+                    <div class="form-card-header">
+                        <i class="fas fa-map-marker-alt text-success"></i>
+                        <h6>2. Residential Address</h6>
+                    </div>
+                    <div class="form-card-body">
+                        <!-- Street Address Row -->
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-6">
+                                <label for="id_address" class="form-label required-field">Street Address</label>
+                                {{ form.address|add_class:"form-control form-control-sm" }}
+                                {% if form.address.errors %}<div class="invalid-feedback d-block">{{ form.address.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="id_address_tamil" class="form-label">Street Address (Tamil)</label>
+                                {{ form.address_tamil|add_class:"form-control form-control-sm" }}
+                                {% if form.address_tamil.errors %}<div class="invalid-feedback d-block">{{ form.address_tamil.errors.0 }}</div>{% endif %}
+                            </div>
+                        </div>
+
+                        <!-- City, State, Zip Row -->
+                        <div class="row g-2">
+                            <div class="col-md-3">
+                                <label for="id_city" class="form-label required-field">City</label>
+                                {{ form.city|add_class:"form-control form-control-sm" }}
+                                {% if form.city.errors %}<div class="invalid-feedback d-block">{{ form.city.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-3">
+                                <label for="id_city_tamil" class="form-label">City (Tamil)</label>
+                                {{ form.city_tamil|add_class:"form-control form-control-sm" }}
+                            </div>
+                            <div class="col-md-3">
+                                <label for="id_state" class="form-label required-field">State</label>
+                                {{ form.state|add_class:"form-control form-control-sm" }}
+                            </div>
+                            <div class="col-md-3">
+                                <label for="id_zip_code" class="form-label">PIN / ZIP</label>
+                                {{ form.zip_code|add_class:"form-control form-control-sm" }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 3: Identification & Notes -->
+                <div class="form-card">
+                    <div class="form-card-header">
+                        <i class="fas fa-id-card text-info"></i>
+                        <h6>3. KYC Identity & Notes</h6>
+                    </div>
+                    <div class="form-card-body">
+                        <!-- ID Type & Number -->
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-4">
+                                <label for="id_id_type" class="form-label required-field">ID Proof Type</label>
+                                {{ form.id_type|add_class:"form-select form-select-sm" }}
+                                {% if form.id_type.errors %}<div class="invalid-feedback d-block">{{ form.id_type.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-8">
+                                <label for="id_id_number" class="form-label required-field">ID Document Number</label>
+                                {{ form.id_number|add_class:"form-control form-control-sm" }}
+                                {% if form.id_number.errors %}<div class="invalid-feedback d-block">{{ form.id_number.errors.0 }}</div>{% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Notes Row -->
+                        {% if form.notes %}
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label for="id_notes" class="form-label">Internal Notes</label>
+                                {{ form.notes|add_class:"form-control form-control-sm" }}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="id_notes_tamil" class="form-label">Notes (Tamil)</label>
+                                {{ form.notes_tamil|add_class:"form-control form-control-sm" }}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right 4 Columns: Customer Media & Photos (Sticky Sidebar) -->
+            <div class="col-lg-4">
+                
+                <!-- Profile Photo Card -->
+                <div class="form-card mb-2">
+                    <div class="form-card-header">
+                        <i class="fas fa-camera text-primary"></i>
+                        <h6>Customer Profile Photo</h6>
+                    </div>
+                    <div class="form-card-body">
+                        <div class="media-box mb-2">
+                            <div class="d-flex gap-1 justify-content-center mb-1">
+                                <label for="id_profile_photo_upload" class="btn btn-outline-primary btn-sm py-1 px-2" style="font-size: 0.78rem;">
+                                    <i class="fas fa-upload me-1"></i>Upload
+                                </label>
+                                <input type="file" id="id_profile_photo_upload" class="d-none" accept="image/*">
+                                <button type="button" id="capture-profile-button" class="btn btn-outline-info btn-sm py-1 px-2" style="font-size: 0.78rem;">
+                                    <i class="fas fa-camera me-1"></i>Webcam
+                                </button>
+                            </div>
+                            <div id="profile-photo-preview-section" style="display: none;">
+                                <img id="profile-photo-preview" alt="Profile Preview" class="rounded">
+                                <div class="mt-1 d-flex gap-1 justify-content-center">
+                                    <a id="download-profile-photo" class="btn btn-xs btn-outline-secondary py-0 px-1" download="customer_photo.jpg" style="display: none; font-size: 0.7rem;">
+                                        <i class="fas fa-download"></i>
+                                    </a>
+                                    <button type="button" id="delete-profile-photo" class="btn btn-xs btn-outline-danger py-0 px-1" style="display: none; font-size: 0.7rem;">
+                                        <i class="fas fa-trash"></i> Delete
+                                    </button>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Personal Information Section -->
-            <div class="form-section">
-                <div class="section-header">
-                    <div class="section-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-                        <i class="fas fa-user"></i>
+                <!-- ID Document Photo Card -->
+                <div class="form-card">
+                    <div class="form-card-header">
+                        <i class="fas fa-id-badge text-info"></i>
+                        <h6>ID Document Scan / Photo</h6>
                     </div>
-                    <h3 class="section-title">Personal Information</h3>
-                </div>
-                <div class="alert alert-light border mb-3 py-2 px-3">
-                    <small class="text-muted">
-                        <i class="fas fa-language me-1"></i>
-                        Type in English or Tamil. The matching column will fill automatically.
-                    </small>
-                </div>
-                
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="id_first_name" class="form-label required-field">First Name</label>
-                        {{ form.first_name|add_class:"form-control" }}
-                        {% if form.first_name.errors %}
-                        <div class="invalid-feedback d-block">{{ form.first_name.errors.0 }}</div>
-                        {% endif %}
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="id_first_name_tamil" class="form-label">First Name (Tamil)</label>
-                        {{ form.first_name_tamil|add_class:"form-control" }}
-                        {% if form.first_name_tamil.errors %}
-                        <div class="invalid-feedback d-block">{{ form.first_name_tamil.errors.0 }}</div>
-                        {% endif %}
-                    </div>
-                </div>
-                
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="id_last_name" class="form-label required-field">Last Name</label>
-                        {{ form.last_name|add_class:"form-control" }}
-                        {% if form.last_name.errors %}
-                        <div class="invalid-feedback d-block">{{ form.last_name.errors.0 }}</div>
-                        {% endif %}
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="id_last_name_tamil" class="form-label">Last Name (Tamil)</label>
-                        {{ form.last_name_tamil|add_class:"form-control" }}
-                        {% if form.last_name_tamil.errors %}
-                        <div class="invalid-feedback d-block">{{ form.last_name_tamil.errors.0 }}</div>
-                        {% endif %}
-                    </div>
-                </div>
-                
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="id_email" class="form-label">Email Address</label>
-                        {{ form.email|add_class:"form-control" }}
-                        {% if form.email.errors %}
-                        <div class="invalid-feedback d-block">{{ form.email.errors.0 }}</div>
-                        {% endif %}
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="id_phone" class="form-label required-field">Phone Number</label>
-                        {{ form.phone|add_class:"form-control" }}
-                        {% if form.phone.errors %}
-                        <div class="invalid-feedback d-block">{{ form.phone.errors.0 }}</div>
-                        {% endif %}
-                    </div>
-                </div>
-                
-                {% if form.date_of_birth %}
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="id_date_of_birth" class="form-label">Date of Birth</label>
-                        {{ form.date_of_birth|add_class:"form-control" }}
-                        {% if form.date_of_birth.errors %}
-                        <div class="invalid-feedback d-block">{{ form.date_of_birth.errors.0 }}</div>
-                        {% endif %}
-                    </div>
-                </div>
-                {% endif %}
-            </div>
-
-            <!-- Profile Photo Section -->
-            <div class="form-section">
-                <div class="section-header">
-                    <div class="section-icon" style="background: linear-gradient(135deg, #4e73df 0%, #224abe 100%); color: white;">
-                        <i class="fas fa-user-circle"></i>
-                    </div>
-                    <h3 class="section-title">Customer Photo</h3>
-                </div>
-
-                <div class="id-capture-section">
-                    <h5 class="mb-3">
-                        <i class="fas fa-image me-2"></i>Profile Photo
-                    </h5>
-                    <p class="text-muted mb-3">Upload or capture customer photo, then save with customer record.</p>
-
-                    <div class="capture-options">
-                        <div class="capture-option">
-                            <label for="id_profile_photo_upload" class="btn btn-capture btn-upload">
-                                <i class="fas fa-upload me-2"></i>Upload Photo
-                            </label>
-                            <input type="file" id="id_profile_photo_upload" class="d-none" accept="image/*">
-                        </div>
-                        <div class="capture-option">
-                            <button type="button" id="capture-profile-button" class="btn btn-capture btn-camera">
-                                <i class="fas fa-camera me-2"></i>Capture Photo
-                            </button>
-                        </div>
-                    </div>
-
-                    <div id="profile-photo-preview-section" class="image-preview-container" style="display: none;">
-                        <img id="profile-photo-preview" alt="Profile Photo Preview">
-                        <div class="mt-2 d-flex gap-2 justify-content-center">
-                            <a id="download-profile-photo" class="btn btn-sm btn-outline-primary" download="customer_profile_photo.jpg" style="display: none;">
-                                <i class="fas fa-download me-1"></i>Download Photo
-                            </a>
-                            <button type="button" id="delete-profile-photo" class="btn btn-sm btn-outline-danger" style="display: none;">
-                                <i class="fas fa-trash me-1"></i>Delete Photo
-                            </button>
+                    <div class="form-card-body">
+                        <div class="media-box">
+                            <div class="d-flex gap-1 justify-content-center mb-1">
+                                <label for="id_id_image" class="btn btn-outline-primary btn-sm py-1 px-2" style="font-size: 0.78rem;">
+                                    <i class="fas fa-upload me-1"></i>Upload
+                                </label>
+                                <input type="file" name="id_image" id="id_id_image" class="d-none" accept="image/*">
+                                <button type="button" id="capture-id-button" class="btn btn-outline-info btn-sm py-1 px-2" style="font-size: 0.78rem;">
+                                    <i class="fas fa-camera me-1"></i>Webcam
+                                </button>
+                            </div>
+                            <div id="image-preview-section" style="display: none;">
+                                <img id="id-image-preview" alt="ID Document Preview" class="rounded">
+                                <div class="mt-1 d-flex gap-1 justify-content-center">
+                                    <a id="download-id-photo" class="btn btn-xs btn-outline-secondary py-0 px-1" download="id_document.jpg" style="display: none; font-size: 0.7rem;">
+                                        <i class="fas fa-download"></i>
+                                    </a>
+                                    <button type="button" id="delete-id-photo" class="btn btn-xs btn-outline-danger py-0 px-1" style="font-size: 0.7rem;">
+                                        <i class="fas fa-trash"></i> Delete
+                                    </button>
+                                </div>
+                            </div>
+                            {% if form.id_image.errors %}
+                            <div class="invalid-feedback d-block mt-1">{{ form.id_image.errors.0 }}</div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
+
             </div>
+        </div>
 
-            <!-- Address Information Section -->
-            <div class="form-section">
-                <div class="section-header">
-                    <div class="section-icon" style="background: linear-gradient(135deg, #1cc88a 0%, #17a673 100%); color: white;">
-                        <i class="fas fa-map-marker-alt"></i>
-                    </div>
-                    <h3 class="section-title">Address Information</h3>
-                </div>
-                
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="id_address" class="form-label required-field">Street Address</label>
-                        {{ form.address|add_class:"form-control" }}
-                        {% if form.address.errors %}
-                        <div class="invalid-feedback d-block">{{ form.address.errors.0 }}</div>
-                        {% endif %}
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="id_address_tamil" class="form-label">Street Address (Tamil)</label>
-                        {{ form.address_tamil|add_class:"form-control" }}
-                        {% if form.address_tamil.errors %}
-                        <div class="invalid-feedback d-block">{{ form.address_tamil.errors.0 }}</div>
-                        {% endif %}
-                    </div>
-                </div>
-                
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="id_city" class="form-label required-field">City</label>
-                        {{ form.city|add_class:"form-control" }}
-                        {% if form.city.errors %}
-                        <div class="invalid-feedback d-block">{{ form.city.errors.0 }}</div>
-                        {% endif %}
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="id_city_tamil" class="form-label">City (Tamil)</label>
-                        {{ form.city_tamil|add_class:"form-control" }}
-                        {% if form.city_tamil.errors %}
-                        <div class="invalid-feedback d-block">{{ form.city_tamil.errors.0 }}</div>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="id_state" class="form-label required-field">State/Province</label>
-                        {{ form.state|add_class:"form-control" }}
-                        {% if form.state.errors %}
-                        <div class="invalid-feedback d-block">{{ form.state.errors.0 }}</div>
-                        {% endif %}
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="id_state_tamil" class="form-label">State/Province (Tamil)</label>
-                        {{ form.state_tamil|add_class:"form-control" }}
-                        {% if form.state_tamil.errors %}
-                        <div class="invalid-feedback d-block">{{ form.state_tamil.errors.0 }}</div>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="id_zip_code" class="form-label">ZIP/Postal Code</label>
-                        {{ form.zip_code|add_class:"form-control" }}
-                        {% if form.zip_code.errors %}
-                        <div class="invalid-feedback d-block">{{ form.zip_code.errors.0 }}</div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-
-            <!-- Identification Section -->
-            <div class="form-section">
-                <div class="section-header">
-                    <div class="section-icon" style="background: linear-gradient(135deg, #36b9cc 0%, #2c9faf 100%); color: white;">
-                        <i class="fas fa-id-card"></i>
-                    </div>
-                    <h3 class="section-title">Identification Documents</h3>
-                </div>
-                
-                <div class="row">
-                    <div class="col-md-4 mb-3">
-                        <label for="id_id_type" class="form-label required-field">ID Type</label>
-                        {{ form.id_type|add_class:"form-select" }}
-                        {% if form.id_type.errors %}
-                        <div class="invalid-feedback d-block">{{ form.id_type.errors.0 }}</div>
-                        {% endif %}
-                    </div>
-                    <div class="col-md-8 mb-3">
-                        <label for="id_id_number" class="form-label required-field">ID Number</label>
-                        {{ form.id_number|add_class:"form-control" }}
-                        {% if form.id_number.errors %}
-                        <div class="invalid-feedback d-block">{{ form.id_number.errors.0 }}</div>
-                        {% endif %}
-                    </div>
-                </div>
-                
-                <div class="id-capture-section">
-                    <h5 class="mb-3">
-                        <i class="fas fa-camera me-2"></i>ID Document Image
-                    </h5>
-                    <p class="text-muted mb-3">Upload or capture a clear image of the customer's ID document</p>
-                    
-                    <div class="capture-options">
-                        <div class="capture-option">
-                            <label for="id_id_image" class="btn btn-capture btn-upload">
-                                <i class="fas fa-upload me-2"></i>Upload Document
-                            </label>
-                            <input type="file" name="id_image" id="id_id_image" class="d-none" accept="image/*">
-                        </div>
-                        <div class="capture-option">
-                            <button type="button" id="capture-id-button" class="btn btn-capture btn-camera">
-                                <i class="fas fa-camera me-2"></i>Capture Photo
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div id="image-preview-section" class="image-preview-container" style="display: none;">
-                        <img id="id-image-preview" alt="ID Document Preview">
-                        <div class="mt-2 d-flex gap-2 justify-content-center">
-                            <a id="download-id-photo" class="btn btn-sm btn-outline-primary" download="customer_id_document.jpg" style="display: none;">
-                                <i class="fas fa-download me-1"></i>Download Photo
-                            </a>
-                            <button type="button" id="delete-id-photo" class="btn btn-sm btn-outline-danger">
-                                <i class="fas fa-trash me-1"></i>Delete Photo
-                            </button>
-                        </div>
-                    </div>
-                    
-                    {% if form.id_image.errors %}
-                    <div class="invalid-feedback d-block mt-2">{{ form.id_image.errors.0 }}</div>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- Additional Information Section -->
-            {% if form.notes %}
-            <div class="form-section">
-                <div class="section-header">
-                    <div class="section-icon" style="background: linear-gradient(135deg, #f6c23e 0%, #dda20a 100%); color: white;">
-                        <i class="fas fa-sticky-note"></i>
-                    </div>
-                    <h3 class="section-title">Additional Notes</h3>
-                </div>
-                
-                <div class="row">
-                    <div class="col-md-6">
-                        <label for="id_notes" class="form-label">Notes</label>
-                        {{ form.notes|add_class:"form-control" }}
-                        <small class="form-text text-muted">Any additional information about the customer</small>
-                        {% if form.notes.errors %}
-                        <div class="invalid-feedback d-block">{{ form.notes.errors.0 }}</div>
-                        {% endif %}
-                    </div>
-                    <div class="col-md-6">
-                        <label for="id_notes_tamil" class="form-label">Notes (Tamil)</label>
-                        {{ form.notes_tamil|add_class:"form-control" }}
-                        <small class="form-text text-muted">Tamil notes will auto-fill while typing</small>
-                        {% if form.notes_tamil.errors %}
-                        <div class="invalid-feedback d-block">{{ form.notes_tamil.errors.0 }}</div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            {% endif %}
-
-            <!-- Action Buttons -->
-            <div class="action-buttons">
-                <a href="{% url 'customer_list' %}" class="btn btn-secondary-custom">
-                    <i class="fas fa-times me-2"></i>Cancel
+        <!-- Sticky Bottom Bar -->
+        <div class="d-flex justify-content-end gap-2 mt-2 pt-2 border-top">
+            {% if form.instance.pk %}
+                <a href="{% url 'customer_detail' form.instance.pk %}" class="btn btn-white border btn-sm text-secondary px-3">
+                    <i class="fas fa-times me-1"></i>Cancel
                 </a>
-                <button type="submit" class="btn btn-primary-custom">
-                    <i class="fas fa-save me-2"></i>
-                    {% if form.instance.pk %}Update Customer{% else %}Create Customer{% endif %}
-                </button>
-            </div>
-        </form>
-    </div>
+            {% else %}
+                <a href="{% url 'customer_list' %}" class="btn btn-white border btn-sm text-secondary px-3">
+                    <i class="fas fa-times me-1"></i>Cancel
+                </a>
+            {% endif %}
+            <button type="submit" class="btn btn-primary btn-sm px-4">
+                <i class="fas fa-save me-1"></i>{% if form.instance.pk %}Update Customer{% else %}Save Customer{% endif %}
+            </button>
+        </div>
+    </form>
 </div>
 
 <!-- Camera Capture Modal -->
 <div id="camera-container" style="display: none;">
-    <div class="camera-inner">
-        <div class="camera-title" id="camera-modal-title">
-            <i class="fas fa-camera me-2"></i>Capture Photo
+    <div class="camera-inner shadow">
+        <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
+            <h6 class="mb-0 fw-bold" id="camera-modal-title"><i class="fas fa-camera me-1"></i>Capture Photo</h6>
+            <button type="button" class="btn-close btn-sm" id="cancel-picture-button" aria-label="Close"></button>
         </div>
-        <div class="position-relative" style="min-height: 240px; background: #000; border-radius: 0.5rem; overflow: hidden; display: flex; align-items: center; justify-content: center;">
-            <video id="camera-video" autoplay playsinline muted style="width: 100%; max-height: 400px; object-fit: contain;"></video>
-            <canvas id="camera-canvas" style="display: none; width: 100%; max-height: 400px; object-fit: contain;"></canvas>
+        <div class="position-relative" style="min-height: 220px; background: #000; border-radius: 6px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+            <video id="camera-video" autoplay playsinline muted style="width: 100%; max-height: 360px; object-fit: contain;"></video>
+            <canvas id="camera-canvas" style="display: none; width: 100%; max-height: 360px; object-fit: contain;"></canvas>
             <div id="camera-loading" style="display: none; position: absolute; color: white; text-align: center;">
                 <i class="fas fa-spinner fa-spin fa-2x mb-2"></i>
-                <div>Starting camera...</div>
+                <div class="small">Starting camera...</div>
             </div>
         </div>
-        <div class="camera-controls mt-3">
-            <button type="button" id="take-picture-button" class="btn btn-primary">
-                <i class="fas fa-camera me-2"></i>Take Picture
+        <div class="camera-controls mt-2 d-flex justify-content-end gap-1">
+            <button type="button" id="take-picture-button" class="btn btn-primary btn-sm">
+                <i class="fas fa-camera me-1"></i>Take Picture
             </button>
-            <button type="button" id="retake-picture-button" class="btn btn-warning" style="display: none;">
-                <i class="fas fa-redo me-2"></i>Retake
+            <button type="button" id="retake-picture-button" class="btn btn-warning btn-sm" style="display: none;">
+                <i class="fas fa-redo me-1"></i>Retake
             </button>
-            <button type="button" id="confirm-picture-button" class="btn btn-success" style="display: none;">
-                <i class="fas fa-check me-2"></i>Confirm
-            </button>
-            <button type="button" id="cancel-picture-button" class="btn btn-secondary">
-                <i class="fas fa-times me-2"></i>Cancel
+            <button type="button" id="confirm-picture-button" class="btn btn-success btn-sm" style="display: none;">
+                <i class="fas fa-check me-1"></i>Use Photo
             </button>
         </div>
     </div>

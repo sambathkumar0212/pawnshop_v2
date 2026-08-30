@@ -1,260 +1,315 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load loan_tags %}
+{% load loan_interest %}
 {% load custom_filters %}
 
 {% block title %}{{ customer.full_name }} - Customer Details{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <!-- Top Action Banner -->
-    <div class="card mb-4 bg-light shadow-sm">
-        <div class="card-body d-flex flex-wrap justify-content-between align-items-center py-3">
-            <h3 class="h5 mb-0 text-dark font-weight-bold">
-                <i class="fas fa-user-circle me-2 text-primary"></i>{{ customer.full_name }}
-            </h3>
-            <div class="btn-group">
-                <a href="{% url 'customer_update' customer.id %}" class="btn btn-sm btn-outline-primary">
-                    <i class="fas fa-edit me-1"></i>Edit Profile
-                </a>
-                <a href="{% url 'loan_create' %}?customer_id={{ customer.id }}" class="btn btn-sm btn-primary">
-                    <i class="fas fa-hand-holding-usd me-1"></i>New Loan
-                </a>
-                {% if perms.accounts.delete_customer %}
-                <a href="{% url 'customer_delete' customer.id %}" class="btn btn-sm btn-outline-danger">
-                    <i class="fas fa-trash me-1"></i>Delete
-                </a>
-                {% endif %}
-            </div>
+<style>
+    .customer-dossier-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+    }
+    
+    .table-calm-sm {
+        border-collapse: separate;
+        border-spacing: 0;
+        width: 100%;
+        font-size: 0.86rem;
+    }
+    .table-calm-sm thead th {
+        background-color: #f8fafc;
+        color: #475569;
+        font-weight: 600;
+        border-bottom: 1px solid #e2e8f0;
+        padding: 8px 10px;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+    }
+    .table-calm-sm tbody td {
+        padding: 7px 10px;
+        border-bottom: 1px solid #f1f5f9;
+        vertical-align: middle;
+        color: #334155;
+    }
+    .table-calm-sm tbody tr:hover {
+        background-color: #f8fafc;
+    }
+
+    .pill-active { background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+    .pill-overdue { background-color: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+    .pill-repaid, .pill-closed { background-color: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+    .pill-extended { background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+    .pill-defaulted { background-color: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+
+    /* High-Clarity Crisp Image Rendering */
+    .crisp-img {
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: crisp-edges;
+        image-rendering: high-quality;
+        object-fit: cover;
+    }
+    .photo-zoom-wrap {
+        position: relative;
+        cursor: pointer;
+        display: inline-block;
+        transition: transform 0.15s ease-in-out;
+    }
+    .photo-zoom-wrap:hover {
+        transform: scale(1.04);
+    }
+    .photo-zoom-badge {
+        position: absolute;
+        bottom: 2px;
+        right: 2px;
+        background: rgba(15, 23, 42, 0.8);
+        color: #ffffff;
+        border-radius: 50%;
+        width: 22px;
+        height: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.65rem;
+        border: 1px solid #ffffff;
+    }
+</style>
+
+<div class="container-fluid py-2 px-3" style="background-color: #f8fafc; min-height: 90vh;">
+    <!-- Top Action Header -->
+    <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+        <div class="d-flex align-items-center gap-2">
+            <h5 class="mb-0 fw-bold" style="color: #0f172a;">
+                <i class="fas fa-user-circle text-primary me-2"></i>{{ customer.full_name }}
+            </h5>
+            <span class="badge bg-white text-secondary border">Customer ID: #{{ customer.id }}</span>
+            {% if customer.branch %}
+                <span class="badge bg-light text-primary border" style="font-size: 0.75rem;">
+                    <i class="fas fa-building me-1"></i>{{ customer.branch.name }}
+                </span>
+            {% endif %}
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <a href="{% url 'customer_list' %}" class="btn btn-white border btn-sm text-secondary">
+                <i class="fas fa-arrow-left me-1"></i>Back
+            </a>
+            <a href="{% url 'customer_update' customer.id %}" class="btn btn-white border btn-sm text-primary">
+                <i class="fas fa-edit me-1"></i>Edit Profile
+            </a>
+            <a href="{% url 'loan_create' %}?customer_id={{ customer.id }}" class="btn btn-primary btn-sm px-3 shadow-xs">
+                <i class="fas fa-plus-circle me-1"></i>New Loan
+            </a>
+            {% if perms.accounts.delete_customer %}
+            <a href="{% url 'customer_delete' customer.id %}" class="btn btn-outline-danger btn-sm" title="Delete Customer">
+                <i class="fas fa-trash"></i>
+            </a>
+            {% endif %}
         </div>
     </div>
 
-    <!-- Row 1: Profile Overview Card & Personal Information Card Side-by-Side -->
-    <div class="row mb-4">
-        <!-- Profile Overview Card (Left) -->
-        <div class="col-md-4 col-lg-3 mb-3 mb-md-0">
-            <div class="card h-100 shadow-sm">
-                <div class="card-body text-center d-flex flex-column justify-content-between">
+    <!-- Customer Dossier Summary Card (High-Density Top Card) -->
+    <div class="customer-dossier-card p-3 mb-2">
+        <div class="row g-3 align-items-center">
+            
+            <!-- Avatar & ID Photo Preview (Col 3) -->
+            <div class="col-md-3 col-lg-2 text-center border-end pe-3">
+                <div class="photo-zoom-wrap mb-1" data-bs-toggle="modal" data-bs-target="#customerPhotoModal" title="Click to view full clear photo">
+                    <img src="{{ customer.photo }}" alt="{{ customer.full_name }}" class="rounded-circle border shadow-xs crisp-img"
+                         style="width: 86px; height: 86px; object-fit: cover;">
+                    <span class="photo-zoom-badge"><i class="fas fa-search-plus"></i></span>
+                </div>
+                <div class="fw-bold text-dark text-truncate" style="font-size: 0.9rem;">{{ customer.full_name }}</div>
+                <small class="text-muted d-block" style="font-size: 0.74rem;">Joined {{ customer.created_at|date:"d M Y" }}</small>
+            </div>
+
+            <!-- Contact & Address (Col 6) -->
+            <div class="col-md-5 col-lg-6 border-end pe-3">
+                <div class="row g-2" style="font-size: 0.84rem;">
+                    <div class="col-sm-6">
+                        <div class="mb-1">
+                            <span class="text-muted d-block" style="font-size: 0.72rem; text-transform: uppercase; font-weight: 600;">Phone Number</span>
+                            {% if customer.phone %}
+                                <a href="tel:{{ customer.phone|mobile_digits }}" class="fw-semibold text-dark text-decoration-none">
+                                    <i class="fas fa-phone-alt text-success me-1"></i>{{ customer.phone|mobile_format }}
+                                </a>
+                            {% else %}
+                                <span class="text-muted">Not provided</span>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <span class="text-muted d-block" style="font-size: 0.72rem; text-transform: uppercase; font-weight: 600;">Email Address</span>
+                            {% if customer.email %}
+                                <a href="mailto:{{ customer.email }}" class="text-dark text-decoration-none text-truncate d-block">
+                                    <i class="fas fa-envelope text-primary me-1"></i>{{ customer.email }}
+                                </a>
+                            {% else %}
+                                <span class="text-muted">Not provided</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div>
+                            <span class="text-muted d-block" style="font-size: 0.72rem; text-transform: uppercase; font-weight: 600;">Address</span>
+                            <div class="text-muted" style="line-height: 1.35; font-size: 0.8rem;">
+                                {% if customer.address %}{{ customer.address }}<br>{% endif %}
+                                {% if customer.city %}{{ customer.city }}{% endif %}{% if customer.state %}, {{ customer.state }}{% endif %}
+                                {% if customer.zip_code %} - {{ customer.zip_code }}{% endif %}
+                                {% if not customer.address and not customer.city %}<span class="text-muted">No address specified</span>{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% if customer.notes %}
+                <div class="mt-2 pt-1 border-top" style="font-size: 0.75rem;">
+                    <span class="text-secondary fw-semibold"><i class="fas fa-sticky-note text-warning me-1"></i>Notes:</span>
+                    <span class="text-muted">{{ customer.notes }}</span>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- KYC Document & Stats (Col 4) -->
+            <div class="col-md-4 col-lg-4">
+                <div class="d-flex align-items-center justify-content-between">
                     <div>
-                        <img src="{{ customer.photo }}" alt="{{ customer.full_name }}" class="img-fluid rounded-circle mb-3 border shadow-sm"
-                            style="max-width: 140px; height: 140px; object-fit: cover;">
-                        <h4 class="card-title mb-1 h5 font-weight-bold">{{ customer.full_name }}</h4>
-                        <p class="text-muted small">Customer ID: {{ customer.id }}</p>
+                        <span class="text-muted d-block" style="font-size: 0.72rem; text-transform: uppercase; font-weight: 600;">KYC Document</span>
+                        <div class="fw-bold text-dark" style="font-size: 0.85rem;">
+                            <i class="fas fa-id-card text-info me-1"></i>{{ customer.id_type|default:"ID" }}: {{ customer.id_number|default:"N/A" }}
+                        </div>
+                        <div class="mt-1">
+                            <span class="badge bg-light text-dark border me-1" style="font-size: 0.72rem;">
+                                {{ active_loans.count|default:0 }} Active Loan{{ active_loans.count|pluralize }}
+                            </span>
+                            <span class="badge bg-light text-secondary border" style="font-size: 0.72rem;">
+                                {{ loans.count|default:0 }} Total Loan{{ loans.count|pluralize }}
+                            </span>
+                        </div>
                     </div>
                     
-                    <!-- ID Document Buttons -->
-                    <div style="display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin-top: 15px; padding-top: 15px; border-top: 1px solid #dee2e6;">
-                        <a href="{% url 'customer_update' customer.id %}" class="btn btn-xs btn-primary btn-sm" title="Upload ID Document">
-                            <i class="fas fa-upload me-1"></i>Upload
-                        </a>
-                        <a href="{% url 'customer_update' customer.id %}" class="btn btn-xs btn-success btn-sm" title="Save ID Document">
-                            <i class="fas fa-save me-1"></i>Save
-                        </a>
-                        <a href="{% url 'customer_update' customer.id %}" class="btn btn-xs btn-info btn-sm text-white" title="Capture ID Photo">
-                            <i class="fas fa-camera me-1"></i>Capture
-                        </a>
+                    <!-- ID Document Thumbnail -->
+                    <div class="text-end">
                         {% if customer.id_image %}
-                        <a href="{{ customer.id_image.url }}" download="customer_id_{{ customer.id }}.jpg" class="btn btn-xs btn-warning btn-sm text-dark" title="Download ID">
-                            <i class="fas fa-download me-1"></i>Get ID
-                        </a>
+                            <div class="position-relative d-inline-block photo-zoom-wrap" data-bs-toggle="modal" data-bs-target="#idDocModal" title="Click to view full clear ID Document">
+                                <img src="{{ customer.id_image.url }}" alt="ID Document" class="rounded border crisp-img" style="width: 80px; height: 56px; object-fit: cover;">
+                                <span class="photo-zoom-badge"><i class="fas fa-search-plus"></i></span>
+                            </div>
+                        {% else %}
+                            <div class="rounded border bg-light d-flex align-items-center justify-content-center text-muted" style="width: 80px; height: 56px; font-size: 0.68rem;">
+                                No ID Scan
+                            </div>
                         {% endif %}
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Personal Information Card (Right) -->
-        <div class="col-md-8 col-lg-9">
-            <div class="card h-100 shadow-sm">
-                <div class="card-header bg-white py-3">
-                    <h5 class="card-title mb-0" style="font-size: 1.05rem; font-weight: bold;">
-                        <i class="fas fa-info-circle me-2 text-info"></i>Personal Information
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <!-- Contact & Address Details -->
-                        <div class="col-md-4 mb-3 border-end">
-                            <div class="mb-3">
-                                <h6 class="text-muted mb-2 small font-weight-bold text-uppercase" style="letter-spacing: 0.5px;">Contact Details</h6>
-                                {% if customer.email %}
-                                <p class="mb-2 small">
-                                    <i class="fas fa-envelope me-2 text-primary"></i>
-                                    <a href="mailto:{{ customer.email }}">{{ customer.email }}</a>
-                                </p>
-                                {% endif %}
-                                {% if customer.phone %}
-                                <p class="mb-0 small">
-                                    <i class="fas fa-phone me-2 text-success"></i>
-                                    <a href="tel:{{ customer.phone|mobile_digits }}">{{ customer.phone|mobile_format }}</a>
-                                </p>
-                                {% endif %}
-                            </div>
-                            <div>
-                                <h6 class="text-muted mb-2 small font-weight-bold text-uppercase" style="letter-spacing: 0.5px;">Address</h6>
-                                <address class="mb-0 small text-muted" style="line-height: 1.55;">
-                                    {% if customer.address %}{{ customer.address }}<br>{% endif %}
-                                    {% if customer.city %}{{ customer.city }}{% endif %}
-                                    {% if customer.state %}, {{ customer.state }}{% endif %}
-                                    {% if customer.zip_code %} {{ customer.zip_code }}{% endif %}
-                                </address>
-                            </div>
-                        </div>
-
-                        <!-- Branch & Notes Info -->
-                        <div class="col-md-4 mb-3 border-end">
-                            <div class="mb-3">
-                                <h6 class="text-muted mb-2 small font-weight-bold text-uppercase" style="letter-spacing: 0.5px;">Branch Information</h6>
-                                {% if customer.branch %}
-                                <p class="mb-1 small">
-                                    <i class="fas fa-building me-2 text-info"></i>
-                                    <strong>{{ customer.branch.name }}</strong>
-                                </p>
-                                {% if customer.branch.address %}
-                                <p class="mb-1 text-muted small" style="padding-left: 20px; line-height: 1.4;">
-                                    {{ customer.branch.address }}{% if customer.branch.city %}, {{ customer.branch.city }}{% endif %}
-                                </p>
-                                {% endif %}
-                                {% if customer.branch.phone %}
-                                <p class="mb-0 text-muted small" style="padding-left: 20px;">
-                                    <i class="fas fa-phone-alt me-1 text-muted"></i>
-                                    {{ customer.branch.phone|mobile_format }}
-                                </p>
-                                {% endif %}
-                                {% else %}
-                                <p class="mb-0 text-danger small">
-                                    <i class="fas fa-exclamation-triangle me-2"></i>
-                                    No branch assigned
-                                </p>
-                                {% endif %}
-                            </div>
-                            {% if customer.notes %}
-                            <div>
-                                <h6 class="text-muted mb-2 small font-weight-bold text-uppercase" style="letter-spacing: 0.5px;">Notes</h6>
-                                <p class="mb-0 small text-muted" style="line-height: 1.4;">{{ customer.notes }}</p>
-                            </div>
-                            {% endif %}
-                        </div>
-
-                        <!-- Identification & ID Document Image -->
-                        <div class="col-md-4 mb-3">
-                            <h6 class="text-muted mb-2 small font-weight-bold text-uppercase" style="letter-spacing: 0.5px;">Identification</h6>
-                            {% if customer.id_type or customer.id_number %}
-                            <p class="mb-2 small">
-                                <i class="fas fa-id-card me-2 text-secondary"></i>
-                                <strong>{{ customer.id_type }}: {{ customer.id_number }}</strong>
-                            </p>
-                            {% endif %}
-                            <div class="mt-2" style="border: 1px solid #dee2e6; border-radius: 8px; padding: 6px; background-color: #f8f9fa; text-align: center;">
-                                {% if customer.id_image %}
-                                <img src="{{ customer.id_image.url }}" alt="ID Document" class="img-fluid rounded" style="width: 100%; max-height: 100px; object-fit: contain; display: block; margin: 0 auto;">
-                                {% else %}
-                                <div style="width: 100%; height: 90px; background-color: #e9ecef; border-radius: 5px; display: flex; align-items: center; justify-content: center; margin: 0 auto; border: 2px dashed #adb5bd;">
-                                    <div style="text-align: center;">
-                                        <i class="fas fa-image" style="font-size: 24px; color: #6c757d; margin-bottom: 2px;"></i>
-                                        <p style="margin: 0; color: #6c757d; font-size: 9px;">No ID Image</p>
-                                    </div>
-                                </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="text-muted text-end mt-2 pt-2 border-top" style="font-size: 0.7rem;">
-                        <span>Created by: {{ customer.created_by|default:"Unknown" }}</span> | 
-                        <span>Registered: {{ customer.created_at|date:"M d, Y" }}</span> | 
-                        <span>Last updated: {{ customer.updated_at|date:"M d, Y H:i" }}</span>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 
-    <!-- Row 2: Active Loans & Loan History side-by-side -->
-    <div class="row">
-        <!-- Active Loans Card (Left) -->
-        <div class="col-lg-8 mb-4">
-            <div class="card h-100 shadow-sm">
-                <div class="card-header bg-white py-3">
-                    <h5 class="card-title mb-0" style="font-size: 1.05rem; font-weight: bold;">
-                        <i class="fas fa-hand-holding-usd me-2 text-success"></i>Active Loans
-                    </h5>
+    <!-- Loans & Activity Section -->
+    <div class="row g-2">
+        <!-- Active Loans Table (Col 8) -->
+        <div class="col-lg-8">
+            <div class="customer-dossier-card h-100">
+                <div class="p-2 px-3 border-bottom d-flex justify-content-between align-items-center bg-light rounded-top">
+                    <h6 class="mb-0 fw-bold" style="font-size: 0.85rem; color: #0f172a;">
+                        <i class="fas fa-hand-holding-usd text-success me-2"></i>Active Loans ({{ active_loans.count|default:0 }})
+                    </h6>
+                    <a href="{% url 'loan_create' %}?customer_id={{ customer.id }}" class="btn btn-outline-primary btn-sm py-0 px-2" style="font-size: 0.75rem;">
+                        <i class="fas fa-plus me-1"></i>New Loan
+                    </a>
                 </div>
-                <div class="card-body p-0">
+                <div class="p-0">
                     {% if active_loans %}
                     <div class="table-responsive">
-                        <table class="table table-hover table-striped mb-0 align-middle">
-                            <thead class="table-light">
+                        <table class="table-calm-sm mb-0">
+                            <thead>
                                 <tr>
-                                    <th class="ps-3" style="width: 70px;">Photo</th>
-                                    <th>Item</th>
+                                    <th>Pledged Items & Location</th>
                                     <th>Principal</th>
-                                    <th>Distribution</th>
+                                    <th>Monthly Int.</th>
                                     <th>Due Date</th>
                                     <th>Status</th>
-                                    <th class="pe-3" style="width: 100px;">Actions</th>
+                                    <th class="text-end">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for loan in active_loans %}
                                 <tr>
-                                    <td class="ps-3">
-                                        {% if loan.item_photos %}
-                                        <div class="position-relative" style="width: 48px; height: 48px;" data-bs-toggle="tooltip" title="Loan #{{ loan.loan_number }}">
-                                            {% if loan.loan_number %}
-                                            <a href="{% url 'loan_detail' loan.loan_number %}">
-                                                <img src="{{ loan.item_photos|first_item_photo }}" alt="Item Photo" class="rounded border" style="width: 100%; height: 100%; object-fit: cover;">
-                                            </a>
+                                    <!-- Pledged Items & Photos -->
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if loan.item_photos %}
+                                            <div class="position-relative me-2" style="width: 40px; height: 40px;">
+                                                <a href="{% url 'loan_detail' loan.loan_number %}">
+                                                    <img src="{{ loan.item_photos|first_item_photo }}" alt="Item Photo" class="rounded border crisp-img" style="width: 40px; height: 40px; object-fit: cover;">
+                                                </a>
+                                            </div>
                                             {% endif %}
-                                            <div class="position-absolute bottom-0 end-0">
-                                                <span class="badge bg-info rounded-circle" style="font-size: 0.6rem; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;">
-                                                    {{ loan.item_photos|item_photos_count }}
-                                                </span>
+                                            <div>
+                                                {% if loan.loan_number %}
+                                                    <a href="{% url 'loan_detail' loan.loan_number %}" class="fw-semibold text-decoration-none" style="color: #2563eb;">
+                                                        Loan #{{ loan.loan_number }}
+                                                    </a>
+                                                {% endif %}
+                                                {% for loan_item in loan.loanitem_set.all|slice:":1" %}
+                                                    <small class="text-muted d-block" style="font-size: 0.74rem;">
+                                                        {{ loan_item.item.name }} ({{ loan_item.gold_karat }}K, {{ loan_item.net_weight }}g)
+                                                    </small>
+                                                {% endfor %}
+                                                {% if loan.vault_pouch %}
+                                                    <small class="text-secondary d-block" style="font-size: 0.72rem;">
+                                                        <i class="fas fa-shield-alt text-secondary opacity-75 me-1"></i>{{ loan.vault_pouch.pouch_number }} ({{ loan.vault_pouch.safe_locker_number }})
+                                                    </small>
+                                                {% endif %}
                                             </div>
                                         </div>
-                                        {% else %}
-                                        <span class="text-muted small">No photo</span>
-                                        {% endif %}
                                     </td>
+
+                                    <!-- Principal -->
                                     <td>
-                                        {% for loan_item in loan.loanitem_set.all %}
-                                        <div class="mb-1">
-                                            {% if loan.loan_number %}
-                                            <a href="{% url 'loan_detail' loan.loan_number %}" class="font-weight-bold text-decoration-none">{{ loan_item.item.name }}</a>
-                                            {% else %}
-                                            {{ loan_item.item.name }}
-                                            {% endif %}
-                                            <small class="text-muted d-block" style="font-size: 0.75rem;">({{ loan_item.gold_karat }}K, {{ loan_item.net_weight }}g)</small>
-                                        </div>
-                                        {% endfor %}
+                                        <div class="fw-bold" style="color: #0f172a;">Rs {{ loan.principal_amount|floatformat:2 }}</div>
+                                        <small class="text-muted" style="font-size: 0.72rem;">Disbursed: Rs {{ loan.distribution_amount|floatformat:0 }}</small>
                                     </td>
-                                    <td>Rs: {{ loan.principal_amount|floatformat:2 }}</td>
+
+                                    <!-- Monthly Interest -->
                                     <td>
-                                        <span class="text-success font-weight-bold">Rs: {{ loan.distribution_amount|floatformat:2 }}</span>
+                                        <span class="badge bg-light text-dark border">{{ loan|monthly_interest_rate }}%/mo</span>
                                     </td>
-                                    <td>
+
+                                    <!-- Due Date -->
+                                    <td style="font-size: 0.82rem;">
+                                        <div class="fw-medium text-dark">{{ loan.due_date|date:"d M Y" }}</div>
                                         {% if loan.is_overdue %}
-                                        <span class="text-danger font-weight-bold"><i class="fas fa-exclamation-circle me-1"></i>{{ loan.due_date|date:"M d, Y" }}</span>
+                                            <small class="text-danger fw-semibold" style="font-size: 0.72rem;">Overdue</small>
                                         {% else %}
-                                        {{ loan.due_date|date:"M d, Y" }}
+                                            <small class="text-muted" style="font-size: 0.72rem;">{{ loan.days_remaining }}d left</small>
                                         {% endif %}
                                     </td>
+
+                                    <!-- Status -->
                                     <td>
-                                        {% if loan.is_overdue %}
-                                        <span class="badge bg-danger px-2 py-1">Overdue</span>
-                                        {% else %}
-                                        <span class="badge bg-success px-2 py-1">Active</span>
-                                        {% endif %}
+                                        <span class="badge pill-{{ loan.status }} py-1 px-2" style="font-size: 0.74rem;">
+                                            {{ loan.get_status_display }}
+                                        </span>
                                     </td>
-                                    <td class="pe-3">
-                                        <div class="btn-group btn-group-sm">
+
+                                    <!-- Actions -->
+                                    <td class="text-end">
+                                        <div class="btn-group btn-group-sm border rounded bg-white shadow-xs">
                                             {% if loan.loan_number %}
-                                            <a href="{% url 'payment_create' loan.loan_number %}" class="btn btn-success" title="Make Payment">
-                                                <i class="fas fa-dollar-sign"></i>
-                                            </a>
-                                            <a href="{% url 'loan_extend' loan.loan_number %}" class="btn btn-info text-white" title="Extend Loan">
-                                                <i class="fas fa-calendar-plus"></i>
-                                            </a>
+                                                <a href="{% url 'loan_detail' loan.loan_number %}" class="btn btn-sm py-1 px-2 border-end text-secondary" title="View Details">
+                                                    <i class="fas fa-eye fa-xs"></i>
+                                                </a>
+                                                <a href="{% url 'payment_create' loan.loan_number %}" class="btn btn-sm py-1 px-2 border-end text-success" title="Make Payment">
+                                                    <i class="fas fa-dollar-sign fa-xs"></i>
+                                                </a>
+                                                <a href="{% url 'loan_extend' loan.loan_number %}" class="btn btn-sm py-1 px-2 text-primary" title="Extend Loan">
+                                                    <i class="fas fa-calendar-plus fa-xs"></i>
+                                                </a>
                                             {% endif %}
                                         </div>
                                     </td>
@@ -264,109 +319,118 @@
                         </table>
                     </div>
                     {% else %}
-                    <div class="p-4 text-center">
-                        <i class="fas fa-hand-holding-usd text-muted mb-2" style="font-size: 2rem;"></i>
-                        <p class="text-muted mb-0">No active loans found for this customer.</p>
+                    <div class="p-3 text-center text-muted">
+                        <i class="fas fa-hand-holding-usd mb-1" style="font-size: 1.5rem; opacity: 0.4;"></i>
+                        <div class="small">No active loans found for this customer.</div>
                     </div>
                     {% endif %}
                 </div>
             </div>
         </div>
 
-        <!-- Loan History Card (Right) -->
-        <div class="col-lg-4 mb-4">
-            <div class="card h-100 shadow-sm">
-                <div class="card-header bg-white py-3">
-                    <h5 class="card-title mb-0" style="font-size: 1.05rem; font-weight: bold;">
-                        <i class="fas fa-history me-2 text-warning"></i>Loan History
-                    </h5>
+        <!-- All Loan History Table (Col 4) -->
+        <div class="col-lg-4">
+            <div class="customer-dossier-card h-100">
+                <div class="p-2 px-3 border-bottom d-flex justify-content-between align-items-center bg-light rounded-top">
+                    <h6 class="mb-0 fw-bold" style="font-size: 0.85rem; color: #0f172a;">
+                        <i class="fas fa-history text-warning me-2"></i>Complete Loan History
+                    </h6>
+                    <span class="badge bg-white text-secondary border">{{ loans.count|default:0 }}</span>
                 </div>
-                <div class="card-body p-0">
+                <div class="p-0">
                     {% if loans %}
-                    <div class="table-responsive">
-                        <table class="table table-hover table-striped mb-0 align-middle">
-                            <thead class="table-light">
+                    <div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
+                        <table class="table-calm-sm mb-0">
+                            <thead>
                                 <tr>
-                                    <th class="ps-3">Loan #</th>
+                                    <th>Loan #</th>
                                     <th>Status</th>
-                                    <th class="pe-3">Principal</th>
+                                    <th class="text-end">Principal</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for loan in loans %}
                                 <tr>
-                                    <td class="ps-3">
+                                    <td>
                                         {% if loan.loan_number %}
-                                        <a href="{% url 'loan_detail' loan.loan_number %}" class="font-weight-bold text-decoration-none">{{ loan.loan_number }}</a>
+                                            <a href="{% url 'loan_detail' loan.loan_number %}" class="fw-semibold text-decoration-none" style="color: #2563eb;">
+                                                #{{ loan.loan_number }}
+                                            </a>
+                                            <small class="text-muted d-block" style="font-size: 0.72rem;">{{ loan.issue_date|date:"d M Y" }}</small>
                                         {% else %}
-                                        <span class="text-muted small">No ID</span>
+                                            <span class="text-muted small">No ID</span>
                                         {% endif %}
                                     </td>
                                     <td>
-                                        <span class="badge bg-{% if loan.status == 'active' %}success{% elif loan.status == 'repaid' %}info{% elif loan.status == 'defaulted' %}danger{% elif loan.status == 'extended' %}warning{% else %}secondary{% endif %}">
+                                        <span class="badge pill-{{ loan.status }} py-1 px-2" style="font-size: 0.72rem;">
                                             {{ loan.get_status_display }}
                                         </span>
                                     </td>
-                                    <td class="pe-3 font-weight-bold text-dark">Rs: {{ loan.principal_amount|floatformat:0 }}</td>
+                                    <td class="text-end fw-semibold text-dark">
+                                        Rs {{ loan.principal_amount|floatformat:0 }}
+                                    </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
                     {% else %}
-                    <div class="p-4 text-center">
-                        <i class="fas fa-history text-muted mb-2" style="font-size: 1.8rem;"></i>
-                        <p class="text-muted mb-0 small">No past loan history found.</p>
+                    <div class="p-3 text-center text-muted">
+                        <i class="fas fa-history mb-1" style="font-size: 1.5rem; opacity: 0.4;"></i>
+                        <div class="small">No loan history on record.</div>
                     </div>
                     {% endif %}
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Metadata Footer -->
+    <div class="text-muted text-end mt-2 pt-2 border-top" style="font-size: 0.72rem;">
+        <span>Registered: {{ customer.created_at|date:"d M Y H:i" }}</span> | 
+        <span>Created by: {{ customer.created_by|default:"System" }}</span> | 
+        <span>Last update: {{ customer.updated_at|date:"d M Y H:i" }}</span>
+    </div>
 </div>
 
-<!-- Commented out pledged items section as requested -->
-{% comment %}
-<div class="card h-100 shadow-sm">
-    <div class="card-header bg-white py-3">
-        <h5 class="card-title mb-0" style="font-size: 1.05rem;"><i class="fas fa-box me-2 text-primary"></i>Pledged Items</h5>
-    </div>
-    <div class="card-body p-0">
-        {% if items %}
-        <div class="table-responsive">
-            <table class="table table-hover table-striped mb-0 align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th class="ps-3">Item</th>
-                        <th>Status</th>
-                        <th class="pe-3">Value</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in items %}
-                    <tr>
-                        <td class="ps-3">
-                            <a href="{% url 'item_detail' item.id %}" class="font-weight-bold text-decoration-none">{{ item.name }}</a>
-                            <small class="d-block text-muted" style="font-size: 0.75rem;">{{ item.category }}</small>
-                        </td>
-                        <td>
-                            <span class="badge bg-{% if item.status == 'available' %}success{% elif item.status == 'pawned' %}primary{% elif item.status == 'sold' %}info{% else %}secondary{% endif %}">
-                                {{ item.get_status_display }}
-                            </span>
-                        </td>
-                        <td class="pe-3 font-weight-bold">Rs: {{ item.appraised_value|floatformat:2 }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+<!-- Modal 1: High-Resolution Customer Profile Photo Modal -->
+<div class="modal fade" id="customerPhotoModal" tabindex="-1" aria-labelledby="customerPhotoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header py-2 px-3 bg-light border-bottom">
+                <h6 class="modal-title fw-bold" id="customerPhotoModalLabel">
+                    <i class="fas fa-user-circle text-primary me-2"></i>{{ customer.full_name }} — Full Photo
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-2 text-center bg-dark rounded-bottom">
+                <img src="{{ customer.photo }}" alt="{{ customer.full_name }}" class="img-fluid rounded crisp-img" style="max-height: 500px; width: auto; object-fit: contain;">
+            </div>
         </div>
-        {% else %}
-        <div class="p-4 text-center">
-            <i class="fas fa-box-open text-muted mb-2" style="font-size: 1.8rem;"></i>
-            <p class="text-muted mb-0 small">No items associated with this customer.</p>
-        </div>
-        {% endif %}
     </div>
 </div>
-{% endcomment %}
+
+<!-- Modal 2: High-Resolution KYC ID Document Modal -->
+{% if customer.id_image %}
+<div class="modal fade" id="idDocModal" tabindex="-1" aria-labelledby="idDocModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header py-2 px-3 bg-light border-bottom">
+                <h6 class="modal-title fw-bold" id="idDocModalLabel">
+                    <i class="fas fa-id-card text-info me-2"></i>KYC ID Document — {{ customer.id_type }}: {{ customer.id_number }}
+                </h6>
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{{ customer.id_image.url }}" download="customer_id_{{ customer.id }}.jpg" class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size: 0.75rem;">
+                        <i class="fas fa-download me-1"></i>Download
+                    </a>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+            </div>
+            <div class="modal-body p-2 text-center bg-dark rounded-bottom">
+                <img src="{{ customer.id_image.url }}" alt="ID Document Full" class="img-fluid rounded crisp-img" style="max-height: 600px; width: auto; object-fit: contain;">
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}

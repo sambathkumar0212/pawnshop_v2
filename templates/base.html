@@ -10,22 +10,52 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <!-- Google Fonts - Noto Sans Tamil for Tamil language support -->
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Google Fonts - Inter, Plus Jakarta Sans & Noto Sans Tamil for high legibility -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Tamil:wght@400;500;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
     <!-- Custom CSS -->
     <style>
-        /* Support for Tamil and other Indic scripts */
-        html {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans Tamil', 'Noto Sans', Helvetica, Arial, sans-serif;
+        /* High-Legibility Enterprise Typography & Calming Canvas */
+        html, body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans Tamil', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+            color: #1e293b;
+            font-size: 15px;
+            line-height: 1.5;
+            background-color: #f1f5f9;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(224, 231, 255, 0.4) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(240, 249, 255, 0.5) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(241, 245, 249, 0.8) 0px, transparent 50%);
+            background-attachment: fixed;
         }
         
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans Tamil', 'Noto Sans', Helvetica, Arial, sans-serif;
+        h1, h2, h3, h4, h5, h6, .card-title, .modal-title {
+            font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-weight: 600;
+            color: #0f172a;
+            letter-spacing: -0.015em;
         }
         
-        /* Ensure Tamil text displays correctly */
+        /* Ensure Tamil text displays with perfect weight */
         [lang="ta"], .tamil-text, .lang-ta {
-            font-family: 'Noto Sans Tamil', 'Noto Sans', sans-serif;
+            font-family: 'Noto Sans Tamil', 'Inter', sans-serif;
+        }
+
+        /* Clean tabular numbers for currency and dates */
+        .rupee-symbol, td, th, .stat-value, .badge {
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Soft, eye-pleasing card shadows */
+        .card, .calm-card, .form-card, .customer-dossier-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02);
+            background-color: #ffffff;
         }
 
         .app-shell {
@@ -304,138 +334,217 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body>
+    {% if user.is_authenticated and not hide_sidebar %}
     <div class="container-fluid app-shell">
         <div class="row">
             <!-- Sidebar -->
             <div class="col-md-3 col-lg-2 p-0 sidebar d-none d-md-block">
-                <div class="py-4 px-3 mb-4 text-center">
+                <div class="py-4 px-3 mb-2 text-center">
                     <h3 class="text-white">Pawnshop MS</h3>
                 </div>
                 <ul class="nav flex-column">
+
+                    <!-- ═══ DASHBOARD ═══ -->
                     <li class="nav-item">
                         <a href="{% url 'dashboard' %}" class="nav-link {% block dashboard_active %}{% endblock %}">
-                            <i class="fas fa-tachometer-alt"></i> {% trans "Dashboard" %}
+                            <i class="fas fa-tachometer-alt" style="color:#38bdf8;"></i> {% trans "Dashboard" %}
                         </a>
                     </li>
-                    
+
+                    <!-- ═══ SUPER ADMIN (conditional) ═══ -->
                     {% if user.is_superuser %}
-                    <!-- Super Admin Section -->
                     <li class="nav-item">
-                        <div class="px-3 py-2">
-                            <small class="text-light text-uppercase fw-bold">Super Admin</small>
+                        <div class="px-3 pt-3 pb-1">
+                            <small class="text-light text-uppercase fw-bold" style="font-size:0.65rem;letter-spacing:0.08em;">Super Admin</small>
                         </div>
                     </li>
                     <li class="nav-item">
                         <a href="{% url 'superadmin_dashboard' %}" class="nav-link {% block superadmin_dashboard_active %}{% endblock %}">
-                            <i class="fas fa-user-shield"></i> Admin Dashboard
+                            <i class="fas fa-user-shield" style="color:#f472b6;"></i> Admin Dashboard
                         </a>
                     </li>
                     <li class="nav-item">
                         <a href="{% url 'superadmin_organization_list' %}" class="nav-link {% block superadmin_organizations_active %}{% endblock %}">
-                            <i class="fas fa-building"></i> Manage Organizations
+                            <i class="fas fa-building" style="color:#a78bfa;"></i> Manage Organizations
                         </a>
                     </li>
                     <li class="nav-item">
                         <a href="{% url 'admin:index' %}" class="nav-link" target="_blank">
-                            <i class="fas fa-cogs"></i> Django Admin
+                            <i class="fas fa-cogs" style="color:#fb923c;"></i> Django Admin
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <div class="px-3 py-2">
-                            <hr class="text-light">
-                        </div>
-                    </li>
+                    <li class="nav-item"><div class="px-3 py-1"><hr class="text-light opacity-25 my-1"></div></li>
                     {% endif %}
-                    
-                    <!-- Core Business Navigation -->
+
+                    <!-- ═══ SECTION 1 — DAILY OPERATIONS ═══ -->
                     <li class="nav-item">
-                        <a href="{% url 'customer_list' %}" class="nav-link {% block customers_active %}{% endblock %}">
-                            <i class="fas fa-users"></i> {% trans "Customers" %}
-                        </a>
+                        <div class="px-3 pt-3 pb-1">
+                            <small class="text-warning text-uppercase fw-bold" style="font-size:0.65rem;letter-spacing:0.08em;">
+                                <i class="fas fa-star me-1" style="font-size:0.6rem;"></i>Daily Operations
+                            </small>
+                        </div>
                     </li>
                     <li class="nav-item">
                         <a href="{% url 'loan_list' %}" class="nav-link {% block loans_active %}{% endblock %}">
-                            <i class="fas fa-hand-holding-usd"></i> {% trans "Loans" %}
+                            <i class="fas fa-hand-holding-usd" style="color:#34d399;"></i> {% trans "Loans" %}
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'customer_list' %}" class="nav-link {% block customers_active %}{% endblock %}">
+                            <i class="fas fa-users" style="color:#60a5fa;"></i> {% trans "Customers" %}
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'loan_approval_queue' %}" class="nav-link {% block approvals_active %}{% endblock %}">
+                            <i class="fas fa-tasks" style="color:#fbbf24;"></i> {% trans "Loan Approvals" %}
                         </a>
                     </li>
                     <li class="nav-item">
                         <a href="{% url 'payment_list' %}" class="nav-link {% block interest_paid_active %}{% endblock %}">
-                            <i class="fas fa-dollar-sign"></i> {% trans "Interest Paid" %}
+                            <i class="fas fa-dollar-sign" style="color:#4ade80;"></i> {% trans "Interest Paid" %}
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{% url 'item_list' %}" class="nav-link {% block inventory_active %}{% endblock %}">
-                            <i class="fas fa-box-open"></i> Inventory
+                        <a href="{% url 'cash_till_dashboard' %}" class="nav-link {% block cash_till_active %}{% endblock %}">
+                            <i class="fas fa-cash-register" style="color:#a3e635;"></i> Cash Till &amp; Scroll
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{% url 'sale_list' %}" class="nav-link {% block sales_active %}{% endblock %}">
-                            <i class="fas fa-shopping-cart"></i> Sales
+                        <a href="{% url 'vault_explorer' %}" class="nav-link {% block vault_active %}{% endblock %}">
+                            <i class="fas fa-shield-alt" style="color:#f59e0b;"></i> Gold Vault Custody
                         </a>
                     </li>
-                    
-                    <!-- Financial & Compliance -->
+                    <li class="nav-item">
+                        <a href="{% url 'eod_console' %}" class="nav-link {% block eod_active %}{% endblock %}">
+                            <i class="fas fa-moon" style="color:#818cf8;"></i> EOD &amp; NPA Operations
+                        </a>
+                    </li>
+
+                    <!-- ═══ SECTION 2 — FINANCIAL & COMPLIANCE ═══ -->
+                    <li class="nav-item">
+                        <div class="px-3 pt-3 pb-1">
+                            <small class="text-info text-uppercase fw-bold" style="font-size:0.65rem;letter-spacing:0.08em;">
+                                <i class="fas fa-balance-scale me-1" style="font-size:0.6rem;"></i>Financial & Compliance
+                            </small>
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'daily_gold_rates' %}" class="nav-link {% block gold_rates_active %}{% endblock %}">
+                            <i class="fas fa-coins" style="color:#fcd34d;"></i> Daily Gold Rates &amp; LTV
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'accounting_day_book' %}" class="nav-link {% block day_book_active %}{% endblock %}">
+                            <i class="fas fa-book-open" style="color:#38bdf8;"></i> Day Book (GL)
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'accounting_trial_balance' %}" class="nav-link {% block trial_balance_active %}{% endblock %}">
+                            <i class="fas fa-balance-scale" style="color:#67e8f9;"></i> Trial Balance &amp; P&amp;L
+                        </a>
+                    </li>
                     <li class="nav-item">
                         <a href="{% url 'gst_dashboard' %}" class="nav-link {% block gst_active %}{% endblock %}">
-                            <i class="fas fa-receipt"></i> GST
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'analytics:dashboard' %}" class="nav-link {% block risk_analytics_active %}{% endblock %}">
-                            <i class="fas fa-chart-pie"></i> Risk Analytics Dashboard
+                            <i class="fas fa-receipt" style="color:#f87171;"></i> GST
                         </a>
                     </li>
                     <li class="nav-item">
                         <a href="{% url 'scheme_list' %}" class="nav-link {% block schemes_active %}{% endblock %}">
-                            <i class="fas fa-percentage"></i> Loan Schemes
+                            <i class="fas fa-percentage" style="color:#c084fc;"></i> Loan Schemes
                         </a>
                     </li>
-                    
-                    <!-- Management & Administration -->
+
+                    <!-- ═══ SECTION 3 — SALES & INVENTORY ═══ -->
                     <li class="nav-item">
-                        <a href="{% url 'branch_list' %}" class="nav-link {% block branches_active %}{% endblock %}">
-                            <i class="fas fa-store"></i> Branches
+                        <div class="px-3 pt-3 pb-1">
+                            <small class="text-light text-uppercase fw-bold" style="font-size:0.65rem;letter-spacing:0.08em;">
+                                <i class="fas fa-store me-1" style="font-size:0.6rem;"></i>Sales & Inventory
+                            </small>
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'sale_list' %}" class="nav-link {% block sales_active %}{% endblock %}">
+                            <i class="fas fa-shopping-cart" style="color:#fb923c;"></i> Sales
                         </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'item_list' %}" class="nav-link {% block inventory_active %}{% endblock %}">
+                            <i class="fas fa-box-open" style="color:#86efac;"></i> Inventory
+                        </a>
+                    </li>
+
+                    <!-- ═══ SECTION 4 — REPORTS & ANALYTICS ═══ -->
+                    <li class="nav-item">
+                        <div class="px-3 pt-3 pb-1">
+                            <small class="text-light text-uppercase fw-bold" style="font-size:0.65rem;letter-spacing:0.08em;">
+                                <i class="fas fa-chart-bar me-1" style="font-size:0.6rem;"></i>Reports & Analytics
+                            </small>
+                        </div>
                     </li>
                     <li class="nav-item">
                         <a href="{% url 'report_list' %}" class="nav-link {% block reports_active %}{% endblock %}">
-                            <i class="fas fa-chart-bar"></i> Reports
+                            <i class="fas fa-chart-bar" style="color:#f472b6;"></i> Reports
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'analytics:dashboard' %}" class="nav-link {% block risk_analytics_active %}{% endblock %}">
+                            <i class="fas fa-chart-pie" style="color:#2dd4bf;"></i> Risk Analytics
                         </a>
                     </li>
                     <li class="nav-item">
                         <a href="{% url 'dashboard_list' %}" class="nav-link {% block dashboards_active %}{% endblock %}">
-                            <i class="fas fa-chart-line"></i> Analytics
+                            <i class="fas fa-chart-line" style="color:#e879f9;"></i> Analytics
                         </a>
                     </li>
-                    
-                    <!-- User & Security Management -->
+
+                    <!-- ═══ SECTION 5 — ADMINISTRATION ═══ -->
                     <li class="nav-item">
-                        <a href="{% url 'role_list' %}" class="nav-link {% block roles_active %}{% endblock %}">
-                            <i class="fas fa-user-tag"></i> Roles
+                        <div class="px-3 pt-3 pb-1">
+                            <small class="text-light text-uppercase fw-bold" style="font-size:0.65rem;letter-spacing:0.08em;">
+                                <i class="fas fa-cog me-1" style="font-size:0.6rem;"></i>Administration
+                            </small>
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'branch_list' %}" class="nav-link {% block branches_active %}{% endblock %}">
+                            <i class="fas fa-store" style="color:#fdba74;"></i> Branches
                         </a>
                     </li>
                     <li class="nav-item">
                         <a href="{% url 'user_list' %}" class="nav-link {% block users_active %}{% endblock %}">
-                            <i class="fas fa-user-shield"></i> Users
+                            <i class="fas fa-user-shield" style="color:#93c5fd;"></i> Users
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'role_list' %}" class="nav-link {% block roles_active %}{% endblock %}">
+                            <i class="fas fa-user-tag" style="color:#fca5a5;"></i> Roles
                         </a>
                     </li>
                     <li class="nav-item">
                         <a href="{% url 'biometric_settings' %}" class="nav-link {% block biometrics_active %}{% endblock %}">
-                            <i class="fas fa-fingerprint"></i> Biometrics
+                            <i class="fas fa-fingerprint" style="color:#6ee7b7;"></i> Biometrics
                         </a>
                     </li>
-                    
-                    <!-- System Integration & Subscription -->
+
+                    <!-- ═══ SECTION 6 — SYSTEM ═══ -->
+                    <li class="nav-item">
+                        <div class="px-3 pt-3 pb-1">
+                            <small class="text-light text-uppercase fw-bold" style="font-size:0.65rem;letter-spacing:0.08em;">
+                                <i class="fas fa-plug me-1" style="font-size:0.6rem;"></i>System
+                            </small>
+                        </div>
+                    </li>
                     <li class="nav-item">
                         <a href="{% url 'integration_list' %}" class="nav-link {% block integrations_active %}{% endblock %}">
-                            <i class="fas fa-plug"></i> Integrations
+                            <i class="fas fa-plug" style="color:#a5b4fc;"></i> Integrations
                         </a>
                     </li>
-                    <li class="nav-item">
+                    <li class="nav-item mb-4">
                         <a href="{% url 'subscription_plans' %}" class="nav-link {% block subscription_active %}{% endblock %}">
-                            <i class="fas fa-crown"></i> Subscription Plans
+                            <i class="fas fa-crown" style="color:#fde68a;"></i> Subscription Plans
                         </a>
                     </li>
+
                 </ul>
             </div>
             
@@ -453,16 +562,27 @@
 
                         <div class="collapse navbar-collapse" id="navbarNav">
                             <ul class="navbar-nav me-auto">
-                                <!-- Quick Search Form -->
-                                <li class="nav-item">
-                                    <form class="d-flex" action="{% url 'inventory_search' %}" method="GET">
-                                        <div class="input-group">
-                                            <input class="form-control" type="search" name="q" placeholder="Search inventory..." aria-label="Search">
-                                            <button class="btn btn-outline-primary" type="submit">
-                                                <i class="fas fa-search"></i>
+                                <!-- Global Search Form -->
+                                <li class="nav-item position-relative" style="min-width: 320px; max-width: 460px;">
+                                    <form class="d-flex" action="{% url 'global_search' %}" method="GET" id="globalSearchForm">
+                                        <div class="input-group shadow-xs">
+                                            <span class="input-group-text bg-white border-end-0 text-muted ps-2 pe-1">
+                                                <i class="fas fa-search text-primary" style="font-size: 0.85rem;"></i>
+                                            </span>
+                                            <input class="form-control border-start-0 border-end-0 ps-1" type="search" name="q" id="globalNavSearchInput"
+                                                   value="{{ request.GET.q|default:'' }}"
+                                                   placeholder="Search loans, customers, city, ornaments..."
+                                                   aria-label="Global Search" autocomplete="off"
+                                                   style="font-size: 0.88rem;">
+                                            <button class="btn btn-primary btn-sm px-3 fw-semibold" type="submit">
+                                                Search
                                             </button>
                                         </div>
                                     </form>
+                                    <!-- Instant Autocomplete Dropdown Container -->
+                                    <div id="globalNavSearchDropdown" class="dropdown-menu shadow-lg w-100 mt-1 py-0 border-0"
+                                         style="display:none; position:absolute; top:100%; left:0; z-index:1050; max-height:480px; overflow-y:auto; border-radius:8px;">
+                                    </div>
                                 </li>
                             </ul>
                             
@@ -564,10 +684,25 @@
                         {% endfor %}
                     </div>
                 {% endif %}
+    {% else %}
+    <!-- Unauthenticated Full-Page Canvas (No Sidebar / No Navbar) -->
+    <div class="unauth-wrapper-root w-100 min-vh-100 p-0 m-0">
+        {% if messages %}
+            <div class="container messages pt-3" style="max-width: 540px;">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endif %}
                 
-                <!-- Main Content Block -->
-                {% block content %}{% endblock %}
+        <!-- Universal Content Block -->
+        {% block content %}{% endblock %}
                 
+    {% if user.is_authenticated and not hide_sidebar %}
                 <!-- Footer -->
                 <footer class="footer mt-5">
                     <div class="container-fluid">
@@ -577,6 +712,9 @@
             </div>
         </div>
     </div>
+    {% else %}
+    </div> <!-- Close unauth-wrapper-root -->
+    {% endif %}
     
     <!-- Bootstrap Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -743,6 +881,151 @@
         
         // Update every second
         setInterval(updateDateTime, 1000);
+
+        // ══════════════════════════════════════════════════
+        // Global Instant Autocomplete Search
+        // ══════════════════════════════════════════════════
+        const navSearchInput = document.getElementById('globalNavSearchInput');
+        const navSearchDropdown = document.getElementById('globalNavSearchDropdown');
+        let searchDebounceTimer = null;
+
+        if (navSearchInput && navSearchDropdown) {
+            navSearchInput.addEventListener('input', function() {
+                const query = this.value.trim();
+                clearTimeout(searchDebounceTimer);
+
+                if (query.length < 2) {
+                    navSearchDropdown.style.display = 'none';
+                    navSearchDropdown.innerHTML = '';
+                    return;
+                }
+
+                searchDebounceTimer = setTimeout(() => {
+                    fetch(`{% url 'global_search_api' %}?q=${encodeURIComponent(query)}`)
+                        .then(r => r.json())
+                        .then(data => {
+                            if (!data.results || data.total_count === 0) {
+                                navSearchDropdown.innerHTML = `
+                                    <div class="p-3 text-center text-muted small">
+                                        <i class="fas fa-search me-1 text-secondary"></i>No matching results for "<strong>${escapeHtml(query)}</strong>"
+                                        <div class="mt-1"><a href="{% url 'global_search' %}?q=${encodeURIComponent(query)}" class="btn btn-outline-primary btn-xs mt-1">Full Search Page</a></div>
+                                    </div>`;
+                                navSearchDropdown.style.display = 'block';
+                                return;
+                            }
+
+                            let html = `<div class="p-2 border-bottom bg-light d-flex justify-content-between align-items-center">
+                                <small class="fw-bold text-uppercase text-secondary" style="font-size:0.68rem;letter-spacing:0.05em;">Quick Matches (${data.total_count})</small>
+                                <a href="{% url 'global_search' %}?q=${encodeURIComponent(query)}" class="small fw-semibold text-primary text-decoration-none" style="font-size:0.75rem;">View All Results &rarr;</a>
+                            </div>`;
+
+                            // 1. Customers
+                            if (data.results.customers && data.results.customers.length > 0) {
+                                html += `<div class="px-3 py-1 bg-white text-uppercase fw-bold text-muted border-bottom" style="font-size:0.65rem;">
+                                    <i class="fas fa-users text-primary me-1"></i>Customers
+                                </div>`;
+                                data.results.customers.forEach(c => {
+                                    html += `
+                                    <a href="${c.url}" class="dropdown-item px-3 py-2 border-bottom d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="fw-bold text-dark" style="font-size:0.85rem;">${escapeHtml(c.title)}</div>
+                                            <small class="text-muted d-block" style="font-size:0.72rem;">${escapeHtml(c.subtitle)}</small>
+                                        </div>
+                                        <span class="badge ${c.badge_class || 'bg-primary'} font-monospace" style="font-size:0.68rem;">${escapeHtml(c.badge)}</span>
+                                    </a>`;
+                                });
+                            }
+
+                            // 2. Loans
+                            if (data.results.loans && data.results.loans.length > 0) {
+                                html += `<div class="px-3 py-1 bg-white text-uppercase fw-bold text-muted border-bottom" style="font-size:0.65rem;">
+                                    <i class="fas fa-hand-holding-usd text-success me-1"></i>Loans
+                                </div>`;
+                                data.results.loans.forEach(l => {
+                                    html += `
+                                    <a href="${l.url}" class="dropdown-item px-3 py-2 border-bottom d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="fw-bold text-dark font-monospace" style="font-size:0.85rem;">${escapeHtml(l.title)}</div>
+                                            <small class="text-muted d-block" style="font-size:0.72rem;">${escapeHtml(l.subtitle)}</small>
+                                        </div>
+                                        <span class="badge ${l.badge_class || 'bg-success'}" style="font-size:0.68rem;">${escapeHtml(l.badge)}</span>
+                                    </a>`;
+                                });
+                            }
+
+                            // 3. Ornaments
+                            if (data.results.ornaments && data.results.ornaments.length > 0) {
+                                html += `<div class="px-3 py-1 bg-white text-uppercase fw-bold text-muted border-bottom" style="font-size:0.65rem;">
+                                    <i class="fas fa-gem text-warning me-1"></i>Ornaments
+                                </div>`;
+                                data.results.ornaments.forEach(o => {
+                                    html += `
+                                    <a href="${o.url}" class="dropdown-item px-3 py-2 border-bottom d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="fw-bold text-dark" style="font-size:0.85rem;">${escapeHtml(o.title)}</div>
+                                            <small class="text-muted d-block" style="font-size:0.72rem;">${escapeHtml(o.subtitle)}</small>
+                                        </div>
+                                        <span class="badge ${o.badge_class || 'bg-warning text-dark'}" style="font-size:0.68rem;">${escapeHtml(o.badge)}</span>
+                                    </a>`;
+                                });
+                            }
+
+                            // 4. Vault Pouches
+                            if (data.results.vault_pouches && data.results.vault_pouches.length > 0) {
+                                html += `<div class="px-3 py-1 bg-white text-uppercase fw-bold text-muted border-bottom" style="font-size:0.65rem;">
+                                    <i class="fas fa-shield-alt text-warning me-1"></i>Vault Pouches
+                                </div>`;
+                                data.results.vault_pouches.forEach(v => {
+                                    html += `
+                                    <a href="${v.url}" class="dropdown-item px-3 py-2 border-bottom d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="fw-bold text-dark font-monospace" style="font-size:0.85rem;">${escapeHtml(v.title)}</div>
+                                            <small class="text-muted d-block" style="font-size:0.72rem;">${escapeHtml(v.subtitle)}</small>
+                                        </div>
+                                        <span class="badge ${v.badge_class || 'bg-dark'}" style="font-size:0.68rem;">${escapeHtml(v.badge)}</span>
+                                    </a>`;
+                                });
+                            }
+
+                            html += `<div class="p-2 text-center bg-light">
+                                <a href="{% url 'global_search' %}?q=${encodeURIComponent(query)}" class="btn btn-primary btn-xs w-100 py-1 fw-bold">
+                                    <i class="fas fa-search me-1"></i> View All Results for "${escapeHtml(query)}"
+                                </a>
+                            </div>`;
+
+                            navSearchDropdown.innerHTML = html;
+                            navSearchDropdown.style.display = 'block';
+                        })
+                        .catch(err => {
+                            console.error('Search API error:', err);
+                        });
+                }, 220);
+            });
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!navSearchInput.contains(e.target) && !navSearchDropdown.contains(e.target)) {
+                    navSearchDropdown.style.display = 'none';
+                }
+            });
+
+            // Re-open if query is present on focus
+            navSearchInput.addEventListener('focus', function() {
+                if (this.value.trim().length >= 2 && navSearchDropdown.innerHTML.trim() !== '') {
+                    navSearchDropdown.style.display = 'block';
+                }
+            });
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
     </script>
 </body>
 </html>

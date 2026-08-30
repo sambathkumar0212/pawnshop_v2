@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils import timezone
+from decimal import Decimal
 from branches.models import Branch
 from accounts.models import CustomUser
 from django.urls import reverse
@@ -384,3 +385,126 @@ class SchemeAuditLog(models.Model):
     
     def __str__(self):
         return f"{self.action} on {self.scheme.name} by {self.user.username}"
+
+
+class DailyGoldRate(models.Model):
+    """
+    Central Daily Gold Rate & RBI Statutory LTV Cap Management Model.
+    Super Admins / Head Office broadcast daily market prices for 24K, 22K, 20K, 18K gold.
+    All 100+ branches inherit these rates for valuation and strict LTV cap enforcement.
+    """
+    organization = models.ForeignKey(
+        'accounts.Organization', on_delete=models.CASCADE,
+        null=True, blank=True, related_name='gold_rates',
+        help_text="Organization for this rate (null for global standard)"
+    )
+    date = models.DateField(default=timezone.now, db_index=True, help_text="Effective rate date")
+    rate_24k_per_gram = models.DecimalField(
+        max_digits=10, decimal_places=2, default=Decimal('7200.00'),
+        help_text="Market price of 24K (99.9%) pure gold per gram in INR"
+    )
+    rate_22k_per_gram = models.DecimalField(
+        max_digits=10, decimal_places=2, default=Decimal('6600.00'),
+        help_text="Market price of 22K (91.6%) standard gold per gram in INR"
+    )
+    rate_20k_per_gram = models.DecimalField(
+        max_digits=10, decimal_places=2, default=Decimal('6000.00'),
+        help_text="Market price of 20K (83.3%) gold per gram in INR"
+    )
+    rate_18k_per_gram = models.DecimalField(
+        max_digits=10, decimal_places=2, default=Decimal('5400.00'),
+        help_text="Market price of 18K (75.0%) gold per gram in INR"
+    )
+    maximum_ltv_percentage = models.DecimalField(
+        max_digits=5, decimal_places=2, default=Decimal('75.00'),
+        help_text="RBI Statutory LTV Cap percentage (default 75.00%, hard ceiling 90.00%)"
+    )
+    updated_by = models.ForeignKey(
+        'accounts.CustomUser', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='gold_rate_updates'
+    )
+    is_active = models.BooleanField(default=True, help_text="Active rate indicator")
+    notes = models.CharField(max_length=255, blank=True, null=True, help_text="Broadcast notes / Market reason")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-date', '-created_at']
+        verbose_name = "Daily Gold Rate"
+        verbose_name_plural = "Daily Gold Rates"
+
+    def __str__(self):
+        return f"Gold Rate {self.date} — 22K: Rs {self.rate_22k_per_gram}/g (LTV Cap: {self.maximum_ltv_percentage}%)"
+
+    def get_rate_for_karat(self, karat):
+        """Return rate per gram in Decimal for any karat purity."""
+        karat_str = str(karat).upper().replace('K', '').strip()
+        if karat_str in ('24', '99.9', '999'):
+            return self.rate_24k_per_gram
+        elif karat_str in ('22', '91.6', '916'):
+            return self.rate_22k_per_gram
+        elif karat_str in ('20', '83.3', '833'):
+            return self.rate_20k_per_gram
+        elif karat_str in ('18', '75.0', '750'):
+            return self.rate_18k_per_gram
+        else:
+            # Derive dynamically from 24K pure rate
+            try:
+                k_val = Decimal(karat_str)
+                purity_ratio = k_val / Decimal('24.0')
+                return (self.rate_24k_per_gram * purity_ratio).quantize(Decimal('0.01'))
+            except Exception:
+                return self.rate_22k_per_gram
+
+    @classmethod
+    def get_current_rate(cls, organization=None):
+        """Fetch the most recent active gold rate broadcasted for organization or overall."""
+        query = cls.objects.filter(is_active=True)
+        if organization:
+            org_rate = query.filter(organization=organization).order_by('-date', '-created_at').first()
+            if org_rate:
+                return org_rate
+        # Fall back to latest available active rate
+        rate = query.order_by('-date', '-created_at').first()
+        if not rate:
+            rate = cls.objects.create(
+                date=timezone.now().date(),
+                rate_24k_per_gram=Decimal('7200.00'),
+                rate_22k_per_gram=Decimal('6600.00'),
+                rate_20k_per_gram=Decimal('6000.00'),
+                rate_18k_per_gram=Decimal('5400.00'),
+                maximum_ltv_percentage=Decimal('75.00'),
+                is_active=True
+            )
+        return rate
+
+    @classmethod
+    def calculate_valuation(cls, net_weight, karat, scheme_ltv=None, organization=None):
+        """
+        Calculate Market Value, Statutory LTV %, and Maximum Eligible Loan Amount.
+        """
+        rate_obj = cls.get_current_rate(organization=organization)
+        net_wt = Decimal(str(net_weight or 0))
+        rate_per_gram = rate_obj.get_rate_for_karat(karat)
+        market_value = (net_wt * rate_per_gram).quantize(Decimal('0.01'))
+
+        rbi_cap = rate_obj.maximum_ltv_percentage or Decimal('75.00')
+        if rbi_cap > Decimal('90.00'):
+            rbi_cap = Decimal('90.00')
+
+        if scheme_ltv is not None:
+            scheme_ltv_dec = Decimal(str(scheme_ltv))
+            effective_ltv = min(scheme_ltv_dec, rbi_cap)
+        else:
+            effective_ltv = rbi_cap
+
+        max_eligible_loan = (market_value * (effective_ltv / Decimal('100.0'))).quantize(Decimal('1.00'))
+
+        return {
+            'rate_per_gram': rate_per_gram,
+            'market_value': market_value,
+            'effective_ltv': effective_ltv,
+            'max_eligible_loan': max_eligible_loan,
+            'rbi_cap_ltv': rbi_cap,
+            'rate_obj': rate_obj,
+        }

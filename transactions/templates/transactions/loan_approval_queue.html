@@ -1,0 +1,351 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Loan Approval Queue &amp; Tiered Maker-Checker - Pawnshop Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .queue-card {
+        border-radius: 8px;
+        transition: transform 0.2s;
+    }
+    .queue-card:hover {
+        transform: translateY(-2px);
+    }
+    .nav-tabs .nav-link.active {
+        font-weight: 700;
+        border-bottom: 3px solid var(--bs-primary);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+        <div>
+            <h2 class="h3 mb-0 fw-bold text-dark">
+                <i class="fas fa-tasks text-warning me-2"></i>Tiered Loan Approval Queue (Maker-Checker)
+            </h2>
+            <p class="text-muted mb-0 small mt-1">
+                Multi-tier approval workflow for Branch Managers, Regional Managers &amp; Head Office Credit Committee.
+            </p>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <a href="{% url 'loan_list' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-list me-1"></i>All Active Loans
+            </a>
+            <a href="{% url 'loan_create' %}" class="btn btn-primary btn-sm fw-bold">
+                <i class="fas fa-plus-circle me-1"></i>New Loan Application
+            </a>
+        </div>
+    </div>
+
+    <!-- 4 KPI Metrics Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3 col-sm-6">
+            <div class="card queue-card border-0 bg-white shadow-sm p-3 h-100">
+                <div class="text-muted small text-uppercase fw-semibold">Pending Approvals</div>
+                <div class="fs-3 fw-bold text-danger font-monospace mt-2">{{ pending_count }}</div>
+                <div class="small text-muted mt-1"><i class="fas fa-clock text-warning me-1"></i>Awaiting Checker Sign-off</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="card queue-card border-0 bg-white shadow-sm p-3 h-100">
+                <div class="text-muted small text-uppercase fw-semibold">Tier 1 (≤ ₹2 Lakhs)</div>
+                <div class="fs-3 fw-bold text-primary font-monospace mt-2">{{ tier1_pending }}</div>
+                <div class="small text-muted mt-1"><i class="fas fa-user-shield me-1"></i>Branch Manager Level</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="card queue-card border-0 bg-white shadow-sm p-3 h-100">
+                <div class="text-muted small text-uppercase fw-semibold">Tier 2 (₹2L - ₹10L)</div>
+                <div class="fs-3 fw-bold text-warning font-monospace mt-2">{{ tier2_pending }}</div>
+                <div class="small text-muted mt-1"><i class="fas fa-building me-1"></i>Regional Office Level</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="card queue-card border-0 bg-white shadow-sm p-3 h-100">
+                <div class="text-muted small text-uppercase fw-semibold">Approved (Ready to Disburse)</div>
+                <div class="fs-3 fw-bold text-success font-monospace mt-2">{{ approved_count }}</div>
+                <div class="small text-muted mt-1"><i class="fas fa-check-circle text-success me-1"></i>Ready for Cash / Bank Payout</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter & Tabs Card -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-bottom-0 pt-3 pb-0">
+            <ul class="nav nav-tabs card-header-tabs">
+                <li class="nav-item">
+                    <a class="nav-link {% if tab == 'pending' %}active text-primary{% else %}text-secondary{% endif %}" href="?tab=pending{% if selected_branch %}&branch_id={{ selected_branch }}{% endif %}">
+                        <i class="fas fa-hourglass-half me-1"></i>Pending Approvals <span class="badge bg-danger ms-1">{{ pending_count }}</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if tab == 'approved' %}active text-success{% else %}text-secondary{% endif %}" href="?tab=approved{% if selected_branch %}&branch_id={{ selected_branch }}{% endif %}">
+                        <i class="fas fa-check-double me-1"></i>Approved (Ready for Disbursal) <span class="badge bg-success ms-1">{{ approved_count }}</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if tab == 'rejected' %}active text-danger{% else %}text-secondary{% endif %}" href="?tab=rejected{% if selected_branch %}&branch_id={{ selected_branch }}{% endif %}">
+                        <i class="fas fa-times-circle me-1"></i>Rejected <span class="badge bg-secondary ms-1">{{ rejected_count }}</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if tab == 'disbursed' %}active text-dark{% else %}text-secondary{% endif %}" href="?tab=disbursed{% if selected_branch %}&branch_id={{ selected_branch }}{% endif %}">
+                        <i class="fas fa-hand-holding-usd me-1"></i>Disbursed (Active)
+                    </a>
+                </li>
+            </ul>
+        </div>
+        <div class="card-body p-3 border-top">
+            <form method="get" class="row g-3 align-items-end">
+                <input type="hidden" name="tab" value="{{ tab }}">
+                {% if all_branches.count > 1 %}
+                <div class="col-md-4">
+                    <label class="form-label small fw-semibold">Branch</label>
+                    <select name="branch_id" class="form-select form-select-sm">
+                        <option value="">All Scoped Branches</option>
+                        {% for b in all_branches %}
+                        <option value="{{ b.id }}" {% if selected_branch == b.id|stringformat:"s" %}selected{% endif %}>{{ b.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+                <div class="col-md-4">
+                    <label class="form-label small fw-semibold">Approval Tier</label>
+                    <select name="tier" class="form-select form-select-sm">
+                        <option value="">All Tiers</option>
+                        <option value="1" {% if selected_tier == '1' %}selected{% endif %}>Tier 1 (≤ ₹2,00,000) [BM]</option>
+                        <option value="2" {% if selected_tier == '2' %}selected{% endif %}>Tier 2 (₹2,00,001 - ₹10,00,000) [BM + RO]</option>
+                        <option value="3" {% if selected_tier == '3' %}selected{% endif %}>Tier 3 (> ₹10,00,000) [BM + RO + HO]</option>
+                    </select>
+                </div>
+                <div class="col-md-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-dark btn-sm flex-fill fw-bold">
+                        <i class="fas fa-filter me-1"></i>Filter Queue
+                    </button>
+                    <a href="?tab={{ tab }}" class="btn btn-outline-secondary btn-sm">Reset</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Loan Queue Table -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 130px;">Loan #</th>
+                            <th>Customer &amp; Branch</th>
+                            <th class="text-end" style="width: 140px;">Principal (₹)</th>
+                            <th>Tier Level</th>
+                            <th>Initiated By (Maker)</th>
+                            <th>Approval Status / Checkers</th>
+                            <th class="text-center" style="width: 220px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for loan in loans %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'loan_detail' loan.loan_number %}" class="fw-bold font-monospace text-primary">
+                                    {{ loan.loan_number }}
+                                </a>
+                                <div class="text-muted small">{{ loan.created_at|date:"d M Y, h:i A" }}</div>
+                            </td>
+                            <td>
+                                <strong class="text-dark">{{ loan.customer.full_name }}</strong>
+                                <div class="small text-muted">{{ loan.customer.phone }} | {{ loan.branch.name }}</div>
+                            </td>
+                            <td class="text-end font-monospace fw-bold fs-6 text-dark">
+                                ₹{{ loan.principal_amount|floatformat:2|intcomma }}
+                            </td>
+                            <td>
+                                {% if loan.approval_tier == 1 %}
+                                <span class="badge bg-primary">Tier 1 (≤ ₹2L)</span>
+                                {% elif loan.approval_tier == 2 %}
+                                <span class="badge bg-warning text-dark">Tier 2 (₹2L-₹10L)</span>
+                                {% else %}
+                                <span class="badge bg-danger">Tier 3 (> ₹10L)</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="small text-dark fw-semibold">{{ loan.maker_name }}</div>
+                                <div class="text-muted small">Maker / Appraiser</div>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column gap-1 small">
+                                    <!-- BM Status -->
+                                    <div>
+                                        {% if loan.checker_bm %}
+                                        <i class="fas fa-check-circle text-success me-1"></i>
+                                        <strong>BM:</strong> {{ loan.checker_bm_name }} <span class="text-muted">({{ loan.checker_bm_at|date:"d M, H:i" }})</span>
+                                        {% else %}
+                                        <i class="fas fa-clock text-warning me-1"></i>
+                                        <strong>BM:</strong> <span class="text-warning">Pending BM</span>
+                                        {% endif %}
+                                    </div>
+                                    <!-- RO Status (if Tier >= 2) -->
+                                    {% if loan.approval_tier >= 2 %}
+                                    <div>
+                                        {% if loan.checker_ro %}
+                                        <i class="fas fa-check-circle text-success me-1"></i>
+                                        <strong>RO:</strong> {{ loan.checker_ro_name }} <span class="text-muted">({{ loan.checker_ro_at|date:"d M, H:i" }})</span>
+                                        {% else %}
+                                        <i class="fas fa-clock text-warning me-1"></i>
+                                        <strong>RO:</strong> <span class="text-warning">Pending Regional Office</span>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                    <!-- HO Status (if Tier == 3) -->
+                                    {% if loan.approval_tier == 3 %}
+                                    <div>
+                                        {% if loan.checker_ho %}
+                                        <i class="fas fa-check-circle text-success me-1"></i>
+                                        <strong>HO:</strong> {{ loan.checker_ho_name }} <span class="text-muted">({{ loan.checker_ho_at|date:"d M, H:i" }})</span>
+                                        {% else %}
+                                        <i class="fas fa-clock text-warning me-1"></i>
+                                        <strong>HO:</strong> <span class="text-warning">Pending Head Office</span>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'loan_detail' loan.loan_number %}" class="btn btn-outline-secondary" title="View Loan Dossier">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+
+                                    {% if loan.status == 'pending_approval' %}
+                                    <!-- Approve Button (triggers modal) -->
+                                    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#approveModal{{ loan.pk }}" title="Approve Loan">
+                                        <i class="fas fa-check me-1"></i>Approve
+                                    </button>
+                                    <!-- Reject Button -->
+                                    <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#rejectModal{{ loan.pk }}" title="Reject Loan">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                    <!-- Request Re-appraisal -->
+                                    <button type="button" class="btn btn-outline-warning text-dark" data-bs-toggle="modal" data-bs-target="#reappraisalModal{{ loan.pk }}" title="Request Re-appraisal">
+                                        <i class="fas fa-redo"></i>
+                                    </button>
+                                    {% elif loan.status == 'approved' %}
+                                    <span class="badge bg-success py-2 px-2"><i class="fas fa-check-circle me-1"></i>Ready for Payout</span>
+                                    {% elif loan.status == 'rejected' %}
+                                    <span class="badge bg-danger py-2 px-2"><i class="fas fa-ban me-1"></i>Rejected</span>
+                                    {% else %}
+                                    <span class="badge bg-primary py-2 px-2">{{ loan.get_status_display }}</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+
+                        <!-- Modal: Approve Loan -->
+                        <div class="modal fade" id="approveModal{{ loan.pk }}" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <form method="post" action="{% url 'loan_approval_approve' loan.pk %}">
+                                        {% csrf_token %}
+                                        <div class="modal-header bg-success text-white">
+                                            <h5 class="modal-title"><i class="fas fa-check-circle me-2"></i>Approve Loan #{{ loan.loan_number }}</h5>
+                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body text-start">
+                                            <div class="alert alert-info small mb-3">
+                                                <strong>Customer:</strong> {{ loan.customer.full_name }}<br>
+                                                <strong>Principal Amount:</strong> ₹{{ loan.principal_amount|floatformat:2|intcomma }}<br>
+                                                <strong>Required Approval Level:</strong> Tier {{ loan.approval_tier }}
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label small fw-bold">Approval Sign-off Notes (Optional)</label>
+                                                <textarea name="approval_notes" class="form-control" rows="2" placeholder="Appraisal verification verified; approved for disbursal."></textarea>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                            <button type="submit" class="btn btn-success fw-bold">
+                                                <i class="fas fa-signature me-1"></i>Confirm Digital Approval
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Modal: Reject Loan -->
+                        <div class="modal fade" id="rejectModal{{ loan.pk }}" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <form method="post" action="{% url 'loan_approval_reject' loan.pk %}">
+                                        {% csrf_token %}
+                                        <div class="modal-header bg-danger text-white">
+                                            <h5 class="modal-title"><i class="fas fa-ban me-2"></i>Reject Loan #{{ loan.loan_number }}</h5>
+                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body text-start">
+                                            <div class="alert alert-warning small mb-3">
+                                                Rejecting this loan application will lock it permanently and notify the appraiser.
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label small fw-bold">Rejection Reason <span class="text-danger">*</span></label>
+                                                <textarea name="rejection_reason" class="form-control" rows="3" required placeholder="State exact reason for rejection (e.g. KYC discrepancy, valuation mismatch, purity test failed)..."></textarea>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                            <button type="submit" class="btn btn-danger fw-bold">
+                                                <i class="fas fa-times-circle me-1"></i>Confirm Rejection
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Modal: Request Re-appraisal -->
+                        <div class="modal fade" id="reappraisalModal{{ loan.pk }}" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <form method="post" action="{% url 'loan_approval_reappraisal' loan.pk %}">
+                                        {% csrf_token %}
+                                        <div class="modal-header bg-warning text-dark">
+                                            <h5 class="modal-title"><i class="fas fa-redo me-2"></i>Request Re-appraisal for #{{ loan.loan_number }}</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body text-start">
+                                            <div class="mb-3">
+                                                <label class="form-label small fw-bold">Re-appraisal Notes / Test Instructions <span class="text-danger">*</span></label>
+                                                <textarea name="reappraisal_notes" class="form-control" rows="3" required placeholder="Specify items to re-test, acid test instructions, stone weight deduction review..."></textarea>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                            <button type="submit" class="btn btn-warning fw-bold text-dark">
+                                                <i class="fas fa-paper-plane me-1"></i>Send to Appraiser
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5 text-muted">
+                                <i class="fas fa-tasks fa-3x mb-2 text-muted opacity-50"></i>
+                                <p class="mb-0">No loans found matching the selected queue filter.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

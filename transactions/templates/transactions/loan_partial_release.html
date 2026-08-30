@@ -1,0 +1,587 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Partial Ornament Release - Loan #{{ loan.loan_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+        <div>
+            <h2 class="h3 mb-0 fw-bold text-dark">
+                <i class="fas fa-hand-holding-usd text-warning me-2"></i>Partial Ornament Release &amp; Part-Payment
+            </h2>
+            <p class="text-muted mb-0 small mt-1">
+                Loan #<strong>{{ loan.loan_number }}</strong> | Borrower: <strong>{{ loan.customer.full_name }}</strong> | Branch: <strong>{{ loan.branch.name }}</strong>
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'loan_detail' loan.loan_number %}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left me-1"></i>Back to Loan Details
+            </a>
+        </div>
+    </div>
+
+    <!-- Loan Financial & Rate Summary Banner -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3 col-sm-6">
+            <div class="card border-0 bg-white shadow-sm p-3 h-100">
+                <div class="text-muted small text-uppercase fw-semibold">Current Principal Balance</div>
+                <div class="fs-4 fw-bold text-dark font-monospace mt-1">₹{{ loan.principal_amount|floatformat:2|intcomma }}</div>
+                <div class="small text-muted">Today's Accrued Int: <strong class="text-danger">₹{{ total_accrued|floatformat:2|intcomma }}</strong></div>
+                <div class="small text-muted">Today's Net Payable: <strong class="text-primary">₹{{ total_net_payable|floatformat:2|intcomma }}</strong></div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="card border-0 bg-white shadow-sm p-3 h-100">
+                <div class="text-muted small text-uppercase fw-semibold">Existing Loan LTV</div>
+                <div class="fs-4 fw-bold text-primary font-monospace mt-1">{{ existing_ltv|floatformat:2 }}%</div>
+                <div class="small text-muted">Statutory Max LTV: <strong class="text-success">75.00%</strong></div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="card border-0 bg-white shadow-sm p-3 h-100">
+                <div class="text-muted small text-uppercase fw-semibold">Total Pledged Collateral</div>
+                <div class="fs-4 fw-bold text-warning-emphasis font-monospace mt-1">{{ items_with_val|length }} Lines</div>
+                <div class="small text-muted">Total Market Value: <strong>₹{{ total_pledged_val|floatformat:2|intcomma }}</strong></div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="card border-0 bg-white shadow-sm p-3 h-100">
+                <div class="text-muted small text-uppercase fw-semibold">Benchmark 22K Gold Rate</div>
+                <div class="fs-4 fw-bold text-warning font-monospace mt-1">₹{{ gold_rate|floatformat:2|intcomma }} /g</div>
+                <div class="small text-muted">RBI IRAC Tag: <span class="badge {% if loan.irac_status == 'STANDARD' %}bg-success{% elif loan.irac_status == 'SMA_0' %}bg-info text-dark{% else %}bg-danger{% endif %}">{{ loan.get_irac_status_display }}</span></div>
+            </div>
+        </div>
+    </div>
+
+    <form method="post" id="partialReleaseForm">
+        {% csrf_token %}
+        <div class="row g-4">
+            <!-- Left: Ornaments Selection & Quantities -->
+            <div class="col-lg-7">
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header py-3 border-0 d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%); border-radius: 0.5rem 0.5rem 0 0;">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="bg-white bg-opacity-25 rounded p-2 d-flex align-items-center justify-content-center" style="width:36px;height:36px;">
+                                <i class="fas fa-list-check text-white" style="font-size:1rem;"></i>
+                            </div>
+                            <div>
+                                <h5 class="mb-0 fw-bold text-white" style="letter-spacing:0.02em;">Select Ornaments to Release</h5>
+                                <div class="text-white text-opacity-75" style="font-size:0.72rem;">Auto-calculates release value on selection</div>
+                            </div>
+                        </div>
+                        <span class="badge bg-white text-warning border fw-semibold"><i class="fas fa-calculator me-1"></i>Live Calc</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 40px;" class="text-center">
+                                            <input type="checkbox" id="selectAllItems" class="form-check-input">
+                                        </th>
+                                        <th>Ornament Details</th>
+                                        <th style="width: 130px;">Release Qty</th>
+                                        <th class="text-end" style="width: 130px;">Release Wt (g)</th>
+                                        <th class="text-end" style="width: 160px;">Release Value (₹)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in items_with_val %}
+                                    <tr class="item-row" data-item-id="{{ row.obj.id }}" 
+                                        data-total-qty="{{ row.total_quantity }}" 
+                                        data-total-net="{{ row.obj.net_weight }}"
+                                        data-total-gross="{{ row.obj.gross_weight }}"
+                                        data-unit-net="{{ row.unit_net_weight }}"
+                                        data-karat="{{ row.obj.gold_karat }}"
+                                        data-gold-rate="{{ gold_rate }}"
+                                        data-unit-release-val="{{ row.unit_release_value }}">
+                                        <td class="text-center">
+                                            <input type="checkbox" name="item_ids" value="{{ row.obj.id }}" class="form-check-input item-checkbox" id="check_{{ row.obj.id }}">
+                                        </td>
+                                        <td>
+                                            <label for="check_{{ row.obj.id }}" class="fw-bold text-dark d-block mb-0 cursor-pointer">
+                                                {{ row.obj.item.name }}
+                                            </label>
+                                            <div class="text-muted small">
+                                                Pledged: <strong>{{ row.total_quantity }} item(s)</strong> | 
+                                                Net: <strong>{{ row.obj.net_weight }}g</strong> | 
+                                                <span class="badge bg-warning text-dark font-monospace">{{ row.obj.gold_karat }}K</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            {% if row.total_quantity > 1 %}
+                                            <select name="release_qty_{{ row.obj.id }}" class="form-select form-select-sm release-qty-input font-monospace">
+                                                {% for q in row.qty_range %}
+                                                <option value="{{ q }}" {% if q == 1 %}selected{% endif %}>{{ q }} of {{ row.total_quantity }}</option>
+                                                {% endfor %}
+                                            </select>
+                                            {% else %}
+                                            <input type="hidden" name="release_qty_{{ row.obj.id }}" class="release-qty-input" value="1">
+                                            <span class="badge bg-secondary font-monospace">1 item (Full)</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-end font-monospace">
+                                            <input type="number" step="0.001" min="0.001" max="{{ row.obj.net_weight }}" 
+                                                   name="release_net_wt_{{ row.obj.id }}" 
+                                                   class="form-control form-control-sm text-end release-net-wt-input font-monospace"
+                                                   value="{{ row.unit_net_weight }}">
+                                            <input type="hidden" name="release_gross_wt_{{ row.obj.id }}" class="release-gross-wt-input" value="{{ row.unit_gross_weight }}">
+                                        </td>
+                                        <td class="text-end font-monospace">
+                                            <div class="fw-bold text-success release-val-text">₹{{ row.unit_release_value|floatformat:2|intcomma }}</div>
+                                            <div class="text-muted" style="font-size: 0.68rem;">P: ₹{{ row.unit_release_principal|floatformat:0|intcomma }} + Int: ₹{{ row.unit_release_interest|floatformat:0|intcomma }}</div>
+                                            <div class="text-muted" style="font-size: 0.65rem;">Market: ₹{{ row.unit_valuation|floatformat:2|intcomma }}</div>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="5" class="text-center py-4 text-muted">
+                                            No pledged ornaments available in custody for release.
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payment & Customer Signature Block -->
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header py-3 border-0" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); border-radius: 0.5rem 0.5rem 0 0;">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="bg-white bg-opacity-25 rounded p-2 d-flex align-items-center justify-content-center" style="width:36px;height:36px;">
+                                <i class="fas fa-file-signature text-white" style="font-size:1rem;"></i>
+                            </div>
+                            <div>
+                                <h5 class="mb-0 fw-bold text-white" style="letter-spacing:0.02em;">Auto-Calculated Release Payout</h5>
+                                <div class="text-white text-opacity-75" style="font-size:0.72rem;">& Customer Acknowledgment</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body p-4">
+                        <!-- Prominent Auto-Calculated Release Value Breakdown Banner -->
+                        <div class="card bg-success-subtle border-success shadow-sm mb-3" id="autoReleaseSummaryCard">
+                            <div class="card-body p-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="badge bg-success text-white px-2 py-1" style="font-size: 0.75rem;">
+                                        <i class="fas fa-hand-holding-usd me-1"></i>TOTAL AMOUNT TO COLLECT FROM CUSTOMER
+                                    </span>
+                                    <span class="badge bg-white text-dark border px-2 py-1" style="font-size: 0.72rem;">
+                                        <i class="fas fa-arrow-trend-down text-success me-1"></i>Target LTV: {{ existing_ltv|floatformat:1 }}% &rarr; {{ target_ltv|floatformat:1 }}% (-2%)
+                                    </span>
+                                </div>
+                                
+                                <div class="p-3 rounded bg-white border border-success-subtle mb-2">
+                                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                        <div>
+                                            <small class="text-muted text-uppercase fw-semibold d-block" style="font-size: 0.72rem;">Total Cash / Bank to Collect</small>
+                                            <div class="fs-2 fw-bolder text-success font-monospace" id="dispTotalReleaseValue">₹0.00</div>
+                                            <small id="dispTotalReleaseWords" class="text-success fw-semibold fst-italic d-block mt-1" style="font-size: 0.76rem;"></small>
+                                        </div>
+                                        <div class="text-end">
+                                            <span class="badge bg-success fs-6 py-2 px-3 shadow-xs" id="collectionTypeBadge">Select Ornaments</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row g-2 text-center">
+                                    <div class="col-6">
+                                        <div class="p-2 rounded bg-white border">
+                                            <div class="text-muted small fw-semibold" style="font-size: 0.72rem;"><i class="fas fa-money-bill-wave text-primary me-1"></i>Principal Portion</div>
+                                            <div class="fs-5 fw-bold text-primary font-monospace" id="dispAutoPrincipal">₹0.00</div>
+                                            <small class="text-muted" style="font-size: 0.65rem;">Reduces loan principal</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="p-2 rounded bg-white border">
+                                            <div class="text-muted small fw-semibold" style="font-size: 0.72rem;"><i class="fas fa-percentage text-danger me-1"></i>Interest Portion (Today)</div>
+                                            <div class="fs-5 fw-bold text-danger font-monospace" id="dispAutoInterest">₹0.00</div>
+                                            <small class="text-muted" style="font-size: 0.65rem;">Today's accrued interest share</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Principal Repayment Amount (₹)</label>
+                                <input type="number" step="0.01" min="0" name="principal_paid" id="id_principal_paid" class="form-control font-monospace fw-bold" placeholder="0.00" value="0.00" required>
+                                <div class="form-text small text-success">
+                                    <i class="fas fa-check-circle me-1"></i>Auto-calculated from existing LTV &amp; released gold.
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Interest / Charges Paid (₹)</label>
+                                <input type="number" step="0.01" min="0" name="interest_paid" id="id_interest_paid" class="form-control font-monospace fw-bold" placeholder="0.00" value="0.00">
+                                <div class="form-text small text-success">
+                                    <i class="fas fa-check-circle me-1"></i>Auto-calculated proportionate accrued interest.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Payment Method</label>
+                                <select name="payment_method" class="form-select">
+                                    <option value="cash">Cash in Hand</option>
+                                    <option value="bank_transfer">Bank Transfer (IMPS/NEFT/RTGS)</option>
+                                    <option value="online">UPI / Online</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Payment Reference / UTR #</label>
+                                <input type="text" name="reference_number" class="form-control font-monospace" placeholder="Optional for Cash">
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Witness / Receiving Staff Name</label>
+                                <input type="text" name="witness_name" class="form-control" placeholder="Staff or witness name">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Release Notes / Remarks</label>
+                                <input type="text" name="notes" class="form-control" placeholder="e.g. Ornaments released to borrower against payment">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Customer Signature Acknowledgment</label>
+                            <div class="border rounded p-2 bg-light text-center">
+                                <canvas id="signaturePad" width="500" height="120" class="border bg-white rounded w-100"></canvas>
+                                <div class="d-flex justify-content-between align-items-center mt-2">
+                                    <span class="text-muted small"><i class="fas fa-pen me-1"></i>Sign above for physical ornament receipt</span>
+                                    <button type="button" class="btn btn-outline-danger btn-xs" id="clearSignatureBtn">
+                                        <i class="fas fa-eraser me-1"></i>Clear Pad
+                                    </button>
+                                </div>
+                                <input type="hidden" name="customer_signature_data" id="customer_signature_data">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Real-time Statutory LTV Simulation Meter & Summary -->
+            <div class="col-lg-5">
+                <div class="card border-0 shadow-sm sticky-top" style="top: 20px;">
+                    <div class="card-header py-3 border-0" style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); border-radius: 0.5rem 0.5rem 0 0;">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="bg-white bg-opacity-25 rounded p-2 d-flex align-items-center justify-content-center" style="width:36px;height:36px;">
+                                <i class="fas fa-shield-alt text-white" style="font-size:1rem;"></i>
+                            </div>
+                            <div>
+                                <h5 class="mb-0 fw-bold text-white" style="letter-spacing:0.02em;">Release Value &amp; Safety Meter</h5>
+                                <div class="text-white text-opacity-75" style="font-size:0.72rem;">RBI IRAC statutory LTV simulation</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body p-4">
+                        <div id="ltvStatusBadge" class="alert alert-secondary text-center fw-bold py-3 mb-4">
+                            <i class="fas fa-info-circle me-1"></i>Select ornaments to calculate release value
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="small text-muted d-flex justify-content-between">
+                                <span>Resulting LTV Ratio</span>
+                                <span id="ltvPercentageText" class="fw-bold font-monospace">0.00%</span>
+                            </label>
+                            <div class="progress" style="height: 18px;">
+                                <div id="ltvProgressBar" class="progress-bar bg-success" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                            </div>
+                            <div class="d-flex justify-content-between text-muted small mt-1 font-monospace">
+                                <span>0%</span>
+                                <span class="text-success fw-bold"><i class="fas fa-check"></i> Safe &le; 75% RBI Cap</span>
+                                <span>100%</span>
+                            </div>
+                        </div>
+
+                        <ul class="list-group list-group-flush small mb-4">
+                            <li class="list-group-item d-flex justify-content-between px-0 py-2">
+                                <span class="text-muted">Ornaments Selected for Release:</span>
+                                <span id="releasedCountText" class="fw-bold font-monospace">0 Items</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between px-0 py-2">
+                                <span class="text-muted">Released Collateral Market Value:</span>
+                                <span id="releasedValText" class="fw-bold font-monospace text-primary">₹0.00</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between px-0 py-2">
+                                <span class="text-muted">Remaining Collateral in Vault:</span>
+                                <span id="remainingValText" class="fw-bold font-monospace text-dark">₹{{ total_pledged_val|floatformat:2|intcomma }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between px-0 py-2 bg-light-subtle rounded p-2 mt-2">
+                                <span class="text-success fw-bold"><i class="fas fa-coins me-1"></i>Auto Release Value (Total):</span>
+                                <span id="meterTotalReleaseVal" class="fw-bold font-monospace text-success fs-6">₹0.00</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between px-0 py-2">
+                                <span class="text-muted">&bull; Principal to Collect:</span>
+                                <span id="meterPrincipalVal" class="fw-bold font-monospace text-primary">₹0.00</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between px-0 py-2">
+                                <span class="text-muted">&bull; Interest to Collect:</span>
+                                <span id="meterInterestVal" class="fw-bold font-monospace text-dark">₹0.00</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between px-0 py-2">
+                                <span class="text-muted">New Outstanding Principal:</span>
+                                <span id="newPrincipalText" class="fw-bold font-monospace text-dark">₹{{ loan.principal_amount|floatformat:2|intcomma }}</span>
+                            </li>
+                        </ul>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" id="submitReleaseBtn" class="btn btn-success fw-bold py-2 shadow-sm" disabled>
+                                <i class="fas fa-check-circle me-1"></i>Approve &amp; Release Ornaments
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const checkboxes = document.querySelectorAll('.item-checkbox');
+    const selectAll = document.getElementById('selectAllItems');
+    const principalInput = document.getElementById('id_principal_paid');
+    const interestInput = document.getElementById('id_interest_paid');
+    const submitBtn = document.getElementById('submitReleaseBtn');
+    const ltvBadge = document.getElementById('ltvStatusBadge');
+    const ltvBar = document.getElementById('ltvProgressBar');
+    const ltvText = document.getElementById('ltvPercentageText');
+    const releasedCountText = document.getElementById('releasedCountText');
+    const releasedValText = document.getElementById('releasedValText');
+    const remainingValText = document.getElementById('remainingValText');
+    const newPrincipalText = document.getElementById('newPrincipalText');
+    const dispAutoPrincipal = document.getElementById('dispAutoPrincipal');
+    const dispAutoInterest = document.getElementById('dispAutoInterest');
+    const dispTotalReleaseValue = document.getElementById('dispTotalReleaseValue');
+    const meterTotalReleaseVal = document.getElementById('meterTotalReleaseVal');
+    const meterPrincipalVal = document.getElementById('meterPrincipalVal');
+    const meterInterestVal = document.getElementById('meterInterestVal');
+
+    let _manualPaymentLock = false;
+
+    // Signature Canvas
+    const canvas = document.getElementById('signaturePad');
+    const ctx = canvas.getContext('2d');
+    let isDrawing = false;
+
+    function getMousePos(e) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+        };
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+        isDrawing = true;
+        const pos = getMousePos(e);
+        ctx.beginPath();
+        ctx.moveTo(pos.x, pos.y);
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+        if (!isDrawing) return;
+        const pos = getMousePos(e);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    });
+
+    ['mouseup', 'mouseleave'].forEach(evt => canvas.addEventListener(evt, () => {
+        if (isDrawing) {
+            isDrawing = false;
+            document.getElementById('customer_signature_data').value = canvas.toDataURL('image/png');
+        }
+    }));
+
+    document.getElementById('clearSignatureBtn').addEventListener('click', () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        document.getElementById('customer_signature_data').value = '';
+    });
+
+    // Row quantity / weight calculation
+    document.querySelectorAll('.item-row').forEach(row => {
+        const qtySelect = row.querySelector('.release-qty-input');
+        const netInput = row.querySelector('.release-net-wt-input');
+        const grossHidden = row.querySelector('.release-gross-wt-input');
+        const valText = row.querySelector('.release-val-text');
+
+        const totalQty = parseFloat(row.dataset.totalQty) || 1;
+        const totalNet = parseFloat(row.dataset.totalNet) || 0;
+        const totalGross = parseFloat(row.dataset.totalGross) || 0;
+        const unitReleaseVal = parseFloat(row.dataset.unitReleaseVal) || 0;
+
+        function updateRow() {
+            const relQty = parseFloat(qtySelect ? qtySelect.value : 1) || 1;
+            let relNet = parseFloat(netInput.value) || 0;
+
+            // Recalculate default net if qty changed
+            if (this === qtySelect) {
+                relNet = (totalNet / totalQty) * relQty;
+                netInput.value = relNet.toFixed(3);
+            }
+
+            const relGross = (totalGross / totalQty) * relQty;
+            grossHidden.value = relGross.toFixed(3);
+
+            const rowRelVal = unitReleaseVal * relQty;
+            valText.textContent = `₹${rowRelVal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+            updateSimulation(true);
+        }
+
+        if (qtySelect) qtySelect.addEventListener('change', updateRow);
+        if (netInput) netInput.addEventListener('input', updateRow);
+    });
+
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            checkboxes.forEach(cb => cb.checked = selectAll.checked);
+            updateSimulation(true);
+        });
+    }
+
+    checkboxes.forEach(cb => cb.addEventListener('change', function() {
+        updateSimulation(true);
+    }));
+
+    principalInput.addEventListener('input', function() {
+        _manualPaymentLock = true;
+        updateSimulation(false);
+    });
+
+    function updateSimulation(autoUpdateInputs = false) {
+        const selectedPks = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+
+        if (selectedPks.length === 0) {
+            submitBtn.disabled = true;
+            ltvBadge.className = 'alert alert-secondary text-center fw-bold py-3 mb-4';
+            ltvBadge.innerHTML = '<i class="fas fa-info-circle me-1"></i>Select ornaments above to calculate release value';
+            ltvBar.style.width = '0%';
+            ltvBar.className = 'progress-bar bg-secondary';
+            ltvText.textContent = '0.00%';
+            dispAutoPrincipal.textContent = '₹0.00';
+            dispAutoInterest.textContent = '₹0.00';
+            dispTotalReleaseValue.textContent = '₹0.00';
+            const wordsEl = document.getElementById('dispTotalReleaseWords');
+            if (wordsEl) wordsEl.textContent = '';
+            const typeBadge = document.getElementById('collectionTypeBadge');
+            if (typeBadge) {
+                typeBadge.textContent = 'Select Ornaments';
+                typeBadge.className = 'badge bg-secondary fs-6 py-2 px-3 shadow-xs';
+            }
+            meterTotalReleaseVal.textContent = '₹0.00';
+            meterPrincipalVal.textContent = '₹0.00';
+            meterInterestVal.textContent = '₹0.00';
+            releasedCountText.textContent = '0 Items';
+            releasedValText.textContent = '₹0.00';
+            if (autoUpdateInputs) {
+                principalInput.value = '0.00';
+                interestInput.value = '0.00';
+            }
+            return;
+        }
+
+        const params = new URLSearchParams();
+        params.append('simulate', '1');
+        if (!autoUpdateInputs && _manualPaymentLock) {
+            params.append('principal_payment', principalInput.value || '0');
+        }
+
+        selectedPks.forEach(pk => {
+            params.append('item_ids[]', pk);
+            const row = document.querySelector(`.item-row[data-item-id="${pk}"]`);
+            if (row) {
+                const qtyInput = row.querySelector('.release-qty-input');
+                const netInput = row.querySelector('.release-net-wt-input');
+                if (qtyInput) params.append(`release_qty_${pk}`, qtyInput.value);
+                if (netInput) params.append(`release_net_wt_${pk}`, netInput.value);
+            }
+        });
+
+        fetch(`?${params.toString()}`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(res => res.json())
+        .then(data => {
+            releasedCountText.textContent = `${data.released_count} Items`;
+            releasedValText.textContent = `₹${data.released_collateral_value.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+            remainingValText.textContent = `₹${data.remaining_collateral_value.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+            newPrincipalText.textContent = `₹${data.new_outstanding_principal.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+
+            dispAutoPrincipal.textContent = `₹${data.auto_principal_payment.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            dispAutoInterest.textContent = `₹${data.auto_interest_payment.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            dispTotalReleaseValue.textContent = `₹${data.total_release_value.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+            meterTotalReleaseVal.textContent = `₹${data.total_release_value.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            meterPrincipalVal.textContent = `₹${data.auto_principal_payment.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            meterInterestVal.textContent = `₹${data.auto_interest_payment.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+            // Auto-populate inputs when selecting items or changing quantity
+            if (autoUpdateInputs || !_manualPaymentLock) {
+                principalInput.value = data.auto_principal_payment.toFixed(2);
+                interestInput.value = data.auto_interest_payment.toFixed(2);
+            }
+
+            const typeBadge = document.getElementById('collectionTypeBadge');
+            if (typeBadge) {
+                if (data.remaining_collateral_value <= 0) {
+                    typeBadge.textContent = 'Full Loan Settlement';
+                    typeBadge.className = 'badge bg-dark fs-6 py-2 px-3 shadow-xs';
+                } else {
+                    typeBadge.textContent = 'Part-Payment Payout';
+                    typeBadge.className = 'badge bg-success fs-6 py-2 px-3 shadow-xs';
+                }
+            }
+
+            if (data.total_release_value > 0) {
+                fetch(`/transactions/number_to_words/${Math.round(data.total_release_value)}`)
+                    .then(r => r.json())
+                    .then(res => {
+                        const wordsEl = document.getElementById('dispTotalReleaseWords');
+                        if (wordsEl && res && res.words) {
+                            wordsEl.textContent = res.words + ' Rupees Only';
+                        }
+                    })
+                    .catch(() => {});
+            } else {
+                const wordsEl = document.getElementById('dispTotalReleaseWords');
+                if (wordsEl) wordsEl.textContent = '';
+            }
+
+            const ltvVal = Math.min(100, Math.max(0, data.new_ltv));
+            ltvText.textContent = `${data.new_ltv.toFixed(2)}%`;
+            ltvBar.style.width = `${ltvVal}%`;
+
+            if (data.is_eligible) {
+                submitBtn.disabled = false;
+                ltvBar.className = 'progress-bar bg-success';
+                ltvBadge.className = 'alert alert-success text-center fw-bold py-3 mb-4';
+                if (data.remaining_collateral_value <= 0) {
+                    ltvBadge.innerHTML = `<i class="fas fa-check-double me-1"></i>FULL LOAN SETTLEMENT &bull; All Ornaments Released &bull; New Principal: ₹0.00 (Loan Closed)`;
+                    submitBtn.innerHTML = `<i class="fas fa-check-double me-1"></i>Approve &amp; Settle Loan (Full Release)`;
+                } else {
+                    ltvBadge.innerHTML = `<i class="fas fa-check-circle me-1"></i>ELIGIBLE FOR PARTIAL RELEASE &bull; Resulting LTV: ${data.new_ltv.toFixed(2)}% &bull; Retained Collateral: ₹${data.remaining_collateral_value.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+                    submitBtn.innerHTML = `<i class="fas fa-check-circle me-1"></i>Approve &amp; Release Selected Ornaments`;
+                }
+            } else {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = `<i class="fas fa-ban me-1"></i>Cannot Release &bull; Shortfall ₹${data.shortfall.toFixed(2)}`;
+                ltvBar.className = 'progress-bar bg-danger';
+                ltvBadge.className = 'alert alert-danger text-center fw-bold py-3 mb-4';
+                ltvBadge.innerHTML = `<i class="fas fa-exclamation-circle me-1"></i>Resulting LTV ${data.new_ltv.toFixed(2)}% &bull; Required Principal: ₹${data.min_principal_required.toFixed(2)}`;
+            }
+        })
+        .catch(err => console.error('Simulation error:', err));
+    }
+});
+</script>
+{% endblock %}

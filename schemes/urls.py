@@ -20,4 +20,8 @@ urlpatterns = [
     path('<int:pk>/update/', views.SchemeUpdateView.as_view(), name='scheme_update'),  # Use the smart update view
     path('<int:pk>/delete/', views.NewSchemeDeleteView.as_view(), name='scheme_delete'),
     path('<int:pk>/json/', views.SchemeJsonView.as_view(), name='scheme_json'),
+
+    # Central Daily Gold Rate & RBI 75% LTV Cap Management
+    path('gold-rates/', views.DailyGoldRateManageView.as_view(), name='daily_gold_rates'),
+    path('api/today-rate/', views.api_get_today_gold_rate, name='api_today_gold_rate'),
 ]

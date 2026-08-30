@@ -12,6 +12,7 @@
 {% block content %}
 {% get_current_language as LANGUAGE_CODE %}
 <style>
+    /* Eye-Friendly Calm Color Palette & Micro-Typography */
     .download-submenu {
         position: relative;
     }
@@ -27,169 +28,246 @@
     .download-submenu > .dropdown-menu.show {
         display: block;
     }
+
+    /* Soft, Eye-Soothing Card Styles */
+    .calm-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+    }
+
+    /* Gentle Badges (No Glaring Neon Colors) */
+    .pill-active {
+        background-color: #ecfdf5;
+        color: #047857;
+        border: 1px solid #a7f3d0;
+    }
+    .pill-overdue {
+        background-color: #fef2f2;
+        color: #b91c1c;
+        border: 1px solid #fecaca;
+    }
+    .pill-due-soon {
+        background-color: #fffbeb;
+        color: #b45309;
+        border: 1px solid #fde68a;
+    }
+    .pill-repaid, .pill-closed {
+        background-color: #f1f5f9;
+        color: #475569;
+        border: 1px solid #cbd5e1;
+    }
+    .pill-extended {
+        background-color: #eff6ff;
+        color: #1d4ed8;
+        border: 1px solid #bfdbfe;
+    }
+    .pill-foreclosed {
+        background-color: #faf5ff;
+        color: #6b21a8;
+        border: 1px solid #e9d5ff;
+    }
+    .pill-defaulted {
+        background-color: #fef2f2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
+    }
+
+    /* Table Styling for Calm Legibility */
+    .table-calm {
+        border-collapse: separate;
+        border-spacing: 0;
+        width: 100%;
+    }
+    .table-calm thead th {
+        background-color: #f8fafc;
+        color: #475569;
+        font-weight: 600;
+        border-bottom: 1px solid #e2e8f0;
+        font-size: 0.8rem;
+        padding: 9px 12px;
+        letter-spacing: 0.02em;
+    }
+    .table-calm tbody td {
+        padding: 8px 12px;
+        border-bottom: 1px solid #f1f5f9;
+        vertical-align: middle;
+        font-size: 0.885rem;
+        color: #334155;
+    }
+    .table-calm tbody tr:hover {
+        background-color: #f8fafc;
+    }
 </style>
-<div class="container-fluid py-3">
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <h2>Loans Management</h2>
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
-                    <li class="breadcrumb-item active">Loans</li>
-                </ol>
-            </nav>
+<div class="container-fluid py-2 px-3" style="background-color: #f8fafc; min-height: 90vh;">
+    <!-- Top Header Bar -->
+    <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+        <div class="d-flex align-items-center gap-2">
+            <h4 class="mb-0 fw-bold" style="color: #0f172a;">
+                <i class="fas fa-hand-holding-usd me-2" style="color: #3b82f6;"></i>Loans Management
+            </h4>
+            <span class="badge bg-white text-secondary border px-2 py-1" style="font-weight: 500;">
+                {{ paginator.count|default:loans.count|default:0 }} Total Records
+            </span>
         </div>
-        <div class="col-md-6 text-end">
-            <div class="btn-group">
-                <div class="dropdown">
-                    <button class="btn btn-outline-success dropdown-toggle" type="button" id="downloadDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-download"></i> {% if LANGUAGE_CODE == 'ta' %}பதிவிறக்கு{% else %}Download{% endif %}
-                    </button>
-                    <ul class="dropdown-menu" aria-labelledby="downloadDropdown">
-                        <li class="download-submenu">
-                            <a class="dropdown-item dropdown-toggle download-submenu-toggle" href="#">
-                                <i class="fas fa-file-pdf"></i> {% if LANGUAGE_CODE == 'ta' %}PDF ஆக பதிவிறக்கு{% else %}Download as PDF{% endif %}
-                            </a>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="?download=pdf&status=active{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Active Loans</a></li>
-                                <li><a class="dropdown-item" href="?download=pdf&status=foreclosed{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Foreclosed Loans</a></li>
-                                <li><a class="dropdown-item" href="?download=pdf&status=closed{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Closed Loans</a></li>
-                                <li><a class="dropdown-item" href="?download=pdf&status=repaid{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Repaid Loans</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="?download=pdf&full=1{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Full Details</a></li>
-                            </ul>
-                        </li>
-                        <li>
-                            <a class="dropdown-item" href="?download=pdf&preview=1{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}" target="_blank">
-                                <i class="fas fa-eye"></i> {% if LANGUAGE_CODE == 'ta' %}PDF முன்னோட்டம்{% else %}PDF Preview{% endif %}
-                            </a>
-                        </li>
-                        <li class="download-submenu">
-                            <a class="dropdown-item dropdown-toggle download-submenu-toggle" href="#">
-                                <i class="fas fa-file-excel"></i> {% if LANGUAGE_CODE == 'ta' %}Excel ஆக பதிவிறக்கு{% else %}Download as Excel{% endif %}
-                            </a>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="?download=excel&status=active{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Active Loans</a></li>
-                                <li><a class="dropdown-item" href="?download=excel&status=foreclosed{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Foreclosed Loans</a></li>
-                                <li><a class="dropdown-item" href="?download=excel&status=closed{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Closed Loans</a></li>
-                                <li><a class="dropdown-item" href="?download=excel&status=repaid{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Repaid Loans</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="?download=excel{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Full Details</a></li>
-                            </ul>
-                        </li>
-                        <li class="download-submenu">
-                            <a class="dropdown-item dropdown-toggle download-submenu-toggle" href="#">
-                                <i class="fas fa-file-csv"></i> {% if LANGUAGE_CODE == 'ta' %}CSV ஆக பதிவிறக்கு{% else %}Download as CSV{% endif %}
-                            </a>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="?download=csv&status=active{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Active Loans</a></li>
-                                <li><a class="dropdown-item" href="?download=csv&status=foreclosed{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Foreclosed Loans</a></li>
-                                <li><a class="dropdown-item" href="?download=csv&status=closed{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Closed Loans</a></li>
-                                <li><a class="dropdown-item" href="?download=csv&status=repaid{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Repaid Loans</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="?download=csv{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Full Details</a></li>
-                            </ul>
-                        </li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li>
-                            <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#columnSelectModal">
-                                <i class="fas fa-columns"></i> {% if LANGUAGE_CODE == 'ta' %}பதிவிறக்க வேண்டிய புலங்களைத் தேர்வு செய்க{% else %}Select Columns to Download{% endif %}
-                            </a>
-                        </li>
-                    </ul>
+        <div class="d-flex align-items-center gap-2">
+            <div class="dropdown">
+                <button class="btn btn-white border btn-sm dropdown-toggle shadow-xs" type="button" id="downloadDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="color: #334155;">
+                    <i class="fas fa-download me-1 text-secondary"></i> {% if LANGUAGE_CODE == 'ta' %}பதிவிறக்கு{% else %}Export{% endif %}
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="downloadDropdown">
+                    <li class="download-submenu">
+                        <a class="dropdown-item dropdown-toggle download-submenu-toggle" href="#">
+                            <i class="fas fa-file-pdf text-danger me-1"></i> PDF Export
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="?download=pdf&status=active{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Active Loans</a></li>
+                            <li><a class="dropdown-item" href="?download=pdf&status=foreclosed{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Foreclosed Loans</a></li>
+                            <li><a class="dropdown-item" href="?download=pdf&status=repaid{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Repaid Loans</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="?download=pdf&full=1{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Full Details PDF</a></li>
+                        </ul>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="?download=pdf&preview=1{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}" target="_blank">
+                            <i class="fas fa-eye text-primary me-1"></i> PDF Preview
+                        </a>
+                    </li>
+                    <li class="download-submenu">
+                        <a class="dropdown-item dropdown-toggle download-submenu-toggle" href="#">
+                            <i class="fas fa-file-excel text-success me-1"></i> Excel Export
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="?download=excel&status=active{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Active Loans</a></li>
+                            <li><a class="dropdown-item" href="?download=excel&status=foreclosed{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Foreclosed Loans</a></li>
+                            <li><a class="dropdown-item" href="?download=excel&status=repaid{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Repaid Loans</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="?download=excel{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Full Details Excel</a></li>
+                        </ul>
+                    </li>
+                    <li class="download-submenu">
+                        <a class="dropdown-item dropdown-toggle download-submenu-toggle" href="#">
+                            <i class="fas fa-file-csv text-info me-1"></i> CSV Export
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="?download=csv&status=active{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Active Loans</a></li>
+                            <li><a class="dropdown-item" href="?download=csv&status=foreclosed{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Foreclosed Loans</a></li>
+                            <li><a class="dropdown-item" href="?download=csv&status=repaid{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Repaid Loans</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="?download=csv{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Full Details CSV</a></li>
+                        </ul>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#columnSelectModal">
+                            <i class="fas fa-columns text-secondary me-1"></i> {% if LANGUAGE_CODE == 'ta' %}பதிவிறக்க வேண்டிய புலங்களைத் தேர்வு செய்க{% else %}Select Columns{% endif %}
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            <a href="{% url 'loan_create' %}" class="btn btn-primary btn-sm px-3 shadow-xs">
+                <i class="fas fa-plus-circle me-1"></i> New Loan
+            </a>
+        </div>
+    </div>
+
+    <!-- Vibrant Colorful KPI Metrics Bar -->
+    <div class="row g-2 mb-2">
+        <!-- Active Loans -->
+        <div class="col-6 col-md">
+            <div class="p-2 d-flex align-items-center justify-content-between h-100 rounded-3 text-white shadow-sm" style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);">
+                <div>
+                    <span class="text-uppercase fw-semibold" style="font-size: 0.68rem; letter-spacing: 0.04em; color: rgba(255,255,255,0.85);">Active Loans</span>
+                    <div class="fw-bold fs-5 text-white lh-1 my-1">{{ active_loans_count|default:0 }}</div>
+                    {% if show_total_outstanding %}
+                    <small class="d-block" style="font-size: 0.68rem; color: rgba(255,255,255,0.85);">Rs {{ active_outstanding|default:0.00|floatformat:0 }}</small>
+                    {% endif %}
                 </div>
-                <a href="{% url 'loan_create' %}" class="btn btn-primary">
-                    <i class="fas fa-plus-circle"></i> New Loan
-                </a>
+                <div class="rounded-circle p-2 d-flex align-items-center justify-content-center" style="background: rgba(255, 255, 255, 0.2); width: 34px; height: 34px;">
+                    <i class="fas fa-hand-holding-usd fa-sm text-white"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Due Today -->
+        <div class="col-6 col-md">
+            <div class="p-2 d-flex align-items-center justify-content-between h-100 rounded-3 text-white shadow-sm" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                <div>
+                    <span class="text-uppercase fw-semibold" style="font-size: 0.68rem; letter-spacing: 0.04em; color: rgba(255,255,255,0.85);">Due Today</span>
+                    <div class="fw-bold fs-5 text-white lh-1 my-1">{{ due_today_count|default:0 }}</div>
+                    {% if show_total_outstanding %}
+                    <small class="d-block" style="font-size: 0.68rem; color: rgba(255,255,255,0.85);">Rs {{ due_today_outstanding|default:0.00|floatformat:0 }}</small>
+                    {% endif %}
+                </div>
+                <div class="rounded-circle p-2 d-flex align-items-center justify-content-center" style="background: rgba(255, 255, 255, 0.2); width: 34px; height: 34px;">
+                    <i class="fas fa-calendar-day fa-sm text-white"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Overdue -->
+        <div class="col-6 col-md">
+            <div class="p-2 d-flex align-items-center justify-content-between h-100 rounded-3 text-white shadow-sm" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+                <div>
+                    <span class="text-uppercase fw-semibold" style="font-size: 0.68rem; letter-spacing: 0.04em; color: rgba(255,255,255,0.85);">Overdue</span>
+                    <div class="fw-bold fs-5 text-white lh-1 my-1">{{ overdue_count|default:0 }}</div>
+                    {% if show_total_outstanding %}
+                    <small class="d-block" style="font-size: 0.68rem; color: rgba(255,255,255,0.85);">Rs {{ overdue_outstanding|default:0.00|floatformat:0 }}</small>
+                    {% endif %}
+                </div>
+                <div class="rounded-circle p-2 d-flex align-items-center justify-content-center" style="background: rgba(255, 255, 255, 0.2); width: 34px; height: 34px;">
+                    <i class="fas fa-exclamation-circle fa-sm text-white"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Due in 30 Days -->
+        <div class="col-6 col-md">
+            <div class="p-2 d-flex align-items-center justify-content-between h-100 rounded-3 text-white shadow-sm" style="background: linear-gradient(135deg, #06b6d4 0%, #0284c7 100%);">
+                <div>
+                    <span class="text-uppercase fw-semibold" style="font-size: 0.68rem; letter-spacing: 0.04em; color: rgba(255,255,255,0.85);">Next 30 Days</span>
+                    <div class="fw-bold fs-5 text-white lh-1 my-1">{{ due_soon_count|default:0 }}</div>
+                    {% if show_total_outstanding %}
+                    <small class="d-block" style="font-size: 0.68rem; color: rgba(255,255,255,0.85);">Rs {{ due_soon_outstanding|default:0.00|floatformat:0 }}</small>
+                    {% endif %}
+                </div>
+                <div class="rounded-circle p-2 d-flex align-items-center justify-content-center" style="background: rgba(255, 255, 255, 0.2); width: 34px; height: 34px;">
+                    <i class="fas fa-clock fa-sm text-white"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Outstanding -->
+        <div class="col-12 col-md">
+            <div class="p-2 d-flex align-items-center justify-content-between h-100 rounded-3 text-white shadow-sm" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                <div>
+                    <span class="text-uppercase fw-semibold" style="font-size: 0.68rem; letter-spacing: 0.04em; color: rgba(255,255,255,0.85);">Portfolio Total</span>
+                    <div class="fw-bold fs-5 text-white lh-1 my-1">Rs {{ total_outstanding|default:0.00|floatformat:2 }}</div>
+                    <small class="d-block" style="font-size: 0.68rem; color: rgba(255,255,255,0.85);">Active Principal</small>
+                </div>
+                <div class="rounded-circle p-2 d-flex align-items-center justify-content-center" style="background: rgba(255, 255, 255, 0.2); width: 34px; height: 34px;">
+                    <i class="fas fa-rupee-sign fa-sm text-white"></i>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Loan Stats Cards -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card stat-card bg-primary text-white">
-                <div class="card-body">
-                    <h5 class="card-title">Active Loans</h5>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <div class="value">{{ active_loans_count|default:0 }}</div>
-                            {% if show_total_outstanding %}
-                                <small class="d-block">Outstanding: Rs: {{ active_outstanding|default:0.00|floatformat:2 }}</small>
-                            {% endif %}
-                        </div>
-                        <span class="icon"><i class="fas fa-money-bill-wave"></i></span>
+    <!-- Soft Filter Toolbar -->
+    <div class="calm-card mb-2">
+        <div class="card-body p-2">
+            <form method="GET" class="row g-2 align-items-center">
+                <!-- Search Input -->
+                <div class="col-12 col-sm-6 col-lg-3">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white border-end-0 text-muted"><i class="fas fa-search"></i></span>
+                        <input type="text" name="search" id="search" class="form-control form-control-sm border-start-0" placeholder="Search customer, loan #, phone..." value="{{ search_query }}" style="background-color: #ffffff;">
                     </div>
                 </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card stat-card bg-warning text-white">
-                <div class="card-body">
-                    <h5 class="card-title">Due Today</h5>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <div class="value">{{ due_today_count|default:0 }}</div>
-                            {% if show_total_outstanding %}
-                                <small class="d-block">Due: Rs: {{ due_today_outstanding|default:0.00|floatformat:2 }}</small>
-                            {% endif %}
-                        </div>
-                        <span class="icon"><i class="fas fa-calendar-day"></i></span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card stat-card bg-danger text-white">
-                <div class="card-body">
-                    <h5 class="card-title">Overdue</h5>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <div class="value">{{ overdue_count|default:0 }}</div>
-                            {% if show_total_outstanding %}
-                                <small class="d-block">Overdue: Rs: {{ overdue_outstanding|default:0.00|floatformat:2 }}</small>
-                            {% endif %}
-                        </div>
-                        <span class="icon"><i class="fas fa-exclamation-circle"></i></span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card stat-card bg-warning text-dark">
-                <div class="card-body">
-                    <h5 class="card-title">Due in 30 Days</h5>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <div class="value">{{ due_soon_count|default:0 }}</div>
-                            {% if show_total_outstanding %}
-                                <small class="d-block">Due Soon: Rs: {{ due_soon_outstanding|default:0.00|floatformat:2 }}</small>
-                            {% endif %}
-                        </div>
-                        <span class="icon"><i class="fas fa-calendar-alt"></i></span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-                <div class="card-body">
-                    <h5 class="card-title">Total Outstanding</h5>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span class="value">Rs: {{ total_outstanding|floatformat:2 }}</span>
-                        <span class="icon"><i class="fas fa-rupee-sign"></i></span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    <!-- Filters -->
-    <div class="card mb-4">
-        <div class="card-body">
-            <form method="GET" class="row g-3 align-items-end">
-                <div class="col-md-3">
-                    <label for="status" class="form-label">Status</label>
-                    <select name="status" id="status" class="form-select">
+                <!-- Status Filter -->
+                <div class="col-6 col-sm-3 col-lg-2">
+                    <select name="status" id="status" class="form-select form-select-sm" style="background-color: #ffffff;">
                         <option value="">All Statuses</option>
                         <option value="active" {% if selected_status == 'active' %}selected{% endif %}>Active</option>
                         <option value="repaid" {% if selected_status == 'repaid' %}selected{% endif %}>Repaid</option>
@@ -198,9 +276,10 @@
                         <option value="foreclosed" {% if selected_status == 'foreclosed' %}selected{% endif %}>Foreclosed</option>
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <label for="scheme" class="form-label">Scheme</label>
-                    <select name="scheme" id="scheme" class="form-select">
+
+                <!-- Scheme Filter -->
+                <div class="col-6 col-sm-3 col-lg-2">
+                    <select name="scheme" id="scheme" class="form-select form-select-sm" style="background-color: #ffffff;">
                         <option value="">All Schemes</option>
                         {% for scheme in schemes %}
                             <option value="{{ scheme.id }}" {% if selected_scheme == scheme.id|stringformat:"s" %}selected{% endif %}>
@@ -209,13 +288,10 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <label for="search" class="form-label">Search</label>
-                    <input type="text" name="search" id="search" class="form-control" placeholder="Customer name, ID..." value="{{ search_query }}">
-                </div>
-                <div class="col-md-3">
-                    <label for="date_range" class="form-label">Date Range</label>
-                    <select name="date_range" id="date_range" class="form-select">
+
+                <!-- Date Range Filter -->
+                <div class="col-6 col-sm-3 col-lg-2">
+                    <select name="date_range" id="date_range" class="form-select form-select-sm" style="background-color: #ffffff;">
                         <option value="">All Time</option>
                         <option value="today" {% if selected_date_range == 'today' %}selected{% endif %}>Today</option>
                         <option value="this_week" {% if selected_date_range == 'this_week' %}selected{% endif %}>This Week</option>
@@ -223,196 +299,134 @@
                         <option value="this_year" {% if selected_date_range == 'this_year' %}selected{% endif %}>This Year</option>
                     </select>
                 </div>
-                <div class="col-md-2">
-                    <button type="submit" class="btn btn-primary w-100">
-                        <i class="fas fa-filter"></i> Filter
+
+                <!-- Action & Quick Filter Buttons -->
+                <div class="col-12 col-sm-9 col-lg-3 d-flex gap-1 justify-content-end">
+                    <button type="submit" class="btn btn-primary btn-sm px-2 flex-fill">
+                        <i class="fas fa-filter me-1"></i>Filter
                     </button>
-                </div>
-                <div class="col-md-2">
-                    <a href="{% url 'loan_list' %}?filter_type=overdue{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_scheme %}&scheme={{ selected_scheme }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}" 
-                       class="btn btn-danger w-100 {% if selected_filter_type == 'overdue' %}active{% endif %}">
-                        <i class="fas fa-exclamation-circle"></i> Overdue 
-                        <span class="badge text-bg-light rounded-pill ms-1">{{ overdue_count|default:0 }}</span>
+                    <a href="{% url 'loan_list' %}?filter_type=overdue{% if search_query %}&search={{ search_query }}{% endif %}" 
+                       class="btn btn-sm px-2 text-nowrap {% if selected_filter_type == 'overdue' %}btn-danger text-white{% else %}btn-white border text-danger{% endif %}" title="Overdue Loans" style="font-size: 0.8rem;">
+                        <i class="fas fa-exclamation-circle me-1"></i>Overdue ({{ overdue_count|default:0 }})
                     </a>
-                </div>
-                <div class="col-md-2">
-                    <a href="{% url 'loan_list' %}?filter_type=due_soon{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_scheme %}&scheme={{ selected_scheme }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}" 
-                       class="btn btn-warning w-100 {% if selected_filter_type == 'due_soon' %}active{% endif %}">
-                        <i class="fas fa-calendar-alt"></i> Next 30 Days 
-                        <span class="badge text-bg-light rounded-pill ms-1">{{ due_soon_count|default:0 }}</span>
+                    <a href="{% url 'loan_list' %}?filter_type=due_soon{% if search_query %}&search={{ search_query }}{% endif %}" 
+                       class="btn btn-sm px-2 text-nowrap {% if selected_filter_type == 'due_soon' %}btn-warning text-dark{% else %}btn-white border text-warning{% endif %}" title="Due in 30 Days" style="font-size: 0.8rem; color: #b45309 !important;">
+                        <i class="fas fa-clock me-1"></i>30 Days ({{ due_soon_count|default:0 }})
                     </a>
-                </div>
-                {% if selected_filter_type == 'overdue' %}
-                <div class="col-md-2">
-                    <div class="dropdown w-100">
-                        <button class="btn btn-outline-danger dropdown-toggle w-100" type="button" id="overdueDownloadDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-download"></i> {% if LANGUAGE_CODE == 'ta' %}நிலுவை பதிவிறக்கு{% else %}Download dues{% endif %}
-                        </button>
-                        <ul class="dropdown-menu" aria-labelledby="overdueDownloadDropdown">
-                            <li>
-                                <a class="dropdown-item" href="?download=pdf&filter_type=overdue{% if search_query %}&search={{ search_query }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
-                                    <i class="fas fa-file-pdf"></i> {% if LANGUAGE_CODE == 'ta' %}PDF ஆக பதிவிறக்கு{% else %}Download as PDF{% endif %}
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="?download=excel&filter_type=overdue{% if search_query %}&search={{ search_query }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
-                                    <i class="fas fa-file-excel"></i> {% if LANGUAGE_CODE == 'ta' %}Excel ஆக பதிவிறக்கு{% else %}Download as Excel{% endif %}
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="?download=csv&filter_type=overdue{% if search_query %}&search={{ search_query }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
-                                    <i class="fas fa-file-csv"></i> {% if LANGUAGE_CODE == 'ta' %}CSV ஆக பதிவிறக்கு{% else %}Download as CSV{% endif %}
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-                {% endif %}
-                {% if selected_filter_type == 'due_soon' %}
-                <div class="col-md-2">
-                    <div class="dropdown w-100">
-                        <button class="btn btn-outline-warning dropdown-toggle w-100" type="button" id="dueSoonDownloadDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-download"></i> {% if LANGUAGE_CODE == 'ta' %}பதிவிறக்கு{% else %}Download{% endif %}
-                        </button>
-                        <ul class="dropdown-menu" aria-labelledby="dueSoonDownloadDropdown">
-                            <li>
-                                <a class="dropdown-item" href="?download=pdf&filter_type=due_soon{% if search_query %}&search={{ search_query }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
-                                    <i class="fas fa-file-pdf"></i> {% if LANGUAGE_CODE == 'ta' %}PDF ஆக பதிவிறக்கு{% else %}Download as PDF{% endif %}
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="?download=excel&filter_type=due_soon{% if search_query %}&search={{ search_query }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
-                                    <i class="fas fa-file-excel"></i> {% if LANGUAGE_CODE == 'ta' %}Excel ஆக பதிவிறக்கு{% else %}Download as Excel{% endif %}
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="?download=csv&filter_type=due_soon{% if search_query %}&search={{ search_query }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
-                                    <i class="fas fa-file-csv"></i> {% if LANGUAGE_CODE == 'ta' %}CSV ஆக பதிவிறக்கு{% else %}Download as CSV{% endif %}
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-                {% endif %}
-                <div class="col-md-2">
-                    <a href="{% url 'loan_list' %}" class="btn btn-outline-secondary w-100">
-                        <i class="fas fa-times-circle"></i> Clear
+                    <a href="{% url 'loan_list' %}" class="btn btn-white border btn-sm px-2 text-secondary" title="Reset Filters">
+                        <i class="fas fa-times"></i>
                     </a>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Loans Table -->
-    <div class="card">
+    <!-- Calm Loans Table -->
+    <div class="calm-card">
         <div class="card-body p-0">
             {% if loans %}
                 <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light">
+                    <table class="table-calm mb-0">
+                        <thead>
                             <tr>
-                                <th class="px-3 py-3">
-                                    <a href="?sort={% if current_sort == 'customer' %}-{% endif %}customer{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}" class="text-decoration-none text-dark">
+                                <th>
+                                    <a href="?sort={% if current_sort == 'customer' %}-{% endif %}customer{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}" class="text-decoration-none text-secondary">
                                         Customer 
                                         {% if current_sort == 'customer' %}
-                                            <i class="fas fa-sort-up"></i>
+                                            <i class="fas fa-sort-up text-primary"></i>
                                         {% elif current_sort == '-customer' %}
-                                            <i class="fas fa-sort-down"></i>
+                                            <i class="fas fa-sort-down text-primary"></i>
                                         {% else %}
-                                            <i class="fas fa-sort text-muted"></i>
+                                            <i class="fas fa-sort text-muted opacity-50"></i>
                                         {% endif %}
                                     </a>
                                 </th>
-                                <th class="px-3 py-3">Item</th>
-                                <th class="px-3 py-3">
-                                    <a href="?sort={% if current_sort == 'principal_amount' %}-{% endif %}principal_amount{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}" class="text-decoration-none text-dark">
-                                        Principal 
+                                <th>Pledged Items & Vault Custody</th>
+                                <th>
+                                    <a href="?sort={% if current_sort == 'principal_amount' %}-{% endif %}principal_amount{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}" class="text-decoration-none text-secondary">
+                                        Principal Amount
                                         {% if current_sort == 'principal_amount' %}
-                                            <i class="fas fa-sort-up"></i>
+                                            <i class="fas fa-sort-up text-primary"></i>
                                         {% elif current_sort == '-principal_amount' %}
-                                            <i class="fas fa-sort-down"></i>
+                                            <i class="fas fa-sort-down text-primary"></i>
                                         {% else %}
-                                            <i class="fas fa-sort text-muted"></i>
+                                            <i class="fas fa-sort text-muted opacity-50"></i>
                                         {% endif %}
                                     </a>
                                 </th>
-                                <th class="px-3 py-3">Monthly Interest</th>
-                                <th class="px-3 py-3">
-                                    <a href="?sort={% if current_sort == 'issue_date' %}-{% endif %}issue_date{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}" class="text-decoration-none text-dark">
-                                        Start Date 
+                                <th>Monthly Interest</th>
+                                <th>
+                                    <a href="?sort={% if current_sort == 'issue_date' %}-{% endif %}issue_date{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}" class="text-decoration-none text-secondary">
+                                        Loan Date 
                                         {% if current_sort == 'issue_date' %}
-                                            <i class="fas fa-sort-up"></i>
+                                            <i class="fas fa-sort-up text-primary"></i>
                                         {% elif current_sort == '-issue_date' %}
-                                            <i class="fas fa-sort-down"></i>
+                                            <i class="fas fa-sort-down text-primary"></i>
                                         {% else %}
-                                            <i class="fas fa-sort text-muted"></i>
+                                            <i class="fas fa-sort text-muted opacity-50"></i>
                                         {% endif %}
                                     </a>
                                 </th>
-                                <th class="px-3 py-3">
-                                    <a href="?sort={% if current_sort == 'due_date' %}-{% endif %}due_date{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}" class="text-decoration-none text-dark">
+                                <th>
+                                    <a href="?sort={% if current_sort == 'due_date' %}-{% endif %}due_date{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}" class="text-decoration-none text-secondary">
                                         Due Date 
                                         {% if current_sort == 'due_date' %}
-                                            <i class="fas fa-sort-up"></i>
+                                            <i class="fas fa-sort-up text-primary"></i>
                                         {% elif current_sort == '-due_date' %}
-                                            <i class="fas fa-sort-down"></i>
+                                            <i class="fas fa-sort-down text-primary"></i>
                                         {% else %}
-                                            <i class="fas fa-sort text-muted"></i>
+                                            <i class="fas fa-sort text-muted opacity-50"></i>
                                         {% endif %}
                                     </a>
                                 </th>
-                                <th class="px-3 py-3">
-                                    <a href="?sort={% if current_sort == 'status' %}-{% endif %}status{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}" class="text-decoration-none text-dark">
+                                <th>
+                                    <a href="?sort={% if current_sort == 'status' %}-{% endif %}status{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}" class="text-decoration-none text-secondary">
                                         Status 
                                         {% if current_sort == 'status' %}
-                                            <i class="fas fa-sort-up"></i>
+                                            <i class="fas fa-sort-up text-primary"></i>
                                         {% elif current_sort == '-status' %}
-                                            <i class="fas fa-sort-down"></i>
+                                            <i class="fas fa-sort-down text-primary"></i>
                                         {% else %}
-                                            <i class="fas fa-sort text-muted"></i>
+                                            <i class="fas fa-sort text-muted opacity-50"></i>
                                         {% endif %}
                                     </a>
                                 </th>
-                                <th class="px-3 py-3">Actions</th>
+                                <th class="text-end">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for loan in loans %}
                                 <tr>
-                                    <td class="px-3 py-3">
+                                    <!-- Customer Column -->
+                                    <td>
                                         <div class="d-flex align-items-center">
                                             {% if loan.customer_face_capture %}
                                                 <div class="position-relative me-2">
                                                     <img src="{{ loan.customer_face_capture }}" 
                                                          alt="Customer Photo" 
-                                                         class="rounded-circle customer-photo"
-                                                         style="width: 48px; height: 48px; object-fit: cover; cursor: pointer;"
+                                                         class="rounded-circle border"
+                                                         style="width: 36px; height: 36px; object-fit: cover; cursor: pointer;"
                                                          data-bs-toggle="modal" 
                                                          data-bs-target="#customerModal-{{ loan.id }}">
-                                                    <div class="position-absolute bottom-0 end-0">
-                                                        <span class="badge bg-primary rounded-circle" style="font-size: 0.6rem; width: 18px; height: 18px;">
-                                                            <i class="fas fa-search-plus fa-xs"></i>
-                                                        </span>
-                                                    </div>
                                                 </div>
                                             {% elif loan.customer and loan.customer.photo %}
                                                 <div class="position-relative me-2">
                                                     <img src="{{ loan.customer.photo }}" 
                                                          alt="Customer Photo" 
-                                                         class="rounded-circle customer-photo"
-                                                         style="width: 48px; height: 48px; object-fit: cover;">
+                                                         class="rounded-circle border"
+                                                         style="width: 36px; height: 36px; object-fit: cover;">
                                                 </div>
                                             {% else %}
-                                                <div class="rounded-circle bg-light d-flex align-items-center justify-content-center me-2" 
-                                                     style="width: 48px; height: 48px;">
-                                                    <i class="fas fa-user text-secondary"></i>
+                                                <div class="rounded-circle bg-light border d-flex align-items-center justify-content-center me-2" 
+                                                     style="width: 36px; height: 36px;">
+                                                    <i class="fas fa-user text-muted fa-xs"></i>
                                                 </div>
                                             {% endif %}
                                             <div>
-                                                <a href="{% url 'customer_detail' loan.customer.id %}">
+                                                <a href="{% url 'customer_detail' loan.customer.id %}" class="fw-semibold text-decoration-none" style="color: #0f172a; font-size: 0.885rem;">
                                                     {{ loan.customer.first_name }} {{ loan.customer.last_name }}
                                                 </a>
-                                                <small class="d-block text-muted">{{ loan.customer.phone|mobile_format|default:"" }}</small>
+                                                <small class="d-block text-muted" style="font-size: 0.76rem;">{{ loan.customer.phone|mobile_format|default:"" }}</small>
                                             </div>
                                         </div>
                                         
@@ -421,8 +435,8 @@
                                         <div class="modal fade" id="customerModal-{{ loan.id }}" tabindex="-1" aria-hidden="true">
                                             <div class="modal-dialog modal-sm modal-dialog-centered">
                                                 <div class="modal-content">
-                                                    <div class="modal-header py-2">
-                                                        <h6 class="modal-title">{{ loan.customer.first_name }} {{ loan.customer.last_name }}</h6>
+                                                    <div class="modal-header py-1 px-2">
+                                                        <h6 class="modal-title small mb-0">{{ loan.customer.first_name }} {{ loan.customer.last_name }}</h6>
                                                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                     </div>
                                                     <div class="modal-body text-center p-2">
@@ -433,65 +447,60 @@
                                         </div>
                                         {% endif %}
                                     </td>
-                                    <td class="px-3 py-3">
+
+                                    <!-- Items & Vault Pouch Column -->
+                                    <td>
                                         {% if loan.loanitem_set.all %}
                                             {% for loan_item in loan.loanitem_set.all|slice:":1" %}
-                                            <div class="d-flex align-items-center mb-1">
+                                            <div class="d-flex align-items-center">
                                                 {% if loan.item_photos %}
                                                     <div class="position-relative me-2" data-bs-toggle="modal" data-bs-target="#itemModal-{{ loan.id }}">
                                                         {% if loan.loan_number and loan.loan_number != '' %}
                                                             <img src="{{ loan.item_photos|first_item_photo }}" 
                                                                  alt="Item Photo" 
                                                                  class="rounded border"
-                                                                 style="width: 48px; height: 48px; object-fit: cover; cursor: pointer;">
-                                                            <div class="position-absolute bottom-0 end-0">
-                                                                <span class="badge bg-info rounded-circle" style="font-size: 0.6rem; width: 18px; height: 18px;">
-                                                                    {% with count=loan.item_photos|item_photos_count %}
-                                                                    {{ count }}
-                                                                    {% endwith %}
-                                                                </span>
-                                                            </div>
+                                                                 style="width: 36px; height: 36px; object-fit: cover; cursor: pointer;">
                                                         {% else %}
                                                             <div class="rounded border bg-light d-flex align-items-center justify-content-center" 
-                                                                 style="width: 48px; height: 48px;">
-                                                                <i class="fas fa-exclamation-triangle text-warning"></i>
+                                                                 style="width: 36px; height: 36px;">
+                                                                <i class="fas fa-gem text-muted fa-xs"></i>
                                                             </div>
                                                         {% endif %}
                                                     </div>
                                                 {% endif %}
                                                 <div>
                                                     {% if loan.loan_number and loan.loan_number != '' %}
-                                                        <a href="{% url 'loan_detail' loan.loan_number %}" class="d-block fw-bold text-primary">
+                                                        <a href="{% url 'loan_detail' loan.loan_number %}" class="fw-semibold text-decoration-none" style="color: #2563eb;">
                                                             {{ loan_item.item.name }}
                                                         </a>
                                                     {% else %}
-                                                        <span class="d-block fw-bold text-primary">{{ loan_item.item.name }}</span>
+                                                        <span class="fw-semibold" style="color: #0f172a;">{{ loan_item.item.name }}</span>
                                                     {% endif %}
-                                                    <small class="text-muted">
-                                                        {{ loan_item.gold_karat }}K, {{ loan_item.net_weight }}g
+                                                    <span class="badge bg-light text-secondary border ms-1" style="font-size: 0.74rem;">
+                                                        {{ loan_item.gold_karat }}K | {{ loan_item.net_weight }}g
+                                                    </span>
+                                                    {% if loan.vault_pouch %}
+                                                    <small class="text-secondary d-block" style="font-size: 0.74rem;" title="Vault Pouch & Safe Location">
+                                                        <i class="fas fa-shield-alt text-secondary opacity-75 me-1"></i>{{ loan.vault_pouch.pouch_number }} ({{ loan.vault_pouch.safe_locker_number }})
                                                     </small>
+                                                    {% endif %}
                                                 </div>
                                             </div>
                                             
                                             <!-- Item Photos Modal -->
-                                            {% if loan.item_photos %}
                                             <div class="modal fade" id="itemModal-{{ loan.id }}" tabindex="-1" aria-hidden="true">
                                                 <div class="modal-dialog modal-dialog-centered">
                                                     <div class="modal-content">
-                                                        <div class="modal-header py-2">
-                                                            <h6 class="modal-title">Gold Item Photos</h6>
+                                                        <div class="modal-header py-1 px-2">
+                                                            <h6 class="modal-title small mb-0">Gold Item Photos</h6>
                                                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                         </div>
                                                         <div class="modal-body">
                                                             <div class="row g-2 item-photos-container" data-loan-id="{{ loan.id }}">
-                                                                <!-- Photos will be loaded here via JavaScript -->
                                                                 <div class="text-center py-3">
-                                                                    <div class="spinner-border text-primary" role="status">
-                                                                        <span class="visually-hidden">Loading...</span>
-                                                                    </div>
+                                                                    <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
                                                                 </div>
                                                             </div>
-                                                            <!-- Hidden item photos data -->
                                                             <script type="application/json" class="item-photos-data">
                                                                 {{ loan.item_photos|safe }}
                                                             </script>
@@ -499,59 +508,76 @@
                                                     </div>
                                                 </div>
                                             </div>
-                                            {% endif %}
                                             
                                             {% empty %}
-                                            <span class="text-muted">No items</span>
+                                            <span class="text-muted small">No items</span>
                                             {% endfor %}
                                         {% else %}
-                                            <span class="text-muted">No items</span>
+                                            <span class="text-muted small">No items</span>
                                         {% endif %}
                                     </td>
-                                    <td class="px-3 py-3">Rs: {{ loan.principal_amount|floatformat:2 }}</td>
-                                    <td class="px-3 py-3">
-                                        {{ loan|monthly_interest_rate }}%
-                                        <small class="d-block text-muted">Monthly Amount: Rs: {{ loan|monthly_interest_amount|floatformat:2 }}</small>
+
+                                    <!-- Principal Column -->
+                                    <td>
+                                        <div class="fw-bold" style="color: #0f172a;">Rs {{ loan.principal_amount|floatformat:2 }}</div>
+                                        <small class="text-muted" style="font-size: 0.74rem;">#{{ loan.loan_number }}</small>
                                     </td>
-                                    <td class="px-3 py-3">{{ loan.issue_date }}</td>
-                                    <td class="px-3 py-3" style="{{ loan|due_date_bg_color }}; border-radius: 4px; font-weight: 500;">{{ loan.due_date }}</td>
-                                    <td class="px-3 py-3">
-                                        <div class="d-flex flex-column align-items-start">
-                                            <span class="badge bg-{{ loan.status|status_color }} mb-1">
-                                                {{ loan.get_status_display }}
-                                            </span>
-                                            {% if loan.branch %}
-                                                <small class="text-muted d-flex align-items-center">
-                                                    <i class="fas fa-building me-1" style="font-size: 0.7rem;"></i>
-                                                    <span style="font-size: 0.75rem;">{{ loan.branch.name }}</span>
-                                                </small>
-                                            {% else %}
-                                                <small class="text-muted">
-                                                    <i class="fas fa-question-circle me-1" style="font-size: 0.7rem;"></i>
-                                                    <span style="font-size: 0.75rem;">No branch</span>
-                                                </small>
+
+                                    <!-- Monthly Interest Column -->
+                                    <td>
+                                        <span class="badge bg-light text-dark border" style="font-size: 0.74rem;">{{ loan|monthly_interest_rate }}%/mo</span>
+                                        <small class="d-block text-muted" style="font-size: 0.74rem;">Rs {{ loan|monthly_interest_amount|floatformat:2 }}/mo</small>
+                                    </td>
+
+                                    <!-- Start Date Column -->
+                                    <td class="text-muted" style="font-size: 0.82rem;">
+                                        {{ loan.issue_date|date:"d M Y" }}
+                                    </td>
+
+                                    <!-- Due Date Column -->
+                                    <td style="font-size: 0.82rem;">
+                                        <div class="fw-medium text-dark">{{ loan.due_date|date:"d M Y" }}</div>
+                                        {% if loan.days_remaining is not None %}
+                                            {% if loan.days_remaining < 0 %}
+                                            <small class="text-danger fw-semibold" style="font-size: 0.72rem;">Overdue</small>
+                                            {% elif loan.days_remaining <= 30 %}
+                                            <small class="text-warning fw-semibold" style="font-size: 0.72rem; color: #b45309 !important;">{{ loan.days_remaining }}d left</small>
                                             {% endif %}
-                                        </div>
+                                        {% endif %}
                                     </td>
-                                    <td class="px-3 py-3">
-                                        <div class="btn-group btn-group-sm">
+
+                                    <!-- Status Column -->
+                                    <td>
+                                        <span class="badge pill-{{ loan.status }} py-1 px-2" style="font-size: 0.74rem;">
+                                            {{ loan.get_status_display }}
+                                        </span>
+                                        {% if loan.branch %}
+                                            <small class="text-muted d-block text-truncate" style="font-size: 0.72rem; max-width: 95px;">
+                                                <i class="fas fa-building me-1 opacity-75"></i>{{ loan.branch.name }}
+                                            </small>
+                                        {% endif %}
+                                    </td>
+
+                                    <!-- Action Buttons -->
+                                    <td class="text-end">
+                                        <div class="btn-group btn-group-sm border rounded bg-white shadow-xs">
                                             {% if loan.loan_number and loan.loan_number != '' %}
-                                                <a href="{% url 'loan_detail' loan.loan_number %}" class="btn btn-outline-primary" title="View">
-                                                    <i class="fas fa-eye"></i>
+                                                <a href="{% url 'loan_detail' loan.loan_number %}" class="btn btn-sm py-1 px-2 border-end text-secondary" title="View Details">
+                                                    <i class="fas fa-eye fa-xs"></i>
                                                 </a>
-                                                <a href="{% url 'loan_document' loan.loan_number %}" class="btn btn-outline-secondary" title="Download Agreement" target="_blank">
-                                                    <i class="fas fa-file-pdf"></i>
+                                                <a href="{% url 'loan_document' loan.loan_number %}" class="btn btn-sm py-1 px-2 border-end text-secondary" title="Agreement PDF" target="_blank">
+                                                    <i class="fas fa-file-pdf fa-xs"></i>
                                                 </a>
                                                 {% if loan.status == 'active' %}
-                                                    <a href="{% url 'payment_create' loan.loan_number %}" class="btn btn-outline-success" title="Make Payment">
-                                                        <i class="fas fa-dollar-sign"></i>
+                                                    <a href="{% url 'payment_create' loan.loan_number %}" class="btn btn-sm py-1 px-2 border-end text-success" title="Make Payment">
+                                                        <i class="fas fa-dollar-sign fa-xs"></i>
                                                     </a>
-                                                    <a href="{% url 'loan_extend' loan.loan_number %}" class="btn btn-outline-info" title="Extend">
-                                                        <i class="fas fa-calendar-plus"></i>
+                                                    <a href="{% url 'loan_extend' loan.loan_number %}" class="btn btn-sm py-1 px-2 text-primary" title="Extend Loan">
+                                                        <i class="fas fa-calendar-plus fa-xs"></i>
                                                     </a>
                                                 {% endif %}
                                             {% else %}
-                                                <span class="badge bg-warning">Invalid Loan Number</span>
+                                                <span class="badge bg-warning">Invalid</span>
                                             {% endif %}
                                         </div>
                                     </td>

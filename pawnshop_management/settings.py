@@ -76,6 +76,7 @@ INSTALLED_APPS = [
     'schemes',
     'gst',
     'analytics',
+    'accounting',
 ]
 
 BASE_MIDDLEWARE = [

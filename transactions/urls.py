@@ -1,5 +1,7 @@
 from django.urls import path
 from . import views
+from . import views_eod
+from . import views_partial_release
 
 urlpatterns = [
     # Loans
@@ -18,6 +20,20 @@ urlpatterns = [
     path('loans/<str:loan_number>/tiered-schedule-download/', views.LoanTieredScheduleDownloadView.as_view(), name='loan_tiered_schedule_download'),
     path('loans/<str:loan_number>/edit-logs/', views.LoanEditLogsView.as_view(), name='loan_edit_logs'),
     
+    # Task 2.3: Partial Ornament Release & Part-Payment Workflow
+    path('loans/<str:loan_number>/partial-release/', views_partial_release.LoanPartialReleaseView.as_view(), name='loan_partial_release'),
+    path('loans/<str:loan_number>/partial-release/<int:release_id>/voucher/', views_partial_release.LoanPartialReleaseVoucherView.as_view(), name='loan_partial_release_voucher'),
+    
+    # Task 2.1: Tiered Maker-Checker Loan Approvals Queue & Actions
+    path('approvals/', views.LoanApprovalQueueView.as_view(), name='loan_approval_queue'),
+    path('approvals/<int:pk>/approve/', views.LoanApproveActionView.as_view(), name='loan_approval_approve'),
+    path('approvals/<int:pk>/reject/', views.LoanRejectActionView.as_view(), name='loan_approval_reject'),
+    path('approvals/<int:pk>/reappraisal/', views.LoanReappraisalActionView.as_view(), name='loan_approval_reappraisal'),
+
+    # Task 2.2: Automated EOD Batch Operations & RBI IRAC NPA Tagging Console
+    path('eod-console/', views_eod.EODConsoleView.as_view(), name='eod_console'),
+    path('eod-console/run/', views_eod.EODRunBatchActionView.as_view(), name='eod_run_batch'),
+    
     # Payments
     path('payments/', views.PaymentListView.as_view(), name='payment_list'),
     path('payments/<int:pk>/', views.PaymentDetailView.as_view(), name='payment_detail'),
@@ -34,5 +50,6 @@ urlpatterns = [
 
     # Utilities
     path('number_to_words/<str:number>/', views.number_to_words, name='number_to_words'),
+    path('customer-bank-details/<int:customer_id>/', views.get_customer_bank_details, name='customer_bank_details'),
     path('transliterate/', views.transliterate_between_english_tamil, name='transliterate_between_english_tamil'),
 ]

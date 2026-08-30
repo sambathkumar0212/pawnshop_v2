@@ -745,7 +745,7 @@
                             </th>
                             <th
                                 class="compact-header {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
-                                {{ labels.total_items }}
+                                {{ labels.qty|default:"Qty" }}
                             </th>
                         </tr>
                     </thead>
@@ -760,12 +760,11 @@
                                 {% if item.display_description %}<div
                                     class="item-description {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
                                     {{ item.display_description|linebreaksbr }}</div>{% endif %}
-
                             </td>
                             <td class="karat-cell">{{ item.loan_item.gold_karat }}K</td>
                             <td class="compact-cell">{{ item.loan_item.gross_weight|floatformat:3 }}</td>
                             <td class="compact-cell">{{ item.loan_item.net_weight|floatformat:3 }}</td>
-                            <td class="compact-cell">{{ total_items_count|default:unique_item_names_count }} pcs</td>
+                            <td class="compact-cell">{{ item.loan_item.quantity|default:1 }}</td>
                         </tr>
                         {% endfor %}
                         {% elif loan_items and loan_items|length > 0 %}
@@ -778,30 +777,37 @@
                                 {% if loan_item.item.description %}<div
                                     class="item-description {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
                                     {{ loan_item.item.description|linebreaksbr }}</div>{% endif %}
-                                {% if forloop.first %}
-                                <div
-                                    class="item-description {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
-                                    <strong>
-                                        {{ labels.total_items }}:
-                                        {{ total_items_count|default:unique_item_names_count }}
-                                    </strong>
-                                </div>
-                                {% endif %}
                             </td>
                             <td class="karat-cell">{{ loan_item.gold_karat }}K</td>
                             <td class="compact-cell">{{ loan_item.gross_weight|floatformat:3 }}</td>
                             <td class="compact-cell">{{ loan_item.net_weight|floatformat:3 }}</td>
+                            <td class="compact-cell">{{ loan_item.quantity|default:1 }}</td>
                         </tr>
                         {% endfor %}
                         {% else %}
                         <tr>
-                            <td colspan="4" style="text-align: center; padding: 10px; font-style: italic; color: #666;">
+                            <td colspan="5" style="text-align: center; padding: 10px; font-style: italic; color: #666;">
                                 {{ labels.no_photos }}
                             </td>
                         </tr>
                         {% endif %}
                     </tbody>
+                    <tfoot>
+                        <tr style="background-color: #f8f9fc; font-weight: bold; border-top: 1px solid #ddd;">
+                            <td colspan="2" class="{% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}" style="text-align: right; padding: 5px 8px; font-size: 11px;">
+                                {{ labels.total|default:"Total" }}:
+                            </td>
+                            <td class="compact-cell" style="font-size: 11px; font-weight: bold;">{{ total_gross_weight|floatformat:3 }}</td>
+                            <td class="compact-cell" style="font-size: 11px; font-weight: bold;">{{ total_net_weight|floatformat:3 }}</td>
+                            <td class="compact-cell" style="font-size: 11px; font-weight: bold;">{{ total_items_count|default:1 }}</td>
+                        </tr>
+                    </tfoot>
                 </table>
+                <div style="display: flex; justify-content: flex-end; align-items: center; font-size: 10px; color: #555; margin-top: 2px; margin-bottom: 6px;">
+                    <span class="{% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}" style="font-size: 10px;">
+                        <strong>{{ labels.total_items }}:</strong> {{ total_items_count|default:1 }} {% if current_language|slice:':2' == 'ta' %}பொருட்கள்{% else %}item(s){% endif %}
+                    </span>
+                </div>
             </div>
         </div>
 

@@ -21,4 +21,11 @@ urlpatterns = [
     
     # Search URL
     path('search/', views.inventory_search, name='inventory_search'),
+    
+    # Vault Custody & Pouch Management URLs
+    path('vault/', views.VaultExplorerView.as_view(), name='vault_explorer'),
+    path('vault/<int:pk>/verify-inward/', views.verify_vault_inward, name='verify_vault_inward'),
+    path('vault/<int:pk>/label/', views.vault_pouch_label, name='vault_pouch_label'),
+    path('vault/<int:pk>/release/', views.release_vault_pouch, name='release_vault_pouch'),
+    path('vault/<int:pk>/audit-check/', views.audit_check_pouch, name='audit_check_pouch'),
 ]

@@ -1,0 +1,251 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Central Daily Gold Rates & RBI LTV Cap Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 px-3">
+    <!-- Top Action Header -->
+    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+        <div>
+            <h4 class="mb-0 fw-bold" style="color: #0f172a;">
+                <i class="fas fa-coins text-warning me-2"></i>Head Office Central Gold Rate & RBI 75% LTV Cap
+            </h4>
+            <small class="text-muted">Broadcast official daily gold valuation rates to all 100+ branch locations</small>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'scheme_list' %}" class="btn btn-white border btn-sm text-secondary">
+                <i class="fas fa-arrow-left me-1"></i>Back to Schemes
+            </a>
+            <a href="{% url 'loan_create' %}" class="btn btn-primary btn-sm px-3">
+                <i class="fas fa-plus-circle me-1"></i>New Loan
+            </a>
+        </div>
+    </div>
+
+    <!-- Active Rates Metric Cards -->
+    <div class="row g-2 mb-3">
+        <!-- 24K Pure Gold -->
+        <div class="col-md-3">
+            <div class="card border-0 text-white p-3 shadow-xs" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 8px;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-uppercase fw-semibold" style="font-size: 0.72rem; opacity: 0.9;">24K Pure Gold (99.9%)</div>
+                        <h3 class="fw-bold mb-0 mt-1">₹{{ current_rate.rate_24k_per_gram|floatformat:0 }}<span style="font-size: 0.8rem; font-weight: normal;"> /g</span></h3>
+                        <small style="font-size: 0.72rem; opacity: 0.85;">1 Sovereign (8g): ₹{{ current_rate.rate_24k_per_gram|default:0|floatformat:0 }}</small>
+                    </div>
+                    <i class="fas fa-crown fa-2x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- 22K Standard Gold -->
+        <div class="col-md-3">
+            <div class="card border-0 text-white p-3 shadow-xs" style="background: linear-gradient(135deg, #e11d48 0%, #be123c 100%); border-radius: 8px;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-uppercase fw-semibold" style="font-size: 0.72rem; opacity: 0.9;">22K Standard Gold (91.6%)</div>
+                        <h3 class="fw-bold mb-0 mt-1">₹{{ current_rate.rate_22k_per_gram|floatformat:0 }}<span style="font-size: 0.8rem; font-weight: normal;"> /g</span></h3>
+                        <small style="font-size: 0.72rem; opacity: 0.85;">Hallmark 916 Benchmark</small>
+                    </div>
+                    <i class="fas fa-medal fa-2x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- 18K European Standard -->
+        <div class="col-md-3">
+            <div class="card border-0 text-white p-3 shadow-xs" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); border-radius: 8px;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-uppercase fw-semibold" style="font-size: 0.72rem; opacity: 0.9;">18K Gold (75.0%)</div>
+                        <h3 class="fw-bold mb-0 mt-1">₹{{ current_rate.rate_18k_per_gram|floatformat:0 }}<span style="font-size: 0.8rem; font-weight: normal;"> /g</span></h3>
+                        <small style="font-size: 0.72rem; opacity: 0.85;">Diamond / Stone Jewellery</small>
+                    </div>
+                    <i class="fas fa-gem fa-2x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- RBI Statutory LTV Cap -->
+        <div class="col-md-3">
+            <div class="card border-0 text-white p-3 shadow-xs" style="background: linear-gradient(135deg, #059669 0%, #047857 100%); border-radius: 8px;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-uppercase fw-semibold" style="font-size: 0.72rem; opacity: 0.9;">RBI Statutory LTV Cap</div>
+                        <h3 class="fw-bold mb-0 mt-1">{{ current_rate.maximum_ltv_percentage|floatformat:0 }}%</h3>
+                        <small style="font-size: 0.72rem; opacity: 0.85;">Mandatory Regulatory Ceiling</small>
+                    </div>
+                    <i class="fas fa-shield-alt fa-2x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <!-- Broadcast Form (Col 5) -->
+        <div class="col-lg-5">
+            <div class="card h-100 shadow-xs">
+                <div class="card-header bg-light py-2 px-3 border-bottom">
+                    <h6 class="mb-0 fw-bold" style="color: #0f172a;">
+                        <i class="fas fa-broadcast-tower text-primary me-2"></i>Broadcast Daily Rate Update
+                    </h6>
+                </div>
+                <div class="card-body p-3">
+                    <form method="post" id="goldRateForm">
+                        {% csrf_token %}
+
+                        <div class="alert alert-info py-2 px-3 mb-3" style="font-size: 0.78rem;">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Rates broadcasted here take effect immediately across all branches and are enforced on every new gold loan creation.
+                        </div>
+
+                        <!-- 22K Rate Input (Primary Benchmark) -->
+                        <div class="mb-2">
+                            <label for="rate_22k_per_gram" class="form-label small fw-semibold text-secondary mb-1 d-flex justify-content-between">
+                                <span>22K Standard Gold Rate (₹ / gram) <span class="text-danger">*</span></span>
+                                <span class="text-primary" style="font-size: 0.72rem;"><i class="fas fa-magic me-1"></i>Auto-fills 24K, 20K, 18K</span>
+                            </label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-light text-dark fw-bold">₹</span>
+                                <input type="number" step="1" min="1000" max="25000" class="form-control fw-bold fs-6" id="rate_22k_per_gram" name="rate_22k_per_gram" value="{{ current_rate.rate_22k_per_gram|floatformat:0 }}" oninput="autoDeriveFrom22K()" required>
+                            </div>
+                            <small class="text-muted" style="font-size: 0.7rem;">Main market Hallmark 916 rate. Typing here automatically calculates other purities.</small>
+                        </div>
+
+                        <!-- 24K Rate Input -->
+                        <div class="mb-2">
+                            <label for="rate_24k_per_gram" class="form-label small fw-semibold text-secondary mb-1 d-flex justify-content-between">
+                                <span>24K Pure Gold Rate (₹ / gram) <span class="text-danger">*</span></span>
+                                <a href="javascript:void(0);" onclick="autoDeriveFrom22K()" class="text-primary" style="font-size: 0.72rem;">(Recalculate from 22K)</a>
+                            </label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text">₹</span>
+                                <input type="number" step="1" min="1000" max="25000" class="form-control" id="rate_24k_per_gram" name="rate_24k_per_gram" value="{{ current_rate.rate_24k_per_gram|floatformat:0 }}" required>
+                            </div>
+                        </div>
+
+                        <!-- 20K & 18K Inputs -->
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label for="rate_20k_per_gram" class="form-label small fw-semibold text-secondary mb-1">20K Rate (₹/g)</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">₹</span>
+                                    <input type="number" step="1" min="1000" max="25000" class="form-control" id="rate_20k_per_gram" name="rate_20k_per_gram" value="{{ current_rate.rate_20k_per_gram|floatformat:0 }}" required>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <label for="rate_18k_per_gram" class="form-label small fw-semibold text-secondary mb-1">18K Rate (₹/g)</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">₹</span>
+                                    <input type="number" step="1" min="1000" max="25000" class="form-control" id="rate_18k_per_gram" name="rate_18k_per_gram" value="{{ current_rate.rate_18k_per_gram|floatformat:0 }}" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Maximum LTV Cap -->
+                        <div class="mb-2">
+                            <label for="maximum_ltv_percentage" class="form-label small fw-semibold text-secondary mb-1">
+                                Maximum Statutory LTV Cap (%) <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group input-group-sm">
+                                <input type="number" step="1" min="10" max="90" class="form-control" id="maximum_ltv_percentage" name="maximum_ltv_percentage" value="{{ current_rate.maximum_ltv_percentage|floatformat:0 }}" required>
+                                <span class="input-group-text">%</span>
+                            </div>
+                            <small class="text-muted" style="font-size: 0.72rem;">RBI mandate: Standard 75%, Hard Maximum 90%</small>
+                        </div>
+
+                        <!-- Broadcast Notes -->
+                        <div class="mb-3">
+                            <label for="notes" class="form-label small fw-semibold text-secondary mb-1">Notes / Market Bulletin</label>
+                            <input type="text" class="form-control form-control-sm" id="notes" name="notes" placeholder="e.g. IBJA Morning Opening Rate Fix">
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-sm w-100 py-2">
+                            <i class="fas fa-paper-plane me-1"></i>Publish & Broadcast Rates
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Historical Rate Log (Col 7) -->
+        <div class="col-lg-7">
+            <div class="card h-100 shadow-xs">
+                <div class="card-header bg-light py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 fw-bold" style="color: #0f172a;">
+                        <i class="fas fa-history text-secondary me-2"></i>Rate Audit Trail & History
+                    </h6>
+                    <span class="badge bg-white text-secondary border">Recent 30 Broadcasts</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped mb-0 align-middle" style="font-size: 0.84rem;">
+                            <thead class="table-light" style="font-size: 0.76rem;">
+                                <tr>
+                                    <th class="ps-3">Date</th>
+                                    <th>24K Rate</th>
+                                    <th>22K Rate</th>
+                                    <th>18K Rate</th>
+                                    <th>LTV Cap</th>
+                                    <th>Published By</th>
+                                    <th class="pe-3">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for r in rate_history %}
+                                <tr>
+                                    <td class="ps-3 fw-semibold text-dark">{{ r.date|date:"d M Y" }}</td>
+                                    <td>₹{{ r.rate_24k_per_gram|floatformat:0 }}</td>
+                                    <td class="fw-bold text-dark">₹{{ r.rate_22k_per_gram|floatformat:0 }}</td>
+                                    <td>₹{{ r.rate_18k_per_gram|floatformat:0 }}</td>
+                                    <td><span class="badge bg-light text-dark border">{{ r.maximum_ltv_percentage|floatformat:0 }}%</span></td>
+                                    <td class="text-muted small">
+                                        {% if r.updated_by %}
+                                            {{ r.updated_by.get_full_name|default:r.updated_by.username }}
+                                        {% else %}
+                                            System
+                                        {% endif %}
+                                    </td>
+                                    <td class="pe-3">
+                                        {% if r.is_active %}
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle py-1 px-2">Active</span>
+                                        {% else %}
+                                            <span class="badge bg-light text-muted border py-1 px-2">Archived</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-3 text-muted">No historical broadcasts found.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function autoDeriveFrom22K() {
+        const rate22k = parseFloat(document.getElementById('rate_22k_per_gram').value) || 0;
+        if (rate22k > 0) {
+            document.getElementById('rate_24k_per_gram').value = Math.round(rate22k * (24 / 22));
+            document.getElementById('rate_20k_per_gram').value = Math.round(rate22k * (20 / 22));
+            document.getElementById('rate_18k_per_gram').value = Math.round(rate22k * (18 / 22));
+        }
+    }
+
+    function autoDeriveFrom24K() {
+        const rate24k = parseFloat(document.getElementById('rate_24k_per_gram').value) || 0;
+        if (rate24k > 0) {
+            document.getElementById('rate_22k_per_gram').value = Math.round(rate24k * (22 / 24));
+            document.getElementById('rate_20k_per_gram').value = Math.round(rate24k * (20 / 24));
+            document.getElementById('rate_18k_per_gram').value = Math.round(rate24k * (18 / 24));
+        }
+    }
+</script>
+{% endblock %}

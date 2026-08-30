@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+
+{% block title %}Chart of Accounts (GL) - Pawnshop Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h3 mb-0 fw-bold text-dark">
+                <i class="fas fa-sitemap text-primary me-2"></i>Chart of Accounts (General Ledger Setup)
+            </h2>
+            <p class="text-muted mb-0 small mt-1">Standardized multi-tier account heads categorized by Asset, Liability, Equity, Income, and Expense.</p>
+        </div>
+        <div class="btn-group">
+            <a href="{% url 'accounting_day_book' %}" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-book-open me-1"></i>Day Book
+            </a>
+            <a href="{% url 'accounting_trial_balance' %}" class="btn btn-outline-info btn-sm text-dark">
+                <i class="fas fa-balance-scale me-1"></i>Trial Balance
+            </a>
+        </div>
+    </div>
+
+    <!-- Accounts Table -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 120px;">Code</th>
+                            <th>Account Title</th>
+                            <th>Category</th>
+                            <th>Scope / Branch</th>
+                            <th>Description</th>
+                            <th class="text-center" style="width: 100px;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for acc in accounts %}
+                        <tr>
+                            <td class="font-monospace fw-bold text-primary">{{ acc.code }}</td>
+                            <td>
+                                <strong class="text-dark">{{ acc.name }}</strong>
+                                {% if acc.parent %}
+                                <div class="text-muted small">Parent: {{ acc.parent.code }} - {{ acc.parent.name }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge {% if acc.category == 'ASSET' %}bg-primary{% elif acc.category == 'LIABILITY' %}bg-warning text-dark{% elif acc.category == 'EQUITY' %}bg-secondary{% elif acc.category == 'INCOME' %}bg-success{% else %}bg-danger{% endif %}">
+                                    {{ acc.get_category_display }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if acc.branch %}
+                                <span class="badge bg-light text-dark border">{{ acc.branch.name }}</span>
+                                {% else %}
+                                <span class="badge bg-dark text-white">Enterprise-Wide (Global)</span>
+                                {% endif %}
+                            </td>
+                            <td class="small text-secondary">{{ acc.description|default:"-" }}</td>
+                            <td class="text-center">
+                                {% if acc.is_active %}
+                                <span class="badge bg-success">Active</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Inactive</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-4 text-muted">No account heads registered.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -10,7 +10,7 @@ import decimal
 import json
 from decimal import Decimal
 
-from .models import Scheme, SchemeAuditLog
+from .models import Scheme, SchemeAuditLog, DailyGoldRate
 from .forms import NewSchemeForm, SchemeForm
 from accounts.models import UserActivity
 
@@ -583,3 +583,103 @@ class SchemeUpdateView(LoginRequiredMixin, View):
                     messages.error(request, f"Error in {field}: {error}")
         
         return render(request, self.template_name, {'form': form, 'scheme': scheme})
+
+
+class DailyGoldRateManageView(LoginRequiredMixin, View):
+    """
+    Head Office Central Gold Rate & RBI Statutory LTV Cap Broadcast Dashboard.
+    Enables Super Admin & Executives to broadcast daily market rates across all 100+ branches.
+    """
+    template_name = 'schemes/daily_gold_rate_manage.html'
+
+    def get(self, request):
+        user = request.user
+        org = getattr(user, 'organization', None)
+        
+        # Get active rate
+        current_rate = DailyGoldRate.get_current_rate(organization=org)
+        
+        # Historical rate log
+        rate_history = DailyGoldRate.objects.all()
+        if org and not user.is_superuser:
+            rate_history = rate_history.filter(Q(organization=org) | Q(organization__isnull=True))
+        rate_history = rate_history.order_by('-date', '-created_at')[:30]
+
+        context = {
+            'current_rate': current_rate,
+            'rate_history': rate_history,
+            'today': timezone.now().date(),
+        }
+        return render(request, self.template_name, context)
+
+    def post(self, request):
+        user = request.user
+        org = getattr(user, 'organization', None)
+
+        try:
+            rate_24k = Decimal(str(request.POST.get('rate_24k_per_gram', '7200.00')).strip())
+            rate_22k = Decimal(str(request.POST.get('rate_22k_per_gram', '6600.00')).strip())
+            rate_20k = Decimal(str(request.POST.get('rate_20k_per_gram', '6000.00')).strip())
+            rate_18k = Decimal(str(request.POST.get('rate_18k_per_gram', '5400.00')).strip())
+            max_ltv = Decimal(str(request.POST.get('maximum_ltv_percentage', '75.00')).strip())
+            notes = request.POST.get('notes', '').strip()
+
+            # Hard RBI Cap Validation
+            if max_ltv > Decimal('90.00'):
+                messages.error(request, "RBI Statutory limit restricts LTV to a maximum of 90.00%. Default is 75.00%.")
+                return redirect('daily_gold_rates')
+            if max_ltv < Decimal('10.00'):
+                messages.error(request, "Please enter a valid LTV percentage (minimum 10%).")
+                return redirect('daily_gold_rates')
+
+            # Create or update broadcast
+            today = timezone.now().date()
+            new_rate = DailyGoldRate.objects.create(
+                organization=org,
+                date=today,
+                rate_24k_per_gram=rate_24k,
+                rate_22k_per_gram=rate_22k,
+                rate_20k_per_gram=rate_20k,
+                rate_18k_per_gram=rate_18k,
+                maximum_ltv_percentage=max_ltv,
+                updated_by=user,
+                is_active=True,
+                notes=notes or f"Head Office Rate Broadcast on {today}"
+            )
+
+            # Deactivate older rates for today if any
+            DailyGoldRate.objects.filter(
+                organization=org,
+                is_active=True
+            ).exclude(pk=new_rate.pk).update(is_active=False)
+
+            messages.success(
+                request,
+                f"🎉 Central Daily Gold Rate broadcasted successfully! 22K Rate: ₹{rate_22k:,.2f}/g | RBI LTV Cap: {max_ltv}%"
+            )
+        except Exception as e:
+            messages.error(request, f"Failed to broadcast gold rate: {str(e)}")
+
+        return redirect('daily_gold_rates')
+
+
+def api_get_today_gold_rate(request):
+    """
+    JSON endpoint for loan creation UI and branches to fetch live active rates & LTV caps.
+    """
+    user = request.user if request.user.is_authenticated else None
+    org = getattr(user, 'organization', None) if user else None
+    rate = DailyGoldRate.get_current_rate(organization=org)
+
+    data = {
+        'status': 'success',
+        'date': rate.date.strftime('%Y-%m-%d'),
+        'rate_24k_per_gram': float(rate.rate_24k_per_gram),
+        'rate_22k_per_gram': float(rate.rate_22k_per_gram),
+        'rate_20k_per_gram': float(rate.rate_20k_per_gram),
+        'rate_18k_per_gram': float(rate.rate_18k_per_gram),
+        'maximum_ltv_percentage': float(rate.maximum_ltv_percentage),
+        'notes': rate.notes or '',
+    }
+    return JsonResponse(data)
+

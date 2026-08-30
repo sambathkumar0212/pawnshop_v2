@@ -10,14 +10,42 @@
     #loanForm label.form-label,
     #loanForm .form-check-label {
         color: #0d6efd !important;
+        font-weight: 600;
+        font-size: 0.82rem;
+        margin-bottom: 2px;
     }
 
     /* Dark shade for help text to keep it subtle */
     #loanForm .form-text,
     #loanForm .helptext,
     #loanForm small.text-muted {
-        color: #333333 !important;
-        opacity: 1;
+        color: #64748b !important;
+        font-size: 0.72rem;
+    }
+
+    /* Modern clean card structure */
+    #loanForm .card {
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    }
+    #loanForm .card-header {
+        background-color: #f8fafc;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    /* Form input fields */
+    #loanForm .form-control,
+    #loanForm .form-select {
+        border-color: #cbd5e1;
+        font-size: 0.84rem;
+        padding: 0.28rem 0.5rem;
+        border-radius: 5px;
+    }
+    #loanForm .form-control:focus,
+    #loanForm .form-select:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
     }
 
     /* Interest paid checkbox — teal/green theme */
@@ -40,12 +68,24 @@
         border-color: #f59e0b;
     }
 
+    /* Yellow / Golden Amber theme for auto-transliterated Tamil labels */
+    .tamil-badge,
+    .item-name-ta-label {
+        background-color: #fef3c7 !important;
+        color: #92400e !important;
+        border: 1px solid #fde68a !important;
+        font-weight: 500 !important;
+        font-size: 0.68rem !important;
+        padding: 0.15rem 0.35rem !important;
+        line-height: 1.2 !important;
+    }
+
     /* Dynamic Item Inputs Styling */
     .item-input-row {
         background: #ffffff;
         border: 1px solid #e2e8f0;
         border-radius: 6px;
-        padding: 6px 8px;
+        padding: 4px 6px;
         transition: all 0.2s ease-in-out;
     }
     .item-input-row:hover {
@@ -60,18 +100,52 @@
         border: 1px solid #e2e8f0;
         border-radius: 8px;
     }
+
+    /* Disable spinner/stepper buttons and scroll adjustments on numeric & amount inputs */
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button,
+    input.no-spin::-webkit-inner-spin-button,
+    input.no-spin::-webkit-outer-spin-button {
+        -webkit-appearance: none !important;
+        margin: 0 !important;
+    }
+    input[type="number"],
+    input.no-spin {
+        -moz-appearance: textfield !important;
+    }
 </style>
 <div class="container-fluid py-2">
     <div class="row mb-2">
         <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center">
-                <h2>
-                    <i class="fas fa-hand-holding-usd me-2"></i>
-                    {% if form.instance.pk %}Edit Loan{% else %}New Loan{% endif %}
-                </h2>
-                <a href="{% url 'loan_list' %}" class="btn btn-outline-secondary btn-sm">
-                    <i class="fas fa-arrow-left me-1"></i>Back to Loans
-                </a>
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-3">
+                    <h2 class="mb-0">
+                        <i class="fas fa-hand-holding-usd me-2"></i>
+                        {% if form.instance.pk %}Edit Loan #{{ form.instance.loan_number }}{% else %}New Loan{% endif %}
+                    </h2>
+                    
+                    <!-- Today's Official 22K Gold Rate Top Label -->
+                    <div class="d-inline-flex align-items-center px-3 py-1 rounded-pill shadow-xs" style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border: 1px solid #fde68a;">
+                        <i class="fas fa-coins text-warning me-2 fs-6"></i>
+                        <span class="text-secondary small fw-semibold me-1">Today's 22K Gold Rate:</span>
+                        <strong class="text-dark fs-6" id="topHeaderGoldRateDisplay">₹{{ form.market_price_22k.value|default:6600|floatformat:0 }} /g</strong>
+                        <span class="badge bg-warning text-dark ms-2 py-0 px-2 fw-semibold" style="font-size: 0.68rem;">916 Benchmark</span>
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    {% if form.instance.pk and form.instance.loan_number %}
+                    <a href="{% url 'loan_detail' form.instance.loan_number %}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-arrow-left me-1"></i>Back to Loan Details
+                    </a>
+                    <a href="{% url 'loan_list' %}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-list me-1"></i>All Loans
+                    </a>
+                    {% else %}
+                    <a href="{% url 'loan_list' %}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-arrow-left me-1"></i>Back to Loans
+                    </a>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
@@ -160,29 +234,47 @@
                                         </h6>
                                     </div>
                                     <div class="card-body p-2">
-                                        <div class="row g-2">
-                                            <!-- Row 1: Customer | Branch | Issue Date -->
-                                            <div class="col-md-4">
-                                                {{ form.customer|as_crispy_field }}
+                                        <div class="row g-2 align-items-start">
+                                            <!-- Customer -->
+                                            <div class="col-md-4 col-12">
+                                                <div class="mb-1">
+                                                    <label for="id_customer" class="form-label mb-0 small fw-bold text-primary">Customer <span class="text-danger">*</span></label>
+                                                </div>
+                                                {{ form.customer }}
+                                                <div class="mt-1">
+                                                    <span id="customerTamilBadge" class="badge tamil-badge py-0 px-2" style="font-size: 0.68rem; display: none;"></span>
+                                                </div>
+                                                {% if form.customer.errors %}<div class="text-danger small mt-1">{{ form.customer.errors.0 }}</div>{% endif %}
                                             </div>
-                                            <div class="col-md-4">
-                                                {{ form.branch|as_crispy_field }}
+
+                                            <!-- Loan Scheme -->
+                                            <div class="col-md-4 col-12">
+                                                <div class="mb-1">
+                                                    <label for="id_scheme" class="form-label mb-0 small fw-bold text-primary">Loan Scheme <span class="text-danger">*</span></label>
+                                                </div>
+                                                {{ form.scheme }}
+                                                <div class="mt-1">
+                                                    <span id="schemeTamilBadge" class="badge tamil-badge py-0 px-2" style="font-size: 0.68rem; display: none;"></span>
+                                                </div>
+                                                {% if form.scheme.errors %}<div class="text-danger small mt-1">{{ form.scheme.errors.0 }}</div>{% endif %}
                                             </div>
-                                            <div class="col-md-4">
-                                                {{ form.issue_date|as_crispy_field }}
+
+                                            <!-- Branch -->
+                                            <div class="col-md-2 col-6">
+                                                <div class="mb-1">
+                                                    <label for="id_branch" class="form-label mb-0 small fw-bold text-primary">Branch <span class="text-danger">*</span></label>
+                                                </div>
+                                                {{ form.branch }}
+                                                {% if form.branch.errors %}<div class="text-danger small mt-1">{{ form.branch.errors.0 }}</div>{% endif %}
                                             </div>
-                                            <!-- Row 2: Customer Tamil | Scheme | Scheme Tamil + info -->
-                                            <div class="col-md-4">
-                                                <label for="customerTamilPreview" class="form-label mb-1 small">Customer Name (Tamil)</label>
-                                                <input type="text" id="customerTamilPreview" class="form-control form-control-sm" readonly>
-                                            </div>
-                                            <div class="col-md-4">
-                                                {{ form.scheme|as_crispy_field }}
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label for="schemeTamilInput" class="form-label mb-1 small">Scheme Name (Tamil)</label>
-                                                <input type="text" id="schemeTamilInput" class="form-control form-control-sm"
-                                                    placeholder="Type scheme in Tamil">
+
+                                            <!-- Loan Date -->
+                                            <div class="col-md-2 col-6">
+                                                <div class="mb-1">
+                                                    <label for="id_issue_date" class="form-label mb-0 small fw-bold text-primary">Loan Date <span class="text-danger">*</span></label>
+                                                </div>
+                                                {{ form.issue_date }}
+                                                {% if form.issue_date.errors %}<div class="text-danger small mt-1">{{ form.issue_date.errors.0 }}</div>{% endif %}
                                             </div>
                                         </div>
                                     </div>
@@ -199,66 +291,172 @@
                                         </span>
                                     </div>
                                     <div class="card-body p-2">
-                                        <!-- Hidden fields for item_name, item_name_tamil, item_category, and calculatedTotalItems -->
+                                        <!-- Hidden form fields for sync -->
                                         <div style="display: none;">
                                             {{ form.item_category|as_crispy_field }}
                                             {{ form.item_name|as_crispy_field }}
                                             {{ form.item_name_tamil|as_crispy_field }}
+                                            {{ form.gold_karat }}
+                                            {{ form.gross_weight }}
+                                            {{ form.stone_weight }}
+                                            {{ form.net_weight }}
+                                            {{ form.market_price_22k }}
+                                            {{ form.items_json }}
                                             <input type="hidden" id="calculatedTotalItems" value="1">
                                         </div>
 
-                                        <!-- Dynamic Item Names & Counts Section -->
+                                        <!-- Dynamic Multi-Ornament Table with Per-Item Weight & Purity -->
                                         <div class="items-container-box mb-2 p-2">
                                             <div class="d-flex justify-content-between align-items-center mb-2">
                                                 <span class="small fw-bold text-primary">
-                                                    <i class="fas fa-list-ul me-1"></i>Ornaments & Quantities
+                                                    <i class="fas fa-list-ul me-1"></i>Pledged Gold Ornaments &amp; Purity Breakdown
                                                 </span>
                                                 <button type="button" class="btn btn-xs btn-primary py-1 px-2" id="addItemRowBtn">
-                                                    <i class="fas fa-plus me-1"></i>Add Extra Item
+                                                    <i class="fas fa-plus me-1"></i>Add Ornament
                                                 </button>
                                             </div>
 
-                                            <div id="dynamicItemRowsContainer">
-                                                <!-- Dynamic item rows populated by JS -->
+                                            <div class="table-responsive">
+                                                <table class="table table-sm table-bordered align-middle mb-0" id="ornamentsInputTable">
+                                                    <thead class="table-light small text-center">
+                                                        <tr>
+                                                            <th style="min-width: 180px;">Ornament Name (English / தமிழ்)</th>
+                                                            <th style="width: 70px;">Qty</th>
+                                                            <th style="width: 100px;">Purity</th>
+                                                            <th style="width: 105px;">Gross Wt (g)</th>
+                                                            <th style="width: 95px;">Stone Wt (g)</th>
+                                                            <th style="width: 105px;">Net Wt (g)</th>
+                                                            <th style="width: 115px;">Est. Value (₹)</th>
+                                                            <th style="width: 45px;">Action</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="dynamicItemRowsContainer">
+                                                        <!-- Dynamic ornament rows rendered by JS -->
+                                                    </tbody>
+                                                    <tfoot class="table-secondary small fw-bold font-monospace">
+                                                        <tr>
+                                                            <td class="text-end">TOTALS:</td>
+                                                            <td class="text-center" id="summaryTotalQty">1</td>
+                                                            <td class="text-center text-muted" id="summaryPurity">22K</td>
+                                                            <td class="text-end text-dark" id="summaryGrossWt">0.000 g</td>
+                                                            <td class="text-end text-muted" id="summaryStoneWt">0.000 g</td>
+                                                            <td class="text-end text-primary" id="summaryNetWt">0.000 g</td>
+                                                            <td class="text-end text-success" id="summaryEstVal">₹0.00</td>
+                                                            <td></td>
+                                                        </tr>
+                                                    </tfoot>
+                                                </table>
                                             </div>
 
                                             <div class="d-flex justify-content-between align-items-center mt-2 pt-1 border-top">
                                                 <small class="text-muted fst-italic" style="font-size: 0.72rem;">
-                                                    <i class="fas fa-info-circle me-1"></i>English auto-transliterates to Tamil. Click "+ Add Extra Item" for multiple ornaments.
+                                                    <i class="fas fa-info-circle me-1"></i>Enter individual ornament weights &amp; purity above. Each ornament is tracked uniquely for partial release.
                                                 </small>
                                                 <div class="d-flex align-items-center gap-1">
-                                                    <span class="small text-muted fw-semibold">Total Qty:</span>
-                                                    <span class="badge bg-success fs-7 px-2 py-1" id="calculatedTotalItemsBadge">1</span>
+                                                    <span class="small text-muted fw-semibold">Total Collateral Net:</span>
+                                                    <span class="badge bg-primary fs-7 px-2 py-1" id="calculatedTotalNetBadge">0.000 g</span>
                                                 </div>
                                             </div>
                                         </div>
 
                                         <div class="row g-2">
-                                            <!-- First row: Item descriptions -->
-                                            <div class="col-md-6">
-                                                {{ form.item_description|as_crispy_field }}
+                                            <!-- Item description with live Tamil label -->
+                                            <div class="col-md-12">
+                                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                                    <label for="id_item_description" class="form-label mb-0 small" style="color: #0d6efd;">General Description / Identification Marks</label>
+                                                    <span id="itemDescriptionTamilLabel" class="badge tamil-badge py-0 px-2" style="font-size: 0.68rem;"></span>
+                                                </div>
+                                                {{ form.item_description }}
+                                                {{ form.item_description_tamil }}
                                             </div>
-                                            <div class="col-md-6">
-                                                {{ form.item_description_tamil|as_crispy_field }}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Vault Custody & Security Pouch Tracking (Muthoot / Manappuram standard) -->
+                                <div class="card h-auto shadow-xs border mt-2">
+                                    <div class="card-header bg-light py-1 d-flex justify-content-between align-items-center">
+                                        <h6 class="card-title mb-0 small fw-bold">
+                                            <i class="fas fa-shield-alt text-success me-1"></i>Vault Custody & Security Pouch Tracking
+                                        </h6>
+                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-0" style="font-size: 0.68rem;">
+                                            <i class="fas fa-lock me-1"></i>Dual-Key Custody
+                                        </span>
+                                    </div>
+                                    <div class="card-body p-2">
+                                        <div class="row g-2">
+                                            <div class="col-md-3 col-6">
+                                                {{ form.pouch_number|as_crispy_field }}
+                                            </div>
+                                            <div class="col-md-3 col-6">
+                                                {{ form.seal_barcode|as_crispy_field }}
+                                            </div>
+                                            <div class="col-md-3 col-6">
+                                                {{ form.safe_locker_number|as_crispy_field }}
+                                            </div>
+                                            <div class="col-md-3 col-6">
+                                                {{ form.shelf_rack_number|as_crispy_field }}
+                                            </div>
+                                            <div class="col-md-6 col-12">
+                                                {{ form.loan_document|as_crispy_field }}
+                                            </div>
+                                            <div class="col-md-6 col-12">
+                                                {{ form.gold_location|as_crispy_field }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Disbursement & Bank Payout Details (Income Tax Sec 269SS Compliance) -->
+                                <div class="card h-auto shadow-xs border mt-2" id="disbursementCard">
+                                    <div class="card-header bg-light py-1 d-flex justify-content-between align-items-center">
+                                        <h6 class="card-title mb-0 small fw-bold">
+                                            <i class="fas fa-university text-primary me-1"></i>Disbursement &amp; Payout Details
+                                        </h6>
+                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-0" style="font-size: 0.68rem;" id="sec269ssBadge">
+                                            <i class="fas fa-shield-alt me-1"></i>IT Act Sec 269SS
+                                        </span>
+                                    </div>
+                                    <div class="card-body p-2">
+                                        <!-- Live Sec 269SS Statutory Notice Banner -->
+                                        <div id="sec269ssNotice" class="alert alert-warning py-1 px-2 mb-2 small d-none" style="font-size: 0.76rem;">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>
+                                            <strong>Section 269SS Rule:</strong> Payout is &ge; ₹20,000. Cash disbursal is strictly prohibited. Bank Transfer / UPI / Cheque required.
+                                        </div>
+
+                                        <div class="row g-2">
+                                            <!-- Row 1: Disbursal Mode | Account Number | IFSC Code -->
+                                            <div class="col-md-4 col-12">
+                                                <label for="id_disbursement_mode" class="form-label mb-1 small fw-bold text-primary">Payout Mode <span class="text-danger">*</span></label>
+                                                {{ form.disbursement_mode }}
+                                                {% if form.disbursement_mode.errors %}<div class="text-danger small mt-1">{{ form.disbursement_mode.errors.0 }}</div>{% endif %}
+                                            </div>
+                                            <div class="col-md-4 col-6 bank-detail-field">
+                                                <label for="id_bank_account_number" class="form-label mb-1 small fw-bold text-primary">Account No. <span class="bank-required text-danger d-none">*</span></label>
+                                                {{ form.bank_account_number }}
+                                                {% if form.bank_account_number.errors %}<div class="text-danger small mt-1">{{ form.bank_account_number.errors.0 }}</div>{% endif %}
+                                            </div>
+                                            <div class="col-md-4 col-6 bank-detail-field">
+                                                <label for="id_bank_ifsc_code" class="form-label mb-1 small fw-bold text-primary">IFSC Code <span class="bank-required text-danger d-none">*</span></label>
+                                                {{ form.bank_ifsc_code }}
+                                                {% if form.bank_ifsc_code.errors %}<div class="text-danger small mt-1">{{ form.bank_ifsc_code.errors.0 }}</div>{% endif %}
                                             </div>
 
-                                            <!-- Second row: Today's 22K Gold Price (left) and Gold Karat (right) -->
-                                            <div class="col-md-6">
-                                                {{ form.market_price_22k|as_crispy_field }}
+                                            <!-- Row 2: Bank Name | Beneficiary Name | UTR / Reference -->
+                                            <div class="col-md-4 col-12 bank-detail-field">
+                                                <label for="id_bank_name" class="form-label mb-1 small fw-bold text-primary">Bank &amp; Branch Name</label>
+                                                {{ form.bank_name }}
+                                                {% if form.bank_name.errors %}<div class="text-danger small mt-1">{{ form.bank_name.errors.0 }}</div>{% endif %}
                                             </div>
-                                            <div class="col-md-6">
-                                                {{ form.gold_karat|as_crispy_field }}
+                                            <div class="col-md-4 col-6 bank-detail-field">
+                                                <label for="id_bank_beneficiary_name" class="form-label mb-1 small fw-bold text-primary">Beneficiary Name</label>
+                                                {{ form.bank_beneficiary_name }}
+                                                {% if form.bank_beneficiary_name.errors %}<div class="text-danger small mt-1">{{ form.bank_beneficiary_name.errors.0 }}</div>{% endif %}
                                             </div>
-
-                                            <!-- Third row: Weight fields -->
-                                            <div class="col-md-4">
-                                                {{ form.gross_weight|as_crispy_field }}
-                                            </div>
-                                            <div class="col-md-4">
-                                                {{ form.stone_weight|as_crispy_field }}
-                                            </div>
-                                            <div class="col-md-4">
-                                                {{ form.net_weight|as_crispy_field }}
+                                            <div class="col-md-4 col-6 bank-detail-field">
+                                                <label for="id_disbursement_utr" class="form-label mb-1 small fw-bold text-primary">UTR / Trans Ref</label>
+                                                {{ form.disbursement_utr }}
+                                                {% if form.disbursement_utr.errors %}<div class="text-danger small mt-1">{{ form.disbursement_utr.errors.0 }}</div>{% endif %}
                                             </div>
                                         </div>
                                     </div>
@@ -289,16 +487,16 @@
                                 </div>
 
                                 <!-- Customer Photo Section - Space Optimized -->
-                                <div class="card mb-2 shadow-sm border">
+                                <div class="card mb-2 shadow-xs border">
                                     <div class="card-header bg-light py-1">
-                                        <small><strong><i class="fas fa-user-circle me-1"></i>Customer Photo</strong></small>
+                                        <small class="fw-bold"><i class="fas fa-user-circle text-primary me-1"></i>Customer Photo</small>
                                     </div>
                                     <div class="card-body p-2">
                                         <div class="row g-2">
                                             <!-- Camera column -->
                                             <div class="col-5">
                                                 <div id="cameraView" class="border rounded bg-dark"
-                                                    style="height: 150px; position: relative;">
+                                                    style="height: 120px; position: relative;">
                                                     <video id="cameraStream"
                                                         style="width: 100%; height: 100%; object-fit: contain; background: #000;" autoplay
                                                         playsinline muted></video>
@@ -309,9 +507,9 @@
                                             <div class="col-7">
                                                 <div id="photoPreview"
                                                     class="border rounded d-flex align-items-center justify-content-center bg-light"
-                                                    style="height: 150px;">
+                                                    style="height: 120px;">
                                                     {% if form.instance.pk and form.instance.customer_face_capture %}
-                                                    <img id="capturedPhoto" class="img-fluid" style="max-height: 150px; object-fit: contain;"
+                                                    <img id="capturedPhoto" class="img-fluid" style="max-height: 120px; object-fit: contain;"
                                                         src="{{ form.instance.customer_face_capture }}">
                                                     {% else %}
                                                     <span id="noCaptureText" class="small text-muted" style="font-size: 0.75rem;">
@@ -325,7 +523,7 @@
                                                 </div>
                                             </div>
                                             <div class="col-12">
-                                                <!-- Row 1: Capture | Upload -->
+                                                <!-- Row 1: Capture & Upload -->
                                                 <div class="d-flex gap-1 mb-1">
                                                     <button type="button" class="btn btn-xs btn-primary flex-fill text-nowrap py-1"
                                                         id="captureBtn">
@@ -337,7 +535,7 @@
                                                     </label>
                                                     <input type="file" id="customerPhotoUpload" class="d-none" accept="image/*">
                                                 </div>
-                                                <!-- Row 2: Retake | Download -->
+                                                <!-- Row 2: Retake & Download -->
                                                 <div class="d-flex gap-1">
                                                     <button type="button" class="btn btn-xs btn-outline-secondary flex-fill text-nowrap py-1"
                                                         id="retakeBtn" disabled>
@@ -359,16 +557,16 @@
                                 </div>
  
                                 <!-- Gold Item Photos Section - Space Optimized -->
-                                <div class="card mb-2 shadow-sm border">
+                                <div class="card mb-2 shadow-xs border">
                                     <div class="card-header bg-light py-1 d-flex justify-content-between align-items-center">
-                                        <small><strong><i class="fas fa-camera me-1"></i>Gold Item Photos</strong></small>
-                                        <span class="badge bg-danger" id="photoCountBadge">0</span>
+                                        <small class="fw-bold"><i class="fas fa-camera text-warning me-1"></i>Gold Item Photos</small>
+                                        <span class="badge bg-secondary" id="photoCountBadge">0</span>
                                     </div>
                                     <div class="card-body p-2">
                                         <div class="row g-2">
                                             <div class="col-6">
                                                 <div id="itemCameraView" class="border rounded bg-dark"
-                                                    style="height: 100px; position: relative;">
+                                                    style="height: 95px; position: relative;">
                                                     <video id="itemCameraStream"
                                                         style="width: 100%; height: 100%; object-fit: contain; background: #000;" autoplay
                                                         playsinline></video>
@@ -393,7 +591,7 @@
                                             </div>
                                             <div class="col-6">
                                                 <div class="border rounded p-1 bg-light position-relative"
-                                                    style="height: 100px; overflow-y: auto;">
+                                                    style="height: 95px; overflow-y: auto;">
                                                     <div id="noItemPhotosText" class="text-center text-muted p-1 small" style="font-size: 0.75rem;">
                                                         <small>No photos</small>
                                                     </div>
@@ -424,6 +622,33 @@
                                         </h6>
                                     </div>
                                     <div class="card-body p-2">
+                                        <!-- Live RBI 75% LTV Compliance & Gold Valuation Meter (Centralized HO Engine) -->
+                                        <div class="p-2 mb-2 rounded border" style="background: #f8fafc; border-color: #cbd5e1 !important;">
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <span class="fw-bold text-dark" style="font-size: 0.76rem;">
+                                                    <i class="fas fa-coins text-warning me-1"></i>Market Value: <span id="liveGoldMarketValue" class="text-primary fw-bold">₹0</span>
+                                                </span>
+                                                <a href="{% url 'daily_gold_rates' %}" target="_blank" class="badge bg-light text-secondary border text-decoration-none" style="font-size: 0.68rem;" id="liveRateBadge" title="Click to view/update Head Office rates">
+                                                    22K: ₹.../g
+                                                </a>
+                                            </div>
+                                            
+                                            <!-- LTV Progress Bar Gauge -->
+                                            <div class="d-flex justify-content-between align-items-center" style="font-size: 0.7rem;">
+                                                <span class="text-muted">Calculated LTV: <strong id="calculatedLtvPercent" class="text-dark">0.0%</strong></span>
+                                                <span id="ltvStatusBadge" class="badge bg-success text-white py-0 px-2" style="font-size: 0.68rem;">
+                                                    RBI Compliant (&le;75%)
+                                                </span>
+                                            </div>
+                                            <div class="progress mt-1" style="height: 6px;">
+                                                <div id="ltvProgressBar" class="progress-bar bg-success" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                                            </div>
+                                            <div class="d-flex justify-content-between text-muted mt-1" style="font-size: 0.65rem;">
+                                                <span>Max Eligible (&le;<span id="rbiCapPercentDisplay">75</span>%): <strong id="maxEligibleLoanDisplay" class="text-success">₹0</strong></span>
+                                                <span class="text-danger fw-semibold">Hard Cap: &gt;90% Blocked</span>
+                                            </div>
+                                        </div>
+
                                         <!-- Block 1: Base Amounts -->
                                         <div class="p-2 mb-2 rounded border" style="background: #ffffff; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);">
                                             <div class="row g-2">
@@ -486,9 +711,15 @@
                         <div class="row mt-2">
                             <div class="col-12">
                                 <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                    {% if form.instance.pk and form.instance.loan_number %}
+                                    <a href="{% url 'loan_detail' form.instance.loan_number %}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-times me-1"></i>Cancel
+                                    </a>
+                                    {% else %}
                                     <a href="{% url 'loan_list' %}" class="btn btn-sm btn-outline-secondary">
                                         <i class="fas fa-times me-1"></i>Cancel
                                     </a>
+                                    {% endif %}
                                     <button type="submit" class="btn btn-sm btn-primary" id="submitLoanBtn">
                                         <i class="fas fa-save me-1"></i>
                                         {% if form.instance.pk %}Update{% else %}Create{% endif %} Loan
@@ -518,6 +749,15 @@
 <!-- Load the loan calculator script -->
 <script>
     window.isEditMode = {% if form.instance.pk %}true{% else %}false{% endif %};
+    window.KARAT_PURITY = {
+        '24': 0.999,
+        '22': 0.916,
+        '21': 0.875,
+        '20': 0.833,
+        '18': 0.750,
+        '14': 0.583
+    };
+    var KARAT_PURITY = window.KARAT_PURITY;
 </script>
 <script src="{% static 'js/loan-calculator.js' %}?v=1.0.1"></script>
 
@@ -774,12 +1014,25 @@
             return fallbackMessage;
         }
 
-        function setCustomerCameraReady(isReady) {
-            cameraInitialized = isReady;
-            if (captureBtn) {
-                captureBtn.innerHTML = isReady
-                    ? '<i class="fas fa-camera me-1"></i>Capture'
-                    : '<i class="fas fa-video me-1"></i>Start Camera';
+        function setCustomerCameraReady(state) {
+            if (state === true || state === 'ready') {
+                cameraInitialized = true;
+                if (captureBtn) {
+                    captureBtn.className = 'btn btn-xs btn-success flex-fill text-nowrap py-1';
+                    captureBtn.innerHTML = '<i class="fas fa-camera me-1"></i>Capture';
+                }
+            } else if (state === 'error') {
+                cameraInitialized = false;
+                if (captureBtn) {
+                    captureBtn.className = 'btn btn-xs btn-warning text-dark flex-fill text-nowrap py-1';
+                    captureBtn.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Retry Camera';
+                }
+            } else {
+                cameraInitialized = false;
+                if (captureBtn) {
+                    captureBtn.className = 'btn btn-xs btn-primary flex-fill text-nowrap py-1';
+                    captureBtn.innerHTML = '<i class="fas fa-video me-1"></i>Start Camera';
+                }
             }
         }
 
@@ -908,10 +1161,11 @@
                         .then(() => {
                             console.log('Camera started successfully');
                             setCustomerCameraReady(true);
+                            removeRetryButton();
                         })
                         .catch(err => {
                             console.error('Error playing camera stream:', err);
-                            setCustomerCameraReady(false);
+                            setCustomerCameraReady('error');
                             // Try to recover
                             setTimeout(() => startCamera(retryCount + 1), 1000);
                         });
@@ -919,7 +1173,7 @@
 
             } catch (err) {
                 console.error('Error accessing camera:', err);
-                setCustomerCameraReady(false);
+                setCustomerCameraReady('error');
                 showAlert(
                     getCameraErrorMessage(
                         err,
@@ -936,35 +1190,16 @@
             }
         }
 
-        // Retry button for camera access
-        const addRetryButton = () => {
-            const retryButton = document.createElement('button');
-            retryButton.className = 'btn btn-sm btn-warning mt-1';
-            retryButton.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Retry Camera';
-            retryButton.onclick = () => {
-                retryButton.disabled = true;
-                retryButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Retrying...';
-                setCustomerCameraReady(false);
-                startCamera();
-                setTimeout(() => {
-                    retryButton.disabled = false;
-                    retryButton.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Retry Camera';
-                }, 3000);
-            };
-
-            const cameraContainer = document.getElementById('cameraView');
-            if (cameraContainer && !document.getElementById('retry-camera-btn')) {
-                retryButton.id = 'retry-camera-btn';
-                cameraContainer.appendChild(retryButton);
+        const removeRetryButton = () => {
+            const existingBtn = document.getElementById('retry-camera-btn');
+            if (existingBtn) {
+                existingBtn.remove();
             }
         };
 
-        // Add retry button after a delay if camera doesn't load
-        setTimeout(() => {
-            if (!cameraInitialized) {
-                addRetryButton();
-            }
-        }, 3000);
+        const addRetryButton = () => {
+            setCustomerCameraReady('error');
+        };
 
         // Capture photo function
         captureBtn.addEventListener('click', function () {
@@ -972,7 +1207,6 @@
                 showAlert('Starting camera. If prompted, allow camera permission and tap Capture again.', 'info');
                 setCustomerCameraReady(false);
                 startCamera();
-                addRetryButton();
                 return;
             }
 
@@ -1558,39 +1792,41 @@
         // ==========================================
         // Dynamic Item Rows & Count Management
         // ==========================================
+        // Flag indicating if this form is editing an existing loan
+        const _isEditMode = {% if form.instance.pk %}true{% else %}false{% endif %};
+
+        // Guard flag to prevent circular updates between principal ↔ distribution_amount
+        let _financialUpdateLock = false;
+        // Flag: true when user has manually entered distribution_amount directly or in edit mode
+        let _distributionManuallyEdited = _isEditMode;
+        // Flag: true when user has manually modified principal amount directly
+        let _principalManuallyEdited = _isEditMode;
+
+        // Function to clean numeric input
+        function cleanNumericInput(value) {
+            if (value === null || value === undefined) return '';
+            return String(value).replace(/[^0-9.]/g, '');
+        }
+
         let _itemRowCounter = 0;
 
+        var KARAT_PURITY = window.KARAT_PURITY;
+
         const ORNAMENT_DICTIONARY_EN_TO_TA = {
-            'ring': 'மோதிரம்',
-            'rings': 'மோதிரங்கள்',
-            'chain': 'சங்கிலி',
-            'chains': 'சங்கிலிகள்',
-            'bangle': 'வளையல்',
-            'bangles': 'வளையல்கள்',
-            'necklace': 'நெக்லஸ்',
-            'necklaces': 'நெக்லஸ்கள்',
-            'stud': 'தோடு',
-            'studs': 'தோடுகள்',
-            'earring': 'கம்மல்',
-            'earrings': 'கம்மல்கள்',
-            'coin': 'நாணயம்',
-            'coins': 'நாணயங்கள்',
-            'gold coin': 'தங்க நாணயம்',
-            'pendant': 'டாலர்',
-            'pendants': 'டாலர்கள்',
-            'bracelet': 'காப்பு',
-            'bracelets': 'காப்புகள்',
-            'anklet': 'கொலுசு',
-            'anklets': 'கொலுசுகள்',
-            'waist chain': 'ஒட்டியாணம்',
-            'ottiyanam': 'ஒட்டியாணம்',
-            'nose pin': 'மூக்குத்தி',
-            'mookuthi': 'மூக்குத்தி',
-            'kasu': 'காசு',
-            'haram': 'ஹாரம்',
-            'choker': 'சோக்கர்',
-            'mangalsutra': 'தாலி கொடி',
-            'thali': 'தாலி'
+            'ring': 'மோதிரம்', 'rings': 'மோதிரங்கள்', 'mothiram': 'மோதிரம்', 'modhiram': 'மோதிரம்',
+            'chain': 'சங்கிலி', 'chains': 'சங்கிலிகள்', 'sangili': 'சங்கிலி', 'sangilikal': 'சங்கிலிகள்',
+            'bangle': 'வளையல்', 'bangles': 'வளையல்கள்', 'valaiyal': 'வளையல்', 'kappu': 'காப்பு',
+            'necklace': 'நெக்லஸ்', 'necklaces': 'நெக்லஸ்கள்', 'aarum': 'ஹாரம்', 'haram': 'ஹாரம்', 'choker': 'சோக்கர்',
+            'stud': 'தோடு', 'studs': 'தோடுகள்', 'thodu': 'தோடு', 'thodukal': 'தோடுகள்',
+            'earring': 'கம்மல்', 'earrings': 'கம்மல்கள்', 'kammal': 'கம்மல்', 'jimikki': 'ஜிமிக்கி', 'jhumka': 'ஜிமிக்கி',
+            'coin': 'நாணயம்', 'coins': 'நாணயங்கள்', 'gold coin': 'தங்க நாணயம்', 'kasu': 'காசு',
+            'pendant': 'டாலர்', 'pendants': 'டாலர்கள்', 'dollar': 'டாலர்', 'dolar': 'டாலர்', 'locket': 'லாக்கெட்',
+            'bracelet': 'காப்பு', 'bracelets': 'காப்புகள்',
+            'anklet': 'கொலுசு', 'anklets': 'கொலுசுகள்', 'golusu': 'கொலுசு', 'kolusu': 'கொலுசு',
+            'waist chain': 'ஒட்டியாணம்', 'ottiyanam': 'ஒட்டியாணம்', 'oddiyanam': 'ஒட்டியாணம்',
+            'nose pin': 'மூக்குத்தி', 'mookuthi': 'மூக்குத்தி', 'nattu': 'மூக்குத்தி', 'bullaku': 'புல்லாக்கு',
+            'mangalsutra': 'தாலி கொடி', 'thali': 'தாலி', 'thaali': 'தாலி', 'kodi': 'கொடி',
+            'gold': 'தங்க', 'silver': 'வெள்ளி', 'stone': 'கல்'
         };
 
         const ORNAMENT_DICTIONARY_TA_TO_EN = {};
@@ -1609,14 +1845,25 @@
             const cleanText = text.trim();
             const lowerText = cleanText.toLowerCase();
 
-            // Check dictionary first for instant conversion
-            if (direction === 'to_tamil' && ORNAMENT_DICTIONARY_EN_TO_TA[lowerText]) {
-                callback(ORNAMENT_DICTIONARY_EN_TO_TA[lowerText]);
+            // 1. Direct Instant Dictionary Match
+            if (direction === 'to_tamil') {
+                if (ORNAMENT_DICTIONARY_EN_TO_TA[lowerText]) {
+                    callback(ORNAMENT_DICTIONARY_EN_TO_TA[lowerText]);
+                    return;
+                }
+                // Multi-word phrase translation (e.g. "gold chain" -> "தங்க சங்கிலி")
+                const words = lowerText.split(/\s+/);
+                if (words.length > 1 && words.every(w => ORNAMENT_DICTIONARY_EN_TO_TA[w] || /^\d+$/.test(w))) {
+                    const translatedWords = words.map(w => ORNAMENT_DICTIONARY_EN_TO_TA[w] || w);
+                    callback(translatedWords.join(' '));
+                    return;
+                }
             } else if (direction === 'to_english' && ORNAMENT_DICTIONARY_TA_TO_EN[cleanText]) {
                 callback(ORNAMENT_DICTIONARY_TA_TO_EN[cleanText]);
+                return;
             }
 
-            // Also call backend API to handle any words or sentences
+            // 2. Call backend API for phonetic or unlisted phrases
             $.get('{% url "transliterate_between_english_tamil" %}', {
                 text: cleanText,
                 direction: direction
@@ -1629,37 +1876,60 @@
             });
         }
 
-        function createItemRowHtml(rowId, nameEn = '', nameTa = '', count = 1) {
+        function createItemRowHtml(rowId, nameEn = '', nameTa = '', count = 1, karat = '22', grossWt = 0.0, stoneWt = 0.0, netWt = 0.0) {
+            const grossVal = parseFloat(grossWt) || 0;
+            const stoneVal = parseFloat(stoneWt) || 0;
+            const netVal = netWt > 0 ? parseFloat(netWt) : Math.max(0, grossVal - stoneVal);
+            const cleanKarat = String(karat || '22').replace(/\.0+$/, '');
+
             return `
-                <div class="item-input-row row g-2 align-items-center mb-2" data-row-id="${rowId}">
-                    <div class="col-md-5 col-12">
+                <tr class="item-input-row" data-row-id="${rowId}">
+                    <td>
                         <div class="input-group input-group-sm">
-                            <span class="input-group-text bg-white text-muted"><i class="fas fa-tag"></i></span>
                             <input type="text" class="form-control form-control-sm item-name-en" 
-                                placeholder="Item Name (e.g. Ring, Chain)" value="${escapeHtml(nameEn)}">
+                                placeholder="e.g. Ring, Chain" value="${escapeHtml(nameEn)}">
+                            <span class="input-group-text tamil-badge item-name-ta-label" style="min-width: 75px; font-size: 0.68rem;">
+                                ${escapeHtml(nameTa) || '<span class="text-muted opacity-50">தமிழ்</span>'}
+                            </span>
                         </div>
-                    </div>
-                    <div class="col-md-4 col-7">
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text bg-white text-muted"><i class="fas fa-language"></i></span>
-                            <input type="text" class="form-control form-control-sm item-name-ta" 
-                                placeholder="பொருள் பெயர் (எ.கா. மோதிரம்)" value="${escapeHtml(nameTa)}">
-                        </div>
-                    </div>
-                    <div class="col-md-2 col-3">
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text bg-white text-muted px-2" title="Quantity"><small class="fw-semibold">Qty</small></span>
-                            <input type="number" class="form-control form-control-sm item-count text-center px-1" 
-                                min="1" step="1" value="${count}">
-                        </div>
-                    </div>
-                    <div class="col-md-1 col-2 text-end">
-                        <button type="button" class="btn btn-sm btn-outline-danger remove-item-row-btn w-100 py-1" 
+                        <input type="hidden" class="item-name-ta" value="${escapeHtml(nameTa)}">
+                    </td>
+                    <td>
+                        <input type="number" class="form-control form-control-sm item-count text-center px-1 font-monospace" 
+                            min="1" step="1" value="${count}">
+                    </td>
+                    <td>
+                        <select class="form-select form-select-sm item-karat font-monospace">
+                            <option value="24" ${cleanKarat === '24' ? 'selected' : ''}>24K (99.9%)</option>
+                            <option value="22" ${cleanKarat === '22' || !cleanKarat ? 'selected' : ''}>22K (91.6%)</option>
+                            <option value="21" ${cleanKarat === '21' ? 'selected' : ''}>21K (87.5%)</option>
+                            <option value="20" ${cleanKarat === '20' ? 'selected' : ''}>20K (83.3%)</option>
+                            <option value="18" ${cleanKarat === '18' ? 'selected' : ''}>18K (75.0%)</option>
+                            <option value="14" ${cleanKarat === '14' ? 'selected' : ''}>14K (58.3%)</option>
+                        </select>
+                    </td>
+                    <td>
+                        <input type="number" class="form-control form-control-sm item-gross-wt text-end font-monospace px-1" 
+                            step="0.001" min="0" placeholder="0.000" value="${grossVal > 0 ? grossVal.toFixed(3) : ''}">
+                    </td>
+                    <td>
+                        <input type="number" class="form-control form-control-sm item-stone-wt text-end font-monospace px-1" 
+                            step="0.001" min="0" placeholder="0.000" value="${stoneVal > 0 ? stoneVal.toFixed(3) : ''}">
+                    </td>
+                    <td>
+                        <input type="number" class="form-control form-control-sm item-net-wt text-end font-monospace px-1 bg-light fw-bold text-primary" 
+                            step="0.001" min="0" placeholder="0.000" value="${netVal > 0 ? netVal.toFixed(3) : ''}">
+                    </td>
+                    <td class="text-end font-monospace text-success fw-bold item-est-val" style="font-size: 0.82rem;">
+                        ₹0.00
+                    </td>
+                    <td class="text-center">
+                        <button type="button" class="btn btn-sm btn-outline-danger remove-item-row-btn p-1" 
                             title="Remove this item">
                             <i class="fas fa-trash-alt"></i>
                         </button>
-                    </div>
-                </div>
+                    </td>
+                </tr>
             `;
         }
 
@@ -1676,74 +1946,86 @@
         function attachItemRowEvents($row) {
             const $enInput = $row.find('.item-name-en');
             const $taInput = $row.find('.item-name-ta');
+            const $taLabel = $row.find('.item-name-ta-label');
             const $countInput = $row.find('.item-count');
+            const $karatSelect = $row.find('.item-karat');
+            const $grossInput = $row.find('.item-gross-wt');
+            const $stoneInput = $row.find('.item-stone-wt');
+            const $netInput = $row.find('.item-net-wt');
             const $removeBtn = $row.find('.remove-item-row-btn');
 
-            let userTypingEn = false;
-            let userTypingTa = false;
-
-            // English -> Tamil Transliteration
-            const handleEnInput = debounce(function () {
+            // Synchronous Instant Dictionary Match + Debounced API Fallback
+            function translateRowNow() {
                 const text = ($enInput.val() || '').trim();
                 if (!text) {
                     $taInput.val('');
+                    $taLabel.html('<span class="text-muted opacity-50">தமிழ்</span>');
                     syncItemsToFormFields();
                     return;
                 }
+
+                const lowerText = text.toLowerCase();
+
+                // 1. Instant Single-Word Dictionary Match (0ms)
+                if (ORNAMENT_DICTIONARY_EN_TO_TA[lowerText]) {
+                    const res = ORNAMENT_DICTIONARY_EN_TO_TA[lowerText];
+                    $taInput.val(res);
+                    $taLabel.text(res);
+                    syncItemsToFormFields();
+                    return;
+                }
+
+                // 2. Instant Multi-Word Dictionary Match (0ms)
+                const words = lowerText.split(/\s+/);
+                if (words.length > 1 && words.every(w => ORNAMENT_DICTIONARY_EN_TO_TA[w] || /^\d+$/.test(w))) {
+                    const translatedWords = words.map(w => ORNAMENT_DICTIONARY_EN_TO_TA[w] || w);
+                    const res = translatedWords.join(' ');
+                    $taInput.val(res);
+                    $taLabel.text(res);
+                    syncItemsToFormFields();
+                    return;
+                }
+
+                // 3. Fallback to API for unlisted / phonetic words
+                debouncedApiTransliterate(text);
+            }
+
+            const debouncedApiTransliterate = debounce(function (text) {
                 performTransliteration(text, 'to_tamil', function (result) {
-                    if (result && !userTypingTa) {
+                    if (result) {
                         $taInput.val(result);
+                        $taLabel.text(result);
                         syncItemsToFormFields();
                     }
                 });
-            }, 250);
+            }, 200);
 
-            // Tamil -> English Transliteration
-            const handleTaInput = debounce(function () {
-                const text = ($taInput.val() || '').trim();
-                if (!text) {
-                    $enInput.val('');
-                    syncItemsToFormFields();
-                    return;
-                }
-                performTransliteration(text, 'to_english', function (result) {
-                    if (result && !userTypingEn) {
-                        $enInput.val(result);
-                        syncItemsToFormFields();
-                    }
-                });
-            }, 250);
-
-            $enInput.on('focus', function () {
-                userTypingEn = true;
-                userTypingTa = false;
+            $enInput.on('input keyup change paste blur', function () {
+                translateRowNow();
             });
 
-            $enInput.on('blur', function () {
-                userTypingEn = false;
-            });
-
-            $enInput.on('input keyup', function () {
-                userTypingEn = true;
-                userTypingTa = false;
+            $grossInput.on('input change', function () {
+                const g = parseFloat($grossInput.val()) || 0;
+                const s = parseFloat($stoneInput.val()) || 0;
+                const net = Math.max(0, g - s);
+                $netInput.val(net > 0 ? net.toFixed(3) : '');
                 syncItemsToFormFields();
-                handleEnInput();
             });
 
-            $taInput.on('focus', function () {
-                userTypingTa = true;
-                userTypingEn = false;
-            });
-
-            $taInput.on('blur', function () {
-                userTypingTa = false;
-            });
-
-            $taInput.on('input keyup', function () {
-                userTypingTa = true;
-                userTypingEn = false;
+            $stoneInput.on('input change', function () {
+                const g = parseFloat($grossInput.val()) || 0;
+                const s = parseFloat($stoneInput.val()) || 0;
+                const net = Math.max(0, g - s);
+                $netInput.val(net > 0 ? net.toFixed(3) : '');
                 syncItemsToFormFields();
-                handleTaInput();
+            });
+
+            $netInput.on('input change', function () {
+                syncItemsToFormFields();
+            });
+
+            $karatSelect.on('change', function () {
+                syncItemsToFormFields();
             });
 
             $countInput.on('input change', function () {
@@ -1757,16 +2039,19 @@
             $removeBtn.on('click', function () {
                 const totalRows = $('#dynamicItemRowsContainer .item-input-row').length;
                 if (totalRows > 1) {
-                    $row.slideUp(150, function () {
+                    $row.fadeOut(150, function () {
                         $(this).remove();
                         updateRemoveButtonStates();
                         syncItemsToFormFields();
                     });
                 } else {
-                    // Clear the only row instead of deleting
                     $enInput.val('');
                     $taInput.val('');
+                    $taLabel.html('<span class="text-muted opacity-50">தமிழ்</span>');
                     $countInput.val(1);
+                    $grossInput.val('');
+                    $stoneInput.val('');
+                    $netInput.val('');
                     syncItemsToFormFields();
                 }
             });
@@ -1781,11 +2066,21 @@
             }
         }
 
-        function addItemRow(nameEn = '', nameTa = '', count = 1, focus = false) {
+        function addItemRow(nameEn = '', nameTa = '', count = 1, karat = '22', grossWt = 0, stoneWt = 0, netWt = 0, focus = false) {
             _itemRowCounter++;
-            const rowHtml = createItemRowHtml(_itemRowCounter, nameEn, nameTa, count);
+            const cleanKarat = String(karat || '22').replace(/\.0+$/, '');
+            const rowHtml = createItemRowHtml(_itemRowCounter, nameEn, nameTa, count, cleanKarat, grossWt, stoneWt, netWt);
             const $newRow = $(rowHtml).appendTo('#dynamicItemRowsContainer');
             attachItemRowEvents($newRow);
+            if (!nameTa && nameEn) {
+                // If Tamil name wasn't set, try resolving it immediately
+                const lowerText = nameEn.trim().toLowerCase();
+                if (ORNAMENT_DICTIONARY_EN_TO_TA[lowerText]) {
+                    const res = ORNAMENT_DICTIONARY_EN_TO_TA[lowerText];
+                    $newRow.find('.item-name-ta').val(res);
+                    $newRow.find('.item-name-ta-label').text(res);
+                }
+            }
             updateRemoveButtonStates();
             syncItemsToFormFields();
             if (focus) {
@@ -1798,24 +2093,72 @@
             const enTokens = [];
             const taTokens = [];
             let totalItems = 0;
+            let totalGross = 0;
+            let totalStone = 0;
+            let totalNet = 0;
+            let totalVal = 0;
+            const itemsArray = [];
+
+            // Use live gold rate from HO if available, fallback to field value, else 7000
+            const goldRate22k = (window.activeDailyGoldRates && window.activeDailyGoldRates.rate_22k_per_gram)
+                ? parseFloat(window.activeDailyGoldRates.rate_22k_per_gram)
+                : (parseFloat($('#id_market_price_22k').val()) || 7000);
+
+            let lastKarat = '22';
 
             $('#dynamicItemRowsContainer .item-input-row').each(function () {
-                const nameEn = ($(this).find('.item-name-en').val() || '').trim();
-                const nameTa = ($(this).find('.item-name-ta').val() || '').trim();
-                let count = parseInt($(this).find('.item-count').val(), 10);
-                if (isNaN(count) || count < 1) {
-                    count = 1;
+                const $row = $(this);
+                const nameEn = ($row.find('.item-name-en').val() || '').trim();
+                const nameTa = ($row.find('.item-name-ta').val() || '').trim();
+                let count = parseInt($row.find('.item-count').val(), 10);
+                if (isNaN(count) || count < 1) count = 1;
+
+                const karat = ($row.find('.item-karat').val() || '22').replace(/\.0+$/, '');
+                lastKarat = karat;
+
+                // Total weight for ornaments in this row
+                const gross = parseFloat($row.find('.item-gross-wt').val()) || 0;
+                const stone = parseFloat($row.find('.item-stone-wt').val()) || 0;
+                let net = parseFloat($row.find('.item-net-wt').val());
+                if (isNaN(net) || net < 0) {
+                    net = Math.max(0, gross - stone);
                 }
 
-                if (nameEn || nameTa) {
-                    totalItems += count;
+                // Purity ratio against 22K standard
+                const purityRatio = (KARAT_PURITY[karat] || 0.916) / KARAT_PURITY['22'];
+                const rowEstimatedValue = net * purityRatio * goldRate22k;
 
-                    // Format as Name-Count if count > 1, or Name if count == 1
-                    const enFormatted = nameEn ? (count > 1 ? `${nameEn}-${count}` : nameEn) : (nameTa ? (count > 1 ? `${nameTa}-${count}` : nameTa) : '');
-                    const taFormatted = nameTa ? (count > 1 ? `${nameTa}-${count}` : nameTa) : (nameEn ? (count > 1 ? `${nameEn}-${count}` : nameEn) : '');
+                // Update the per-row Est. Value cell
+                $row.find('.item-est-val').text(
+                    `₹${Math.round(rowEstimatedValue).toLocaleString('en-IN')}`
+                );
+
+                if (nameEn || nameTa || gross > 0 || net > 0) {
+                    totalItems += count;
+                    totalGross += gross;
+                    totalStone += stone;
+                    totalNet += net;
+                    totalVal += rowEstimatedValue;
+
+                    const enFormatted = nameEn
+                        ? (count > 1 ? `${nameEn}-${count}` : nameEn)
+                        : (nameTa ? (count > 1 ? `${nameTa}-${count}` : nameTa) : '');
+                    const taFormatted = nameTa
+                        ? (count > 1 ? `${nameTa}-${count}` : nameTa)
+                        : (nameEn ? (count > 1 ? `${nameEn}-${count}` : nameEn) : '');
 
                     if (enFormatted) enTokens.push(enFormatted);
                     if (taFormatted) taTokens.push(taFormatted);
+
+                    itemsArray.push({
+                        name: nameEn || nameTa || 'Gold Ornament',
+                        name_tamil: nameTa,
+                        quantity: count,
+                        karat: parseFloat(karat) || 22.0,
+                        gross_weight: gross,
+                        stone_weight: stone,
+                        net_weight: net
+                    });
                 }
             });
 
@@ -1823,23 +2166,87 @@
             const aggregatedEn = enTokens.join(', ');
             const aggregatedTa = taTokens.join(', ');
 
+            // Sync hidden form fields for Django backend processing
             $('#id_item_name').val(aggregatedEn);
             $('#id_item_name_tamil').val(aggregatedTa);
+            $('#id_items_json').val(JSON.stringify(itemsArray));
+            $('#id_gross_weight').val(totalGross.toFixed(3));
+            $('#id_stone_weight').val(totalStone.toFixed(3));
+            $('#id_net_weight').val(totalNet.toFixed(3));
+            $('#id_gold_karat').val(lastKarat);
+
+            // Summary row updates in the table footer
+            $('#summaryTotalQty').text(displayTotal);
+            $('#summaryGrossWt').text(`${totalGross.toFixed(3)} g`);
+            $('#summaryStoneWt').text(`${totalStone.toFixed(3)} g`);
+            $('#summaryNetWt').text(`${totalNet.toFixed(3)} g`);
+            $('#summaryEstVal').text(
+                `₹${Math.round(totalVal).toLocaleString('en-IN')}`
+            );
+            $('#calculatedTotalNetBadge').text(`${totalNet.toFixed(3)} g`);
             $('#calculatedTotalItems').val(displayTotal);
             $('#calculatedTotalItemsBadge').text(displayTotal);
             $('#headerTotalItemsCount').text(displayTotal);
 
+            // ── Sync Financial Details from Ornament Table ──
+            const rbiCap = (window.activeDailyGoldRates && window.activeDailyGoldRates.maximum_ltv_percentage)
+                ? window.activeDailyGoldRates.maximum_ltv_percentage : 75.0;
+            $('#rbiCapPercentDisplay').text(rbiCap);
+
+            if (totalVal > 0) {
+                const default75Principal = Math.round(totalVal * 0.75);
+                if (!_isEditMode && !_principalManuallyEdited) {
+                    $('#id_principal_amount').val(default75Principal > 0 ? default75Principal : '');
+                    if (typeof calculateDistributionAmount === 'function') {
+                        calculateDistributionAmount();
+                    }
+                }
+            }
+            updateLtvAndCompliance();
+
             return displayTotal;
         }
 
+
+
         function parseExistingItemNames() {
-            const rawEn = ($('#id_item_name').val() || '').trim();
-            const rawTa = ($('#id_item_name_tamil').val() || '').trim();
 
             $('#dynamicItemRowsContainer').empty();
 
+            // 1. Try reading items_json first (precise per-item data)
+            const itemsJsonVal = ($('#id_items_json').val() || '').trim();
+            if (itemsJsonVal) {
+                try {
+                    const parsed = JSON.parse(itemsJsonVal);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        parsed.forEach(function (it) {
+                            const nameEn = it.name || '';
+                            const nameTa = it.name_tamil || '';
+                            const count = parseInt(it.quantity, 10) || 1;
+                            const karat = String(it.karat || '22').replace(/\.0+$/, '');
+                            const gross = parseFloat(it.gross_weight) || 0;
+                            const stone = parseFloat(it.stone_weight) || 0;
+                            const net = parseFloat(it.net_weight) || Math.max(0, gross - stone);
+                            addItemRow(nameEn, nameTa, count, karat, gross, stone, net);
+                        });
+                        syncItemsToFormFields();
+                        return;
+                    }
+                } catch (e) {
+                    console.warn('Error parsing items_json:', e);
+                }
+            }
+
+            // 2. Fallback: Parse comma-separated names and weights
+            const rawEn = ($('#id_item_name').val() || '').trim();
+            const rawTa = ($('#id_item_name_tamil').val() || '').trim();
+            const existingGross = parseFloat($('#id_gross_weight').val()) || 0;
+            const existingStone = parseFloat($('#id_stone_weight').val()) || 0;
+            const existingNet = parseFloat($('#id_net_weight').val()) || 0;
+            const existingKarat = String($('#id_gold_karat').val() || '22').replace(/\.0+$/, '');
+
             if (!rawEn && !rawTa) {
-                addItemRow('', '', 1);
+                addItemRow('', '', 1, existingKarat, existingGross, existingStone, existingNet);
                 return;
             }
 
@@ -1875,7 +2282,11 @@
                     }
                 }
 
-                addItemRow(nameEn, nameTa, count);
+                const unitGross = maxLen === 1 ? existingGross : (existingGross / maxLen);
+                const unitStone = maxLen === 1 ? existingStone : (existingStone / maxLen);
+                const unitNet = maxLen === 1 ? existingNet : (existingNet / maxLen);
+
+                addItemRow(nameEn, nameTa, count, existingKarat, unitGross, unitStone, unitNet);
             }
 
             syncItemsToFormFields();
@@ -1883,22 +2294,13 @@
 
         // Attach Add Item button handler and parse existing items
         $('#addItemRowBtn').on('click', function () {
-            addItemRow('', '', 1, true);
+            addItemRow('', '', 1, '22', 0, 0, 0, true);
         });
 
         // Initialize dynamic rows
         parseExistingItemNames();
 
         // Original loan form JS code
-        const KARAT_PURITY = {
-            '24': 0.999,
-            '22': 0.916,
-            '21': 0.875,
-            '20': 0.833,
-            '18': 0.750,
-            '14': 0.583
-        };
-
         function setupBidirectionalTransliteration(sourceSelector, targetSelector, direction) {
             const $source = $(sourceSelector);
             const $target = $(targetSelector);
@@ -1933,18 +2335,22 @@
 
         function updateCustomerTamilPreview() {
             const $customerField = $('#id_customer');
-            const selectedText = ($customerField.find('option:selected').text() || '').trim();
+            let selectedText = ($customerField.find('option:selected').text() || '').trim();
 
-            if (!selectedText || selectedText.toLowerCase() === '---------' || selectedText.toLowerCase() === 'select') {
-                $('#customerTamilPreview').val('');
+            if (!selectedText || selectedText.toLowerCase() === '---------' || selectedText.toLowerCase().startsWith('select')) {
+                $('#customerTamilBadge').text('').hide();
                 return;
             }
 
-            $.get('{% url "transliterate_between_english_tamil" %}', {
-                text: selectedText,
-                direction: 'to_tamil'
-            }).done(function (response) {
-                $('#customerTamilPreview').val(response.result || '');
+            // Clean customer text: extract name, remove phone numbers, Aadhaar, IDs, hyphens
+            selectedText = selectedText.replace(/\s*[\(\[-].*$/, '').trim();
+
+            performTransliteration(selectedText, 'to_tamil', function (result) {
+                if (result) {
+                    $('#customerTamilBadge').text('தமிழ்: ' + result).show();
+                } else {
+                    $('#customerTamilBadge').text('').hide();
+                }
             });
         }
 
@@ -1956,77 +2362,50 @@
             return selectedText;
         }
 
-        function syncSchemeTamilFromEnglish(englishText) {
-            if (!englishText) {
-                $('#schemeTamilInput').val('');
+        function updateSchemePreviewFromSelection() {
+            let selectedText = getSelectedSchemeText();
+            if (!selectedText) {
+                $('#schemeTamilBadge').text('').hide();
                 return;
             }
 
-            $.get('{% url "transliterate_between_english_tamil" %}', {
-                text: englishText,
-                direction: 'to_tamil'
-            }).done(function (response) {
-                $('#schemeTamilInput').data('syncLock', true);
-                $('#schemeTamilInput').val(response.result || '');
+            // Clean scheme text: remove interest rate percentages and branch brackets
+            selectedText = selectedText.replace(/\s*[-–(].*$/, '').trim();
+
+            performTransliteration(selectedText, 'to_tamil', function (result) {
+                if (result) {
+                    $('#schemeTamilBadge').text('தமிழ்: ' + result).show();
+                } else {
+                    $('#schemeTamilBadge').text('').hide();
+                }
             });
         }
 
-        function trySelectSchemeByEnglishText(englishText) {
-            const normalizedInput = (englishText || '').trim().toLowerCase();
-            if (!normalizedInput) {
-                return;
-            }
+        function setupItemDescriptionTransliteration() {
+            const $source = $('#id_item_description');
+            const $target = $('#id_item_description_tamil');
+            const $label = $('#itemDescriptionTamilLabel');
 
-            let selectedValue = '';
-
-            $('#id_scheme option').each(function () {
-                const optionValue = $(this).val();
-                const optionText = ($(this).text() || '').trim().toLowerCase();
-
-                if (!optionValue || optionText.includes('select a loan scheme')) {
+            function syncDesc() {
+                const text = ($source.val() || '').trim();
+                if (!text) {
+                    $target.val('');
+                    $label.text('').hide();
                     return;
                 }
-
-                if (optionText === normalizedInput) {
-                    selectedValue = optionValue;
-                    return false;
-                }
-
-                if (!selectedValue && optionText.includes(normalizedInput)) {
-                    selectedValue = optionValue;
-                }
-            });
-
-            if (selectedValue && $('#id_scheme').val() !== selectedValue) {
-                $('#id_scheme').val(selectedValue).trigger('change');
+                performTransliteration(text, 'to_tamil', function (result) {
+                    $target.val(result || '');
+                    if (result) {
+                        $label.text('தமிழ்: ' + result).show();
+                    } else {
+                        $label.text('').hide();
+                    }
+                });
             }
+
+            $source.on('input change paste keyup blur', debounce(syncDesc, 150));
+            syncDesc();
         }
-
-        function updateSchemePreviewFromSelection() {
-            const selectedText = getSelectedSchemeText();
-            syncSchemeTamilFromEnglish(selectedText);
-        }
-
-        const handleSchemeTamilInput = debounce(function () {
-            const $source = $('#schemeTamilInput');
-            if ($source.data('syncLock')) {
-                $source.removeData('syncLock');
-                return;
-            }
-
-            const tamilText = ($source.val() || '').trim();
-            if (!tamilText) {
-                return;
-            }
-
-            $.get('{% url "transliterate_between_english_tamil" %}', {
-                text: tamilText,
-                direction: 'to_english'
-            }).done(function (response) {
-                const englishText = response.result || '';
-                trySelectSchemeByEnglishText(englishText);
-            });
-        }, 350);
 
         // Calculate net weight when gross weight or stone weight changes
         const calculateNetWeight = function () {
@@ -2051,65 +2430,65 @@
             $(this).val(cleanedValue);
         });
 
-        // Calculate gold value and suggest principal amount
+        // Calculate gold value, update Live LTV Gauge and enforce RBI Cap
         const calculateGoldValue = debounce(function () {
+            if ($('#dynamicItemRowsContainer .item-input-row').length > 0) {
+                syncItemsToFormFields();
+                return;
+            }
+
             const marketPriceStr = cleanNumericInput($('#id_market_price_22k').val());
+
             const marketPrice = parseFloat(marketPriceStr) || 0;
-            const selectedKarat = $('#id_gold_karat').val();
+            const selectedKarat = $('#id_gold_karat').val() || '22';
             const netWeight = parseFloat($('#id_net_weight').val()) || 0;
 
-            // Remove any existing suggestion messages
-            $('.gold-value-message').remove();
+            const rbiCap = (window.activeDailyGoldRates && window.activeDailyGoldRates.maximum_ltv_percentage) ? window.activeDailyGoldRates.maximum_ltv_percentage : 75.0;
+            $('#rbiCapPercentDisplay').text(rbiCap);
 
-            if (marketPrice && selectedKarat && netWeight > 0) {
-                const purityRatio = KARAT_PURITY[selectedKarat] / KARAT_PURITY['22'];
+            if (marketPrice && netWeight > 0) {
+                const purityRatio = (KARAT_PURITY[selectedKarat] || 0.916) / KARAT_PURITY['22'];
                 const goldValue = marketPrice * netWeight * purityRatio;
+                const maxEligible = Math.round(goldValue * (rbiCap / 100.0));
 
-                // Calculate standard principal (75% of gold value)
-                const standardPrincipal = goldValue * 0.75;
+                $('#liveGoldMarketValue').text('₹' + Math.round(goldValue).toLocaleString('en-IN'));
+                $('#maxEligibleLoanDisplay').text('₹' + maxEligible.toLocaleString('en-IN'));
 
-                // Round to nearest multiple of 500
-                let suggestedPrincipal = Math.round(standardPrincipal / 500) * 500;
+                // Calculate 75% standard default principal from gold value
+                const default75Principal = Math.round(goldValue * 0.75);
 
-                // Calculate minimum (73%) and maximum (78%) allowed values
-                const minPrincipal = goldValue * 0.73;
-                const maxPrincipal = goldValue * 0.78;
-
-                // Ensure the rounded amount stays between 73% and 78%
-                if (suggestedPrincipal < minPrincipal) {
-                    suggestedPrincipal = Math.ceil(minPrincipal / 500) * 500;
-                } else if (suggestedPrincipal > maxPrincipal) {
-                    suggestedPrincipal = Math.floor(maxPrincipal / 500) * 500;
-                }
-
-                // In create mode ONLY, set the suggested principal amount
-                if (!_isEditMode) {
-                    $('#id_principal_amount').val(suggestedPrincipal);
+                // Auto-fill default 75% amount when not manually customized
+                if (!_isEditMode && !_principalManuallyEdited) {
+                    $('#id_principal_amount').val(default75Principal > 0 ? default75Principal : '');
                     calculateDistributionAmount();
                 }
 
-                // Calculate actual percentage of current/suggested principal
-                const currentPrincipal = parseFloat($('#id_principal_amount').val()) || suggestedPrincipal;
-                const actualPercentage = (currentPrincipal / goldValue) * 100;
+                // Update LTV Gauge
+                const currentPrincipal = parseFloat($('#id_principal_amount').val()) || default75Principal;
+                const actualPercentage = goldValue > 0 ? (currentPrincipal / goldValue) * 100 : 0;
+                $('#calculatedLtvPercent').text(actualPercentage.toFixed(1) + '%');
 
-                // Calculate min and max principal values to display
-                const minPrincipalValue = Math.round(goldValue * 0.5);
-                const maxPrincipalValue = Math.round(goldValue * 0.90);
+                const progressBar = $('#ltvProgressBar');
+                const badge = $('#ltvStatusBadge');
+                progressBar.css('width', Math.min(actualPercentage, 100) + '%');
 
-                // Updated help text showing min and max percentages with their values
-                const helpText = `<i class="fas fa-info-circle"></i> Gold Value: Rs: ${goldValue.toFixed(0)} | Principal: Rs: ${currentPrincipal} (${actualPercentage.toFixed(1)}%) | Min Principal (50%): Rs: ${minPrincipalValue} - Max Principal (90%): Rs: ${maxPrincipalValue}`;
-
-                // Update the form-text element or create it if it doesn't exist
-                let formText = $('#div_id_principal_amount .form-text');
-                if (formText.length === 0) {
-                    formText = $('<div class="form-text gold-value-message small"></div>');
-                    formText.appendTo('#div_id_principal_amount');
+                if (actualPercentage <= 75.0) {
+                    progressBar.removeClass('bg-warning bg-danger').addClass('bg-success');
+                    badge.removeClass('bg-warning bg-danger text-dark').addClass('bg-success text-white').text('RBI Compliant (≤75%)');
+                } else if (actualPercentage <= 90.0) {
+                    progressBar.removeClass('bg-success bg-danger').addClass('bg-warning');
+                    badge.removeClass('bg-success bg-danger text-white').addClass('bg-warning text-dark').text('High LTV (75-90%)');
                 } else {
-                    formText.addClass('gold-value-message');
+                    progressBar.removeClass('bg-success bg-warning').addClass('bg-danger');
+                    badge.removeClass('bg-success bg-warning text-dark').addClass('bg-danger text-white').text('BLOCKED (>90% Exceeds RBI Cap)');
                 }
-                formText.html(helpText);
+            } else {
+                $('#liveGoldMarketValue').text('₹0');
+                $('#maxEligibleLoanDisplay').text('₹0');
+                $('#calculatedLtvPercent').text('0.0%');
+                $('#ltvProgressBar').css('width', '0%');
             }
-        }, 300);
+        }, 200);
 
         let processingFeePercent = 1; // Default to 1%
 
@@ -2160,14 +2539,78 @@
             }
         }
 
-        // Flag indicating if this form is editing an existing loan
-        const _isEditMode = {% if form.instance.pk %}true{% else %}false{% endif %};
+        function getCollateralMarketValue() {
+            let totalVal = 0;
+            if ($('#dynamicItemRowsContainer .item-input-row').length > 0) {
+                $('#dynamicItemRowsContainer .item-input-row').each(function () {
+                    const gross = parseFloat($(this).find('.item-gross-wt').val()) || 0;
+                    const stone = parseFloat($(this).find('.item-stone-wt').val()) || 0;
+                    let rowNet = parseFloat($(this).find('.item-net-wt').val());
+                    if (isNaN(rowNet) || rowNet < 0) {
+                        rowNet = Math.max(0, gross - stone);
+                    }
+                    const rowKarat = ($(this).find('.item-karat').val() || '22').replace(/\.0+$/, '');
+                    const goldRate = (window.activeDailyGoldRates && window.activeDailyGoldRates.rate_22k_per_gram)
+                        ? parseFloat(window.activeDailyGoldRates.rate_22k_per_gram)
+                        : (parseFloat($('#id_market_price_22k').val()) || 7000);
+                    const purityRatio = (KARAT_PURITY[rowKarat] || 0.916) / (KARAT_PURITY['22'] || 0.916);
+                    totalVal += rowNet * purityRatio * goldRate;
+                });
+            } else {
+                const marketPrice = parseFloat($('#id_market_price_22k').val()) || (window.activeDailyGoldRates ? parseFloat(window.activeDailyGoldRates.rate_22k_per_gram) : 7000);
+                const selectedKarat = String($('#id_gold_karat').val() || '22').replace(/\.0+$/, '');
+                const netWeight = parseFloat($('#id_net_weight').val()) || 0;
+                if (marketPrice > 0 && netWeight > 0) {
+                    const purityRatio = (KARAT_PURITY[selectedKarat] || 0.916) / (KARAT_PURITY['22'] || 0.916);
+                    totalVal = marketPrice * netWeight * purityRatio;
+                }
+            }
+            return totalVal;
+        }
 
-        // Guard flag to prevent circular updates between principal ↔ distribution_amount
-        let _financialUpdateLock = false;
-        // Flag: true when user has manually entered distribution_amount directly or in edit mode
-        // When set, calculateDistributionAmount will NOT overwrite distribution_amount
-        let _distributionManuallyEdited = _isEditMode;
+        function updateLtvAndCompliance() {
+            const marketValue = getCollateralMarketValue();
+            const principal = parseFloat(cleanNumericInput($('#id_principal_amount').val())) || 0;
+            const rbiCap = (window.activeDailyGoldRates && window.activeDailyGoldRates.maximum_ltv_percentage) 
+                ? window.activeDailyGoldRates.maximum_ltv_percentage : 75.0;
+
+            // Remove any existing error messages
+            $('.principal-error').remove();
+
+            if (marketValue > 0) {
+                const maxEligible = Math.round(marketValue * (rbiCap / 100.0));
+                const actualLtv = (principal / marketValue) * 100;
+
+                $('#liveGoldMarketValue').text('₹' + Math.round(marketValue).toLocaleString('en-IN'));
+                $('#maxEligibleLoanDisplay').text('₹' + maxEligible.toLocaleString('en-IN'));
+                $('#calculatedLtvPercent').text(actualLtv.toFixed(1) + '%');
+                const progressBar = $('#ltvProgressBar');
+                const badge = $('#ltvStatusBadge');
+                progressBar.css('width', Math.min(actualLtv, 100) + '%');
+
+                if (actualLtv <= 75.0) {
+                    progressBar.removeClass('bg-warning bg-danger').addClass('bg-success');
+                    badge.removeClass('bg-warning bg-danger text-dark').addClass('bg-success text-white').text('RBI Compliant (≤75%)');
+                } else if (actualLtv <= 90.0) {
+                    progressBar.removeClass('bg-success bg-danger').addClass('bg-warning');
+                    badge.removeClass('bg-success bg-danger text-white').addClass('bg-warning text-dark').text('High LTV (75-90%)');
+                } else {
+                    progressBar.removeClass('bg-success bg-warning').addClass('bg-danger');
+                    badge.removeClass('bg-success bg-warning text-dark').addClass('bg-danger text-white').text('BLOCKED (>90% Exceeds RBI Cap)');
+                    
+                    const errorMsg = $('<div class="principal-error text-danger small mt-1 fw-bold"></div>')
+                        .html(`<i class="fas fa-ban me-1"></i>Principal cannot exceed ₹${maxEligible.toLocaleString('en-IN')} (RBI LTV Cap: ${rbiCap}%)`);
+                    errorMsg.insertAfter('#div_id_principal_amount .form-text');
+                }
+            } else {
+                $('#liveGoldMarketValue').text('₹0');
+                $('#maxEligibleLoanDisplay').text('₹0');
+                $('#calculatedLtvPercent').text('0.0%');
+                $('#ltvProgressBar').css('width', '0%');
+            }
+
+            updateSec269SSCompliance();
+        }
 
         // Called when user edits Principal Amount.
         // Sets: processing_fee = principal * procFeePercent%, distribution_amount = principal - processing_fee
@@ -2176,6 +2619,7 @@
             if (_financialUpdateLock) return;
             if (_isEditMode && _distributionManuallyEdited) {
                 calculateDistributionWithDeduction();
+                updateLtvAndCompliance();
                 return;
             }
             _financialUpdateLock = true;
@@ -2189,7 +2633,7 @@
                 // Normal flow: compute distribution from principal
                 const distributionAmount = Math.max(0, principal - processingFeeAmount);
                 $('#id_processing_fee').val(processingFeeAmount);
-                $('#id_distribution_amount').val(distributionAmount);
+                $('#id_distribution_amount').val(distributionAmount > 0 ? distributionAmount : '');
 
                 if (distributionAmount > 0) {
                     $.get(`/transactions/number_to_words/${distributionAmount}`, function (response) {
@@ -2218,11 +2662,12 @@
 
             _financialUpdateLock = false;
             calculateDistributionWithDeduction();
+            updateLtvAndCompliance();
         };
 
         // Called when user manually edits Distribution Amount.
         // Marks _distributionManuallyEdited = true so calculateDistributionAmount won't overwrite it.
-        // Reverse-calculates: processing_fee = distribution * procFeePercent%, principal = distribution + processing_fee
+        // Reverse-calculates: principal = round(distribution / (1 - fee%)), processing_fee = principal - distribution
         const recalculateFromDistributionAmount = function () {
             if (_financialUpdateLock) return;
             _financialUpdateLock = true;
@@ -2231,16 +2676,27 @@
             _distributionManuallyEdited = true;
 
             const distStr = cleanNumericInput($('#id_distribution_amount').val());
-            const distributionAmount = Math.round(parseFloat(distStr)) || 0;
+            const distributionAmount = parseFloat(distStr) || 0;
 
-            const processingFeeAmount = Math.round(distributionAmount * (processingFeePercent / 100));
-            const calculatedPrincipal = distributionAmount + processingFeeAmount;
-
-            $('#id_processing_fee').val(processingFeeAmount);
-            $('#id_principal_amount').val(calculatedPrincipal);
+            let calculatedPrincipal = 0;
+            let processingFeeAmount = 0;
 
             if (distributionAmount > 0) {
-                $.get(`/transactions/number_to_words/${distributionAmount}`, function (response) {
+                const feeRate = (processingFeePercent / 100);
+                if (feeRate < 1) {
+                    calculatedPrincipal = Math.round(distributionAmount / (1 - feeRate));
+                    processingFeeAmount = Math.max(0, calculatedPrincipal - Math.round(distributionAmount));
+                } else {
+                    calculatedPrincipal = Math.round(distributionAmount);
+                    processingFeeAmount = 0;
+                }
+            }
+
+            $('#id_processing_fee').val(processingFeeAmount);
+            $('#id_principal_amount').val(calculatedPrincipal > 0 ? calculatedPrincipal : '');
+
+            if (distributionAmount > 0) {
+                $.get(`/transactions/number_to_words/${Math.round(distributionAmount)}`, function (response) {
                     $('#distributionAmountWords').text(response.words + ' Rupees Only');
                 });
             } else {
@@ -2257,7 +2713,10 @@
 
             _financialUpdateLock = false;
             calculateDistributionWithDeduction();
+            updateLtvAndCompliance();
         };
+
+        window.recalculateFromDistributionAmount = recalculateFromDistributionAmount;
 
         // Calculate distribution amount with deduction based on upfront deduction checkboxes
         const calculateDistributionWithDeduction = function () {
@@ -2292,7 +2751,7 @@
             }
 
             const distributionWithDeduction = Math.max(0, Math.round(distributionAmount - deductionTotal));
-            $('#id_distribution_amount_with_deduction').val(distributionWithDeduction);
+            $('#id_distribution_amount_with_deduction').val(distributionWithDeduction > 0 ? distributionWithDeduction : (distributionAmount > 0 ? Math.round(distributionAmount) : ''));
 
             // Show breakdown below the field
             let $breakdown = $('#deductionBreakdown');
@@ -2306,24 +2765,91 @@
                 $breakdown.html('');
             }
 
-            if (distributionWithDeduction > 0) {
-                $.get(`/transactions/number_to_words/${distributionWithDeduction}`, function (response) {
+            const wordsVal = distributionWithDeduction > 0 ? distributionWithDeduction : Math.round(distributionAmount);
+            if (wordsVal > 0) {
+                $.get(`/transactions/number_to_words/${wordsVal}`, function (response) {
                     $('#distributionWithDeductionWords').text(response.words + ' Rupees Only');
                 });
             } else {
                 $('#distributionWithDeductionWords').text('');
             }
+
+            // Check and enforce Income Tax Section 269SS disbursal rules
+            updateSec269SSCompliance();
         };
 
         // Expose to window so loan-calculator.js can call it after checkbox triggers
         window.calculateDistributionWithDeduction = calculateDistributionWithDeduction;
 
+        function updateSec269SSCompliance() {
+            const principalStr = cleanNumericInput($('#id_principal_amount').val());
+            const principal = parseFloat(principalStr) || 0;
+            const distStr = cleanNumericInput($('#id_distribution_amount').val());
+            const distributionAmount = distStr ? parseFloat(distStr) : Math.max(0, principal - Math.round(principal * (processingFeePercent / 100)));
+
+            const $mode = $('#id_disbursement_mode');
+            const $cashOpt = $mode.find('option[value="CASH"]');
+            const $notice = $('#sec269ssNotice');
+            const $bankReq = $('.bank-required');
+
+            if (distributionAmount >= 20000) {
+                $notice.removeClass('d-none');
+                $cashOpt.prop('disabled', true);
+                if ($mode.val() === 'CASH') {
+                    $mode.val('BANK_TRANSFER');
+                }
+                $bankReq.removeClass('d-none');
+            } else {
+                $notice.addClass('d-none');
+                $cashOpt.prop('disabled', false);
+                $bankReq.addClass('d-none');
+            }
+        }
+
+        function syncCustomerBankDetails() {
+            const customerId = $('#id_customer').val();
+            if (!customerId) return;
+            $.get(`/transactions/customer-bank-details/${customerId}/`, function (res) {
+                if (res && res.success) {
+                    if (res.bank_account_number && !$('#id_bank_account_number').val()) {
+                        $('#id_bank_account_number').val(res.bank_account_number);
+                    }
+                    if (res.bank_ifsc_code && !$('#id_bank_ifsc_code').val()) {
+                        $('#id_bank_ifsc_code').val(res.bank_ifsc_code);
+                    }
+                    if (res.bank_name && !$('#id_bank_name').val()) {
+                        $('#id_bank_name').val(res.bank_name);
+                    }
+                    if (res.bank_beneficiary_name && !$('#id_bank_beneficiary_name').val()) {
+                        $('#id_bank_beneficiary_name').val(res.bank_beneficiary_name);
+                    }
+                }
+            });
+        }
+
         // Bind events
-        $('#id_gross_weight, #id_stone_weight').on('input', calculateNetWeight);
-        $('#id_market_price_22k, #id_gold_karat, #id_net_weight').on('input', calculateGoldValue);
-        setupBidirectionalTransliteration('#id_item_description', '#id_item_description_tamil', 'to_tamil');
-        setupBidirectionalTransliteration('#id_item_description_tamil', '#id_item_description', 'to_english');
-        $('#id_customer').on('change', updateCustomerTamilPreview);
+        $('#id_gross_weight, #id_stone_weight').on('input change', function(e) {
+            if (e.originalEvent && !_isEditMode) {
+                _principalManuallyEdited = false;
+            }
+            calculateNetWeight();
+        });
+        $('#id_gold_karat').on('change', function(e) {
+            if (e.originalEvent && !_isEditMode) {
+                _principalManuallyEdited = false;
+            }
+            calculateGoldValue();
+        });
+        $('#id_market_price_22k, #id_net_weight').on('input', function () {
+            // Recompute all row Est. Values (they read gold rate live) and cascade to Financial Details
+            syncItemsToFormFields();
+            calculateGoldValue();
+        });
+        setupItemDescriptionTransliteration();
+        $('#id_customer').on('change', function() {
+            updateCustomerTamilPreview();
+            syncCustomerBankDetails();
+        });
         $('#id_scheme').on('change', function(e) {
             updateSchemePreviewFromSelection();
             if (e.originalEvent) {
@@ -2331,15 +2857,21 @@
                 updateProcessingFeePercentFromScheme(true);
             }
         });
-        $('#schemeTamilInput').on('input', handleSchemeTamilInput);
+        $('#id_disbursement_mode').on('change', function() {
+            updateSec269SSCompliance();
+        });
         updateCustomerTamilPreview();
         updateSchemePreviewFromSelection();
+        syncCustomerBankDetails();
 
         if (!_isEditMode) {
             updateProcessingFeePercentFromScheme(true);
             // Principal ↔ Distribution Amount bidirectional
             $('#id_principal_amount')
-                .on('input', function() {
+                .on('input keyup change paste', function(e) {
+                    if (e.originalEvent) {
+                        _principalManuallyEdited = true;
+                    }
                     _distributionManuallyEdited = false;
                     calculateDistributionAmount();
                 })
@@ -2348,8 +2880,9 @@
             // Edit Mode: fetch fee % asynchronously for display without overwriting form fields
             updateProcessingFeePercentFromScheme(false);
 
-            $('#id_principal_amount').on('keyup change', function(e) {
+            $('#id_principal_amount').on('keyup change input paste', function(e) {
                 if (e.originalEvent) {
+                    _principalManuallyEdited = true;
                     _distributionManuallyEdited = false;
                     calculateDistributionAmount();
                 }
@@ -2368,8 +2901,8 @@
                     $('#distributionAmountWords').text(response.words + ' Rupees Only');
                 });
             }
-            // In edit mode: use the server-saved value as-is — do NOT recalculate.
-            // Recalculation only happens when the user changes a field.
+            updateLtvAndCompliance();
+            // In edit mode: use the server-saved value as-is — do NOT recalculate unless changed
             const rawDeduct = $('#id_distribution_amount_with_deduction').val();
             const savedDeductionAmt = rawDeduct ? Math.round(parseFloat(rawDeduct)) : 0;
             if (savedDeductionAmt > 0) {
@@ -2380,41 +2913,58 @@
             }
         }
 
-        // When user manually edits Distribution Amount → recalculate principal & fees
-        $('#id_distribution_amount').on('input', recalculateFromDistributionAmount);
+        // When user manually edits Distribution Amount → recalculate principal, fees, deductions & compliance
+        $('#id_distribution_amount').on('input keyup change paste', recalculateFromDistributionAmount);
+
+        // When user manually edits Processing Fee → update distribution & deductions
+        $('#id_processing_fee').on('input keyup change paste', function () {
+            if (_financialUpdateLock) return;
+            _financialUpdateLock = true;
+            const principal = Math.round(parseFloat(cleanNumericInput($('#id_principal_amount').val()))) || 0;
+            const fee = Math.round(parseFloat(cleanNumericInput($(this).val()))) || 0;
+            const dist = Math.max(0, principal - fee);
+            $('#id_distribution_amount').val(dist > 0 ? dist : '');
+            if (dist > 0) {
+                $.get(`/transactions/number_to_words/${dist}`, function (response) {
+                    $('#distributionAmountWords').text(response.words + ' Rupees Only');
+                });
+            } else {
+                $('#distributionAmountWords').text('');
+            }
+            _financialUpdateLock = false;
+            calculateDistributionWithDeduction();
+            updateLtvAndCompliance();
+        });
 
         // Checkboxes ONLY update Distribution with Deduction — Distribution Amount is never changed
-        $('#id_is_first_month_interest_paid, #id_is_processing_fee_paid').on('change', calculateDistributionWithDeduction);
+        $('#id_is_first_month_interest_paid, #id_is_processing_fee_paid').on('change', function() {
+            calculateDistributionWithDeduction();
+        });
 
-        // Validate principal amount against min/max
-        $('#id_principal_amount').on('change', function () {
-            const marketPrice = parseFloat($('#id_market_price_22k').val()) || 0;
-            const selectedKarat = $('#id_gold_karat').val();
-            const netWeight = parseFloat($('#id_net_weight').val()) || 0;
-            const principal = parseFloat($(this).val()) || 0;
+        // Disable mouse wheel value change / scrolling on all numeric and amount text boxes
+        $(document).on('wheel', '#id_principal_amount, #id_distribution_amount, #id_distribution_amount_with_deduction, #id_processing_fee, input[type="number"], input.no-spin', function (e) {
+            $(this).blur();
+        });
 
-            // Remove any existing error messages
-            $('.principal-error').remove();
+        // Ensure 22K Gold Rate is strictly read-only and locked to Head Office rate
+        $('#id_market_price_22k').prop('readonly', true).addClass('bg-light');
 
-            if (marketPrice && selectedKarat && netWeight > 0) {
-                const purityRatio = KARAT_PURITY[selectedKarat] / KARAT_PURITY['22'];
-                const goldValue = marketPrice * netWeight * purityRatio;
-                const minPrincipal = Math.round(goldValue * 0.5);
-                const maxPrincipal = Math.round(goldValue * 0.90);
-
-                if (principal < minPrincipal || principal > maxPrincipal) {
-                    const errorMsg = $('<div class="principal-error text-danger small mt-1"></div>')
-                        .text(principal < minPrincipal
-                            ? `Principal must be at least Rs: ${minPrincipal} (50% of gold value)`
-                            : `Principal cannot exceed Rs: ${maxPrincipal} (90% of gold value)`);
-                    errorMsg.insertAfter('#div_id_principal_amount .form-text');
-                }
+        // Fetch Live Central Gold Rates from HO
+        $.get('/schemes/api/today-rate/', function(res) {
+            if (res && res.status === 'success') {
+                window.activeDailyGoldRates = res;
+                const rate22kInt = Math.round(res.rate_22k_per_gram);
+                $('#topHeaderGoldRateDisplay').text(`₹${rate22kInt.toLocaleString('en-IN')} /g`);
+                $('#liveRateBadge').text(`22K: ₹${rate22kInt}/g`);
+                $('#rbiCapPercentDisplay').text(Math.round(res.maximum_ltv_percentage));
+                $('#id_market_price_22k').val(rate22kInt);
+                syncItemsToFormFields();
+                calculateGoldValue();
             }
-
-            // Update amount in words
-            $.get(`/transactions/number_to_words/${principal}`, function (response) {
-                $('#principalAmountWords').text(response.words + ' Rupees Only');
-            });
+        }).fail(function() {
+            window.activeDailyGoldRates = { maximum_ltv_percentage: 75.0, rate_22k_per_gram: 6600.0 };
+            syncItemsToFormFields();
+            calculateGoldValue();
         });
 
         // (distribution_amount words are now updated inside recalculateFromDistributionAmount)

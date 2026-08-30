@@ -31,6 +31,10 @@ class Loan(models.Model):
     
     # Status choices
     STATUS_CHOICES = (
+        ('draft', _('Draft')),
+        ('pending_approval', _('Pending Approval')),
+        ('approved', _('Approved (Ready for Disbursal)')),
+        ('rejected', _('Rejected')),
         ('active', _('Active')),
         ('repaid', _('Repaid')),
         ('defaulted', _('Defaulted')),
@@ -38,6 +42,65 @@ class Loan(models.Model):
         ('foreclosed', _('Foreclosed')),
     )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active', db_index=True)
+    
+    # Tiered Maker-Checker Approvals (Task 2.1)
+    APPROVAL_TIER_CHOICES = (
+        (1, _('Tier 1 (Principal <= ₹2,00,000) [BM]')),
+        (2, _('Tier 2 (Principal ₹2,00,001 - ₹10,00,000) [BM + RO]')),
+        (3, _('Tier 3 (Principal > ₹10,00,000) [BM + RO + HO]')),
+    )
+    approval_tier = models.PositiveSmallIntegerField(choices=APPROVAL_TIER_CHOICES, default=1, db_index=True)
+    maker = models.ForeignKey(
+        'accounts.CustomUser', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='loans_initiated',
+        help_text=_("Appraiser / Maker who initiated the loan")
+    )
+    checker_bm = models.ForeignKey(
+        'accounts.CustomUser', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='loans_approved_bm',
+        help_text=_("Branch Manager who granted Tier 1 Approval")
+    )
+    checker_bm_at = models.DateTimeField(null=True, blank=True)
+    checker_ro = models.ForeignKey(
+        'accounts.CustomUser', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='loans_approved_ro',
+        help_text=_("Regional Manager who granted Tier 2 Approval")
+    )
+    checker_ro_at = models.DateTimeField(null=True, blank=True)
+    checker_ho = models.ForeignKey(
+        'accounts.CustomUser', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='loans_approved_ho',
+        help_text=_("Head Office Credit Committee who granted Tier 3 Approval")
+    )
+    checker_ho_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.TextField(blank=True, null=True)
+    reappraisal_notes = models.TextField(blank=True, null=True)
+    
+    # RBI IRAC Asset Classification & Provisioning (Task 2.2)
+    IRAC_STATUS_CHOICES = (
+        ('STANDARD', _('Standard Asset (0 Overdue Days)')),
+        ('SMA_0', _('SMA-0 (1 to 30 Overdue Days)')),
+        ('SMA_1', _('SMA-1 (31 to 60 Overdue Days)')),
+        ('SMA_2', _('SMA-2 (61 to 90 Overdue Days)')),
+        ('NPA_SUBSTANDARD', _('NPA - Substandard (>90 Days Overdue)')),
+        ('NPA_DOUBTFUL', _('NPA - Doubtful (>180 Days Overdue)')),
+        ('NPA_LOSS', _('NPA - Loss Asset')),
+    )
+    irac_status = models.CharField(
+        max_length=20, choices=IRAC_STATUS_CHOICES, default='STANDARD', db_index=True,
+        help_text=_("RBI IRAC Asset Classification Status")
+    )
+    overdue_days = models.PositiveIntegerField(default=0, db_index=True, help_text=_("Number of overdue days past grace period"))
+    npa_date = models.DateField(null=True, blank=True, help_text=_("Date when loan was classified as NPA"))
+    provisioning_percentage = models.DecimalField(
+        max_digits=5, decimal_places=2, default=Decimal('0.25'),
+        help_text=_("Regulatory Loan Provisioning Percentage")
+    )
+    accrued_interest = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal('0.00'),
+        help_text=_("Total cumulative daily interest accrued")
+    )
+    last_accrual_date = models.DateField(null=True, blank=True, help_text=_("Date of latest daily interest accrual"))
     
     # Financial details
     principal_amount = models.DecimalField(
@@ -139,12 +202,162 @@ class Loan(models.Model):
 
     def __str__(self):
         return f"Loan #{self.loan_number} - {self.customer.full_name}"
+
+    def determine_approval_tier(self):
+        """Determine required approval tier based on principal loan amount"""
+        amt = Decimal(str(self.principal_amount or 0))
+        if amt <= 200000:
+            return 1
+        elif amt <= 1000000:
+            return 2
+        else:
+            return 3
+
+    def save(self, *args, **kwargs):
+        if self.principal_amount is not None:
+            self.approval_tier = self.determine_approval_tier()
+        super().save(*args, **kwargs)
+
+    @property
+    def is_approved_for_disbursal(self):
+        """Check if all required tiered approvals are granted"""
+        if self.status == 'active':
+            return True
+        if self.status != 'approved':
+            return False
+        tier = self.determine_approval_tier()
+        if tier == 1:
+            return bool(self.checker_bm)
+        elif tier == 2:
+            return bool(self.checker_bm and self.checker_ro)
+        elif tier == 3:
+            return bool(self.checker_bm and self.checker_ro and self.checker_ho)
+        return True
+
+    def can_user_approve(self, user):
+        """Check if the given user is authorized to approve the current pending tier"""
+        if not user or not user.is_authenticated:
+            return False
+        if user.is_superuser:
+            return True
+        
+        role = getattr(user, 'role', None)
+        role_type = getattr(role, 'role_type', None) if role else str(getattr(user, 'role', ''))
+        tier = self.determine_approval_tier()
+
+        # Step 1: Branch Manager approval (Required for all tiers)
+        if not self.checker_bm:
+            is_bm = role_type in ['branch_manager', 'regional_manager', 'admin', 'headoffice'] or (self.branch and user == self.branch.manager)
+            if is_bm:
+                # Ensure BM is for this branch (or higher)
+                if role_type in ['regional_manager', 'admin', 'headoffice'] or user.is_superuser:
+                    return True
+                return getattr(user, 'branch', None) == self.branch or user == self.branch.manager
+            return False
+
+        # Step 2: Regional Manager approval (For Tier 2 & Tier 3)
+        if tier in [2, 3] and not self.checker_ro:
+            is_ro = role_type in ['regional_manager', 'admin', 'headoffice'] or user.is_superuser
+            if is_ro:
+                # If regional manager, check region scoping
+                if user.is_superuser or role_type in ['admin', 'headoffice']:
+                    return True
+                if hasattr(user, 'regions') and user.regions.exists():
+                    return user.regions.filter(branches=self.branch).exists()
+                return True
+            return False
+
+        # Step 3: Head Office Credit Committee approval (For Tier 3 > 10L)
+        if tier == 3 and not self.checker_ho:
+            return role_type in ['admin', 'headoffice', 'finance_manager'] or user.is_superuser
+
+        return False
+
+    def approve(self, user, notes=None):
+        """Advance approval workflow for current tier"""
+        tier = self.determine_approval_tier()
+        self.approval_tier = tier
+
+        if not self.checker_bm:
+            self.checker_bm = user
+            self.checker_bm_at = timezone.now()
+            if tier == 1:
+                self.status = 'approved'
+            else:
+                self.status = 'pending_approval'
+        elif tier in [2, 3] and not self.checker_ro:
+            self.checker_ro = user
+            self.checker_ro_at = timezone.now()
+            if tier == 2:
+                self.status = 'approved'
+            else:
+                self.status = 'pending_approval'
+        elif tier == 3 and not self.checker_ho:
+            self.checker_ho = user
+            self.checker_ho_at = timezone.now()
+            self.status = 'approved'
+
+        self.save()
+        return self.status
+
+    def reject(self, user, reason):
+        """Reject loan application with mandatory reason"""
+        self.status = 'rejected'
+        self.rejection_reason = reason
+        self.save()
+        return self.status
+
+    def request_reappraisal(self, user, notes):
+        """Request re-appraisal / physical re-examination"""
+        self.status = 'pending_approval'
+        self.reappraisal_notes = notes
+        # Reset intermediate checkers
+        self.checker_bm = None
+        self.checker_bm_at = None
+        self.checker_ro = None
+        self.checker_ro_at = None
+        self.checker_ho = None
+        self.checker_ho_at = None
+        self.save()
+        return self.status
+
+    @property
+    def maker_name(self):
+        if self.maker:
+            return self.maker.get_full_name() or self.maker.username
+        if self.created_by:
+            return self.created_by.get_full_name() or self.created_by.username
+        return "Appraiser"
+
+    @property
+    def checker_bm_name(self):
+        if self.checker_bm:
+            return self.checker_bm.get_full_name() or self.checker_bm.username
+        return ""
+
+    @property
+    def checker_ro_name(self):
+        if self.checker_ro:
+            return self.checker_ro.get_full_name() or self.checker_ro.username
+        return ""
+
+    @property
+    def checker_ho_name(self):
+        if self.checker_ho:
+            return self.checker_ho.get_full_name() or self.checker_ho.username
+        return ""
+
+    @property
+    def loan_ornaments(self):
+        return self.loanitem_set
     
     @property
     def monthly_interest(self):
         """Calculate monthly interest details for the loan.
         
-        Returns a dictionary with monthly interest rate, amount, and per thousand rate
+        Returns a dictionary with monthly interest rate, amount, and per thousand rate.
+        After part payments, interest is calculated on the current outstanding principal
+        (whichever is lower: original distribution_amount or current principal_amount).
         """
         from decimal import Decimal
         
@@ -156,13 +369,16 @@ class Loan(models.Model):
         else:
             monthly_rate = Decimal(self.interest_rate) / Decimal('12')
         
-        # Calculate monthly interest amount based on distribution amount
-        base_dist_amount = self.distribution_amount if self.distribution_amount is not None \
+        # Base amount for interest = current outstanding principal (reduced after part payments)
+        # Use min(distribution_amount, principal_amount) so interest always tracks current principal
+        orig_dist = self.distribution_amount if self.distribution_amount is not None \
             else ((self.principal_amount or Decimal('0')) - Decimal(str(self.processing_fee or 0)))
-        monthly_amount = (base_dist_amount * monthly_rate) / Decimal('100')
+        current_principal = self.principal_amount or Decimal('0')
+        base_amount = min(orig_dist, current_principal)
+        monthly_amount = (base_amount * monthly_rate) / Decimal('100')
         
-        # Calculate rate per 1000 of distribution amount
-        per_thousand = (monthly_rate * Decimal('10')) # per Rs. 1,000
+        # Calculate rate per 1000 of base amount
+        per_thousand = (monthly_rate * Decimal('10'))  # per Rs. 1,000
         
         return {
             'rate': round(monthly_rate, 2),
@@ -189,17 +405,24 @@ class Loan(models.Model):
 
     @property
     def original_distribution_amount(self):
-        """Returns the base distribution amount (principal - processing fee) before any upfront interest/fee deductions"""
+        """Returns the current effective distribution amount.
+        
+        At origination: returns stored distribution_amount (or principal - processing_fee if not set).
+        After part payments: tracks current principal (whichever is lower: stored distribution or current principal).
+        """
         from decimal import Decimal
         if self.distribution_amount is not None:
-            return self.distribution_amount
-        return (self.principal_amount or Decimal('0')) - Decimal(str(self.processing_fee or 0))
+            return min(self.distribution_amount, self.principal_amount or Decimal('0'))
+        proc_fee = Decimal(str(self.processing_fee or 0))
+        return max(Decimal('0'), (self.principal_amount or Decimal('0')) - proc_fee)
+
+
 
     @property
     def distribution_amount_with_deduction(self):
         """Returns Distribution Amount with Deduction.
 
-        Base = Distribution Amount field (stored value: principal - processing_fee).
+        Base = original_distribution_amount (current effective distribution: principal - processing_fee).
         Then deduct from that base:
             - processing_fee       if is_processing_fee_paid = True
             - first_month_interest if is_first_month_interest_paid = True
@@ -210,12 +433,11 @@ class Loan(models.Model):
                 - (first_month_interest  if is_first_month_interest_paid)
         """
         from decimal import Decimal
-        principal = self.principal_amount or Decimal('0')
         proc_fee = Decimal(str(self.processing_fee or 0))
 
-        # Use stored distribution_amount as base; fallback to principal - proc_fee
-        base = Decimal(str(self.distribution_amount)) if self.distribution_amount is not None \
-            else (principal - proc_fee)
+        # Use dynamic original_distribution_amount as base
+        base = self.original_distribution_amount
+
 
         # Deduct processing fee only if paid upfront
         proc_fee_deduction = proc_fee if self.is_processing_fee_paid else Decimal('0')
@@ -825,8 +1047,12 @@ class Loan(models.Model):
         
     @property
     def monthly_interest(self):
-        """Calculate monthly interest rate and amount for the loan"""
-        if not self.distribution_amount:
+        """Calculate monthly interest rate and amount for the loan.
+        
+        After part payments, interest is always calculated on current outstanding principal
+        (whichever is lower: original distribution_amount or current principal_amount).
+        """
+        if not self.distribution_amount and not self.principal_amount:
             return {
                 'rate': Decimal('0.00'),
                 'amount': Decimal('0.00'),
@@ -853,12 +1079,14 @@ class Loan(models.Model):
         # Calculate monthly interest rate
         monthly_rate = annual_rate / Decimal('12')
         
-        # Calculate monthly interest amount based on distribution amount
-        base_dist_amount = self.distribution_amount if self.distribution_amount is not None \
+        # Base for interest = current outstanding principal (tracks part payments)
+        orig_dist = self.distribution_amount if self.distribution_amount is not None \
             else ((self.principal_amount or Decimal('0')) - Decimal(str(self.processing_fee or 0)))
-        monthly_interest_amount = (base_dist_amount * monthly_rate) / Decimal('100')
+        current_principal = self.principal_amount or Decimal('0')
+        base_amount = min(orig_dist, current_principal)
+        monthly_interest_amount = (base_amount * monthly_rate) / Decimal('100')
         
-        # Calculate per thousand rate (how much interest per 1000 of distribution amount)
+        # Calculate per thousand rate (how much interest per 1000 of base amount)
         per_thousand = (monthly_rate / Decimal('100')) * Decimal('1000')
         
         return {
@@ -870,8 +1098,12 @@ class Loan(models.Model):
 
     @property
     def daily_interest_amount(self):
-        """Calculate daily interest amount for the loan (per single day)"""
-        if not self.distribution_amount:
+        """Calculate daily interest amount for the loan (per single day).
+        
+        After part payments, daily interest is calculated on the current outstanding
+        principal (whichever is lower: original distribution_amount or principal_amount).
+        """
+        if not self.distribution_amount and not self.principal_amount:
             return Decimal('0.00')
         
         # Get interest rate from scheme or default
@@ -889,10 +1121,14 @@ class Loan(models.Model):
         else:
             annual_rate = self.scheme.interest_rate
             
-        base_dist_amount = self.distribution_amount if self.distribution_amount is not None \
+        # Use current outstanding principal to reflect part payments
+        orig_dist = self.distribution_amount if self.distribution_amount is not None \
             else ((self.principal_amount or Decimal('0')) - Decimal(str(self.processing_fee or 0)))
-        daily_amount = base_dist_amount * (annual_rate / Decimal('36500'))
+        current_principal = self.principal_amount or Decimal('0')
+        base_amount = min(orig_dist, current_principal)
+        daily_amount = base_amount * (annual_rate / Decimal('36500'))
         return daily_amount.quantize(Decimal('0.01'))
+
 
     @property
     def interest_till_date_daily_basis(self):
@@ -906,15 +1142,17 @@ class Loan(models.Model):
         if self.is_first_month_interest_paid:
             days_elapsed = max(0, days_elapsed - 30)
             
-        base_dist_amount = self.distribution_amount if self.distribution_amount is not None \
+        # Use current outstanding principal to reflect part payments
+        orig_dist = self.distribution_amount if self.distribution_amount is not None \
             else ((self.principal_amount or Decimal('0')) - Decimal(str(self.processing_fee or 0)))
+        base_amount = min(orig_dist, self.principal_amount or Decimal('0'))
         
         if getattr(self.scheme, 'no_interest_period_days', 0) and days_elapsed <= self.scheme.no_interest_period_days:
             return Decimal('0.00')
             
         annual_rate = self.scheme.get_interest_rate_for_days((current_date - self.issue_date).days)
         daily_rate = annual_rate / Decimal('36500')
-        interest = base_dist_amount * daily_rate * Decimal(str(days_elapsed))
+        interest = base_amount * daily_rate * Decimal(str(days_elapsed))
         return interest.quantize(Decimal('0.01'))
 
     @property
@@ -941,7 +1179,11 @@ class Loan(models.Model):
                 overdue_months += 1
             if overdue_months > 0:
                 extra_interest_rate = self.scheme.late_payment_interest / Decimal('100')
-                extra_interest = self.distribution_amount * extra_interest_rate * Decimal(str(overdue_months))
+                # Use current outstanding principal for overdue interest too
+                orig_dist = self.distribution_amount if self.distribution_amount is not None \
+                    else ((self.principal_amount or Decimal('0')) - Decimal(str(self.processing_fee or 0)))
+                base_amount = min(orig_dist, self.principal_amount or Decimal('0'))
+                extra_interest = base_amount * extra_interest_rate * Decimal(str(overdue_months))
                 base_interest += extra_interest
                 
         return base_interest.quantize(Decimal('0.01'))
@@ -960,8 +1202,10 @@ class Loan(models.Model):
             if self.is_first_month_interest_paid:
                 days_elapsed = max(0, days_elapsed - 30)
                 
-            base_dist_amount = self.distribution_amount if self.distribution_amount is not None \
+            # Use current outstanding principal to reflect part payments
+            orig_dist = self.distribution_amount if self.distribution_amount is not None \
                 else ((self.principal_amount or Decimal('0')) - Decimal(str(self.processing_fee or 0)))
+            base_amount = min(orig_dist, self.principal_amount or Decimal('0'))
             
             # For schemes with no_interest_period_days, check if we're still in that period
             if getattr(self.scheme, 'no_interest_period_days', 0) and days_elapsed <= self.scheme.no_interest_period_days:
@@ -970,7 +1214,7 @@ class Loan(models.Model):
             # Get tiered interest rate based on days elapsed
             annual_rate = self.scheme.get_interest_rate_for_days((current_date - self.issue_date).days)
             daily_rate = annual_rate / Decimal('36500')
-            interest = base_dist_amount * daily_rate * Decimal(str(days_elapsed))
+            interest = base_amount * daily_rate * Decimal(str(days_elapsed))
             return interest.quantize(Decimal('0.01'))
             
         else:
@@ -1208,7 +1452,12 @@ class Loan(models.Model):
         return [get_default_item_photo(item.category) for item in self.items.all()]
 
 class LoanItem(models.Model):
-    """Model to track items in a loan with their gold details"""
+    """Model to track items in a loan with their gold details and release status"""
+    ITEM_STATUS_CHOICES = [
+        ('pledged', _('Pledged (In Custody)')),
+        ('released', _('Partially Released')),
+        ('redeemed', _('Fully Redeemed')),
+    ]
     loan = models.ForeignKey(Loan, on_delete=models.CASCADE)
     item = models.ForeignKey('inventory.Item', on_delete=models.CASCADE)
     
@@ -1222,11 +1471,33 @@ class LoanItem(models.Model):
     stone_weight = models.DecimalField(max_digits=7, decimal_places=3, help_text="Weight of stones if any in grams", null=True, blank=True)
     market_price_22k = models.DecimalField(max_digits=10, decimal_places=2, help_text="Market price of 22K gold per gram at the time of loan")
     
+    # Partial Release Tracking (Task 2.3)
+    status = models.CharField(max_length=20, choices=ITEM_STATUS_CHOICES, default='pledged', db_index=True)
+    released_at = models.DateTimeField(null=True, blank=True)
+    released_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='released_loan_items')
+    
     class Meta:
         unique_together = ['loan', 'item']  # An item can only be used once in a loan
         
     def __str__(self):
-        return f"{self.item.name} in {self.loan}"
+        return f"{self.item.name} in {self.loan} ({self.get_status_display()})"
+
+    @property
+    def item_valuation(self):
+        """Calculates current gold valuation for this item based on 22K market price"""
+        try:
+            karat = Decimal(str(self.gold_karat or 22.0))
+            net_wt = Decimal(str(self.net_weight or 0.0))
+            rate_22k = Decimal(str(self.market_price_22k or 0.0))
+            if rate_22k <= Decimal('0.00'):
+                from schemes.models import DailyGoldRate
+                latest_rate = DailyGoldRate.objects.order_by('-date', '-id').first()
+                if latest_rate:
+                    rate_22k = latest_rate.rate_22k_per_gram
+            val = (net_wt * (karat / Decimal('22.0')) * rate_22k)
+            return val.quantize(Decimal('0.01'))
+        except Exception:
+            return Decimal('0.00')
 
 class Payment(models.Model):
     """Payment model for tracking loan payments"""
@@ -1256,6 +1527,127 @@ class Payment(models.Model):
     
     def __str__(self):
         return f"Payment of Rs: {self.amount} for {self.loan}"
+
+    def clean(self):
+        super().clean()
+        from django.core.exceptions import ValidationError
+        # Income Tax Section 269ST: Daily cash repayment cap of ₹1,99,999 per customer across all branches
+        if self.payment_method and str(self.payment_method).lower() == 'cash' and self.amount and hasattr(self, 'loan') and self.loan and self.payment_date:
+            try:
+                customer = self.loan.customer
+                from django.db.models import Sum
+                same_day_cash = Payment.objects.filter(
+                    loan__customer=customer,
+                    payment_date=self.payment_date,
+                    payment_method__iexact='cash'
+                )
+                if self.pk:
+                    same_day_cash = same_day_cash.exclude(pk=self.pk)
+                
+                existing_cash_total = same_day_cash.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+                total_proposed = existing_cash_total + Decimal(str(self.amount))
+                
+                if total_proposed >= Decimal('200000.00'):
+                    max_allowed = max(Decimal('0.00'), Decimal('199999.00') - existing_cash_total)
+                    raise ValidationError(
+                        f"Section 269ST Violation: Total daily cash repayments from a customer across all branches cannot reach or exceed ₹2,00,000 (Maximum cash allowed per day is ₹1,99,999). "
+                        f"Today's existing cash repayments for {customer.full_name}: ₹{existing_cash_total:,.2f}. "
+                        f"Maximum cash remaining for today: ₹{max_allowed:,.2f}. "
+                        f"Please select a digital mode (Bank Transfer, UPI, Cheque, or NetBanking)."
+                    )
+            except Exception:
+                pass
+
+        # Prevent excess payment over outstanding balance
+        if self.amount and hasattr(self, 'loan') and self.loan:
+            try:
+                rem_balance = max(Decimal('0.00'), self.loan.total_payable_till_date - self.loan.amount_paid)
+                if self.pk:
+                    old_payment = Payment.objects.filter(pk=self.pk).first()
+                    if old_payment:
+                        rem_balance += old_payment.amount
+                
+                if Decimal(str(self.amount)) > rem_balance:
+                    raise ValidationError({
+                        'amount': f"Payment amount of ₹{Decimal(str(self.amount)):,.2f} exceeds the outstanding balance of ₹{rem_balance:,.2f}. Maximum payable amount is ₹{rem_balance:,.2f}."
+                    })
+            except ValidationError:
+                raise
+            except Exception:
+                pass
+
+
+class DisbursementTransaction(models.Model):
+    """
+    Model for recording loan disbursals with statutory Income Tax Sec 269SS/269T compliance.
+    Disbursals >= ₹20,000 must be made via electronic clearing/bank transfer/UPI/Cheque.
+    """
+    DISBURSEMENT_MODE_CHOICES = [
+        ('CASH', _('Cash')),
+        ('BANK_TRANSFER', _('Bank Transfer (NEFT/RTGS/IMPS)')),
+        ('UPI', _('UPI')),
+        ('CHEQUE', _('Cheque / DD')),
+    ]
+    BANK_STATUS_CHOICES = [
+        ('PENDING', _('Pending')),
+        ('PROCESSED', _('Processed / Success')),
+        ('FAILED', _('Failed')),
+    ]
+
+    loan = models.OneToOneField(Loan, on_delete=models.CASCADE, related_name='disbursement_detail')
+    payment_mode = models.CharField(max_length=30, choices=DISBURSEMENT_MODE_CHOICES, default='CASH')
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    utr_number = models.CharField(max_length=100, blank=True, null=True, help_text=_("Bank UTR / Transaction Reference"))
+    transaction_reference = models.CharField(max_length=100, blank=True, null=True)
+
+    # Customer Bank Account Details for Payout
+    account_number = models.CharField(max_length=50, blank=True, null=True, help_text=_("Beneficiary Account Number"))
+    ifsc_code = models.CharField(max_length=20, blank=True, null=True, help_text=_("Bank IFSC Code"))
+    bank_name = models.CharField(max_length=100, blank=True, null=True, help_text=_("Bank Name"))
+    beneficiary_name = models.CharField(max_length=150, blank=True, null=True, help_text=_("Beneficiary Name"))
+
+    bank_status = models.CharField(max_length=20, choices=BANK_STATUS_CHOICES, default='PROCESSED')
+    disbursed_at = models.DateTimeField(default=timezone.now)
+    disbursed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='disbursements_made')
+    notes = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _('disbursement transaction')
+        verbose_name_plural = _('disbursement transactions')
+        ordering = ['-disbursed_at']
+
+    def __str__(self):
+        return f"Disbursement for {self.loan} - ₹{self.amount} ({self.payment_mode})"
+
+    def clean(self):
+        super().clean()
+        from django.core.exceptions import ValidationError
+        # Tiered Approval Enforcer: Loan must not be in draft, pending_approval, or rejected
+        if hasattr(self, 'loan') and self.loan:
+            if self.loan.status in ['pending_approval', 'rejected', 'draft']:
+                raise ValidationError(
+                    _(f"Disbursal Blocked: Loan #{self.loan.loan_number} is currently '{self.loan.get_status_display()}'. "
+                      f"Required Tier {self.loan.approval_tier} Maker-Checker approval must be completed before disbursal.")
+                )
+        # Sec 269SS Enforcer: >= ₹20,000 cannot be in Cash
+        if self.payment_mode == 'CASH' and self.amount and Decimal(str(self.amount)) >= Decimal('20000.00'):
+            raise ValidationError(
+                _("Under Section 269SS of the Income Tax Act, loan disbursements of ₹20,000 or more cannot be paid in Cash. "
+                  "Please select Bank Transfer, NEFT, IMPS, RTGS, UPI, or Cheque.")
+            )
+        if self.payment_mode in ['BANK_TRANSFER', 'NEFT', 'IMPS', 'RTGS'] and not self.account_number:
+            raise ValidationError({'account_number': _("Bank account number is required for bank disbursements.")})
+        if self.payment_mode in ['BANK_TRANSFER', 'NEFT', 'IMPS', 'RTGS'] and not self.ifsc_code:
+            raise ValidationError({'ifsc_code': _("Bank IFSC code is required for bank disbursements.")})
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Transition loan from approved to active upon successful disbursal
+        if self.loan and self.loan.status == 'approved':
+            self.loan.status = 'active'
+            self.loan.save(update_fields=['status'])
 
 
 class LoanExtension(models.Model):
@@ -1449,3 +1841,102 @@ class Sale(models.Model):
             transaction.total_tax = self.tax
             transaction.total_amount = self.total_amount
             transaction.save()
+
+
+class InterestAccrualLog(models.Model):
+    """
+    Log of Daily Mathematical Interest Accrued per Loan during EOD Batch.
+    Formula: (Principal Outstanding * Annual Interest Rate) / (365 * 100)
+    """
+    loan = models.ForeignKey(Loan, on_delete=models.CASCADE, related_name='accrual_logs')
+    date = models.DateField(db_index=True)
+    principal_outstanding = models.DecimalField(max_digits=12, decimal_places=2)
+    annual_rate = models.DecimalField(max_digits=5, decimal_places=2)
+    daily_interest_accrued = models.DecimalField(max_digits=10, decimal_places=2)
+    cumulative_interest = models.DecimalField(max_digits=12, decimal_places=2)
+    irac_status = models.CharField(max_length=20, default='STANDARD')
+    is_posted_to_gl = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _('interest accrual log')
+        verbose_name_plural = _('interest accrual logs')
+        ordering = ['-date']
+        unique_together = ('loan', 'date')
+
+    def __str__(self):
+        return f"Accrual for Loan #{self.loan.loan_number} on {self.date}: ₹{self.daily_interest_accrued}"
+
+
+class EODBatchExecutionLog(models.Model):
+    """
+    Audit log of End-of-Day (EOD) Batch Processing Runs across branches.
+    """
+    STATUS_CHOICES = [
+        ('IN_PROGRESS', _('In Progress')),
+        ('COMPLETED', _('Completed')),
+        ('FAILED', _('Failed')),
+    ]
+    execution_date = models.DateField(db_index=True)
+    branch = models.ForeignKey('branches.Branch', on_delete=models.SET_NULL, null=True, blank=True, related_name='eod_runs')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='COMPLETED')
+    total_loans_processed = models.IntegerField(default=0)
+    total_daily_interest_accrued = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    standard_count = models.IntegerField(default=0)
+    sma0_count = models.IntegerField(default=0)
+    sma1_count = models.IntegerField(default=0)
+    sma2_count = models.IntegerField(default=0)
+    npa_count = models.IntegerField(default=0)
+    gl_journal_entry = models.ForeignKey('accounting.JournalEntry', on_delete=models.SET_NULL, null=True, blank=True, related_name='eod_runs')
+    executed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    started_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    logs = models.TextField(blank=True, null=True)
+
+    class Meta:
+        verbose_name = _('EOD batch execution log')
+        verbose_name_plural = _('EOD batch execution logs')
+        ordering = ['-execution_date', '-started_at']
+
+    def __str__(self):
+        branch_name = self.branch.name if self.branch else "Consolidated"
+        return f"EOD Batch {self.execution_date} ({branch_name}) - ₹{self.total_daily_interest_accrued} Accrued"
+
+
+class PartialReleaseRecord(models.Model):
+    """
+    Model for tracking Partial Ornament Releases and Part-Payments.
+    Enforces maximum 75% LTV on remaining pledged ornaments.
+    """
+    release_number = models.CharField(max_length=50, unique=True, db_index=True)
+    loan = models.ForeignKey(Loan, on_delete=models.CASCADE, related_name='partial_releases')
+    payment = models.ForeignKey('transactions.Payment', on_delete=models.SET_NULL, null=True, blank=True, related_name='partial_releases')
+    released_items = models.ManyToManyField(LoanItem, related_name='partial_release_records')
+    release_date = models.DateField(default=timezone.now, db_index=True)
+    
+    # Financial reconciliation
+    principal_paid = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    interest_paid = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    previous_outstanding_principal = models.DecimalField(max_digits=12, decimal_places=2)
+    new_outstanding_principal = models.DecimalField(max_digits=12, decimal_places=2)
+    
+    # Collateral LTV metrics
+    remaining_gold_value = models.DecimalField(max_digits=12, decimal_places=2, help_text="Market value of retained items")
+    new_ltv_percentage = models.DecimalField(max_digits=5, decimal_places=2, help_text="New LTV % after partial release (must be <= 75%)")
+    
+    # Sign-off & audit
+    released_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='processed_partial_releases')
+    customer_signature_data = models.TextField(blank=True, null=True, help_text="Base64 encoded customer signature")
+    witness_name = models.CharField(max_length=150, blank=True, null=True)
+    notes = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _('partial release record')
+        verbose_name_plural = _('partial release records')
+        ordering = ['-release_date', '-created_at']
+
+    def __str__(self):
+        return f"Partial Release #{self.release_number} for Loan #{self.loan.loan_number}"
+
+

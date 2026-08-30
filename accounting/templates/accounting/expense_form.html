@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+
+{% block title %}Record Operational Expense Voucher - Pawnshop Management{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-lg">
+                <div class="card-header bg-danger text-white py-3">
+                    <h4 class="mb-0 fw-bold">
+                        <i class="fas fa-receipt me-2"></i>Record Branch Expense Voucher
+                    </h4>
+                    <p class="small text-white-50 mb-0 mt-1">Branch: <strong>{{ branch.name|default:"Main Branch" }}</strong> | Double-entry journal will be generated automatically</p>
+                </div>
+                <div class="card-body p-4">
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">{{ form.expense_head.label }} <span class="text-danger">*</span></label>
+                            {{ form.expense_head }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">{{ form.amount.label }} <span class="text-danger">*</span></label>
+                            {{ form.amount }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">{{ form.payment_mode.label }} <span class="text-danger">*</span></label>
+                            {{ form.payment_mode }}
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">{{ form.narration.label }} <span class="text-danger">*</span></label>
+                            {{ form.narration }}
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-danger btn-lg fw-bold">
+                                <i class="fas fa-check-circle me-2"></i>Post Expense Voucher
+                            </button>
+                            <a href="{% url 'accounting_day_book' %}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

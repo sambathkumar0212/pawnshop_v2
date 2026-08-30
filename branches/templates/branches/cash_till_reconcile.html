@@ -1,0 +1,244 @@
+{% extends 'base.html' %}
+
+{% block title %}EOD Denomination Count &amp; Reconciliation - {{ till.branch.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .denom-row {
+        transition: background-color 0.2s;
+    }
+    .denom-row:hover {
+        background-color: #f8f9fa;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h3 mb-0 fw-bold text-dark">
+                <i class="fas fa-calculator text-primary me-2"></i>End of Day (EOD) Denomination Count &amp; Reconciliation
+            </h2>
+            <p class="text-muted mb-0 small mt-1">
+                Branch: <strong>{{ till.branch.name }}</strong> | Date: <strong>{{ till.date|date:"d M Y" }}</strong> | Cashier: <strong>{{ till.cashier.get_full_name|default:till.cashier.username }}</strong>
+            </p>
+        </div>
+        <a href="{% url 'cash_till_dashboard' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left me-1"></i>Back to Cash Till Dashboard
+        </a>
+    </div>
+
+    <form method="post" id="reconcileForm">
+        {% csrf_token %}
+        <div class="row g-4">
+            <!-- Denomination Matrix -->
+            <div class="col-lg-7">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white py-3">
+                        <h5 class="mb-0 fw-bold text-dark">
+                            <i class="fas fa-money-bill-wave text-success me-2"></i>Physical Currency Notes &amp; Coins Breakdown
+                        </h5>
+                    </div>
+                    <div class="card-body p-3">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Denomination</th>
+                                    <th style="width: 140px;">Multiplier</th>
+                                    <th style="width: 150px;">Count (Pieces)</th>
+                                    <th class="text-end" style="width: 180px;">Amount (₹)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="denom-row">
+                                    <td><span class="badge bg-primary fs-6 px-3 py-2">₹500</span></td>
+                                    <td class="text-muted font-monospace">₹500 ×</td>
+                                    <td>{{ form.count_500 }}</td>
+                                    <td class="text-end font-monospace fw-bold fs-6 subtotal-cell" id="sub_500">₹0.00</td>
+                                </tr>
+                                <tr class="denom-row">
+                                    <td><span class="badge bg-warning text-dark fs-6 px-3 py-2">₹200</span></td>
+                                    <td class="text-muted font-monospace">₹200 ×</td>
+                                    <td>{{ form.count_200 }}</td>
+                                    <td class="text-end font-monospace fw-bold fs-6 subtotal-cell" id="sub_200">₹0.00</td>
+                                </tr>
+                                <tr class="denom-row">
+                                    <td><span class="badge bg-info text-dark fs-6 px-3 py-2">₹100</span></td>
+                                    <td class="text-muted font-monospace">₹100 ×</td>
+                                    <td>{{ form.count_100 }}</td>
+                                    <td class="text-end font-monospace fw-bold fs-6 subtotal-cell" id="sub_100">₹0.00</td>
+                                </tr>
+                                <tr class="denom-row">
+                                    <td><span class="badge bg-secondary fs-6 px-3 py-2">₹50</span></td>
+                                    <td class="text-muted font-monospace">₹50 ×</td>
+                                    <td>{{ form.count_50 }}</td>
+                                    <td class="text-end font-monospace fw-bold fs-6 subtotal-cell" id="sub_50">₹0.00</td>
+                                </tr>
+                                <tr class="denom-row">
+                                    <td><span class="badge bg-danger fs-6 px-3 py-2">₹20</span></td>
+                                    <td class="text-muted font-monospace">₹20 ×</td>
+                                    <td>{{ form.count_20 }}</td>
+                                    <td class="text-end font-monospace fw-bold fs-6 subtotal-cell" id="sub_20">₹0.00</td>
+                                </tr>
+                                <tr class="denom-row">
+                                    <td><span class="badge bg-dark fs-6 px-3 py-2">₹10</span></td>
+                                    <td class="text-muted font-monospace">₹10 ×</td>
+                                    <td>{{ form.count_10 }}</td>
+                                    <td class="text-end font-monospace fw-bold fs-6 subtotal-cell" id="sub_10">₹0.00</td>
+                                </tr>
+                                <tr class="denom-row">
+                                    <td><span class="badge bg-light text-dark border fs-6 px-3 py-2">₹5</span></td>
+                                    <td class="text-muted font-monospace">₹5 ×</td>
+                                    <td>{{ form.count_5 }}</td>
+                                    <td class="text-end font-monospace fw-bold fs-6 subtotal-cell" id="sub_5">₹0.00</td>
+                                </tr>
+                                <tr class="denom-row">
+                                    <td><span class="badge bg-light text-dark border fs-6 px-3 py-2">Coins / Loose</span></td>
+                                    <td class="text-muted font-monospace">₹1 ×</td>
+                                    <td>{{ form.count_coins }}</td>
+                                    <td class="text-end font-monospace fw-bold fs-6 subtotal-cell" id="sub_coins">₹0.00</td>
+                                </tr>
+                            </tbody>
+                            <tfoot class="table-light border-top">
+                                <tr>
+                                    <td colspan="3" class="fw-bold fs-5 text-dark">Total Physical Cash Counted:</td>
+                                    <td class="text-end font-monospace fw-bold fs-4 text-success" id="grand_total_display">₹0.00</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Variance & Reconciliation Review -->
+            <div class="col-lg-5">
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-dark text-white py-3">
+                        <h5 class="mb-0 fw-bold">
+                            <i class="fas fa-balance-scale text-warning me-2"></i>EOD Reconciliation Summary
+                        </h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="p-3 bg-light rounded border mb-3">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Opening Balance (BOD):</span>
+                                <strong class="font-monospace">₹{{ till.opening_balance|floatformat:2 }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Cash Receipts (IN):</span>
+                                <strong class="font-monospace text-success">+₹{{ till.cash_inwards|floatformat:2 }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Cash Paid (OUT):</span>
+                                <strong class="font-monospace text-danger">-₹{{ till.cash_outwards|floatformat:2 }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Remitted to Bank:</span>
+                                <strong class="font-monospace text-warning">-₹{{ till.cash_to_bank|floatformat:2 }}</strong>
+                            </div>
+                            <hr class="my-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-bold text-dark">Expected System Balance:</span>
+                                <span class="fw-bold fs-5 font-monospace text-primary" id="system_balance_display">
+                                    ₹{{ till.closing_balance_system|floatformat:2 }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Live Variance Box -->
+                        <div class="p-3 rounded mb-3 text-center" id="variance_box" style="background-color: #f8f9fa;">
+                            <div class="text-muted small text-uppercase fw-semibold mb-1">Physical vs System Variance</div>
+                            <div class="fs-3 fw-bold font-monospace" id="variance_display">₹0.00</div>
+                            <div class="small fw-semibold mt-1" id="variance_badge">Checking...</div>
+                        </div>
+
+                        <!-- Hidden Physical Balance Field bound to Django form -->
+                        <input type="hidden" name="closing_balance_physical" id="id_closing_balance_physical" value="0.00">
+
+                        <!-- Discrepancy Note (Mandatory if Variance != 0) -->
+                        <div class="mb-4" id="discrepancy_group">
+                            <label class="form-label fw-bold">
+                                Discrepancy Explanation <span class="text-danger" id="discrepancy_star" style="display:none;">*</span>
+                            </label>
+                            {{ form.discrepancy_reason }}
+                            <div class="form-text small text-muted">
+                                Required if physical cash does not match system balance.
+                            </div>
+                            {% if form.discrepancy_reason.errors %}
+                            <div class="text-danger small mt-1">
+                                {{ form.discrepancy_reason.errors }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg fw-bold" id="submitBtn">
+                                <i class="fas fa-check-circle me-2"></i>Save Denominations &amp; Reconcile
+                            </button>
+                            <a href="{% url 'cash_till_dashboard' %}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+$(document).ready(function() {
+    const systemBalance = {{ till.closing_balance_system|floatformat:2 }};
+
+    function calculateDenominations() {
+        let grandTotal = 0;
+        $('.denom-input').each(function() {
+            const count = parseInt($(this).val()) || 0;
+            const multiplier = parseInt($(this).data('value')) || 0;
+            const subtotal = count * multiplier;
+            grandTotal += subtotal;
+
+            const name = $(this).attr('name').replace('count_', '');
+            $(`#sub_${name}`).text(`₹${subtotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}`);
+        });
+
+        $('#grand_total_display').text(`₹${grandTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}`);
+        $('#id_closing_balance_physical').val(grandTotal.toFixed(2));
+
+        const variance = grandTotal - systemBalance;
+        const $varianceBox = $('#variance_box');
+        const $varianceDisplay = $('#variance_display');
+        const $varianceBadge = $('#variance_badge');
+        const $discrepancyStar = $('#discrepancy_star');
+        const $discrepancyField = $('#id_discrepancy_reason');
+
+        if (Math.abs(variance) < 0.01) {
+            $varianceBox.css('background-color', '#d1e7dd');
+            $varianceDisplay.removeClass('text-danger text-warning').addClass('text-success').text('₹0.00');
+            $varianceBadge.html('<i class="fas fa-check-circle text-success me-1"></i>Perfect Match (Zero Variance)');
+            $discrepancyStar.hide();
+            $discrepancyField.prop('required', false);
+        } else if (variance > 0) {
+            $varianceBox.css('background-color', '#fff3cd');
+            $varianceDisplay.removeClass('text-success text-danger').addClass('text-warning').text(`+₹${variance.toLocaleString('en-IN', {minimumFractionDigits: 2})}`);
+            $varianceBadge.html('<i class="fas fa-exclamation-triangle text-warning me-1"></i>Cash Excess Detected (Explanation Required)');
+            $discrepancyStar.show();
+            $discrepancyField.prop('required', true);
+        } else {
+            $varianceBox.css('background-color', '#f8d7da');
+            $varianceDisplay.removeClass('text-success text-warning').addClass('text-danger').text(`-₹${Math.abs(variance).toLocaleString('en-IN', {minimumFractionDigits: 2})}`);
+            $varianceBadge.html('<i class="fas fa-times-circle text-danger me-1"></i>Cash Shortage Detected (Explanation Required)');
+            $discrepancyStar.show();
+            $discrepancyField.prop('required', true);
+        }
+    }
+
+    $('.denom-input').on('input change keyup', calculateDenominations);
+    calculateDenominations();
+});
+</script>
+{% endblock %}

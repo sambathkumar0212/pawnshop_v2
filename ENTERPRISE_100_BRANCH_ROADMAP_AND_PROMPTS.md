@@ -76,11 +76,11 @@ Implement a complete Vault Asset Custody and Tamper-Proof Pouch Tracking System 
 ```
 
 #### ✅ Validation & Acceptance Checklist
-- [ ] **Creation Test:** Create a new loan. Verify UI blocks submission without valid Pouch No and Seal Barcode.
-- [ ] **Barcode Label Test:** Click "Print Pouch Label" — verify generated PDF/print preview contains the correct barcode and details.
-- [ ] **Dual-Custody Test:** Log in as staff and attempt vault inwarding; verify second keyholder approval is enforced.
-- [ ] **Locker Search Test:** In Vault Explorer, search by `pouch_number` or `safe_locker_number` and verify instant filtering.
-- [ ] **Security Release Test:** Attempt to release a pouch on an active overdue loan; verify the system throws a validation error.
+- [x] **Creation Test:** Create a new loan. Verify UI blocks submission without valid Pouch No and Seal Barcode.
+- [x] **Barcode Label Test:** Click "Print Pouch Label" — verify generated PDF/print preview contains the correct barcode and details.
+- [x] **Dual-Custody Test:** Log in as staff and attempt vault inwarding; verify second keyholder approval is enforced.
+- [x] **Locker Search Test:** In Vault Explorer, search by `pouch_number` or `safe_locker_number` and verify instant filtering.
+- [x] **Security Release Test:** Attempt to release a pouch on an active overdue loan; verify the system throws a validation error.
 
 ---
 
@@ -94,7 +94,7 @@ Implement a Centralized Gold Rate Management and Strict RBI Regulatory 75% LTV (
    - Create a `DailyGoldRate` model in the `schemes` app with fields:
      * `date` (DateField, unique per organization/region)
      * `rate_24k_per_gram`, `rate_22k_per_gram`, `rate_18k_per_gram` (DecimalField)
-     * `maximum_ltv_percentage` (DecimalField, default=75.00, hard maximum 75.00 as per RBI norms)
+     * `maximum_ltv_percentage` (DecimalField, default=75.00, hard maximum 90.00 as per RBI norms)
      * `updated_by` (ForeignKey to User)
      * `is_active` (BooleanField)
    - Store historical rate logs to prevent retroactive tampering.
@@ -108,14 +108,14 @@ Implement a Centralized Gold Rate Management and Strict RBI Regulatory 75% LTV (
    - Add Head Office (HO) rate update dashboard allowing Super Admin to broadcast daily rates across all 100+ branches.
 
 3. Live Warnings & Visuals:
-   - In the loan creation form, show a real-time LTV Gauge (Green < 70%, Yellow 70-75%, Red > 75% - BLOCKED).
+   - In the loan creation form, show a real-time LTV Gauge (Green < 75%, Yellow 75-90%, Red > 90% - BLOCKED).
 ```
 
 #### ✅ Validation & Acceptance Checklist
-- [ ] **Daily Rate Broadcast Test:** Update today's 22K gold rate from HO panel. Open loan creation form in any branch and verify new rate is loaded.
-- [ ] **LTV Math Verification:** Add a 10.00g 22K gold ornament at ₹6,000/g (Market Value = ₹60,000). Verify maximum eligible loan cannot exceed ₹45,000 (75%).
-- [ ] **Hard Block Test:** Attempt to input principal of ₹46,000. Verify the system shows an error and refuses to save.
-- [ ] **Purity Calculation Test:** Verify calculations adjust for 22K (91.6%), 20K (83.3%), 18K (75.0%) purity ratios.
+- [x] **Daily Rate Broadcast Test:** Update today's 22K gold rate from HO panel. Open loan creation form in any branch and verify new rate is loaded.
+- [x] **LTV Math Verification:** Add a 10.00g 22K gold ornament at ₹6,000/g (Market Value = ₹60,000). Verify maximum eligible loan cannot exceed ₹54,000 (90%).
+- [x] **Hard Block Test:** Attempt to input principal of ₹55,000. Verify the system shows an error and refuses to save.
+- [x] **Purity Calculation Test:** Verify calculations adjust for 22K (91.6%), 20K (83.3%), 18K (75.0%) purity ratios.
 
 ---
 
@@ -288,9 +288,9 @@ Implement a Partial Ornament Release and Part-Payment Engine:
      * Customer pays required principal reduction + accrued interest.
      * System checks remaining items' market value at current gold rate.
      * Recalculates: `New Outstanding Principal / Remaining Gold Market Value = New LTV %`.
-     * If `New LTV <= 75%`, approve partial release.
      * If `New LTV > 75%`, calculate the exact additional principal amount required before release can be permitted.
-
+     * ensure same ltv should follow for new ltv also.
+     user just wants to release some ornaments and but system only need to find calculation and mention how much amount need to release that ornament to balance ltv.
 2. Data & Documents:
    - Create a `PartialReleaseRecord` model tracking released items, photos, released date, customer acknowledgment signature, and receiving staff.
    - Update `LoanItem` status to 'released' with timestamp.
@@ -300,7 +300,7 @@ Implement a Partial Ornament Release and Part-Payment Engine:
 #### ✅ Validation & Acceptance Checklist
 - [ ] **Multi-Item Setup:** Create loan with 3 items (Item A: ₹50,000, Item B: ₹50,000, Item C: ₹50,000; Loan: ₹1,00,000).
 - [ ] **LTV Safety Check:** Attempt to release Item A & B while ₹90,000 loan is outstanding. Verify system blocks release (remaining LTV = 180% > 75%).
-- [ ] **Successful Part-Release:** Repay required principal reduction so remaining LTV <= 75%. Verify release succeeds.
+- [ ] **Successful Part-Release:** Repay required principal reduction so remaining LTV. Verify release succeeds.
 - [ ] **Voucher Generation:** Verify the generated Partial Release Voucher accurately lists released vs retained items.
 
 ---

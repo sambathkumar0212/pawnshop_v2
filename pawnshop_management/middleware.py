@@ -5,11 +5,12 @@ from django.shortcuts import redirect
 from django.urls import resolve, reverse
 
 
+import sys
+
 class DatabaseConnectionMiddleware:
     """
     Lightweight middleware that closes only truly stale connections once per
-    request cycle (after the response). Avoids the previous 4x-per-request
-    overhead that was re-opening the 119 MB SQLite file on every page.
+    request cycle (after the response). Avoids closing in-memory SQLite during test runs.
     """
 
     def __init__(self, get_response):
@@ -17,8 +18,11 @@ class DatabaseConnectionMiddleware:
 
     def __call__(self, request):
         response = self.get_response(request)
-        # Close stale connections once, after the response is built.
-        close_old_connections()
+        if 'test' not in sys.argv:
+            try:
+                close_old_connections()
+            except Exception:
+                pass
         return response
 
 class OrganizationDataIsolationMiddleware:
