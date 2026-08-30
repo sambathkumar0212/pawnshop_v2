@@ -22,38 +22,28 @@
                     </form>
                 </div>
 
-                <!-- Right Side: Time/Date and Buttons -->
-                <div class="ms-auto d-flex align-items-center gap-3">
-                    <!-- Time and Date Display -->
-                    <span class="text-muted small">
-                        <i class="fas fa-clock me-1"></i><span id="dateTimeDisplay">--/--/---- --:--:--</span>
-                    </span>
+                <!-- Right Side: Compact Time/Date, Language and User Profile -->
+                <div class="ms-auto d-flex align-items-center gap-2">
+                    <!-- Compact Time and Date Display -->
+                    <div class="datetime-widget" id="datetimeWidget" title="Current System Time" style="background:#0f172a; border-radius:6px; color:#fff; padding:4px 10px; font-size:0.78rem; display:inline-flex; align-items:center; gap:6px;">
+                        <i class="far fa-clock text-warning" style="font-size:0.75rem;"></i>
+                        <span id="dateTimeDisplay" style="font-family:monospace; font-weight:600;">--/--/-- --:--:--</span>
+                    </div>
 
-                    <!-- 1st Button: Admin -->
-                    {% if user.username == 'admin' or user.is_staff or user.is_superuser or user.is_pawnshop_admin or user.is_organization_admin %}
-                        <a href="{% url 'superadmin_dashboard' %}" class="btn btn-outline-warning btn-sm">
-                            <i class="fas fa-user-shield"></i> Admin
-                        </a>
-                    {% endif %}
-
-                    <!-- 3rd Button: Language Dropdown -->
+                    <!-- Language Dropdown -->
                     <div class="dropdown">
-                        <button class="btn btn-outline-info btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-language me-1"></i>
-                            {% if LANGUAGE_CODE|slice:':2' == 'ta' %}
-                                à®¤à®®à®¿à®´à¯
-                            {% else %}
-                                English
-                            {% endif %}
+                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle py-1 px-2" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="font-size:0.78rem;">
+                            <i class="fas fa-language me-1 text-primary"></i>
+                            {% if LANGUAGE_CODE|slice:':2' == 'ta' %}தமிழ்{% else %}English{% endif %}
                         </button>
-                        <ul class="dropdown-menu dropdown-menu-end">
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                             <li>
                                 <form action="{% url 'set_language' %}" method="post" class="m-0 w-100">
                                     {% csrf_token %}
                                     <input type="hidden" name="next" value="{{ request.get_full_path }}">
                                     <input type="hidden" name="language" value="en">
-                                    <button type="submit" class="dropdown-item {% if LANGUAGE_CODE|slice:':2' == 'en' %}active fw-bold{% endif %}">
-                                        <i class="fas fa-check-circle me-2 {% if LANGUAGE_CODE|slice:':2' != 'en' %}d-none{% endif %}"></i>English
+                                    <button type="submit" class="dropdown-item py-1 {% if LANGUAGE_CODE|slice:':2' == 'en' %}active fw-bold{% endif %}" style="font-size:0.82rem;">
+                                        English
                                     </button>
                                 </form>
                             </li>
@@ -62,13 +52,57 @@
                                     {% csrf_token %}
                                     <input type="hidden" name="next" value="{{ request.get_full_path }}">
                                     <input type="hidden" name="language" value="ta">
-                                    <button type="submit" class="dropdown-item {% if LANGUAGE_CODE|slice:':2' == 'ta' %}active fw-bold{% endif %}">
-                                        <i class="fas fa-check-circle me-2 {% if LANGUAGE_CODE|slice:':2' != 'ta' %}d-none{% endif %}"></i>à®¤à®®à®¿à®´à¯
+                                    <button type="submit" class="dropdown-item py-1 {% if LANGUAGE_CODE|slice:':2' == 'ta' %}active fw-bold{% endif %}" style="font-size:0.82rem;">
+                                        தமிழ்
                                     </button>
                                 </form>
                             </li>
                         </ul>
                     </div>
+
+                    <!-- Current Login User with Role Profile Card -->
+                    {% if user.is_authenticated %}
+                    <div class="dropdown">
+                        <a class="btn btn-white border shadow-xs d-flex align-items-center gap-2 py-1 px-2 dropdown-toggle bg-white" href="#" role="button" id="mainUserDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="border-radius: 8px;">
+                            <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center fw-bold" style="width: 30px; height: 30px; font-size: 0.85rem;">
+                                <i class="fas fa-user-tie"></i>
+                            </div>
+                            <div class="text-start pe-1 lh-sm">
+                                <div class="fw-bold text-dark text-truncate" style="max-width: 140px; font-size: 0.82rem;">
+                                    {{ user.get_full_name|default:user.username }}
+                                </div>
+                                <div class="d-flex align-items-center gap-1">
+                                    <span class="badge {% if user.is_superuser %}bg-danger{% elif user.is_organization_admin %}bg-purple text-white{% elif user.role.role_type == 'branch_manager' %}bg-success{% elif user.role.role_type == 'senior_appraiser' or user.role.role_type == 'loan_officer' %}bg-warning text-dark{% else %}bg-primary{% endif %}" style="font-size: 0.62rem; padding: 2px 4px;">
+                                        {% if user.is_superuser %}Super Admin{% elif user.role %}{{ user.role.name }}{% else %}Staff{% endif %}
+                                    </span>
+                                    {% if user.branch %}
+                                    <span class="text-muted text-truncate" style="font-size: 0.68rem; max-width: 80px;">&bull; {{ user.branch.name }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="mainUserDropdown" style="border-radius: 8px; min-width: 220px;">
+                            <li class="px-3 py-2 border-bottom bg-light">
+                                <div class="fw-bold text-dark" style="font-size:0.88rem;">{{ user.get_full_name|default:user.username }}</div>
+                                <div class="small text-muted text-truncate" style="font-size:0.75rem;">{{ user.email|default:user.username }}</div>
+                            </li>
+                            <li><a class="dropdown-item py-2" href="{% url 'profile' %}"><i class="fas fa-user-circle me-2 text-primary"></i>Profile</a></li>
+                            {% if user.is_superuser %}
+                                <li><hr class="dropdown-divider my-1"></li>
+                                <li><a class="dropdown-item py-1" href="{% url 'superadmin_dashboard' %}"><i class="fas fa-user-shield me-2 text-warning"></i>Admin Dashboard</a></li>
+                            {% endif %}
+                            <li><hr class="dropdown-divider my-1"></li>
+                            <li>
+                                <form action="{% url 'logout' %}" method="post" class="m-0">
+                                    {% csrf_token %}
+                                    <button type="submit" class="dropdown-item py-2 text-danger">
+                                        <i class="fas fa-sign-out-alt me-2"></i>Logout
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
