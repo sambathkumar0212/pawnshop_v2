@@ -904,6 +904,17 @@ function downloadWithColumns(event) {
     
     window.location.href = '?' + params.toString();
 }
+
+// Auto-trim search input on filter form submission
+const filterForm = document.querySelector('form[method="GET"]');
+if (filterForm) {
+    filterForm.addEventListener('submit', function() {
+        const searchInput = document.getElementById('search');
+        if (searchInput) {
+            searchInput.value = searchInput.value.trim();
+        }
+    });
+}
 </script>
 
 {% endblock %}

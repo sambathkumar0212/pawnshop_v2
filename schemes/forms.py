@@ -16,7 +16,7 @@ class SchemeForm(forms.ModelForm):
     )
     
     gold_interest_rate = forms.DecimalField(
-        required=True,
+        required=False,
         max_digits=5,
         decimal_places=2,
         min_value=0,
@@ -568,8 +568,13 @@ class SchemeForm(forms.ModelForm):
             # Update base rate and duration fields
             if period5_rate is not None:
                 cleaned_data['interest_rate'] = period5_rate
-                # Set gold_interest_rate as well for legacy references
-                cleaned_data['gold_interest_rate'] = (period5_rate / Decimal('12')).quantize(Decimal('0.01'))
+            
+            # Preserve existing or user-entered gold_interest_rate if available, otherwise derive from period1_rate / 12
+            if not cleaned_data.get('gold_interest_rate'):
+                if self.instance and self.instance.gold_interest_rate:
+                    cleaned_data['gold_interest_rate'] = self.instance.gold_interest_rate
+                elif period1_rate is not None:
+                    cleaned_data['gold_interest_rate'] = (period1_rate / Decimal('12')).quantize(Decimal('0.01'))
             if period4_days:
                 cleaned_data['loan_duration'] = period4_days
                 cleaned_data['expiry_period'] = int(period4_days / 30)
@@ -1165,7 +1170,7 @@ class NewSchemeForm(forms.ModelForm):
         period5_from_days = cleaned_data.get('period5_from_days')
         period5_rate = cleaned_data.get('period5_rate')
         
-        if period1_days is not None and period1_rate is not None:
+        if enable_tiered and period1_days is not None and period1_rate is not None:
             # Validate days-based tiered rates
             if period2_days and period2_days <= period1_days:
                 self.add_error('period2_days', "Period 2 days must be greater than Period 1 days")
@@ -1195,7 +1200,10 @@ class NewSchemeForm(forms.ModelForm):
             # Update base rate and duration fields
             if period5_rate is not None:
                 cleaned_data['interest_rate'] = period5_rate
-                cleaned_data['gold_interest_rate'] = (period5_rate / Decimal('12')).quantize(Decimal('0.01'))
+
+            # When tiered rates are enabled, gold_interest_rate = Level 1 annual rate (period1_rate)
+            if period1_rate is not None:
+                cleaned_data['gold_interest_rate'] = period1_rate
             if period4_days:
                 cleaned_data['loan_duration'] = period4_days
                 cleaned_data['expiry_period'] = int(period4_days / 30)

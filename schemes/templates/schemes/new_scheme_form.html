@@ -286,15 +286,29 @@
         const period4RateInput = document.getElementById('id_period4_rate');
         const period5RateInput = document.getElementById('id_period5_rate');
 
+        const goldInterestRateInput = document.getElementById('id_gold_interest_rate');
+
+        // Sync gold_interest_rate with Level 1 annual rate when tiered is active
+        function syncGoldInterestRateFromLevel1() {
+            if (enableTieredCheckbox && enableTieredCheckbox.checked && period1RateInput && goldInterestRateInput) {
+                goldInterestRateInput.value = period1RateInput.value;
+            }
+        }
+
         function toggleTieredRates() {
             if (enableTieredCheckbox && tieredContainer) {
                 const isChecked = enableTieredCheckbox.checked;
                 tieredContainer.style.display = isChecked ? 'block' : 'none';
-                
+
                 // Toggle required attribute for days-based fields
                 if (period1DaysInput) period1DaysInput.required = isChecked;
                 if (period1RateInput) period1RateInput.required = isChecked;
                 if (period5RateInput) period5RateInput.required = isChecked;
+
+                // When enabling tiered rates, set gold_interest_rate = Level 1 annual rate
+                if (isChecked) {
+                    syncGoldInterestRateFromLevel1();
+                }
             }
         }
 
@@ -322,6 +336,12 @@
         if (period4DaysInput && p5From) {
             period4DaysInput.addEventListener('input', () => { p5From.value = period4DaysInput.value; });
             period4DaysInput.addEventListener('change', () => { p5From.value = period4DaysInput.value; });
+        }
+
+        // Keep gold_interest_rate in sync with period1_rate while tiered is enabled
+        if (period1RateInput) {
+            period1RateInput.addEventListener('input', syncGoldInterestRateFromLevel1);
+            period1RateInput.addEventListener('change', syncGoldInterestRateFromLevel1);
         }
 
         if (enableTieredCheckbox) {

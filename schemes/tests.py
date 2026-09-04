@@ -182,6 +182,67 @@ class NewSchemeFormTest(TestCase):
         scheme = form.save()
         self.assertIsNotNone(scheme.interest_rate_structure)
         self.assertEqual(scheme.interest_rate_structure, expected_structure)
+        # gold_interest_rate is now set to Level 1 annual rate (period1_rate)
+        self.assertEqual(scheme.gold_interest_rate, Decimal('16.00'))
+
+    def test_scheme_update_preserves_gold_interest_rate_not_1_94(self):
+        """Test that updating any detail in a scheme preserves the entered gold_interest_rate and does not overwrite with 1.94"""
+        today = timezone.now().date()
+        far_future = today.replace(year=today.year + 1)
+        
+        # Create an existing scheme with gold_interest_rate = 1.00
+        scheme = Scheme.objects.create(
+            name="Original Scheme",
+            description="Original Description",
+            status="active",
+            is_gold_scheme=True,
+            gold_interest_rate=Decimal("1.00"),
+            interest_rate=Decimal("12.00"),
+            loan_duration=180,
+            expiry_period=6,
+            minimum_amount=Decimal("1000.00"),
+            maximum_amount=Decimal("1000000.00"),
+            start_date=today,
+        )
+        
+        # Simulate form submission when modifying description/name, where HTML form sends default period values
+        form_data = {
+            'name': 'Updated Scheme Name',
+            'description': 'Updated Description Text',
+            'status': 'active',
+            'gold_interest_rate': Decimal('1.00'),
+            'expiry_period': 6,
+            'minimum_duration': 0,
+            'minimum_amount': Decimal('1000.00'),
+            'maximum_amount': Decimal('1000000.00'),
+            'processing_fee_percentage': Decimal('1.00'),
+            'start_date': today,
+            'end_date': far_future,
+            'enable_tiered_rates': False,
+            # Days based fields sent with HTML defaults
+            'period1_days': 90,
+            'period1_rate': Decimal('16.00'),
+            'period2_from_days': 90,
+            'period2_days': 180,
+            'period2_rate': Decimal('15.00'),
+            'period3_from_days': 180,
+            'period3_days': 270,
+            'period3_rate': Decimal('14.75'),
+            'period4_from_days': 270,
+            'period4_days': 365,
+            'period4_rate': Decimal('14.50'),
+            'period5_from_days': 365,
+            'period5_rate': Decimal('23.34'),
+        }
+        
+        form = NewSchemeForm(data=form_data, instance=scheme)
+        self.assertTrue(form.is_valid(), form.errors)
+        saved_scheme = form.save()
+        
+        # Verify that gold_interest_rate was NOT changed to 1.94
+        self.assertEqual(saved_scheme.gold_interest_rate, Decimal('1.00'))
+        self.assertEqual(saved_scheme.interest_rate, Decimal('12.00'))
+        self.assertIsNone(saved_scheme.interest_rate_structure)
 
 
 class DailyGoldRateAndLtvEngineTests(TestCase):

@@ -2613,7 +2613,7 @@
         }
 
         // Called when user edits Principal Amount.
-        // Sets: processing_fee = principal * procFeePercent%, distribution_amount = principal - processing_fee
+        // Sets: distribution_amount = round(principal / (1 + fee%)), processing_fee = principal - distribution_amount (calculated from distribution amount)
         // Skips overwriting distribution_amount if user manually set it.
         const calculateDistributionAmount = function () {
             if (_financialUpdateLock) return;
@@ -2627,11 +2627,17 @@
             const principalStr = cleanNumericInput($('#id_principal_amount').val());
             const principal = Math.round(parseFloat(principalStr)) || 0;
 
-            const processingFeeAmount = Math.round(principal * (processingFeePercent / 100));
+            const feeRate = (processingFeePercent / 100);
+            let distributionAmount = 0;
+            let processingFeeAmount = 0;
+
+            if (principal > 0) {
+                distributionAmount = Math.max(0, Math.round(principal / (1 + feeRate)));
+                processingFeeAmount = Math.max(0, principal - distributionAmount);
+            }
 
             if (!_distributionManuallyEdited) {
                 // Normal flow: compute distribution from principal
-                const distributionAmount = Math.max(0, principal - processingFeeAmount);
                 $('#id_processing_fee').val(processingFeeAmount);
                 $('#id_distribution_amount').val(distributionAmount > 0 ? distributionAmount : '');
 
@@ -2667,7 +2673,7 @@
 
         // Called when user manually edits Distribution Amount.
         // Marks _distributionManuallyEdited = true so calculateDistributionAmount won't overwrite it.
-        // Reverse-calculates: principal = round(distribution / (1 - fee%)), processing_fee = principal - distribution
+        // Calculates: processing_fee = round(distribution * fee%), principal = distribution + processing_fee
         const recalculateFromDistributionAmount = function () {
             if (_financialUpdateLock) return;
             _financialUpdateLock = true;
@@ -2683,13 +2689,8 @@
 
             if (distributionAmount > 0) {
                 const feeRate = (processingFeePercent / 100);
-                if (feeRate < 1) {
-                    calculatedPrincipal = Math.round(distributionAmount / (1 - feeRate));
-                    processingFeeAmount = Math.max(0, calculatedPrincipal - Math.round(distributionAmount));
-                } else {
-                    calculatedPrincipal = Math.round(distributionAmount);
-                    processingFeeAmount = 0;
-                }
+                processingFeeAmount = Math.round(distributionAmount * feeRate);
+                calculatedPrincipal = Math.round(distributionAmount + processingFeeAmount);
             }
 
             $('#id_processing_fee').val(processingFeeAmount);

@@ -272,5 +272,43 @@ class LoanNotificationEmailTest(TransactionTestCase):
         self.assertIn('UPDATED', edit_html)
         self.assertIn('row-highlighted', edit_html)
 
+    def test_loan_list_search_with_spaces_and_full_name(self):
+        from django.test import Client
+        from accounts.models import CustomUser
 
+        user = CustomUser.objects.create_superuser(
+            username="search_test_admin",
+            password="testpassword123",
+            email="admin_search@pawnshop.com"
+        )
+        loan = Loan.objects.create(
+            customer=self.customer,
+            branch=self.branch,
+            scheme=self.scheme,
+            principal_amount=Decimal('5000.00'),
+            interest_rate=Decimal('12.00'),
+            processing_fee=50,
+            distribution_amount=Decimal('4950.00'),
+            issue_date=timezone.now().date(),
+            due_date=timezone.now().date() + timezone.timedelta(days=90),
+            grace_period_end=timezone.now().date() + timezone.timedelta(days=105),
+            status='active'
+        )
 
+        client = Client()
+        client.login(username="search_test_admin", password="testpassword123")
+
+        # 1. Search with leading/trailing whitespace
+        res1 = client.get('/transactions/loans/', {'search': '  John  '})
+        self.assertEqual(res1.status_code, 200)
+        self.assertIn(loan, res1.context['loans'])
+
+        # 2. Search with full name "John Doe"
+        res2 = client.get('/transactions/loans/', {'search': 'John Doe'})
+        self.assertEqual(res2.status_code, 200)
+        self.assertIn(loan, res2.context['loans'])
+
+        # 3. Search with full name with multiple extra spaces "  John   Doe  "
+        res3 = client.get('/transactions/loans/', {'search': '  John   Doe  '})
+        self.assertEqual(res3.status_code, 200)
+        self.assertIn(loan, res3.context['loans'])

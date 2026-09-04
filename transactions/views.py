@@ -496,10 +496,22 @@ def build_loan_pdf_language_context(loan, current_language):
                 original_dist = loan.principal_amount - Decimal(str(loan.processing_fee or 0))
                 monthly_rate = (Decimal(str(rate)) / Decimal('12')).quantize(Decimal('0.01'))
                 interest_amount = (original_dist * monthly_rate / Decimal('100')).quantize(Decimal('0.01'))
-                rate_val = f"{monthly_rate:.2f}%"
+                
+                # Format rate in Rupees (e.g. 1 Rupee, 1.50 Rupees, 3 Rupees)
+                if monthly_rate == monthly_rate.to_integral_value():
+                    rate_num = str(int(monthly_rate))
+                else:
+                    rate_num = f"{monthly_rate:.2f}"
+
+                if use_tamil:
+                    rate_val = f"{rate_num} ரூபாய்"
+                else:
+                    unit = "Rupee" if rate_num == "1" else "Rupees"
+                    rate_val = f"{rate_num} {unit}"
+
                 amount_val = f"Rs {round(interest_amount):,}"
             except Exception:
-                rate_val = f"{rate}%"
+                rate_val = f"{rate} Rupees" if not use_tamil else f"{rate} ரூபாய்"
                 amount_val = ""
             
             tiered_rates.append({
@@ -938,12 +950,30 @@ class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, Lis
         # Search filter
         search = self.request.GET.get('search')
         if search:
-            queryset = queryset.filter(
+            search = search.strip()
+        if search:
+            search_terms = search.split()
+            search_filter = (
                 Q(customer__first_name__icontains=search) |
                 Q(customer__last_name__icontains=search) |
+                Q(customer__phone__icontains=search) |
                 Q(loan_number__icontains=search) |
                 Q(loanitem__item__name__icontains=search)
-            ).distinct()
+            )
+            # If multiple terms provided (e.g. pasted full name with space "Ramesh Kumar"), match across fields
+            if len(search_terms) > 1:
+                multi_q = Q()
+                for term in search_terms:
+                    multi_q &= (
+                        Q(customer__first_name__icontains=term) |
+                        Q(customer__last_name__icontains=term) |
+                        Q(customer__phone__icontains=term) |
+                        Q(loan_number__icontains=term) |
+                        Q(loanitem__item__name__icontains=term)
+                    )
+                search_filter = search_filter | multi_q
+
+            queryset = queryset.filter(search_filter).distinct()
 
         # Date range filter
         date_range = self.request.GET.get('date_range')
@@ -1224,7 +1254,7 @@ class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, Lis
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['search_query'] = self.request.GET.get('search', '')
+        context['search_query'] = (self.request.GET.get('search') or '').strip()
         context['selected_status'] = self.request.GET.get('status', '')
         context['selected_date_range'] = self.request.GET.get('date_range', '')
         context['selected_filter_type'] = self.request.GET.get('filter_type', '')

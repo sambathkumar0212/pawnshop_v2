@@ -915,22 +915,30 @@ class LoanForm(forms.ModelForm):
 
         # Calculate processing fee and distribution amount based on scheme's processing fee percentage
         principal_amount = cleaned_data.get('principal_amount')
+        distribution_amount = cleaned_data.get('distribution_amount')
         is_edit = self.instance and self.instance.pk is not None
-        if principal_amount and scheme:
+        if (principal_amount or distribution_amount) and scheme:
             if not is_edit:
-                # NEW LOAN: auto-calculate processing fee from scheme percentage if not provided
+                # NEW LOAN: auto-calculate processing fee from scheme percentage on distribution amount if not provided
                 processing_fee_percentage = 1.0  # Default to 1%
                 if scheme.additional_conditions and 'processing_fee_percentage' in scheme.additional_conditions:
                     processing_fee_percentage = float(scheme.additional_conditions['processing_fee_percentage'])
-                default_proc_fee = round(float(principal_amount) * (processing_fee_percentage / 100))
+                
                 if 'processing_fee' not in cleaned_data or cleaned_data.get('processing_fee') is None:
-                    cleaned_data['processing_fee'] = default_proc_fee
-            
+                    if distribution_amount:
+                        cleaned_data['processing_fee'] = round(float(distribution_amount) * (processing_fee_percentage / 100))
+                    elif principal_amount:
+                        fee_rate = processing_fee_percentage / 100
+                        calc_dist = round(float(principal_amount) / (1.0 + fee_rate))
+                        cleaned_data['processing_fee'] = principal_amount - calc_dist
+                        cleaned_data['distribution_amount'] = calc_dist
+
             processing_fee = cleaned_data.get('processing_fee', 0) or 0
-            # distribution_amount is principal - processing_fee (stored in DB)
-            # If user explicitly entered a distribution_amount, preserve it; otherwise calculate principal - processing_fee
-            if not cleaned_data.get('distribution_amount'):
+            # Ensure both principal_amount and distribution_amount are properly populated
+            if not cleaned_data.get('distribution_amount') and principal_amount is not None:
                 cleaned_data['distribution_amount'] = principal_amount - processing_fee
+            elif not cleaned_data.get('principal_amount') and distribution_amount is not None:
+                cleaned_data['principal_amount'] = distribution_amount + processing_fee
 
         # Check if at least one item is being added
         # For new item creation, check required fields
