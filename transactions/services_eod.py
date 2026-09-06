@@ -211,4 +211,26 @@ def run_daily_eod_batch(date=None, branch=None, user=None, post_gl=True):
             logs="\n".join(logs_list)
         )
 
+    # -----------------------------------------------------------------
+    # Post-EOD: Send 3-day due-date reminder emails (non-blocking)
+    # -----------------------------------------------------------------
+    try:
+        from datetime import timedelta
+        from transactions.services_email import send_due_date_reminder_email
+        reminder_target = date + timedelta(days=3)
+        reminder_qs = Loan.objects.filter(
+            status='active', due_date=reminder_target
+        ).select_related('customer', 'branch')
+        if branch:
+            reminder_qs = reminder_qs.filter(branch=branch)
+        reminder_sent = 0
+        for _loan in reminder_qs:
+            if getattr(_loan.customer, 'email', None):
+                send_due_date_reminder_email(_loan)  # auto-computes days_left
+                reminder_sent += 1
+        if reminder_sent:
+            logger.info("EOD: Sent %d due-date reminder email(s) for %s.", reminder_sent, date)
+    except Exception as _e:
+        logger.warning("EOD due-date reminder emails failed: %s", _e)
+
     return exec_log

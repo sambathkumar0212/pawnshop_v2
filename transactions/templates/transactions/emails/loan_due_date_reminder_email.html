@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if use_tamil %}தங்கக் கடன் அறிவிப்பு: {{ loan.loan_number }}{% else %}Gold Loan Notice: {{ loan.loan_number }}{% endif %}</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f6f8;
+            color: #333333;
+            margin: 0;
+            padding: 0;
+            -webkit-text-size-adjust: none;
+            -ms-text-size-adjust: none;
+        }
+        .container {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .card {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            padding: 30px;
+            margin-top: 15px;
+            border: 1px solid #e5e7eb;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #f3f4f6;
+        }
+        .system-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 4px;
+        }
+        .branch-info {
+            font-size: 13px;
+            color: #64748b;
+            margin-top: 2px;
+        }
+        .badge-warning {
+            display: inline-block;
+            padding: 6px 16px;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            border-radius: 20px;
+            background-color: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fde68a;
+            margin-top: 10px;
+        }
+        .badge-danger {
+            display: inline-block;
+            padding: 6px 16px;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            border-radius: 20px;
+            background-color: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+            margin-top: 10px;
+        }
+        .reminder-box {
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+            border: 1px solid #fcd34d;
+            border-radius: 8px;
+            padding: 18px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .overdue-box {
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            border: 1px solid #f87171;
+            border-left: 6px solid #dc2626;
+            border-radius: 8px;
+            padding: 18px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .reminder-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #b45309;
+            margin-bottom: 4px;
+        }
+        .overdue-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #b91c1c;
+            margin-bottom: 4px;
+        }
+        .due-date-highlight {
+            font-size: 24px;
+            font-weight: 800;
+            color: #b91c1c;
+            margin: 4px 0;
+        }
+        .status-tag {
+            font-size: 13px;
+            font-weight: 600;
+            color: #92400e;
+        }
+        .status-tag-danger {
+            font-size: 13px;
+            font-weight: 700;
+            color: #b91c1c;
+        }
+        .details-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            margin: 20px 0;
+        }
+        .details-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .details-table td.label {
+            color: #64748b;
+            font-weight: 500;
+            width: 55%;
+        }
+        .details-table td.val {
+            color: #1e293b;
+            font-weight: 600;
+            text-align: right;
+        }
+        .net-payable-row td {
+            background: #fef9c3;
+            border-top: 2px solid #fde047;
+        }
+        .action-box {
+            background-color: #f0f9ff;
+            border-left: 4px solid #0284c7;
+            padding: 14px 16px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #0369a1;
+            margin: 18px 0;
+            line-height: 1.5;
+        }
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 24px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="header">
+                <div class="system-title">{{ organization_name|default:"FIRST MONEY GOLD" }}</div>
+                <div class="branch-info">{{ branch_name }} {% if branch_phone %}| Ph: {{ branch_phone }}{% endif %}</div>
+                {% if use_tamil %}
+                {% if is_overdue %}
+                <div class="badge-danger">தாமத கடன் அறிவிப்பு</div>
+                {% else %}
+                <div class="badge-warning">நிலுவை தேதி நினைவூட்டல்</div>
+                {% endif %}
+                {% else %}
+                {% if is_overdue %}
+                <div class="badge-danger">Overdue Payment Notice</div>
+                {% else %}
+                <div class="badge-warning">Upcoming Due Date Reminder</div>
+                {% endif %}
+                {% endif %}
+            </div>
+
+            {% if use_tamil %}
+                {% if is_overdue %}
+                <p style="font-size: 15px; line-height: 1.5; color: #334155;">
+                    அன்புள்ள <strong>{{ customer_name }}</strong>,
+                </p>
+                <p style="font-size: 14px; line-height: 1.5; color: #991b1b;">
+                    உங்கள் தங்கக் கடன் <strong>#{{ loan.loan_number }}</strong> நிலுவை தேதி <strong>{{ loan.due_date|date:"d/m/Y" }}</strong> கடந்து <strong>{{ overdue_days }} நாள்</strong> ஆகிவிட்டது. உடனடியாக தீர்க்கவும்.
+                </p>
+                <div class="overdue-box">
+                    <div class="overdue-title">கடன் நிலுவை தேதி (தாமதமானது)</div>
+                    <div class="due-date-highlight">{{ loan.due_date|date:"d/m/Y" }}</div>
+                    <div class="status-tag-danger">⚠ {{ overdue_days }} நாள் தாமதமானது — உடனடி நடவடிக்கை தேவை</div>
+                </div>
+                {% else %}
+                <p style="font-size: 15px; line-height: 1.5; color: #334155;">
+                    அன்புள்ள <strong>{{ customer_name }}</strong>,
+                </p>
+                <p style="font-size: 14px; line-height: 1.5; color: #475569;">
+                    உங்கள் தங்கக் கடன் <strong>#{{ loan.loan_number }}</strong> உங்கள் நிலுவை தேதி அணுகி வருகிறது.
+                </p>
+                <div class="reminder-box">
+                    <div class="reminder-title">கடன் நிலுவை தேதி</div>
+                    <div class="due-date-highlight">{{ loan.due_date|date:"d/m/Y" }}</div>
+                    {% if days_left is not None and days_left >= 0 %}
+                    <div class="status-tag">({{ days_left }} நாள் உள்ளது)</div>
+                    {% endif %}
+                </div>
+                {% endif %}
+                <table class="details-table">
+                    <tr><td class="label">கடன் எண்:</td><td class="val">{{ loan.loan_number }}</td></tr>
+                    <tr><td class="label">கடன் வழங்கிய தேதி:</td><td class="val">{{ loan.issue_date|date:"d/m/Y" }}</td></tr>
+                    <tr><td class="label">திட்டம்:</td><td class="val">{{ loan.scheme.name|default:"தங்க கடன் திட்டம்" }}</td></tr>
+                    <tr><td class="label">நிலுவை அசல்:</td><td class="val">&#8377;{{ loan.principal_amount|floatformat:2 }}</td></tr>
+                    <tr><td class="label">வட்டி மற்றும் கட்டணம்:</td><td class="val" style="color:#b91c1c;">&#8377;{{ interest_due|floatformat:2 }}</td></tr>
+                    <tr style="background:#fef9c3;border-top:2px solid #fde047;">
+                        <td class="label" style="font-weight:700;color:#1e293b;">இன்றைய மொத்த செலுத்த வேண்டிய தொகை:</td>
+                        <td class="val" style="color:#b91c1c;font-size:17px;font-weight:800;">&#8377;{{ total_due|floatformat:2 }}</td>
+                    </tr>
+                    {% if loan.grace_period_end %}
+                    <tr><td class="label">ஓய்வு காலம் முடிவு:</td><td class="val" style="color:#64748b;">{{ loan.grace_period_end|date:"d/m/Y" }}</td></tr>
+                    {% endif %}
+                </table>
+                <div class="action-box">
+                    <strong>அடுத்த நடவடிக்கைகள்:</strong><br>
+                    1. <strong>தங்க நகை மீட்பு:</strong> உங்கள் மூல கடன் ஆவணம் மற்றும் அடெயாள ஆவணத்துடன் கிளையை வரவும்.<br>
+                    2. <strong>கடன் நீடிப்பு:</strong> வட்டி செலுத்தி கடன் காலக்கத்தை நீடிக்கலாம்.
+                </div>
+                <p style="font-size: 13px; line-height: 1.5; color: #64748b;">
+                    கிளை: <strong>{{ branch_name }}</strong><br>
+                    {% if branch_address %}முகவரி: {{ branch_address }}<br>{% endif %}
+                    தொடர்பு: <strong>{{ branch_phone|default:"வாடிக்கையாளர் சேவை" }}</strong>
+                </p>
+                <div class="footer">
+                    {{ organization_name|default:"First Money Gold" }} உடன் வங்கி செய்ததற்கு நன்றி.<br>
+                    இது தானியங்கி அறிவிப்பு. கட்டணம் செலுத்தியிருந்தால் இதஹை புறக்கணிக்கவும்.
+                </div>
+            {% else %}
+            <p style="font-size: 15px; line-height: 1.5; color: #334155;">
+                Dear <strong>{{ customer_name }}</strong>,
+            </p>
+
+            {% if is_overdue %}
+            <p style="font-size: 14px; line-height: 1.5; color: #991b1b;">
+                This is an urgent notice that your Gold Loan <strong>#{{ loan.loan_number }}</strong>
+                was due on <strong>{{ loan.due_date|date:"d M, Y" }}</strong> and is now
+                <strong>{{ overdue_days }} day{{ overdue_days|pluralize }} overdue</strong>.
+                Please settle your dues immediately to avoid gold auction proceedings.
+            </p>
+
+            <div class="overdue-box">
+                <div class="overdue-title">Loan Due Date (OVERDUE)</div>
+                <div class="due-date-highlight">{{ loan.due_date|date:"l, d F Y" }}</div>
+                <div class="status-tag-danger">&#9888; {{ overdue_days }} Day{{ overdue_days|pluralize }} Overdue — Immediate Action Required</div>
+            </div>
+            {% else %}
+            <p style="font-size: 14px; line-height: 1.5; color: #475569;">
+                This is a friendly reminder that the maturity/due date for your Gold Loan
+                <strong>#{{ loan.loan_number }}</strong> is approaching.
+            </p>
+
+            <div class="reminder-box">
+                <div class="reminder-title">Maturity / Due Date</div>
+                <div class="due-date-highlight">{{ loan.due_date|date:"l, d F Y" }}</div>
+                {% if days_left is not None and days_left >= 0 %}
+                <div class="status-tag">({{ days_left }} day{{ days_left|pluralize }} remaining)</div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <table class="details-table">
+                <tr>
+                    <td class="label">Loan Number:</td>
+                    <td class="val">{{ loan.loan_number }}</td>
+                </tr>
+                <tr>
+                    <td class="label">Loan Issue Date:</td>
+                    <td class="val">{{ loan.issue_date|date:"d M, Y" }}</td>
+                </tr>
+                <tr>
+                    <td class="label">Scheme:</td>
+                    <td class="val">{{ loan.scheme.name|default:"Standard Gold Scheme" }}</td>
+                </tr>
+                <tr>
+                    <td class="label">Outstanding Principal:</td>
+                    <td class="val">&#8377;{{ loan.principal_amount|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <td class="label">Accrued Interest &amp; Fees:</td>
+                    <td class="val" style="color: #b91c1c;">&#8377;{{ interest_due|floatformat:2 }}</td>
+                </tr>
+                <tr class="net-payable-row">
+                    <td class="label" style="font-weight: 700; color: #1e293b;">Today's Net Payable (Total Due):</td>
+                    <td class="val" style="color: #b91c1c; font-size: 17px; font-weight: 800;">&#8377;{{ total_due|floatformat:2 }}</td>
+                </tr>
+                {% if loan.grace_period_end %}
+                <tr>
+                    <td class="label">Grace Period Ends On:</td>
+                    <td class="val" style="color: #64748b;">{{ loan.grace_period_end|date:"d M, Y" }}</td>
+                </tr>
+                {% endif %}
+            </table>
+
+            <div class="action-box">
+                <strong>Next Steps for Loan Redemption / Extension:</strong><br>
+                1. <strong>Redeem Gold:</strong> Visit your branch with your original loan document and valid ID proof to settle dues and collect your ornaments.<br>
+                2. <strong>Tenure Extension:</strong> If you wish to extend the loan tenure, please pay the accrued interest to avoid higher interest rate tiers and late charges.
+            </div>
+
+            <p style="font-size: 13px; line-height: 1.5; color: #64748b;">
+                Branch: <strong>{{ branch_name }}</strong><br>
+                {% if branch_address %}Address: {{ branch_address }}<br>{% endif %}
+                Contact: <strong>{{ branch_phone|default:"Customer Care" }}</strong>
+            </p>
+
+            <div class="footer">
+                Thank you for banking with {{ organization_name|default:"First Money Gold" }}.<br>
+                This is an automated notification. If you have already made a payment, please disregard this reminder.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

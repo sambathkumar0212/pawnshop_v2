@@ -70,18 +70,61 @@
                                 </a>
                             </li>
                             {% endif %}
-                            {% if loan.status == 'defaulted' or loan.status == 'active' and loan.is_overdue %}
                             <li><hr class="dropdown-divider"></li>
                             <li>
                                 <a class="dropdown-item py-2 text-danger" href="{% url 'loan_expiry_notice' loan.loan_number %}" target="_blank">
                                     <i class="fas fa-exclamation-triangle text-danger me-2"></i> Expiry / Demand Notice
                                 </a>
                             </li>
+                        </ul>
+                    </div>
+
+                    <!-- Email Customer Dropdown -->
+                    <div class="dropdown">
+                        <button class="btn btn-outline-info dropdown-toggle shadow-sm fw-semibold" type="button" id="emailDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-envelope me-1"></i> Email Customer
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="emailDropdown" style="min-width: 270px; font-size: 0.88rem;">
+                            <li><h6 class="dropdown-header text-uppercase text-muted" style="font-size: 0.7rem; letter-spacing: 0.5px;">Send Email to Borrower</h6></li>
+                            {% if loan.customer.email %}
+                            <li>
+                                <span class="dropdown-item-text text-muted" style="font-size: 0.78rem;">
+                                    <i class="fas fa-user-circle me-1"></i> {{ loan.customer.email }}
+                                </span>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form method="post" action="{% url 'loan_send_email' loan.loan_number %}" class="d-inline w-100">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="email_type" value="reminder">
+                                    <button type="submit" class="dropdown-item py-2"
+                                        onclick="return confirm('Send a due-date reminder email to {{ loan.customer.email }}?')">
+                                        <i class="fas fa-bell text-warning me-2"></i> Send Due-Date Reminder
+                                    </button>
+                                </form>
+                            </li>
+                            <li>
+                                <form method="post" action="{% url 'loan_send_email' loan.loan_number %}" class="d-inline w-100">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="email_type" value="demand_notice">
+                                    <button type="submit" class="dropdown-item py-2 text-danger"
+                                        onclick="return confirm('Send a formal Demand / Expiry Notice email to {{ loan.customer.email }}?\n\nThis will warn the customer that pledged gold may be auctioned.')">
+                                        <i class="fas fa-exclamation-circle text-danger me-2"></i> Send Demand Notice
+                                    </button>
+                                </form>
+                            </li>
+                            {% else %}
+                            <li>
+                                <span class="dropdown-item-text text-danger" style="font-size: 0.83rem;">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                    No email on customer profile.
+                                    <a href="{% url 'customer_update' loan.customer.pk %}" class="text-primary ms-1">Update Profile</a>
+                                </span>
+                            </li>
                             {% endif %}
                         </ul>
                     </div>
 
-                    <!-- Manage & Settings Dropdown -->
                     <div class="dropdown">
                         <button class="btn btn-outline-dark dropdown-toggle shadow-sm fw-semibold" type="button" id="manageDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-cog me-1 text-secondary"></i> Manage Loan

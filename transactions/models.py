@@ -1576,6 +1576,27 @@ class Payment(models.Model):
             except Exception:
                 pass
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Send customer receipt email after DB commit (fail silently)
+        try:
+            payment_pk = self.pk
+            def _send_receipt():
+                try:
+                    from transactions.services_email import send_customer_payment_email
+                    from transactions.models import Payment as _Payment
+                    p = _Payment.objects.select_related('loan__customer', 'loan__branch').get(pk=payment_pk)
+                    send_customer_payment_email(p)
+                except Exception as _exc:
+                    import logging as _logging
+                    _logging.getLogger(__name__).warning(
+                        "Payment receipt email failed for pk=%s: %s", payment_pk, _exc
+                    )
+            from django.db import transaction as _transaction
+            _transaction.on_commit(_send_receipt)
+        except Exception:
+            pass
+
 
 class DisbursementTransaction(models.Model):
     """

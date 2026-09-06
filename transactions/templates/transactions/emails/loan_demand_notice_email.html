@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if use_tamil %}சட்டப்பூர்வ கோரிக்கை & காலாவதி அறிவிப்பு: கடன் {{ loan.loan_number }}{% else %}FINAL DEMAND & EXPIRY NOTICE: Loan {{ loan.loan_number }}{% endif %}</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f6f8;
+            color: #333333;
+            margin: 0;
+            padding: 0;
+            -webkit-text-size-adjust: none;
+            -ms-text-size-adjust: none;
+        }
+        .container {
+            width: 100%;
+            max-width: 620px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .card {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            padding: 30px;
+            margin-top: 15px;
+            border: 2px solid #ef4444;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #fee2e2;
+        }
+        .system-title {
+            font-size: 20px;
+            font-weight: 800;
+            color: #991b1b;
+            margin-bottom: 4px;
+        }
+        .branch-info {
+            font-size: 13px;
+            color: #64748b;
+            margin-top: 2px;
+        }
+        .badge-danger {
+            display: inline-block;
+            padding: 6px 16px;
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            border-radius: 20px;
+            background-color: #fee2e2;
+            color: #b91c1c;
+            border: 1px solid #fca5a5;
+            margin-top: 10px;
+        }
+        .warning-box {
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            border: 1px solid #f87171;
+            border-left: 6px solid #dc2626;
+            border-radius: 6px;
+            padding: 16px;
+            margin: 20px 0;
+            color: #991b1b;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .overdue-value {
+            font-size: 26px;
+            font-weight: 800;
+            color: #b91c1c;
+            margin: 6px 0;
+            text-align: center;
+        }
+        .details-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            margin: 20px 0;
+        }
+        .details-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .details-table td.label {
+            color: #64748b;
+            font-weight: 500;
+            width: 45%;
+        }
+        .details-table td.val {
+            color: #1e293b;
+            font-weight: 600;
+            text-align: right;
+        }
+        .legal-notice {
+            background-color: #fff1f2;
+            border: 1px solid #fda4af;
+            border-radius: 6px;
+            padding: 16px;
+            font-size: 13px;
+            color: #881337;
+            margin: 20px 0;
+            line-height: 1.6;
+        }
+        .legal-notice strong {
+            color: #9f1239;
+        }
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 24px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="header">
+                <div class="system-title">{{ organization_name|default:"FIRST MONEY GOLD" }}</div>
+                <div class="branch-info">{{ branch_name }} {% if branch_phone %}| Ph: {{ branch_phone }}{% endif %}</div>
+                {% if use_tamil %}
+                <div class="badge-danger">சட்டப்பூர்வ கோரிக்கை & காலாவதி அறிவிப்பு</div>
+                {% else %}
+                <div class="badge-danger">Legal Demand &amp; Expiry Notice</div>
+                {% endif %}
+            </div>
+
+            {% if use_tamil %}
+            <p style="font-size: 15px; line-height: 1.5; color: #334155;">
+                பெறுநர்: <strong>{{ customer_name }}</strong><br>
+                {% if customer_address %}முகவரி: {{ customer_address }}<br>{% endif %}
+                தேதி: <strong>{{ today|date:"d/m/Y" }}</strong>
+            </p>
+            {% if overdue_days %}
+            <p style="font-size: 13px; color: #b91c1c; font-weight: 600;">
+                &#9888; இந்த தங்கக் கடன் நிலுவை தேதி கடந்து <strong>{{ overdue_days }} நாட்கள்</strong> ஆகிவிட்டது.
+            </p>
+            {% endif %}
+
+            <div class="warning-box">
+                <strong>பொருள்: ஏலத்திற்கு முன் நிலுவைத் தொகையை செலுத்த இறுதி அறிவிப்பு - கடன் #{{ loan.loan_number }}</strong><br>
+                உங்கள் தங்கக் கடன் நிலுவை தேதியை ({{ loan.due_date|date:"d/m/Y" }}) கடந்துவிட்டது. முந்தைய நினைவூட்டல்களுக்குப் பிறகும் நிலுவை தொகை செலுத்தப்படவில்லை.
+                <div class="overdue-value">இன்றைய மொத்த செலுத்த வேண்டிய தொகை: ₹{{ total_due|floatformat:2 }}</div>
+            </div>
+
+            <table class="details-table">
+                <tr>
+                    <td class="label">கடன் கணக்கு எண்:</td>
+                    <td class="val">{{ loan.loan_number }}</td>
+                </tr>
+                <tr>
+                    <td class="label">கடன் வழங்கிய தேதி:</td>
+                    <td class="val">{{ loan.issue_date|date:"d/m/Y" }}</td>
+                </tr>
+                <tr>
+                    <td class="label">கடன் நிலுவை தேதி:</td>
+                    <td class="val" style="color: #b91c1c;">{{ loan.due_date|date:"d/m/Y" }}</td>
+                </tr>
+                <tr>
+                    <td class="label">நிலுவை அசல் தொகை:</td>
+                    <td class="val">&#8377;{{ loan.principal_amount|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <td class="label">வட்டி மற்றும் தாமதக் கட்டணம்:</td>
+                    <td class="val" style="color: #b91c1c;">&#8377;{{ interest_due|floatformat:2 }}</td>
+                </tr>
+                <tr style="background:#fef9c3; border-top: 2px solid #fde047;">
+                    <td class="label" style="font-weight: 700; color: #1e293b;">இன்றைய மொத்த செலுத்த வேண்டிய தொகை:</td>
+                    <td class="val" style="color: #b91c1c; font-size: 17px; font-weight: 800;">&#8377;{{ total_due|floatformat:2 }}</td>
+                </tr>
+            </table>
+
+            <div class="legal-notice">
+                <strong>தங்க நகைகள் ஏல அறிவிப்பு:</strong><br>
+                இந்த அறிவிப்பு கிடைத்த <strong>7 நாட்களுக்குள்</strong> முழு நிலுவைத் தொகையான <strong>₹{{ total_due|floatformat:2 }}</strong>-ஐ செலுத்தி உங்கள் அடமான நகைகளை மீட்டுக்கொள்ளுமாறு கேட்டுக்கொள்ளப்படுகிறீர்கள்.<br><br>
+                <strong>எச்சரிக்கை:</strong> குறிப்பிட்ட காலத்திற்குள் கட்டணம் செலுத்தப்படாவிட்டால், தங்கக் கடன் ஒப்பந்தத்தின் விதிமுறைகளின்படி, எவ்வித கூடுதல் அறிவிப்புமின்றி <strong>அடமானம் வைக்கப்பட்ட தங்க நகைகள் பொது ஏலத்தில் விற்கப்படும்</strong>. அசல், வட்டி, தாமதக் கட்டணம் மற்றும் ஏலச் செலவுகள் வசூலிக்கப்படும். ஏலத்தில் கிடைக்கும் உபரித் தொகை உங்களுக்குத் திருப்பித் தரப்படும், பற்றாக்குறை இருந்தால் சட்ட நடவடிக்கைகள் மூலம் வசூலிக்கப்படும்.
+            </div>
+
+            <p style="font-size: 13px; line-height: 1.5; color: #475569;">
+                நிலுவைத் தொகையை உடனடியாக தீர்க்க உங்கள் கிளையைத் தொடர்பு கொள்ளவும்:<br>
+                <strong>{{ branch_name }}</strong><br>
+                {{ branch_address|default:"" }}<br>
+                தொலைபேசி: <strong>{{ branch_phone|default:"வாடிக்கையாளர் சேவை" }}</strong>
+            </p>
+
+            <div class="footer">
+                அங்கீகரிக்கப்பட்ட கையொப்பமிட்டவர் / கிளை மேலாளரால் வெளியிடப்பட்டது<br>
+                {{ organization_name|default:"First Money Gold" }}
+            </div>
+            {% else %}
+            <p style="font-size: 15px; line-height: 1.5; color: #334155;">
+                To: <strong>{{ customer_name }}</strong><br>
+                {% if customer_address %}Address: {{ customer_address }}<br>{% endif %}
+                Date: <strong>{{ today|date:"d F, Y" }}</strong>
+            </p>
+            {% if overdue_days %}
+            <p style="font-size: 13px; color: #b91c1c; font-weight: 600;">
+                &#9888; This loan is <strong>{{ overdue_days }} day{{ overdue_days|pluralize }}</strong> past its due date.
+            </p>
+            {% endif %}
+
+            <div class="warning-box">
+                <strong>Sub: FINAL NOTICE TO SETTLE OVERDUE GOLD LOAN #{{ loan.loan_number }} BEFORE AUCTION</strong><br>
+                Your gold loan has exceeded its maturity due date ({{ loan.due_date|date:"d M, Y" }}) and remains unpaid despite earlier reminders.
+                <div class="overdue-value">Total Amount Due: ₹{{ total_due|floatformat:2 }}</div>
+            </div>
+
+            <table class="details-table">
+                <tr>
+                    <td class="label">Loan Account Number:</td>
+                    <td class="val">{{ loan.loan_number }}</td>
+                </tr>
+                <tr>
+                    <td class="label">Loan Issue Date:</td>
+                    <td class="val">{{ loan.issue_date|date:"d M, Y" }}</td>
+                </tr>
+                <tr>
+                    <td class="label">Maturity Due Date:</td>
+                    <td class="val" style="color: #b91c1c;">{{ loan.due_date|date:"d M, Y" }}</td>
+                </tr>
+                <tr>
+                    <td class="label">Outstanding Principal:</td>
+                    <td class="val">&#8377;{{ loan.principal_amount|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <td class="label">Accrued Interest &amp; Late Fees:</td>
+                    <td class="val" style="color: #b91c1c;">&#8377;{{ interest_due|floatformat:2 }}</td>
+                </tr>
+                <tr style="background:#fef9c3; border-top: 2px solid #fde047;">
+                    <td class="label" style="font-weight: 700; color: #1e293b;">Today's Net Payable (Total Due):</td>
+                    <td class="val" style="color: #b91c1c; font-size: 17px; font-weight: 800;">&#8377;{{ total_due|floatformat:2 }}</td>
+                </tr>
+            </table>
+
+            <div class="legal-notice">
+                <strong>NOTICE OF GOLD ORNAMENT AUCTION:</strong><br>
+                You are hereby called upon to pay the entire outstanding dues of <strong>₹{{ total_due|floatformat:2 }}</strong> within <strong>7 (Seven) days</strong> of this notice and redeem your pledged gold ornaments.<br><br>
+                <strong>CAUTION:</strong> In the event of non-payment within the stipulated period, <strong>the pledged gold ornaments will be sold through Public Auction</strong> as per the terms of the Gold Loan Agreement, without further notice, to recover the outstanding Principal, Accrued Interest, Late Fees, and auction expenses. Any surplus amount realized from the auction will be refunded to you, and any deficit will be recovered through legal proceedings.
+            </div>
+
+            <p style="font-size: 13px; line-height: 1.5; color: #475569;">
+                Please visit your branch immediately to settle the dues:<br>
+                <strong>{{ branch_name }}</strong><br>
+                {{ branch_address|default:"" }}<br>
+                Phone: <strong>{{ branch_phone|default:"Customer Care" }}</strong>
+            </p>
+
+            <div class="footer">
+                Issued by Authorized Signatory / Branch Manager<br>
+                {{ organization_name|default:"First Money Gold" }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

@@ -16,6 +16,7 @@ urlpatterns = [
     path('loans/<str:loan_number>/foreclose/', views.LoanForecloseView.as_view(), name='loan_foreclose'),
     path('loans/<str:loan_number>/document/', views.LoanDocumentView.as_view(), name='loan_document'),
     path('loans/<str:loan_number>/expiry-notice/', views.LoanExpiryNoticeView.as_view(), name='loan_expiry_notice'),
+    path('loans/<str:loan_number>/send-email/', views.LoanSendEmailView.as_view(), name='loan_send_email'),
     path('loans/<str:loan_number>/payment-history/', views.LoanPaymentHistoryDownloadView.as_view(), name='loan_payment_history_download'),
     path('loans/<str:loan_number>/tiered-schedule-download/', views.LoanTieredScheduleDownloadView.as_view(), name='loan_tiered_schedule_download'),
     path('loans/<str:loan_number>/edit-logs/', views.LoanEditLogsView.as_view(), name='loan_edit_logs'),

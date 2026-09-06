@@ -1692,6 +1692,78 @@ class LoanExpiryNoticeView(LoginRequiredMixin, RoleBranchAccessMixin, View):
         }
         return render(request, 'transactions/loan_expiry_notice.html', context)
 
+    def post(self, request, loan_number):
+        """Send Expiry/Demand Notice email to the borrower."""
+        loan = get_object_or_404(Loan, loan_number=loan_number)
+        self.check_object_branch_access(loan, branch_attr='branch')
+        try:
+            from transactions.services_email import send_loan_expiry_notice_email
+            lang = getattr(request, 'LANGUAGE_CODE', None)
+            sent = send_loan_expiry_notice_email(loan, request_user=request.user, lang=lang)
+            if sent:
+                messages.success(
+                    request,
+                    f"Demand Notice email has been sent to {loan.customer.email} successfully."
+                )
+            else:
+                messages.warning(
+                    request,
+                    "Could not send email. The customer may not have a registered email address."
+                )
+        except Exception as exc:
+            messages.error(request, f"Failed to send demand notice email: {exc}")
+        return redirect(reverse('loan_expiry_notice', kwargs={'loan_number': loan_number}))
+
+
+class LoanSendEmailView(LoginRequiredMixin, RoleBranchAccessMixin, View):
+    """
+    POST-only view to send email notifications to the borrower directly
+    from the Loan Detail page.
+
+    POST params:
+      email_type: 'reminder' | 'demand_notice' | 'payment_reminder'
+    """
+    def post(self, request, loan_number):
+        loan = get_object_or_404(Loan, loan_number=loan_number)
+        self.check_object_branch_access(loan, branch_attr='branch')
+        email_type = request.POST.get('email_type', 'reminder')
+        lang = getattr(request, 'LANGUAGE_CODE', None)
+
+        try:
+            from transactions.services_email import (
+                send_due_date_reminder_email,
+                send_loan_expiry_notice_email,
+            )
+            customer_email = getattr(loan.customer, 'email', None)
+            if not customer_email:
+                messages.warning(
+                    request,
+                    f"No email address found for customer {loan.customer}. "
+                    "Please update the customer profile with a valid email."
+                )
+            elif email_type == 'demand_notice':
+                sent = send_loan_expiry_notice_email(loan, request_user=request.user, lang=lang)
+                if sent:
+                    messages.success(
+                        request,
+                        f"\u2709 Demand / Expiry Notice email sent to {customer_email} successfully."
+                    )
+                else:
+                    messages.error(request, "Demand notice email could not be delivered. Check server email settings.")
+            elif email_type in ('reminder', 'payment_reminder'):
+                send_due_date_reminder_email(loan, days_left=None, lang=lang)
+                messages.success(
+                    request,
+                    f"\u2709 Due-date reminder email sent to {customer_email} successfully."
+                )
+            else:
+                messages.warning(request, f"Unknown email type: {email_type}")
+        except Exception as exc:
+            messages.error(request, f"Failed to send email: {exc}")
+
+        return redirect(reverse('loan_detail', kwargs={'loan_number': loan_number}))
+
+
 class LoanDetailView(LoginRequiredMixin, RoleBranchAccessMixin, DetailView):
     model = Loan
     template_name = 'transactions/loan_detail.html'

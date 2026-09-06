@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if use_tamil %}கட்டணம் உறுதிப்படுத்தல்: {{ loan.loan_number }}{% else %}Payment Receipt: {{ loan.loan_number }}{% endif %}</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f6f8;
+            color: #333333;
+            margin: 0;
+            padding: 0;
+            -webkit-text-size-adjust: none;
+            -ms-text-size-adjust: none;
+        }
+        .container {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .card {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            padding: 30px;
+            margin-top: 15px;
+            border: 1px solid #e5e7eb;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #f3f4f6;
+        }
+        .system-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 4px;
+        }
+        .branch-info {
+            font-size: 13px;
+            color: #64748b;
+            margin-top: 2px;
+        }
+        .badge-success {
+            display: inline-block;
+            padding: 6px 16px;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            border-radius: 20px;
+            background-color: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+            margin-top: 10px;
+        }
+        .amount-box {
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            border: 1px solid #86efac;
+            border-radius: 8px;
+            padding: 18px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .amount-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #166534;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        .amount-value {
+            font-size: 28px;
+            font-weight: 800;
+            color: #15803d;
+            margin: 0;
+        }
+        .details-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            margin: 20px 0;
+        }
+        .details-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .details-table td.label {
+            color: #64748b;
+            font-weight: 500;
+            width: 45%;
+        }
+        .details-table td.val {
+            color: #1e293b;
+            font-weight: 600;
+            text-align: right;
+        }
+        .notes-box {
+            background-color: #f8fafc;
+            border-left: 4px solid #0284c7;
+            padding: 12px 14px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #475569;
+            margin: 16px 0;
+        }
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 24px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="header">
+                <div class="system-title">{{ organization_name|default:"FIRST MONEY GOLD" }}</div>
+                <div class="branch-info">{{ branch_name }} {% if branch_phone %}| Ph: {{ branch_phone }}{% endif %}</div>
+                {% if use_tamil %}
+                <div class="badge-success">கட்டணம் வெற்றிகரமாக பெறப்பட்டது</div>
+                {% else %}
+                <div class="badge-success">Payment Received Confirmation</div>
+                {% endif %}
+            </div>
+
+            {% if use_tamil %}
+            <p style="font-size: 15px; line-height: 1.5; color: #334155;">
+                அன்புள்ள <strong>{{ customer_name }}</strong>,
+            </p>
+            <p style="font-size: 14px; line-height: 1.5; color: #475569;">
+                தங்கக் கடன் <strong>#{{ loan.loan_number }}</strong> -க்கான உங்கள் கட்டணம் வெற்றிகரமாக பெறப்பட்டது. நன்றி.
+            </p>
+            <div class="amount-box">
+                <div class="amount-label">செலுத்திய தொகை</div>
+                <div class="amount-value">&#8377;{{ payment.amount|floatformat:2 }}</div>
+            </div>
+            {% else %}
+            <p style="font-size: 15px; line-height: 1.5; color: #334155;">
+                Dear <strong>{{ customer_name }}</strong>,
+            </p>
+            <p style="font-size: 14px; line-height: 1.5; color: #475569;">
+                Thank you for your payment. We have successfully received and processed your payment towards Gold Loan <strong>#{{ loan.loan_number }}</strong>.
+            </p>
+            <div class="amount-box">
+                <div class="amount-label">Amount Paid</div>
+                <div class="amount-value">&#8377;{{ payment.amount|floatformat:2 }}</div>
+            </div>
+            {% endif %}
+
+            {% if use_tamil %}
+            <table class="details-table">
+                <tr>
+                    <td class="label">கடன் எண்:</td>
+                    <td class="val">{{ loan.loan_number }}</td>
+                </tr>
+                <tr>
+                    <td class="label">கட்டண தேதி:</td>
+                    <td class="val">{{ payment.payment_date|date:"d M, Y" }}</td>
+                </tr>
+                <tr>
+                    <td class="label">கட்டண முறை:</td>
+                    <td class="val">{{ payment.get_payment_method_display }}</td>
+                </tr>
+                {% if payment.reference_number %}
+                <tr>
+                    <td class="label">உசாவு எண்:</td>
+                    <td class="val">{{ payment.reference_number }}</td>
+                </tr>
+                {% endif %}
+                <tr>
+                    <td class="label">நிலுவை அசல் தொகை:</td>
+                    <td class="val">&#8377;{{ loan.principal_amount|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <td class="label">இதுவரை செலுத்திய மொத்தம்:</td>
+                    <td class="val" style="color: #16a34a;">&#8377;{{ loan.amount_paid|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <td class="label">கடன் நிலுவை தேதி:</td>
+                    <td class="val" style="color: #dc2626;">{{ loan.due_date|date:"d M, Y" }}</td>
+                </tr>
+                <tr style="background:#fef9c3; border-top: 2px solid #fde047;">
+                    <td class="label" style="font-weight:700;color:#1e293b;">இன்றைய மொத்த செலுத்த வேண்டிய தொகை:</td>
+                    <td class="val" style="color:#b91c1c;font-size:16px;font-weight:800;">&#8377;{{ total_due|floatformat:2 }}</td>
+                </tr>
+            </table>
+            {% if payment.notes %}
+            <div class="notes-box">
+                <strong>குறிப்பு:</strong> {{ payment.notes }}
+            </div>
+            {% endif %}
+            <p style="font-size: 13px; line-height: 1.5; color: #64748b; margin-top: 20px;">
+                உங்கள் கணக்கு அல்லது நகை விவரங்களுக்கு உங்கள் கிளையை தொடர்பு கொள்ளவும்.
+            </p>
+            <div class="footer">
+                இது {{ organization_name|default:"First Money Gold" }} நிறுவனத்தின் தானியங்கி கட்டண உறுதிப்படுத்தல் மின்னஞ்சல்.<br>
+                இந்த மின்னஞ்சலை உங்கள் நிதி பதிவுகளுக்கு வைத்திருக்கவும்.
+            </div>
+            {% else %}
+            <table class="details-table">
+                <tr>
+                    <td class="label">Loan Number:</td>
+                    <td class="val">{{ loan.loan_number }}</td>
+                </tr>
+                <tr>
+                    <td class="label">Payment Date:</td>
+                    <td class="val">{{ payment.payment_date|date:"d M, Y" }}</td>
+                </tr>
+                <tr>
+                    <td class="label">Payment Mode:</td>
+                    <td class="val">{{ payment.get_payment_method_display }}</td>
+                </tr>
+                {% if payment.reference_number %}
+                <tr>
+                    <td class="label">Reference / UTR:</td>
+                    <td class="val">{{ payment.reference_number }}</td>
+                </tr>
+                {% endif %}
+                <tr>
+                    <td class="label">Current Outstanding Principal:</td>
+                    <td class="val">&#8377;{{ loan.principal_amount|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <td class="label">Total Paid Till Date:</td>
+                    <td class="val" style="color: #16a34a;">&#8377;{{ loan.amount_paid|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <td class="label">Loan Due Date:</td>
+                    <td class="val" style="color: #dc2626;">{{ loan.due_date|date:"d M, Y" }}</td>
+                </tr>
+                <tr style="background:#fef9c3; border-top: 2px solid #fde047;">
+                    <td class="label" style="font-weight:700;color:#1e293b;">Today's Net Payable (Total Due):</td>
+                    <td class="val" style="color:#b91c1c;font-size:16px;font-weight:800;">&#8377;{{ total_due|floatformat:2 }}</td>
+                </tr>
+            </table>
+            {% if payment.notes %}
+            <div class="notes-box">
+                <strong>Payment Notes:</strong> {{ payment.notes }}
+            </div>
+            {% endif %}
+            <p style="font-size: 13px; line-height: 1.5; color: #64748b; margin-top: 20px;">
+                For any queries regarding your account or ornament details, please contact your branch or call us during business hours.
+            </p>
+            <div class="footer">
+                This is an automated transaction confirmation receipt from {{ organization_name|default:"First Money Gold" }}.<br>
+                Please preserve this email for your financial records.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>
