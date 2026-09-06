@@ -315,7 +315,8 @@
 
         .customer-photo-large {
             width: 100%;
-            height: 220px;
+            max-width: 100%;
+            height: 180px;
             border: 1px solid #ddd;
             overflow: hidden;
             box-sizing: border-box;
@@ -566,44 +567,6 @@
                                     {{ loan.customer.id_number }}
                                 </span>
                             </div>
-                            {% if tiered_rates %}
-                            <div style="margin-top: 6px;">
-                                <table class="data-table"
-                                    style="text-align: center; font-size: 8px; width: 100%; border-collapse: collapse; border: 1px solid #e1e1e1;">
-                                    <thead style="background-color: #f7f9fc;">
-                                        <tr>
-                                            <th colspan="{{ tiered_rates|length }}"
-                                                style="text-align: center; font-weight: bold; border: 1px solid #e1e1e1; padding: 2px; font-size: 8px;">
-                                                {% if current_language|slice:':2' == 'ta' %}வட்டி வரம்பு (விகிதம் /
-                                                நாட்கள்){% else %}Tenure/ Interest Range (Days Based){% endif %}
-                                            </th>
-                                        </tr>
-                                        <tr>
-                                            {% for item in tiered_rates %}
-                                            <th
-                                                style="text-align: center; font-weight: bold; border: 1px solid #e1e1e1; padding: 2px; font-size: 8px;">
-                                                {{ item.range }}</th>
-                                            {% endfor %}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            {% for item in tiered_rates %}
-                                            <td
-                                                style="text-align: center; border: 1px solid #e1e1e1; padding: 2px; font-size: 8px;">
-                                                <div>{{ item.rate }}</div>
-                                                {% if item.amount %}
-                                                <div
-                                                    style="color: #555; font-size: 7px; font-weight: bold; margin-top: 1px;">
-                                                    ({{ item.amount }})</div>
-                                                {% endif %}
-                                            </td>
-                                            {% endfor %}
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                            {% endif %}
                         </div>
                     </td>
                     <td width="50%" style="text-align: center; vertical-align: top; padding: 5px;">
@@ -615,8 +578,7 @@
                                 {% if customer_photo %}<img src="data:image/jpeg;base64,{{ customer_photo }}"
                                     alt="Customer Photo">
                                 {% else %}<p class="{% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}"
-                                    style="text-align: center; font-size: 8px; margin-top: 110px; color: #666;">{{
-                                    labels.no_photos }}</p>{% endif %}
+                                    style="text-align: center; font-size: 8px; margin-top: 55px; color: #666;">{{ labels.no_photos }}</p>{% endif %}
                             </div>
                         </div>
                     </td>
@@ -680,6 +642,44 @@
                     </td>
                     <td width="50%" style="padding: 7px; vertical-align: top;">
                         <div class="info-section">
+                            {% if tiered_rates %}
+                            <div style="margin-bottom: 5px;">
+                                <table class="data-table"
+                                    style="text-align: center; font-size: 8px; width: 100%; border-collapse: collapse; border: 1px solid #e1e1e1;">
+                                    <thead style="background-color: #f7f9fc;">
+                                        <tr>
+                                            <th colspan="{{ tiered_rates|length }}"
+                                                style="text-align: center; font-weight: bold; border: 1px solid #e1e1e1; padding: 2px; font-size: 8px;">
+                                                {% if current_language|slice:':2' == 'ta' %}வட்டி வரம்பு (விகிதம் /
+                                                நாட்கள்){% else %}Tenure/ Interest Range (Days Based){% endif %}
+                                            </th>
+                                        </tr>
+                                        <tr>
+                                            {% for item in tiered_rates %}
+                                            <th
+                                                style="text-align: center; font-weight: bold; border: 1px solid #e1e1e1; padding: 2px; font-size: 8px;">
+                                                {{ item.range }}</th>
+                                            {% endfor %}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            {% for item in tiered_rates %}
+                                            <td
+                                                style="text-align: center; border: 1px solid #e1e1e1; padding: 2px; font-size: 8px;">
+                                                <div>{{ item.rate }}</div>
+                                                {% if item.amount %}
+                                                <div
+                                                    style="color: #555; font-size: 7px; font-weight: bold; margin-top: 1px;">
+                                                    ({{ item.amount }})</div>
+                                                {% endif %}
+                                            </td>
+                                            {% endfor %}
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
                             <div class="field-row">
                                 <span
                                     class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
@@ -690,6 +690,7 @@
                                     ({{ loan.monthly_interest.rate }}% monthly)
                                 </span>
                             </div>
+                            {% endif %}
                             <div class="field-row">
                                 <span
                                     class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
@@ -794,7 +795,8 @@
                     </tbody>
                     <tfoot>
                         <tr style="background-color: #f8f9fc; font-weight: bold; border-top: 1px solid #ddd;">
-                            <td colspan="2" class="{% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}" style="text-align: right; padding: 5px 8px; font-size: 11px;">
+                            <td colspan="2" class="{% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}"
+                                style="text-align: right; padding: 5px 8px; font-size: 11px;">
                                 {{ labels.total|default:"Total" }}:
                             </td>
                             <td class="compact-cell" style="font-size: 11px; font-weight: bold;">{{ total_gross_weight|floatformat:3 }}</td>
@@ -803,8 +805,10 @@
                         </tr>
                     </tfoot>
                 </table>
-                <div style="display: flex; justify-content: flex-end; align-items: center; font-size: 10px; color: #555; margin-top: 2px; margin-bottom: 6px;">
-                    <span class="{% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}" style="font-size: 10px;">
+                <div
+                    style="display: flex; justify-content: flex-end; align-items: center; font-size: 10px; color: #555; margin-top: 2px; margin-bottom: 6px;">
+                    <span class="{% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}"
+                        style="font-size: 10px;">
                         <strong>{{ labels.total_items }}:</strong> {{ total_items_count|default:1 }} {% if current_language|slice:':2' == 'ta' %}பொருட்கள்{% else %}item(s){% endif %}
                     </span>
                 </div>

@@ -68,7 +68,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Update distribution amount input
-        if (distributionAmountInput && !(window.isEditMode && isInitial)) {
+        const shouldPreserve = Boolean(window.isEditMode || window.preserveFormDataOnLoad || window.hasFormErrors || window.isBoundForm);
+        if (distributionAmountInput && !(shouldPreserve && isInitial)) {
             distributionAmountInput.value = Math.round(distributionAmount);
         }
         
@@ -258,8 +259,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Log the processing fee percentage to help with debugging
                 console.log(`Processing fee percentage from scheme: ${processingFeePercentage}%`);
                 
+                const shouldPreserve = Boolean(window.isEditMode || window.preserveFormDataOnLoad || window.hasFormErrors || window.isBoundForm);
+
                 // Update interest rate input with scheme value
-                if (interestRateInput && (!window.isEditMode || !interestRateInput.value || interestRateInput.value === '12.00')) {
+                if (interestRateInput && (!shouldPreserve || !interestRateInput.value || interestRateInput.value === '12.00')) {
                     let effectiveRate = scheme.interest_rate;
                     if (scheme.interest_rate_structure) {
                         for (const [range, rate] of Object.entries(scheme.interest_rate_structure)) {
@@ -269,20 +272,20 @@ document.addEventListener('DOMContentLoaded', function() {
                             }
                         }
                     }
-                    if (effectiveRate) {
+                    if (effectiveRate && (!shouldPreserve || !interestRateInput.value)) {
                         interestRateInput.value = effectiveRate;
                     }
                 }
                 
                 // Calculate processing fee based on principal amount and scheme percentage
-                if (processingFeeInput && principalInput.value && !(window.isEditMode && isInitial)) {
+                if (processingFeeInput && principalInput.value && !(shouldPreserve && isInitial)) {
                     const principal = parseInt(principalInput.value) || 0;
                     processingFeeInput.value = Math.round(principal * processingFeePercentage / 100);
                     console.log(`Calculated processing fee: ${processingFeeInput.value} (${processingFeePercentage}% of ${principal})`);
                 }
                 
                 // Always update dates when scheme changes, regardless of whether issue date is set
-                if (!(window.isEditMode && isInitial)) {
+                if (!(shouldPreserve && isInitial)) {
                     updateDatesFromScheme(scheme);
                 }
                 

@@ -215,8 +215,9 @@
             <form method="post" id="loanForm" enctype="multipart/form-data" novalidate>
                 {% csrf_token %}
                 <input type="hidden" name="customer_face_capture" id="customerFaceCapture"
-                    value="{% if form.instance.customer_face_capture %}{{ form.instance.customer_face_capture|escapejs }}{% endif %}">
-                <input type="hidden" name="item_photos" id="itemPhotosData" value="">
+                    value="{% if form.instance.customer_face_capture %}{{ form.instance.customer_face_capture|escapejs }}{% elif form.customer_face_capture.value %}{{ form.customer_face_capture.value|escapejs }}{% elif submitted_customer_face_capture %}{{ submitted_customer_face_capture|escapejs }}{% endif %}">
+                <input type="hidden" name="item_photos" id="itemPhotosData"
+                    value="{% if form.instance.item_photos %}{{ form.instance.item_photos|escapejs }}{% elif form.item_photos.value %}{{ form.item_photos.value|escapejs }}{% elif request.POST.item_photos %}{{ request.POST.item_photos|escapejs }}{% endif %}">
                 <input type="hidden" name="interest_rate" id="id_interest_rate"
                     value="{% if form.instance.pk and form.instance.interest_rate %}{{ form.instance.interest_rate|stringformat:'.2f' }}{% elif form.instance.scheme and form.instance.scheme.interest_rate %}{{ form.instance.scheme.interest_rate|stringformat:'.2f' }}{% elif form.interest_rate.value %}{{ form.interest_rate.value }}{% else %}24.00{% endif %}">
 
@@ -749,6 +750,9 @@
 <!-- Load the loan calculator script -->
 <script>
     window.isEditMode = {% if form.instance.pk %}true{% else %}false{% endif %};
+    window.hasFormErrors = {% if form.errors %}true{% else %}false{% endif %};
+    window.isBoundForm = {% if form.is_bound %}true{% else %}false{% endif %};
+    window.preserveFormDataOnLoad = window.isEditMode || window.hasFormErrors || window.isBoundForm;
     window.KARAT_PURITY = {
         '24': 0.999,
         '22': 0.916,
@@ -759,7 +763,7 @@
     };
     var KARAT_PURITY = window.KARAT_PURITY;
 </script>
-<script src="{% static 'js/loan-calculator.js' %}?v=1.0.1"></script>
+<script src="{% static 'js/loan-calculator.js' %}?v=1.0.2"></script>
 
 <script>
     $(document).ready(function () {
@@ -1107,17 +1111,18 @@
         }
 
         // Initialize customer face capture from existing data if available
-        {% if form.instance.customer_face_capture %}
+        {% if form.instance.customer_face_capture or form.customer_face_capture.value or submitted_customer_face_capture %}
         console.log("Initializing existing customer photo");
+        var existingCustPhoto = "{% if form.instance.customer_face_capture %}{{ form.instance.customer_face_capture|escapejs }}{% elif form.customer_face_capture.value %}{{ form.customer_face_capture.value|escapejs }}{% elif submitted_customer_face_capture %}{{ submitted_customer_face_capture|escapejs }}{% endif %}";
         if (customerFaceCapture) {
-            customerFaceCapture.value = "{{ form.instance.customer_face_capture|escapejs }}";
+            customerFaceCapture.value = existingCustPhoto;
         }
-        if (capturedPhoto) {
-            capturedPhoto.src = "{{ form.instance.customer_face_capture|escapejs }}";
+        if (capturedPhoto && existingCustPhoto) {
+            capturedPhoto.src = existingCustPhoto;
             capturedPhoto.style.display = 'block';
             if (noCaptureText) noCaptureText.style.display = 'none';
             if (retakeBtn) retakeBtn.disabled = false;
-            updateCustomerDownloadButton("{{ form.instance.customer_face_capture|escapejs }}");
+            updateCustomerDownloadButton(existingCustPhoto);
         }
         {% endif %}
 
@@ -1794,13 +1799,16 @@
         // ==========================================
         // Flag indicating if this form is editing an existing loan
         const _isEditMode = {% if form.instance.pk %}true{% else %}false{% endif %};
+        const _hasFormErrors = {% if form.errors %}true{% else %}false{% endif %};
+        const _isBoundForm = {% if form.is_bound %}true{% else %}false{% endif %};
+        const _hasExistingFinancialData = Boolean($('#id_principal_amount').val() || $('#id_distribution_amount').val());
 
         // Guard flag to prevent circular updates between principal ↔ distribution_amount
         let _financialUpdateLock = false;
-        // Flag: true when user has manually entered distribution_amount directly or in edit mode
-        let _distributionManuallyEdited = _isEditMode;
-        // Flag: true when user has manually modified principal amount directly
-        let _principalManuallyEdited = _isEditMode;
+        // Flag: true when user has manually entered distribution_amount directly or in edit mode / error reload
+        let _distributionManuallyEdited = _isEditMode || _hasFormErrors || _isBoundForm || _hasExistingFinancialData;
+        // Flag: true when user has manually modified principal amount directly or form reloaded with data
+        let _principalManuallyEdited = _isEditMode || _hasFormErrors || _isBoundForm || _hasExistingFinancialData;
 
         // Function to clean numeric input
         function cleanNumericInput(value) {
@@ -2066,7 +2074,7 @@
             }
         }
 
-        function addItemRow(nameEn = '', nameTa = '', count = 1, karat = '22', grossWt = 0, stoneWt = 0, netWt = 0, focus = false) {
+        function addItemRow(nameEn = '', nameTa = '', count = 1, karat = '22', grossWt = 0, stoneWt = 0, netWt = 0, focus = false, skipSync = false) {
             _itemRowCounter++;
             const cleanKarat = String(karat || '22').replace(/\.0+$/, '');
             const rowHtml = createItemRowHtml(_itemRowCounter, nameEn, nameTa, count, cleanKarat, grossWt, stoneWt, netWt);
@@ -2082,7 +2090,9 @@
                 }
             }
             updateRemoveButtonStates();
-            syncItemsToFormFields();
+            if (!skipSync) {
+                syncItemsToFormFields();
+            }
             if (focus) {
                 $newRow.find('.item-name-en').focus();
             }
@@ -2212,6 +2222,7 @@
         function parseExistingItemNames() {
 
             $('#dynamicItemRowsContainer').empty();
+            _itemRowCounter = 0;
 
             // 1. Try reading items_json first (precise per-item data)
             const itemsJsonVal = ($('#id_items_json').val() || '').trim();
@@ -2227,13 +2238,15 @@
                             const gross = parseFloat(it.gross_weight) || 0;
                             const stone = parseFloat(it.stone_weight) || 0;
                             const net = parseFloat(it.net_weight) || Math.max(0, gross - stone);
-                            addItemRow(nameEn, nameTa, count, karat, gross, stone, net);
+                            addItemRow(nameEn, nameTa, count, karat, gross, stone, net, false, true);
                         });
                         syncItemsToFormFields();
                         return;
                     }
                 } catch (e) {
-                    console.warn('Error parsing items_json:', e);
+                    console.warn('Error parsing items_json, falling back to comma-separated fields:', e);
+                    $('#dynamicItemRowsContainer').empty();
+                    _itemRowCounter = 0;
                 }
             }
 
@@ -2286,7 +2299,7 @@
                 const unitStone = maxLen === 1 ? existingStone : (existingStone / maxLen);
                 const unitNet = maxLen === 1 ? existingNet : (existingNet / maxLen);
 
-                addItemRow(nameEn, nameTa, count, existingKarat, unitGross, unitStone, unitNet);
+                addItemRow(nameEn, nameTa, count, existingKarat, unitGross, unitStone, unitNet, false, true);
             }
 
             syncItemsToFormFields();
@@ -2408,7 +2421,7 @@
         }
 
         // Calculate net weight when gross weight or stone weight changes
-        const calculateNetWeight = function () {
+        function calculateNetWeight() {
             const grossWeight = parseFloat($('#id_gross_weight').val()) || 0;
             const stoneWeight = parseFloat($('#id_stone_weight').val()) || 0;
             const netWeight = Math.max(0, grossWeight - stoneWeight);
@@ -2416,7 +2429,7 @@
 
             // Auto-recalculate principal amount whenever net weight changes
             calculateGoldValue();
-        };
+        }
 
         // Function to clean numeric input
         function cleanNumericInput(value) {
@@ -2431,7 +2444,7 @@
         });
 
         // Calculate gold value, update Live LTV Gauge and enforce RBI Cap
-        const calculateGoldValue = debounce(function () {
+        var calculateGoldValue = debounce(function () {
             if ($('#dynamicItemRowsContainer .item-input-row').length > 0) {
                 syncItemsToFormFields();
                 return;
@@ -2615,7 +2628,7 @@
         // Called when user edits Principal Amount.
         // Sets: distribution_amount = round(principal / (1 + fee%)), processing_fee = principal - distribution_amount (calculated from distribution amount)
         // Skips overwriting distribution_amount if user manually set it.
-        const calculateDistributionAmount = function () {
+        function calculateDistributionAmount() {
             if (_financialUpdateLock) return;
             if (_isEditMode && _distributionManuallyEdited) {
                 calculateDistributionWithDeduction();
@@ -2669,12 +2682,14 @@
             _financialUpdateLock = false;
             calculateDistributionWithDeduction();
             updateLtvAndCompliance();
-        };
+        }
+
+        window.calculateDistributionAmount = calculateDistributionAmount;
 
         // Called when user manually edits Distribution Amount.
         // Marks _distributionManuallyEdited = true so calculateDistributionAmount won't overwrite it.
         // Calculates: processing_fee = round(distribution * fee%), principal = distribution + processing_fee
-        const recalculateFromDistributionAmount = function () {
+        function recalculateFromDistributionAmount() {
             if (_financialUpdateLock) return;
             _financialUpdateLock = true;
 
@@ -2715,12 +2730,12 @@
             _financialUpdateLock = false;
             calculateDistributionWithDeduction();
             updateLtvAndCompliance();
-        };
+        }
 
         window.recalculateFromDistributionAmount = recalculateFromDistributionAmount;
 
         // Calculate distribution amount with deduction based on upfront deduction checkboxes
-        const calculateDistributionWithDeduction = function () {
+        function calculateDistributionWithDeduction() {
             const distributionStr = cleanNumericInput($('#id_distribution_amount').val());
             const distributionAmount = parseFloat(distributionStr) || 0;
 
@@ -2777,7 +2792,7 @@
 
             // Check and enforce Income Tax Section 269SS disbursal rules
             updateSec269SSCompliance();
-        };
+        }
 
         // Expose to window so loan-calculator.js can call it after checkbox triggers
         window.calculateDistributionWithDeduction = calculateDistributionWithDeduction;
@@ -2865,7 +2880,7 @@
         updateSchemePreviewFromSelection();
         syncCustomerBankDetails();
 
-        if (!_isEditMode) {
+        if (!_isEditMode && !_hasFormErrors && !_isBoundForm && !_hasExistingFinancialData) {
             updateProcessingFeePercentFromScheme(true);
             // Principal ↔ Distribution Amount bidirectional
             $('#id_principal_amount')
@@ -2875,10 +2890,12 @@
                     }
                     _distributionManuallyEdited = false;
                     calculateDistributionAmount();
-                })
-                .trigger('input'); // Calculate on page load
+                });
+            if ($('#id_principal_amount').val()) {
+                $('#id_principal_amount').trigger('input');
+            }
         } else {
-            // Edit Mode: fetch fee % asynchronously for display without overwriting form fields
+            // Edit Mode or Form Error Reload: fetch fee % asynchronously for display without overwriting user entered fields
             updateProcessingFeePercentFromScheme(false);
 
             $('#id_principal_amount').on('keyup change input paste', function(e) {
@@ -2889,7 +2906,7 @@
                 }
             });
 
-            // Update words for initial saved values
+            // Update words for initial saved/submitted values
             const principal = parseFloat($('#id_principal_amount').val()) || 0;
             if (principal > 0) {
                 $.get(`/transactions/number_to_words/${principal}`, function (response) {
@@ -2903,7 +2920,7 @@
                 });
             }
             updateLtvAndCompliance();
-            // In edit mode: use the server-saved value as-is — do NOT recalculate unless changed
+            // Use the server-provided value as-is — do NOT overwrite unless changed
             const rawDeduct = $('#id_distribution_amount_with_deduction').val();
             const savedDeductionAmt = rawDeduct ? Math.round(parseFloat(rawDeduct)) : 0;
             if (savedDeductionAmt > 0) {
@@ -2990,12 +3007,16 @@
             const storedItemPhotos = localStorage.getItem('tempItemPhotos');
             const storedCustomerPhoto = localStorage.getItem('tempCustomerPhoto');
 
-            if (storedItemPhotos) {
+            if (storedItemPhotos && itemPhotos.length === 0) {
                 try {
                     const parsedPhotos = JSON.parse(storedItemPhotos);
-                    parsedPhotos.forEach(photo => {
-                        addItemPhoto(photo.dataUrl);
-                    });
+                    if (Array.isArray(parsedPhotos) && parsedPhotos.length > 0) {
+                        parsedPhotos.forEach(photo => {
+                            if (photo && photo.dataUrl) {
+                                addItemPhoto(photo.dataUrl);
+                            }
+                        });
+                    }
                     // Clear stored photos after restoring
                     localStorage.removeItem('tempItemPhotos');
                 } catch (e) {
@@ -3003,10 +3024,14 @@
                 }
             }
 
-            if (storedCustomerPhoto && !customerFaceCapture.value) {
-                capturedPhoto.src = storedCustomerPhoto;
-                capturedPhoto.style.display = 'block';
-                customerFaceCapture.value = storedCustomerPhoto;
+            if (storedCustomerPhoto && (!customerFaceCapture || !customerFaceCapture.value)) {
+                if (capturedPhoto) {
+                    capturedPhoto.src = storedCustomerPhoto;
+                    capturedPhoto.style.display = 'block';
+                }
+                if (customerFaceCapture) {
+                    customerFaceCapture.value = storedCustomerPhoto;
+                }
                 updateCustomerDownloadButton(storedCustomerPhoto);
                 if (noCaptureText) noCaptureText.style.display = 'none';
                 if (retakeBtn) retakeBtn.disabled = false;
@@ -3214,8 +3239,8 @@
     // Call clear function when arriving at new loan page (not continuing iteration)
     $(document).ready(function () {
         {% if not form.instance.pk %}
-        // Only clear if we're NOT continuing an iteration
-        if (sessionStorage.getItem('continueIteration') !== 'true') {
+        // Only clear if we're NOT continuing an iteration and form is fresh without errors
+        if (sessionStorage.getItem('continueIteration') !== 'true' && !window.preserveFormDataOnLoad) {
             clearAllPhotosForNewLoan();
         }
         {% endif %}

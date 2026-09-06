@@ -251,6 +251,52 @@ def get_branch_bill_details(branch):
     return details
 
 
+def get_loan_tiered_rates(loan, use_tamil=False):
+    """Fetch loan's tiered scheme rates dynamically for table display."""
+    tiered_rates = []
+    if not loan:
+        return tiered_rates
+    s = getattr(loan, 'scheme', None)
+    if s and s.interest_rate_structure:
+        sorted_keys = sorted(s.interest_rate_structure.keys(), key=lambda k: [int(x) if x.isdigit() else 999999 for x in k.replace('+', '').split('-') if x])
+        for range_key in sorted_keys:
+            rate = s.interest_rate_structure[range_key]
+            # Use 'days' suffix if days-based scheme (e.g., 0-30days)
+            if use_tamil:
+                suffix = 'நாட்கள்' if s.is_days_based else 'மாதங்கள்'
+            else:
+                suffix = 'days' if s.is_days_based else 'months'
+            range_display = f"{range_key}{suffix}"
+            try:
+                original_dist = loan.principal_amount - Decimal(str(loan.processing_fee or 0))
+                monthly_rate = (Decimal(str(rate)) / Decimal('12')).quantize(Decimal('0.01'))
+                interest_amount = (original_dist * monthly_rate / Decimal('100')).quantize(Decimal('0.01'))
+                
+                # Format rate in Rupees (e.g. 1 Rupee, 1.50 Rupees, 3 Rupees)
+                if monthly_rate == monthly_rate.to_integral_value():
+                    rate_num = str(int(monthly_rate))
+                else:
+                    rate_num = f"{monthly_rate:.2f}"
+
+                if use_tamil:
+                    rate_val = f"{rate_num} ரூபாய்"
+                else:
+                    unit = "Rupee" if rate_num == "1" else "Rupees"
+                    rate_val = f"{rate_num} {unit}"
+
+                amount_val = f"Rs {round(interest_amount):,}"
+            except Exception:
+                rate_val = f"{rate} Rupees" if not use_tamil else f"{rate} ரூபாய்"
+                amount_val = ""
+            
+            tiered_rates.append({
+                'range': range_display,
+                'rate': rate_val,
+                'amount': amount_val
+            })
+    return tiered_rates
+
+
 def build_loan_pdf_language_context(loan, current_language):
     use_tamil = str(current_language).startswith('ta')
     customer = loan.customer
@@ -480,45 +526,8 @@ def build_loan_pdf_language_context(loan, current_language):
         from datetime import timedelta
         minimum_date = loan.issue_date + timedelta(days=minimum_term)
 
-    # Fetch current loan's tiered scheme rates dynamically for PDF table display
-    tiered_rates = []
-    s = loan.scheme
-    if s and s.interest_rate_structure:
-        # Try to sort the keys naturally if they are ranges
-        # e.g., '0-30', '30-60', '60-90', '90-365', '365+'
-        sorted_keys = sorted(s.interest_rate_structure.keys(), key=lambda k: [int(x) if x.isdigit() else 999999 for x in k.replace('+', '').split('-') if x])
-        for range_key in sorted_keys:
-            rate = s.interest_rate_structure[range_key]
-            # Use 'd' suffix if days-based scheme
-            suffix = 'd' if s.is_days_based else 'm'
-            range_display = f"{range_key}{suffix}"
-            try:
-                original_dist = loan.principal_amount - Decimal(str(loan.processing_fee or 0))
-                monthly_rate = (Decimal(str(rate)) / Decimal('12')).quantize(Decimal('0.01'))
-                interest_amount = (original_dist * monthly_rate / Decimal('100')).quantize(Decimal('0.01'))
-                
-                # Format rate in Rupees (e.g. 1 Rupee, 1.50 Rupees, 3 Rupees)
-                if monthly_rate == monthly_rate.to_integral_value():
-                    rate_num = str(int(monthly_rate))
-                else:
-                    rate_num = f"{monthly_rate:.2f}"
-
-                if use_tamil:
-                    rate_val = f"{rate_num} ரூபாய்"
-                else:
-                    unit = "Rupee" if rate_num == "1" else "Rupees"
-                    rate_val = f"{rate_num} {unit}"
-
-                amount_val = f"Rs {round(interest_amount):,}"
-            except Exception:
-                rate_val = f"{rate} Rupees" if not use_tamil else f"{rate} ரூபாய்"
-                amount_val = ""
-            
-            tiered_rates.append({
-                'range': range_display,
-                'rate': rate_val,
-                'amount': amount_val
-            })
+    # Fetch current loan's tiered scheme rates dynamically for table display
+    tiered_rates = get_loan_tiered_rates(loan, use_tamil=use_tamil)
 
     total_gross_weight = sum(
         Decimal(str(loan_item.gross_weight or 0))
@@ -1747,6 +1756,7 @@ class LoanDetailView(LoginRequiredMixin, RoleBranchAccessMixin, DetailView):
         
         # Process item photos for the template using centralized function
         context['item_photos_list'] = process_item_photos_for_display(loan.item_photos)
+        context['tiered_rates'] = get_loan_tiered_rates(loan)
             
         return context
 
@@ -1836,9 +1846,16 @@ class LoanCreateView(LoginRequiredMixin, RoleBranchAccessMixin, CreateView):
             except Customer.DoesNotExist:
                 pass
         
-        # Process item photos for form if editing existing loan
+        # Process item photos for form if editing existing loan or restoring from failed POST
         if self.object and self.object.item_photos:
             context['item_photos_list'] = process_item_photos_for_display(self.object.item_photos)
+        elif self.request.method == 'POST':
+            post_item_photos = self.request.POST.get('item_photos', '')
+            if post_item_photos:
+                context['item_photos_list'] = process_item_photos_for_display(post_item_photos)
+            post_customer_face = self.request.POST.get('customer_face_capture', '')
+            if post_customer_face:
+                context['submitted_customer_face_capture'] = post_customer_face
         return context
     
     def form_valid(self, form):
@@ -1924,6 +1941,40 @@ class LoanCreateView(LoginRequiredMixin, RoleBranchAccessMixin, CreateView):
             )
         except Exception:
             pass
+        # Auto-create a Payment record for the processing fee if paid upfront at loan creation
+        try:
+            loan = self.object
+            if loan.is_processing_fee_paid and loan.processing_fee and loan.processing_fee > 0:
+                fee_amount = Decimal(str(loan.processing_fee))
+                Payment.objects.create(
+                    loan=loan,
+                    amount=fee_amount,
+                    payment_date=loan.issue_date,
+                    payment_method='cash',
+                    received_by=self.request.user,
+                    notes=f'Processing Fee collected upfront at loan creation (Loan #{loan.loan_number})',
+                )
+        except Exception as e:
+            logging.getLogger(__name__).warning('Failed to create processing fee payment record: %s', e)
+
+        # Auto-create a Payment record for 1st month interest if paid upfront at loan creation
+        try:
+            loan = self.object
+            if loan.is_first_month_interest_paid:
+                monthly_info = loan.monthly_interest
+                interest_amount = Decimal(str(monthly_info.get('amount', 0))) if isinstance(monthly_info, dict) else Decimal('0')
+                if interest_amount > 0:
+                    Payment.objects.create(
+                        loan=loan,
+                        amount=interest_amount,
+                        payment_date=loan.issue_date,
+                        payment_method='cash',
+                        received_by=self.request.user,
+                        notes=f'1st Month Interest collected upfront at loan creation (Loan #{loan.loan_number})',
+                    )
+        except Exception as e:
+            logging.getLogger(__name__).warning('Failed to create first month interest payment record: %s', e)
+
         messages.success(self.request, 'Loan created successfully!')
         return response
 
@@ -1960,11 +2011,16 @@ class LoanUpdateView(LoginRequiredMixin, RoleBranchAccessMixin, UpdateView):
             initial['distribution_amount_with_deduction'] = deduct_val
         return initial
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        # Process item photos for form editing
+        # Process item photos for form editing or restoring from failed POST
         if self.object and self.object.item_photos:
             context['item_photos_list'] = process_item_photos_for_display(self.object.item_photos)
+        elif self.request.method == 'POST':
+            post_item_photos = self.request.POST.get('item_photos', '')
+            if post_item_photos:
+                context['item_photos_list'] = process_item_photos_for_display(post_item_photos)
+            post_customer_face = self.request.POST.get('customer_face_capture', '')
+            if post_customer_face:
+                context['submitted_customer_face_capture'] = post_customer_face
         return context
     
     def form_valid(self, form):
