@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 from . import views_eod
 from . import views_partial_release
+from . import views_marketing
 
 urlpatterns = [
     # Loans
@@ -49,6 +50,11 @@ urlpatterns = [
     path('sales/<int:pk>/cancel/', views.SaleCancelView.as_view(), name='sale_cancel'),
     path('sales/<int:pk>/complete/', views.SaleCompleteView.as_view(), name='sale_complete'),
     path('sales/<int:pk>/receipt/', views.SaleReceiptView.as_view(), name='sale_receipt'),
+
+    # Digital Marketing & WhatsApp Broadcast Campaign Hub
+    path('marketing/', views_marketing.DigitalMarketingDashboardView.as_view(), name='digital_marketing'),
+    path('marketing/broadcast/', views_marketing.ExecuteBroadcastActionView.as_view(), name='marketing_broadcast_execute'),
+    path('marketing/generate-ai/', views_marketing.GenerateAICampaignView.as_view(), name='marketing_generate_ai'),
 
     # Utilities
     path('number_to_words/<str:number>/', views.number_to_words, name='number_to_words'),

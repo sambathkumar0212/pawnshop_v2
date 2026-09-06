@@ -1,0 +1,1627 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Digital Marketing & WhatsApp Broadcast Hub - {{ organization_name|default:"First Money Gold" }}{% endblock %}
+{% block marketing_active %}active{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+    <!-- ═══ HEADER & BRANDING ═══ -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-2 border-bottom">
+        <div>
+            <div class="d-flex align-items-center gap-2">
+                <div class="bg-gradient bg-danger text-white rounded p-2 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px; background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%) !important;">
+                    <i class="fas fa-bullhorn fa-lg"></i>
+                </div>
+                <div>
+                    <h3 class="mb-0 fw-bold text-dark">Digital Marketing &amp; WhatsApp Broadcast</h3>
+                    <p class="text-muted small mb-0">Broadcast new schemes, festive gold loan offers, and re-engagement promos via WhatsApp</p>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex gap-2 mt-2 mt-md-0 align-items-center">
+            <!-- Branch Filter -->
+            <form method="get" class="d-flex align-items-center gap-2" id="branchFilterForm">
+                <input type="hidden" name="segment" value="{{ segment }}">
+                <input type="hidden" name="template" value="{{ template_key }}">
+                <input type="hidden" name="lang" value="{{ lang }}">
+                <select name="branch" class="form-select form-select-sm shadow-sm" onchange="this.form.submit()" style="min-width: 180px;">
+                    <option value="">🏢 All Branches</option>
+                    {% for b in branches %}
+                    <option value="{{ b.id }}" {% if selected_branch_id == b.id|stringformat:"s" %}selected{% endif %}>{{ b.name }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+
+            <!-- Export CSV -->
+            <form method="post" action="{% url 'marketing_broadcast_execute' %}" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="export_csv">
+                <input type="hidden" name="segment" value="{{ segment }}">
+                <input type="hidden" name="template" value="{{ template_key }}">
+                <input type="hidden" name="lang" value="{{ lang }}">
+                <input type="hidden" name="branch" value="{{ selected_branch_id }}">
+                <button type="submit" class="btn btn-outline-secondary btn-sm shadow-sm">
+                    <i class="fas fa-file-csv me-1"></i> Export CSV
+                </button>
+            </form>
+
+            <!-- Auto-Blast PyWhatKit Button -->
+            <button type="button" class="btn btn-success btn-sm shadow-sm px-3 fw-semibold" data-bs-toggle="modal" data-bs-target="#pywhatkitModal">
+                <i class="fab fa-whatsapp me-1"></i> Auto-Broadcast (PyWhatKit)
+            </button>
+        </div>
+    </div>
+
+    <!-- ═══ KPI SUMMARY METRICS ═══ -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-4 col-xl-2">
+            <div class="card border-0 shadow-sm rounded-3 h-100 bg-white border-start border-primary border-4">
+                <div class="card-body p-3">
+                    <span class="text-muted small text-uppercase fw-semibold d-block mb-1">Total Contacts</span>
+                    <h4 class="mb-0 fw-bold text-primary">{{ kpis.total_customers|intcomma }}</h4>
+                    <small class="text-success"><i class="fas fa-address-book me-1"></i>In Directory</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-xl-2">
+            <div class="card border-0 shadow-sm rounded-3 h-100 bg-white border-start border-success border-4">
+                <div class="card-body p-3">
+                    <span class="text-muted small text-uppercase fw-semibold d-block mb-1">WhatsApp Ready</span>
+                    <h4 class="mb-0 fw-bold text-success">{{ kpis.total_whatsapp_ready|intcomma }}</h4>
+                    <small class="text-muted"><i class="fab fa-whatsapp me-1 text-success"></i>Valid Numbers</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-xl-2">
+            <div class="card border-0 shadow-sm rounded-3 h-100 bg-white border-start border-info border-4">
+                <div class="card-body p-3">
+                    <span class="text-muted small text-uppercase fw-semibold d-block mb-1">Active Borrowers</span>
+                    <h4 class="mb-0 fw-bold text-info">{{ kpis.active_borrowers_count|intcomma }}</h4>
+                    <small class="text-info"><i class="fas fa-coins me-1"></i>Running Loans</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-xl-2">
+            <div class="card border-0 shadow-sm rounded-3 h-100 bg-white border-start border-warning border-4">
+                <div class="card-body p-3">
+                    <span class="text-muted small text-uppercase fw-semibold d-block mb-1">Past Borrowers</span>
+                    <h4 class="mb-0 fw-bold text-warning">{{ kpis.closed_prospects_count|intcomma }}</h4>
+                    <small class="text-warning"><i class="fas fa-user-check me-1"></i>Re-engage Leads</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-xl-2">
+            <div class="card border-0 shadow-sm rounded-3 h-100 bg-white border-start border-danger border-4">
+                <div class="card-body p-3">
+                    <span class="text-muted small text-uppercase fw-semibold d-block mb-1">Overdue Loans</span>
+                    <h4 class="mb-0 fw-bold text-danger">{{ kpis.overdue_count|intcomma }}</h4>
+                    <small class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>OTS Prospects</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-xl-2">
+            <div class="card border-0 shadow-sm rounded-3 h-100 bg-white border-start border-dark border-4">
+                <div class="card-body p-3">
+                    <span class="text-muted small text-uppercase fw-semibold d-block mb-1">Today Gold Rate</span>
+                    <h4 class="mb-0 fw-bold text-dark">&#8377;{{ current_gold_rate|floatformat:0|intcomma }}</h4>
+                    <small class="text-muted"><i class="fas fa-gem text-warning me-1"></i>Per Gram 22K</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ AUDIENCE SEGMENTATION TABS ═══ -->
+    <div class="card border-0 shadow-sm rounded-3 mb-4">
+        <div class="card-body p-3">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <span class="text-muted fw-semibold small me-1"><i class="fas fa-filter me-1"></i>Audience Segment:</span>
+                    
+                    <a href="?segment=all&template={{ template_key }}&lang={{ lang }}&branch={{ selected_branch_id }}" 
+                       class="btn btn-sm {% if segment == 'all' %}btn-primary fw-bold shadow-sm{% else %}btn-outline-secondary{% endif %} rounded-pill px-3">
+                        👥 All Customers <span class="badge bg-white text-dark ms-1">{{ kpis.total_customers }}</span>
+                    </a>
+                    
+                    <a href="?segment=active_borrowers&template={{ template_key }}&lang={{ lang }}&branch={{ selected_branch_id }}" 
+                       class="btn btn-sm {% if segment == 'active_borrowers' %}btn-info text-white fw-bold shadow-sm{% else %}btn-outline-secondary{% endif %} rounded-pill px-3">
+                        ⚡ Active Borrowers <span class="badge bg-white text-dark ms-1">{{ kpis.active_borrowers_count }}</span>
+                    </a>
+                    
+                    <a href="?segment=closed_loans&template={{ template_key }}&lang={{ lang }}&branch={{ selected_branch_id }}" 
+                       class="btn btn-sm {% if segment == 'closed_loans' %}btn-warning text-dark fw-bold shadow-sm{% else %}btn-outline-secondary{% endif %} rounded-pill px-3">
+                        🤝 Closed Loan Customers (Re-engage) <span class="badge bg-white text-dark ms-1">{{ kpis.closed_prospects_count }}</span>
+                    </a>
+                    
+                    <a href="?segment=overdue&template={{ template_key }}&lang={{ lang }}&branch={{ selected_branch_id }}" 
+                       class="btn btn-sm {% if segment == 'overdue' %}btn-danger fw-bold shadow-sm{% else %}btn-outline-secondary{% endif %} rounded-pill px-3">
+                        ⚠️ Overdue Borrowers (OTS Offers) <span class="badge bg-white text-dark ms-1">{{ kpis.overdue_count }}</span>
+                    </a>
+
+                    <a href="?segment=high_value&template={{ template_key }}&lang={{ lang }}&branch={{ selected_branch_id }}" 
+                       class="btn btn-sm {% if segment == 'high_value' %}btn-dark fw-bold shadow-sm{% else %}btn-outline-secondary{% endif %} rounded-pill px-3">
+                        💎 High Value Borrowers (&gt;1L) <span class="badge bg-white text-dark ms-1">{{ kpis.high_value_count }}</span>
+                    </a>
+                </div>
+
+                <!-- Language Toggle -->
+                <div class="btn-group btn-group-sm shadow-sm" role="group">
+                    <a href="?segment={{ segment }}&template={{ template_key }}&lang=en&branch={{ selected_branch_id }}" 
+                       class="btn {% if not use_tamil %}btn-dark fw-bold{% else %}btn-outline-dark{% endif %}">
+                        🇬🇧 English
+                    </a>
+                    <a href="?segment={{ segment }}&template={{ template_key }}&lang=ta&branch={{ selected_branch_id }}" 
+                       class="btn {% if use_tamil %}btn-dark fw-bold{% else %}btn-outline-dark{% endif %}">
+                        🇮🇳 தமிழ் (Tamil)
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ MAIN WORKSPACE (Templates + Gemini AI Studio + Live Mobile Preview) ═══ -->
+    <div class="row g-4 mb-4">
+
+        <!-- Left: Campaign Studio (Presets vs Gemini AI) -->
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm rounded-3 h-100">
+                <div class="card-header bg-white border-bottom p-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <ul class="nav nav-pills card-header-pills" id="campaignStudioTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active fw-bold btn-sm" id="preset-tab" data-bs-toggle="tab" data-bs-target="#preset-tab-pane" type="button" role="tab">
+                                <i class="fas fa-layer-group me-1 text-primary"></i> Preset Templates
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-bold btn-sm text-white position-relative" id="gemini-tab" data-bs-toggle="tab" data-bs-target="#gemini-tab-pane" type="button" role="tab" style="background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%) !important;">
+                                <i class="fas fa-wand-magic-sparkles me-1"></i> ✨ Gemini AI Studio
+                                <span class="badge bg-warning text-dark ms-1" style="font-size: 0.65rem;">FREE</span>
+                            </button>
+                        </li>
+                    </ul>
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                        {{ total_queue_count }} Recipients Targeted
+                    </span>
+                </div>
+                <div class="card-body p-3">
+                    
+                    <div class="tab-content" id="campaignStudioTabContent">
+                        
+                        <!-- ═══ TAB 1: PRESET TEMPLATES ═══ -->
+                        <div class="tab-pane fade show active" id="preset-tab-pane" role="tabpanel" tabindex="0">
+                            
+                            <!-- Template Selector Grid -->
+                            <div class="row g-2 mb-3">
+                                {% for key, tmpl in marketing_templates.items %}
+                                <div class="col-md-6">
+                                    <a href="?segment={{ segment }}&template={{ key }}&lang={{ lang }}&branch={{ selected_branch_id }}" 
+                                       class="text-decoration-none d-block p-2 rounded border transition-all {% if template_key == key %}border-primary bg-primary-subtle shadow-sm{% else %}border-light bg-light hover-shadow{% endif %}"
+                                       style="border-width: 2px !important;">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <span class="badge bg-secondary" style="font-size: 0.65rem;">{{ tmpl.category }}</span>
+                                            <span class="badge bg-success" style="font-size: 0.65rem;">{{ tmpl.badge }}</span>
+                                        </div>
+                                        <div class="fw-bold text-dark text-truncate" style="font-size: 0.88rem;">
+                                            {% if use_tamil %}{{ tmpl.title_ta }}{% else %}{{ tmpl.title_en }}{% endif %}
+                                        </div>
+                                    </a>
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                            <!-- Dynamic Tags Cheat Sheet -->
+                            <div class="bg-light p-2 rounded mb-3 border">
+                                <small class="text-muted fw-bold d-block mb-1"><i class="fas fa-tags me-1 text-primary"></i>Dynamic Smart Variables Available:</small>
+                                <div class="d-flex flex-wrap gap-1">
+                                    <span class="badge bg-white text-dark border"><code class="text-primary">{customer_name}</code> Customer Full Name</span>
+                                    <span class="badge bg-white text-dark border"><code class="text-primary">{branch_name}</code> Branch Name</span>
+                                    <span class="badge bg-white text-dark border"><code class="text-primary">{branch_phone}</code> Branch Phone</span>
+                                    <span class="badge bg-white text-dark border"><code class="text-primary">{gold_rate}</code> Today Gold Rate</span>
+                                    <span class="badge bg-white text-dark border"><code class="text-primary">{organization_name}</code> Company Name</span>
+                                </div>
+                            </div>
+
+                            <!-- Campaign Message Editor Area -->
+                            <div class="mb-3">
+                                <label class="form-label fw-bold small text-dark d-flex justify-content-between">
+                                    <span>Campaign Message Body ({% if use_tamil %}தமிழ்{% else %}English{% endif %}):</span>
+                                    <span class="text-muted" style="font-size: 0.75rem;">Formatted with WhatsApp Markdown (*bold*, _italic_)</span>
+                                </label>
+                                <textarea id="campaignMessageInput" class="form-control font-monospace" rows="9" style="font-size: 0.85rem; line-height: 1.5; resize: vertical;">{{ sample_preview_text }}</textarea>
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="small text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>Each contact receives a personalized message with their real name & branch info.
+                                </span>
+                                <a href="#broadcastQueueSection" class="btn btn-primary btn-sm px-3 shadow-sm">
+                                    <i class="fas fa-list-check me-1"></i> View Broadcast Queue ({{ total_queue_count }})
+                                </a>
+                            </div>
+
+                        </div>
+
+                        <!-- ═══ TAB 2: GOOGLE GEMINI AI STUDIO (FREE TIER) ═══ -->
+                        <div class="tab-pane fade" id="gemini-tab-pane" role="tabpanel" tabindex="0">
+                            
+                            <!-- Gemini AI Promo Header -->
+                            <div class="p-3 mb-3 rounded-3 text-white" style="background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%);">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <div class="d-flex align-items-center gap-2 mb-1">
+                                            <span class="badge bg-danger rounded-pill"><i class="fas fa-bolt me-1"></i>AI POWERED</span>
+                                            <span class="badge bg-success rounded-pill">100% Free Tier</span>
+                                        </div>
+                                        <h6 class="fw-bold mb-1">Google Gemini Campaign Copywriter</h6>
+                                        <p class="small text-light opacity-75 mb-0">Generate irresistible festival gold loan offers, SMS blasts, &amp; viral WhatsApp copy in seconds.</p>
+                                    </div>
+                                    <button class="btn btn-outline-light btn-xs px-2" type="button" data-bs-toggle="collapse" data-bs-target="#geminiKeySettings">
+                                        <i class="fas fa-key me-1"></i> API Key Settings
+                                    </button>
+                                </div>
+
+                                <!-- Collapsible Gemini API Key Settings -->
+                                <div class="collapse mt-3" id="geminiKeySettings">
+                                    <div class="bg-black bg-opacity-50 p-3 rounded border border-secondary">
+                                        <label class="form-label small fw-bold text-white mb-1">Google Gemini API Key (Free Tier):</label>
+                                        <div class="input-group input-group-sm mb-1">
+                                            <span class="input-group-text bg-dark text-white border-secondary"><i class="fas fa-shield-alt"></i></span>
+                                            <input type="password" id="geminiCustomApiKey" class="form-control bg-dark text-white border-secondary font-monospace" placeholder="AIzaSy... (Leave empty to use server default)">
+                                            <button class="btn btn-primary" type="button" onclick="saveGeminiKeyToStorage()"><i class="fas fa-save me-1"></i>Save</button>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mt-1">
+                                            <small class="text-light opacity-75" style="font-size: 0.72rem;">Free tier allows up to 15 RPM at zero cost.</small>
+                                            <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-warning small text-decoration-none fw-semibold" style="font-size: 0.72rem;">
+                                                <i class="fas fa-external-link-alt me-1"></i>Get Free API Key from Google AI Studio &rarr;
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Interactive AI Prompt Form -->
+                            <form id="geminiGeneratorForm" onsubmit="generateCampaignWithAI(event)">
+                                <div class="row g-2 mb-3">
+                                    
+                                    <!-- Campaign Type -->
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold small text-dark mb-1">Campaign Objective:</label>
+                                        <select id="ai_offer_type" class="form-select form-select-sm">
+                                            <option value="Festival Gold Loan Mela">🎉 Festival Gold Loan Mela</option>
+                                            <option value="0.99% Lowest Interest Rate Promo">💰 0.99% Lowest Interest Rate Promo</option>
+                                            <option value="VIP Welcome Back for Past Borrowers">🤝 VIP Welcome Back (Past Borrowers)</option>
+                                            <option value="Instant Top-Up & Part-Release Promo">⚡ Instant Top-Up &amp; High Value Loan</option>
+                                            <option value="One-Time Settlement (OTS) NPA Relief">⚠️ OTS NPA Loan Relief (Overdue)</option>
+                                            <option value="Akshaya Tritiya / Deepavali Gold Mela">🪙 Akshaya Tritiya / Deepavali Utsav</option>
+                                            <option value="Special Custom Scheme">✨ Custom Gold Loan Scheme</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Festival / Event Occasion -->
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold small text-dark mb-1">Occasion / Festival:</label>
+                                        <input type="text" id="ai_festival_name" class="form-control form-control-sm" placeholder="e.g. Deepavali, Pongal, Tamil New Year, General" value="தீபாவளி சிறப்பு திருவிழா">
+                                    </div>
+
+                                    <!-- Language -->
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-semibold small text-dark mb-1">Target Language:</label>
+                                        <select id="ai_language" class="form-select form-select-sm">
+                                            <option value="ta" selected>🇮🇳 தமிழ் (Tamil)</option>
+                                            <option value="en">🇬🇧 English</option>
+                                            <option value="tanglish">🔤 Tanglish (Tamil in English)</option>
+                                            <option value="bilingual">🌐 Bilingual (Tamil + English)</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Tone -->
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-semibold small text-dark mb-1">Tone &amp; Style:</label>
+                                        <select id="ai_tone" class="form-select form-select-sm">
+                                            <option value="festive" selected>🎉 Festive &amp; Celebratory</option>
+                                            <option value="professional">💼 Professional &amp; Trustworthy</option>
+                                            <option value="urgent">⚡ Urgent / Limited Time Deal</option>
+                                            <option value="friendly">🤝 Friendly &amp; Welcoming</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Interest Rate -->
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-semibold small text-dark mb-1">Interest Rate (%/month):</label>
+                                        <input type="text" id="ai_interest_rate" class="form-control form-control-sm" value="0.99%">
+                                    </div>
+
+                                    <!-- Gold Rate Per Gram -->
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold small text-dark mb-1">Gold Valuation / Rate per Gram:</label>
+                                        <input type="text" id="ai_gold_rate" class="form-control form-control-sm" value="&#8377;{{ current_gold_rate|floatformat:0 }}/g">
+                                    </div>
+
+                                    <!-- Special Bonus / Perks -->
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold small text-dark mb-1">Special Perk / Freebie:</label>
+                                        <input type="text" id="ai_bonus_offer" class="form-control form-control-sm" placeholder="e.g. Free silver coin / Zero doc fee" value="ஆவண கட்டணம் முற்றிலும் இலவசம் &amp; 5 நிமிடங்களில் ரொக்கம்">
+                                    </div>
+
+                                    <!-- Extra Instructions -->
+                                    <div class="col-12">
+                                        <label class="form-label fw-semibold small text-dark mb-1">Custom Notes / Key Selling Points:</label>
+                                        <input type="text" id="ai_custom_notes" class="form-control form-control-sm" placeholder="e.g. Highlight 100% insured vault and no hidden valuation deductions">
+                                    </div>
+
+                                </div>
+
+                                <!-- Action Generate Button -->
+                                <div class="d-grid mb-3">
+                                    <button type="submit" id="aiGenerateBtn" class="btn text-white fw-bold py-2 shadow-sm" style="background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);">
+                                        <span id="aiBtnSpinner" class="spinner-border spinner-border-sm me-2 d-none" role="status" aria-hidden="true"></span>
+                                        <i class="fas fa-wand-magic-sparkles me-1" id="aiBtnIcon"></i> <span id="aiBtnText">Generate Campaign with Google Gemini AI</span>
+                                    </button>
+                                </div>
+                            </form>
+
+                            <!-- AI Output Container (Populated dynamically) -->
+                            <div id="aiOutputContainer" class="d-none">
+                                <div class="card border border-primary-subtle bg-primary-subtle p-3 rounded-3 mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Generated</span>
+                                            <strong id="aiResultTitle" class="text-dark">✨ Special Campaign Title</strong>
+                                        </div>
+                                        <span id="aiModelBadge" class="badge bg-dark font-monospace" style="font-size: 0.65rem;">Gemini 1.5 Flash</span>
+                                    </div>
+
+                                    <!-- Key Highlights Badges -->
+                                    <div id="aiHighlightsList" class="d-flex flex-wrap gap-1 mb-3"></div>
+
+                                    <!-- Editable AI WhatsApp Message Box -->
+                                    <div class="bg-white p-3 rounded border mb-3">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <label class="form-label fw-bold small text-dark mb-0">
+                                                <i class="fab fa-whatsapp text-success me-1"></i>AI Generated WhatsApp Campaign Body:
+                                            </label>
+                                            <div class="d-flex gap-1">
+                                                <button type="button" class="btn btn-outline-success btn-xs py-0 px-2" onclick="previewAiMessageInPhone()">
+                                                    <i class="fas fa-mobile-screen me-1"></i>Live Preview
+                                                </button>
+                                                <button type="button" class="btn btn-outline-secondary btn-xs py-0 px-2" onclick="copyText('ai_whatsapp_text')">
+                                                    <i class="fas fa-copy me-1"></i>Copy
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <textarea id="ai_whatsapp_text" class="form-control font-monospace mb-1" rows="9" style="font-size: 0.84rem; line-height: 1.45;" placeholder="Generated WhatsApp message appears here..."></textarea>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <small class="text-muted" style="font-size: 0.72rem;">Supports WhatsApp formatting (*bold*, _italic_). Editing updates the mobile preview on the right instantly.</small>
+                                            <small id="aiWaCharCount" class="text-muted font-monospace" style="font-size: 0.72rem;">0 chars</small>
+                                        </div>
+                                    </div>
+
+                                    <!-- Action to Apply into broadcast Queue -->
+                                    <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center bg-white p-2 rounded border">
+                                        <div>
+                                            <span class="small fw-semibold text-dark d-block"><i class="fas fa-bolt text-warning me-1"></i>Like this generated campaign?</span>
+                                            <span class="small text-muted" style="font-size: 0.75rem;">Applies this copy to all {{ total_queue_count }} contacts in your broadcast list.</span>
+                                        </div>
+                                        <button type="button" class="btn btn-success btn-sm fw-bold px-3 shadow-sm" onclick="applyAiToBroadcastQueue()">
+                                            <i class="fas fa-cloud-arrow-down me-1"></i> Apply to Broadcast Queue
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Generated Sub-copies (SMS & Social) -->
+                                <div class="row g-2">
+                                    <div class="col-md-6">
+                                        <div class="bg-light p-2 rounded border">
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <small class="fw-bold text-dark"><i class="fas fa-sms me-1 text-info"></i>SMS Version (&lt;160 chars):</small>
+                                                <button class="btn btn-outline-secondary btn-xs py-0 px-2" onclick="copyText('ai_sms_text')"><i class="fas fa-copy"></i></button>
+                                            </div>
+                                            <textarea id="ai_sms_text" class="form-control font-monospace" rows="3" style="font-size: 0.78rem;" readonly></textarea>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="bg-light p-2 rounded border">
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <small class="fw-bold text-dark"><i class="fab fa-instagram me-1 text-danger"></i>Social Media Caption:</small>
+                                                <button class="btn btn-outline-secondary btn-xs py-0 px-2" onclick="copyText('ai_social_text')"><i class="fas fa-copy"></i></button>
+                                            </div>
+                                            <textarea id="ai_social_text" class="form-control font-monospace" rows="3" style="font-size: 0.78rem;" readonly></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Real-Time Mobile Mockup Preview -->
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm rounded-3 h-100 bg-light">
+                <div class="card-header bg-white border-bottom p-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold text-dark"><i class="fab fa-whatsapp text-success me-2"></i>Live WhatsApp Preview</h5>
+                    <span id="previewCustomerBadge" class="badge bg-success"><i class="fas fa-check-double me-1"></i>Customer View</span>
+                </div>
+                <div class="card-body p-3 d-flex flex-column justify-content-center align-items-center">
+                    
+                    <!-- Phone Frame Mockup -->
+                    <div class="mockup-phone shadow-lg" style="width: 100%; max-width: 360px; background: #e5ddd5; border-radius: 28px; border: 8px solid #1f2937; overflow: hidden; position: relative;">
+                        <!-- WhatsApp Top Bar -->
+                        <div class="d-flex align-items-center gap-2 p-2 px-3 text-white" style="background: #075e54;">
+                            <i class="fas fa-arrow-left fa-sm"></i>
+                            <div class="rounded-circle bg-white text-success d-flex align-items-center justify-content-center fw-bold" style="width: 32px; height: 32px; font-size: 0.8rem;">
+                                🏢
+                            </div>
+                            <div class="flex-grow-1" style="line-height: 1.1;">
+                                <div class="fw-bold small">{{ organization_name|default:"First Money Gold" }}</div>
+                                <div style="font-size: 0.65rem; opacity: 0.85;">Official Business Account &bull; Verified</div>
+                            </div>
+                            <i class="fas fa-ellipsis-v fa-sm"></i>
+                        </div>
+
+                        <!-- Chat Message Area -->
+                        <div class="p-3" style="min-height: 400px; max-height: 460px; overflow-y: auto; background-image: radial-gradient(#d1d7db 1px, transparent 1px); background-size: 16px 16px;">
+                            
+                            <!-- Date Chip -->
+                            <div class="text-center mb-2">
+                                <span class="badge bg-white text-muted shadow-sm" style="font-size: 0.65rem; font-weight: normal;">TODAY</span>
+                            </div>
+
+                            <!-- WhatsApp Bubble -->
+                            <div id="phoneChatBubble" class="bg-white p-3 rounded-3 shadow-sm position-relative ms-auto" style="border-top-left-radius: 0 !important; max-width: 95%;">
+                                <div id="previewMessageContent" class="small text-dark" style="white-space: pre-wrap; font-size: 0.82rem; line-height: 1.45;">{{ sample_preview_text }}</div>
+                                <div class="text-end text-muted mt-1" style="font-size: 0.65rem;">
+                                    10:30 AM <i class="fas fa-check-double text-primary ms-1"></i>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <!-- Bottom Fake Input -->
+                        <div class="bg-white p-2 d-flex align-items-center gap-2 border-top">
+                            <i class="far fa-smile text-muted"></i>
+                            <div class="flex-grow-1 bg-light rounded-pill px-3 py-1 text-muted" style="font-size: 0.75rem;">Message</div>
+                            <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">
+                                <i class="fas fa-microphone fa-xs"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-2 text-center">
+                        <small class="text-muted" style="font-size: 0.72rem;">
+                            <i class="fas fa-eye me-1 text-primary"></i>Simulates how your customer will see this message on their phone.
+                        </small>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ═══ 1-CLICK INTERACTIVE BROADCAST QUEUE ═══ -->
+    <div class="card border-0 shadow-sm rounded-3 mb-4" id="broadcastQueueSection">
+        <div class="card-header bg-white border-bottom p-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+                <h5 class="mb-0 fw-bold text-dark"><i class="fas fa-paper-plane text-success me-2"></i>Interactive 1-Click Broadcast Queue</h5>
+                <p class="text-muted small mb-0">Click <strong>"Send on WhatsApp"</strong> for each customer to launch pre-filled WhatsApp with 0 risk of account suspension.</p>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <input type="text" id="queueSearchInput" class="form-control form-control-sm" placeholder="🔍 Search in queue..." style="width: 200px;">
+                <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 fw-semibold">
+                    {{ total_queue_count }} Targeted
+                </span>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            {% if broadcast_queue %}
+            <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+                <table class="table table-hover align-middle mb-0" id="broadcastTable">
+                    <thead class="table-light sticky-top" style="font-size: 0.8rem;">
+                        <tr>
+                            <th class="ps-3">#</th>
+                            <th>Customer</th>
+                            <th>Phone (WhatsApp)</th>
+                            <th>Branch / City</th>
+                            <th>Active Loans</th>
+                            <th>Personalized Preview</th>
+                            <th class="text-end pe-3">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody style="font-size: 0.85rem;">
+                        {% for item in broadcast_queue %}
+                        <tr id="queue-row-{{ forloop.counter }}" 
+                            data-name="{{ item.name }}" 
+                            data-phone="{{ item.phone }}" 
+                            data-branch="{{ item.branch_name|default:'Main Branch' }}" 
+                            data-branch-phone="{{ item.branch_phone|default:'9876543210' }}">
+                            <td class="ps-3 text-muted fw-bold">{{ forloop.counter }}</td>
+                            <td>
+                                <strong>{{ item.name }}</strong>
+                            </td>
+                            <td>
+                                <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace">
+                                    <i class="fab fa-whatsapp me-1"></i>{{ item.phone }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="text-muted">{{ item.branch_name|default:"Main" }}</span>
+                                {% if item.city %}<small class="text-muted d-block">{{ item.city }}</small>{% endif %}
+                            </td>
+                            <td>
+                                {% if item.active_loans_count > 0 %}
+                                <span class="badge bg-info-subtle text-info border border-info-subtle">{{ item.active_loans_count }} Active</span>
+                                {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary">0 Active</span>
+                                {% endif %}
+                            </td>
+                            <td style="max-width: 260px;">
+                                <div class="text-truncate text-muted queue-msg-snippet" style="font-size: 0.78rem;" title="{{ item.message }}">
+                                    {{ item.message }}
+                                </div>
+                            </td>
+                            <td class="text-end pe-3">
+                                <a href="{{ item.whatsapp_url }}" target="_blank" 
+                                   class="btn btn-success btn-sm px-3 shadow-sm fw-semibold wa-send-btn"
+                                   onclick="markRowSent('queue-row-{{ forloop.counter }}')">
+                                    <i class="fab fa-whatsapp me-1"></i> Send
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5 text-muted">
+                <i class="fas fa-users-slash fa-3x mb-3 text-secondary opacity-50"></i>
+                <h6>No WhatsApp-ready customers found in this segment.</h6>
+                <p class="small mb-0">Try changing the audience segment filter above.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- ═══ AI MARKETING POSTER & FLYER STUDIO (IMAGE GENERATOR) ═══ -->
+    <div class="card border-0 shadow-sm rounded-3 mb-4" id="posterStudioSection">
+        <div class="card-header bg-white border-bottom p-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-danger rounded-pill"><i class="fas fa-palette me-1"></i>IMAGE STUDIO</span>
+                    <h5 class="mb-0 fw-bold text-dark">Editable Marketing Poster &amp; Flyer Generator</h5>
+                </div>
+                <p class="text-muted small mb-0">Convert Gemini AI campaigns or preset templates into high-resolution branding images with your custom logo, gold rates, and contact details.</p>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-sm btn-outline-primary shadow-sm fw-semibold" onclick="loadAiDataIntoPoster()">
+                    <i class="fas fa-wand-magic-sparkles me-1 text-primary"></i> Load from Gemini AI
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary shadow-sm fw-semibold" onclick="loadPresetDataIntoPoster()">
+                    <i class="fas fa-layer-group me-1"></i> Load from Preset
+                </button>
+                <button type="button" class="btn btn-sm btn-success shadow-sm fw-bold px-3" onclick="downloadPosterImage()">
+                    <i class="fas fa-download me-1"></i> Download Poster (PNG)
+                </button>
+            </div>
+        </div>
+        <div class="card-body p-3">
+            <div class="row g-4">
+                
+                <!-- Left Column: Editable Controls Form -->
+                <div class="col-lg-6">
+                    <div class="bg-light p-3 rounded-3 border h-100">
+                        
+                        <!-- 1. Brand & Logo Settings -->
+                        <div class="mb-3 pb-3 border-bottom">
+                            <h6 class="fw-bold text-dark mb-2"><i class="fas fa-building text-primary me-1"></i> 1. Company Branding &amp; Logo</h6>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold mb-1">Company Name:</label>
+                                    <input type="text" id="poster_company_name" class="form-control form-control-sm" value="{{ organization_name|default:'First Money Gold' }}" oninput="renderPosterCanvas()">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold mb-1">Tagline / Subtext:</label>
+                                    <input type="text" id="poster_tagline" class="form-control form-control-sm" value="Trusted Gold Loan & Pawnshop • Since 2010" oninput="renderPosterCanvas()">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold mb-1">Custom Logo Upload:</label>
+                                    <input type="file" id="poster_logo_file" class="form-control form-control-sm" accept="image/*" onchange="handleLogoUpload(this)">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold mb-1">Or Choose Default Emblem:</label>
+                                    <select id="poster_emblem_icon" class="form-select form-select-sm" onchange="renderPosterCanvas()">
+                                        <option value="crown">👑 Royal Gold Crown</option>
+                                        <option value="coin">🪙 Auspicious Gold Coin</option>
+                                        <option value="vault">🏛️ High Security Safe Vault</option>
+                                        <option value="star">🌟 Golden Star of Trust</option>
+                                        <option value="gem">💎 Diamond &amp; Gold</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 2. Offer Headlines & Rate Badge -->
+                        <div class="mb-3 pb-3 border-bottom">
+                            <h6 class="fw-bold text-dark mb-2"><i class="fas fa-bullhorn text-danger me-1"></i> 2. Offer Headlines &amp; Rate Badge</h6>
+                            <div class="row g-2">
+                                <div class="col-12">
+                                    <label class="form-label small fw-semibold mb-1">Main Headline (Banner Text):</label>
+                                    <input type="text" id="poster_headline" class="form-control form-control-sm fw-bold" value="🎉 தீபாவளி சிறப்பு தங்கக் கடன் பெருவிழா" oninput="renderPosterCanvas()">
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label small fw-semibold mb-1">Offer Subheading / Catchy Hook:</label>
+                                    <input type="text" id="poster_subheading" class="form-control form-control-sm" value="கிராமுக்கு அதிக கடன் & மிகக் குறைந்த வட்டி மட்டுமே!" oninput="renderPosterCanvas()">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold mb-1">Big Highlight Rate:</label>
+                                    <input type="text" id="poster_badge_main" class="form-control form-control-sm fw-bold text-danger" value="0.99%*" oninput="renderPosterCanvas()">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold mb-1">Rate Badge Subtext:</label>
+                                    <input type="text" id="poster_badge_sub" class="form-control form-control-sm" value="மாத வட்டி மட்டுமே" oninput="renderPosterCanvas()">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3. Key Bullet Highlights -->
+                        <div class="mb-3 pb-3 border-bottom">
+                            <h6 class="fw-bold text-dark mb-2"><i class="fas fa-list-check text-success me-1"></i> 3. Key Feature Highlights (3 Badges)</h6>
+                            <div class="row g-2">
+                                <div class="col-md-4">
+                                    <input type="text" id="poster_hl_1" class="form-control form-control-sm" value="⚡ 5 நிமிடங்களில் ரொக்கம்" oninput="renderPosterCanvas()">
+                                </div>
+                                <div class="col-md-4">
+                                    <input type="text" id="poster_hl_2" class="form-control form-control-sm" value="🪙 கிராமுக்கு அதிக கடன் ₹{{ current_gold_rate|floatformat:0 }}" oninput="renderPosterCanvas()">
+                                </div>
+                                <div class="col-md-4">
+                                    <input type="text" id="poster_hl_3" class="form-control form-control-sm" value="🔒 100% பாதுகாப்பான பெட்டகம்" oninput="renderPosterCanvas()">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 4. Contact & Location Details -->
+                        <div class="mb-3 pb-3 border-bottom">
+                            <h6 class="fw-bold text-dark mb-2"><i class="fas fa-map-marker-alt text-warning me-1"></i> 4. Contact &amp; Branch Details</h6>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold mb-1">Branch / Shop Address:</label>
+                                    <input type="text" id="poster_address" class="form-control form-control-sm" value="Main Branch, Bazaar Street, Theni" oninput="renderPosterCanvas()">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold mb-1">Helpline / WhatsApp Phone:</label>
+                                    <input type="text" id="poster_phone" class="form-control form-control-sm font-monospace" value="📞 +91 98765 43210" oninput="renderPosterCanvas()">
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label small fw-semibold mb-1">Disclaimer / Terms Subtext:</label>
+                                    <input type="text" id="poster_disclaimer" class="form-control form-control-sm" value="*விதிமுறைகளுக்கு உட்பட்டது • உடனடி ஆவண சரிபார்ப்பு & ரொக்கம்" oninput="renderPosterCanvas()">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 5. Theme & Layout Style -->
+                        <div>
+                            <h6 class="fw-bold text-dark mb-2"><i class="fas fa-paint-roller text-info me-1"></i> 5. Design Theme &amp; Format</h6>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold mb-1">Background Theme:</label>
+                                    <select id="poster_theme" class="form-select form-select-sm" onchange="renderPosterCanvas()">
+                                        <option value="royal_maroon" selected>👑 Royal Gold &amp; Deep Maroon</option>
+                                        <option value="midnight_blue">🌌 Midnight Navy &amp; Gold Flare</option>
+                                        <option value="emerald_green">🌿 Emerald Green &amp; Luxury Gold</option>
+                                        <option value="festive_ruby">🏮 Festive Ruby Red &amp; Sparks</option>
+                                        <option value="obsidian_black">🖤 Obsidian Black &amp; 24K Gold</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold mb-1">Poster Canvas Ratio:</label>
+                                    <select id="poster_ratio" class="form-select form-select-sm" onchange="updateCanvasRatio()">
+                                        <option value="square" selected>Square (1:1 - 1080×1080) for Posts / WhatsApp</option>
+                                        <option value="portrait">Portrait (4:5 - 1080×1350) for Stories / Status</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Right Column: Live Interactive Poster Canvas Preview -->
+                <div class="col-lg-6 d-flex flex-column align-items-center justify-content-center">
+                    <div class="card border-0 shadow-lg p-2 bg-dark rounded-3 w-100 text-center" style="max-width: 520px;">
+                        <div class="d-flex justify-content-between align-items-center px-2 py-1 mb-2 text-white">
+                            <span class="badge bg-warning text-dark"><i class="fas fa-eye me-1"></i>Live High-Res Canvas</span>
+                            <small class="text-light opacity-75" id="posterDimensionsLabel">1080 × 1080 px (Ultra HD)</small>
+                        </div>
+                        
+                        <div class="position-relative d-inline-block w-100 overflow-hidden rounded">
+                            <canvas id="posterCanvas" width="1080" height="1080" style="width: 100%; height: auto; display: block; background: #000;"></canvas>
+                        </div>
+
+                        <div class="d-flex flex-wrap justify-content-center gap-2 mt-3 mb-1">
+                            <button type="button" class="btn btn-success fw-bold px-3 shadow-sm" onclick="downloadPosterImage()">
+                                <i class="fas fa-download me-1"></i> Download PNG
+                            </button>
+                            <button type="button" class="btn btn-outline-light fw-semibold px-3 shadow-sm" onclick="copyPosterImageToClipboard()">
+                                <i class="fas fa-copy me-1"></i> Copy Image
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm text-light" onclick="renderPosterCanvas()">
+                                <i class="fas fa-rotate me-1"></i> Redraw
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ SOCIAL MEDIA & REFERRAL PROMO GENERATOR ═══ -->
+    <div class="row g-4 mb-4">
+        
+        <!-- Social Media Captions -->
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm rounded-3 h-100">
+                <div class="card-header bg-white border-bottom p-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold text-dark"><i class="fas fa-share-alt text-primary me-2"></i>Social Media Ad Copies</h5>
+                    <span class="badge bg-primary">Instagram / FB / Status</span>
+                </div>
+                <div class="card-body p-3">
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-dark d-flex justify-content-between">
+                            <span>Instagram &amp; Facebook Caption (English):</span>
+                            <button class="btn btn-outline-primary btn-xs py-0 px-2" onclick="copyText('ig_caption_en')"><i class="fas fa-copy me-1"></i>Copy</button>
+                        </label>
+                        <textarea id="ig_caption_en" class="form-control font-monospace" rows="4" style="font-size: 0.8rem;" readonly>{{ social_copies.instagram_en }}</textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-dark d-flex justify-content-between">
+                            <span>Instagram &amp; Facebook Caption (தமிழ்):</span>
+                            <button class="btn btn-outline-primary btn-xs py-0 px-2" onclick="copyText('ig_caption_ta')"><i class="fas fa-copy me-1"></i>Copy</button>
+                        </label>
+                        <textarea id="ig_caption_ta" class="form-control font-monospace" rows="4" style="font-size: 0.8rem;" readonly>{{ social_copies.instagram_ta }}</textarea>
+                    </div>
+
+                    <div>
+                        <label class="form-label fw-bold small text-dark d-flex justify-content-between">
+                            <span>WhatsApp Status 1-Liner:</span>
+                            <button class="btn btn-outline-primary btn-xs py-0 px-2" onclick="copyText('wa_status_text')"><i class="fas fa-copy me-1"></i>Copy</button>
+                        </label>
+                        <textarea id="wa_status_text" class="form-control font-monospace" rows="2" style="font-size: 0.8rem;" readonly>{{ social_copies.whatsapp_status_ta }}</textarea>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Schemes Promo Quick Cards -->
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm rounded-3 h-100">
+                <div class="card-header bg-white border-bottom p-3">
+                    <h5 class="mb-0 fw-bold text-dark"><i class="fas fa-percentage text-warning me-2"></i>Active Loan Schemes to Highlight</h5>
+                </div>
+                <div class="card-body p-3">
+                    <div class="row g-2">
+                        {% for s in schemes %}
+                        <div class="col-md-6">
+                            <div class="p-2 border rounded bg-white shadow-sm h-100">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <strong class="text-primary" style="font-size: 0.85rem;">{{ s.name }}</strong>
+                                    <span class="badge bg-success" style="font-size: 0.65rem;">{{ s.interest_rate }}% Int</span>
+                                </div>
+                                <div class="small text-muted" style="font-size: 0.75rem;">
+                                    <div>Max LTV: {{ s.max_ltv|default:75 }}%</div>
+                                    <div>Tenure: {{ s.tenure_months|default:12 }} Months</div>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-12 text-center text-muted py-3">
+                            <small>No custom loan schemes configured.</small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- ═══ PYWHATKIT AUTO-BROADCAST MODAL ═══ -->
+<div class="modal fade" id="pywhatkitModal" tabindex="-1" aria-labelledby="pywhatkitModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <form method="post" action="{% url 'marketing_broadcast_execute' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="pywhatkit_broadcast">
+                <input type="hidden" name="segment" value="{{ segment }}">
+                <input type="hidden" name="template" value="{{ template_key }}">
+                <input type="hidden" name="lang" value="{{ lang }}">
+                <input type="hidden" name="branch" value="{{ selected_branch_id }}">
+                <input type="hidden" name="custom_message" id="pywhatkitCustomMessageInput" value="">
+
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title fw-bold" id="pywhatkitModalLabel">
+                        <i class="fab fa-whatsapp me-2"></i>Automated PyWhatKit Broadcast
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-info py-2 small">
+                        <i class="fas fa-robot me-1"></i>
+                        PyWhatKit will open your desktop browser, navigate to WhatsApp Web, and dispatch messages automatically contact by contact.
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Target Audience Count:</label>
+                        <div class="fw-bold text-success fs-5">{{ total_queue_count }} Customers</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Safety Delay Between Messages (Seconds):</label>
+                        <input type="number" name="delay_seconds" class="form-control" value="20" min="10" max="120" required>
+                        <small class="text-muted">A 20-30 second pause between contacts prevents WhatsApp spam detection.</small>
+                    </div>
+
+                    <div class="bg-light p-3 rounded border">
+                        <small class="text-muted d-block fw-bold mb-1">Pre-flight Checklist:</small>
+                        <ul class="small text-muted mb-0 ps-3">
+                            <li>Ensure you are logged into WhatsApp Web in Chrome/Edge.</li>
+                            <li>Do not switch focus or click other windows while sending is active.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success fw-bold px-4" onclick="return confirm('Launch PyWhatKit background automated broadcast to {{ total_queue_count }} customers?');">
+                        🚀 Start Auto-Broadcast
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentAiCampaignData = null;
+const organizationName = "{{ organization_name|default:'First Money Gold' }}";
+const currentGoldRateStr = "₹{{ current_gold_rate|floatformat:0 }}";
+
+// WhatsApp markdown to HTML formatter (*bold*, _italic_, ~strike~)
+function formatWhatsAppToHtml(text) {
+    if (!text) return '';
+    let escaped = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    
+    // Bold: *text*
+    escaped = escaped.replace(/\*([^*\n]+)\*/g, '<strong class="fw-bold text-dark">$1</strong>');
+    // Italic: _text_
+    escaped = escaped.replace(/_([^_\n]+)_/g, '<em>$1</em>');
+    // Strikethrough: ~text~
+    escaped = escaped.replace(/~([^~\n]+)~/g, '<del>$1</del>');
+    
+    return escaped;
+}
+
+// Live update WhatsApp phone screen mockup
+function updateLiveMobilePreview(rawTemplate, source = 'preset') {
+    const previewDiv = document.getElementById('previewMessageContent');
+    const bubble = document.getElementById('phoneChatBubble');
+    const badge = document.getElementById('previewCustomerBadge');
+
+    if (!previewDiv || !rawTemplate) return;
+
+    // Replace sample customer variables
+    let sampleReplaced = rawTemplate
+        .replace(/{customer_name}/g, 'ஹரிஹரன்')
+        .replace(/{branch_name}/g, 'Main Branch')
+        .replace(/{branch_phone}/g, '9876543210')
+        .replace(/{organization_name}/g, organizationName)
+        .replace(/{gold_rate}/g, currentGoldRateStr);
+
+    // Format with WhatsApp markdown HTML
+    previewDiv.innerHTML = formatWhatsAppToHtml(sampleReplaced);
+
+    // Badge styling based on source
+    if (badge) {
+        if (source === 'ai') {
+            badge.className = 'badge text-white shadow-sm';
+            badge.style.background = 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)';
+            badge.innerHTML = '<i class="fas fa-wand-magic-sparkles me-1"></i>Gemini AI Preview';
+        } else {
+            badge.className = 'badge bg-success';
+            badge.style.background = '';
+            badge.innerHTML = '<i class="fas fa-check-double me-1"></i>Preset Preview';
+        }
+    }
+
+    // Gentle pulse effect to show real-time update
+    if (bubble) {
+        bubble.classList.remove('pulse-animation');
+        void bubble.offsetWidth; // Trigger DOM reflow
+        bubble.classList.add('pulse-animation');
+    }
+}
+
+// Load Gemini API Key from localStorage
+document.addEventListener('DOMContentLoaded', function() {
+    const savedKey = localStorage.getItem('gemini_api_key_custom');
+    if (savedKey) {
+        const input = document.getElementById('geminiCustomApiKey');
+        if (input) input.value = savedKey;
+    }
+
+    // Initialize preset text into phone mockup
+    const initialPreset = document.getElementById('campaignMessageInput');
+    if (initialPreset && initialPreset.value) {
+        updateLiveMobilePreview(initialPreset.value, 'preset');
+        initialPreset.addEventListener('input', function() {
+            updateLiveMobilePreview(this.value, 'preset');
+        });
+    }
+
+    // Live sync for AI WhatsApp Textarea
+    const aiTextarea = document.getElementById('ai_whatsapp_text');
+    if (aiTextarea) {
+        aiTextarea.addEventListener('input', function() {
+            updateLiveMobilePreview(this.value, 'ai');
+            const countElem = document.getElementById('aiWaCharCount');
+            if (countElem) countElem.innerText = `${this.value.length} chars`;
+        });
+    }
+});
+
+function saveGeminiKeyToStorage() {
+    const key = document.getElementById('geminiCustomApiKey').value.trim();
+    if (key) {
+        localStorage.setItem('gemini_api_key_custom', key);
+        alert('Gemini API Key saved locally in your browser!');
+    } else {
+        localStorage.removeItem('gemini_api_key_custom');
+        alert('Custom API key removed. System default will be used.');
+    }
+}
+
+// AI Campaign Generator Ajax Handler
+async function generateCampaignWithAI(e) {
+    e.preventDefault();
+    const btn = document.getElementById('aiGenerateBtn');
+    const spinner = document.getElementById('aiBtnSpinner');
+    const icon = document.getElementById('aiBtnIcon');
+    const btnText = document.getElementById('aiBtnText');
+
+    btn.disabled = true;
+    spinner.classList.remove('d-none');
+    icon.classList.add('d-none');
+    btnText.innerText = 'Consulting Google Gemini AI...';
+
+    const payload = {
+        offer_type: document.getElementById('ai_offer_type').value,
+        festival_name: document.getElementById('ai_festival_name').value,
+        language: document.getElementById('ai_language').value,
+        tone: document.getElementById('ai_tone').value,
+        interest_rate: document.getElementById('ai_interest_rate').value,
+        gold_rate: document.getElementById('ai_gold_rate').value,
+        bonus_offer: document.getElementById('ai_bonus_offer').value,
+        custom_instructions: document.getElementById('ai_custom_notes').value,
+        custom_api_key: document.getElementById('geminiCustomApiKey').value.trim(),
+    };
+
+    try {
+        const response = await fetch("{% url 'marketing_generate_ai' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const res = await response.json();
+        if (res.status === 'success' && res.data) {
+            currentAiCampaignData = res.data;
+            renderAiCampaignOutput(res.data);
+        } else {
+            alert('Error generating campaign: ' + (res.message || 'Unknown error'));
+        }
+    } catch (err) {
+        console.error(err);
+        alert('Failed to connect to AI service. Please check your internet connection.');
+    } finally {
+        btn.disabled = false;
+        spinner.classList.add('d-none');
+        icon.classList.remove('d-none');
+        btnText.innerText = 'Generate Campaign with Google Gemini AI';
+    }
+}
+
+function renderAiCampaignOutput(data) {
+    const container = document.getElementById('aiOutputContainer');
+    container.classList.remove('d-none');
+
+    document.getElementById('aiResultTitle').innerText = data.campaign_title || '✨ Special AI Gold Loan Campaign';
+    document.getElementById('aiModelBadge').innerText = data.model_used || 'Gemini 1.5 Flash';
+
+    // Highlights list
+    const hlContainer = document.getElementById('aiHighlightsList');
+    hlContainer.innerHTML = '';
+    (data.key_highlights || []).forEach(hl => {
+        const badge = document.createElement('span');
+        badge.className = 'badge bg-white text-dark border shadow-sm';
+        badge.innerHTML = `<i class="fas fa-check text-success me-1"></i>${hl}`;
+        hlContainer.appendChild(badge);
+    });
+
+    // Populate the AI WhatsApp Textarea
+    const aiWaTextarea = document.getElementById('ai_whatsapp_text');
+    if (aiWaTextarea) {
+        aiWaTextarea.value = data.whatsapp_message || '';
+        const countElem = document.getElementById('aiWaCharCount');
+        if (countElem) countElem.innerText = `${(data.whatsapp_message || '').length} chars`;
+    }
+
+    document.getElementById('ai_sms_text').value = data.sms_message || '';
+    document.getElementById('ai_social_text').value = data.social_caption || '';
+
+    // ✨ IMMEDIATELY SHOW IN THE REAL-TIME WHATSAPP MOBILE PREVIEW ON THE RIGHT!
+    updateLiveMobilePreview(data.whatsapp_message, 'ai');
+
+    // ✨ ALSO UPDATE THE EDITABLE MARKETING POSTER CANVAS AUTOMATICALLY!
+    if (data.campaign_title) {
+        document.getElementById('poster_headline').value = data.campaign_title;
+    }
+    if (data.key_highlights && data.key_highlights.length >= 1) {
+        document.getElementById('poster_hl_1').value = `⚡ ${data.key_highlights[0]}`;
+        if (data.key_highlights[1]) document.getElementById('poster_hl_2').value = `🪙 ${data.key_highlights[1]}`;
+        if (data.key_highlights[2]) document.getElementById('poster_hl_3').value = `🔒 ${data.key_highlights[2]}`;
+    }
+    const aiInterest = document.getElementById('ai_interest_rate');
+    if (aiInterest && aiInterest.value) {
+        document.getElementById('poster_badge_main').value = `${aiInterest.value}*`;
+    }
+    renderPosterCanvas();
+
+    // Scroll to results
+    container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// 1-Click preview button from AI tab
+function previewAiMessageInPhone() {
+    const aiWaTextarea = document.getElementById('ai_whatsapp_text');
+    if (aiWaTextarea && aiWaTextarea.value) {
+        updateLiveMobilePreview(aiWaTextarea.value, 'ai');
+        // Flash mockup
+        const mockup = document.querySelector('.mockup-phone');
+        if (mockup) mockup.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+}
+
+// 1-Click apply AI generated message into broadcast queue
+function applyAiToBroadcastQueue() {
+    const aiWaTextarea = document.getElementById('ai_whatsapp_text');
+    const rawTemplate = (aiWaTextarea && aiWaTextarea.value) ? aiWaTextarea.value : (currentAiCampaignData ? currentAiCampaignData.whatsapp_message : '');
+
+    if (!rawTemplate) {
+        alert('No campaign content to apply.');
+        return;
+    }
+
+    // Update the message editor textarea in Preset tab
+    document.getElementById('campaignMessageInput').value = rawTemplate;
+
+    // Update phone preview
+    updateLiveMobilePreview(rawTemplate, 'ai');
+
+    // Update PyWhatKit custom message field
+    const pywhatkitInput = document.getElementById('pywhatkitCustomMessageInput');
+    if (pywhatkitInput) pywhatkitInput.value = rawTemplate;
+
+    // Update every row in the broadcast queue table
+    const rows = document.querySelectorAll('#broadcastTable tbody tr');
+    rows.forEach(r => {
+        const custName = r.getAttribute('data-name') || 'Customer';
+        const custPhone = (r.getAttribute('data-phone') || '').replace(/\D/g, '');
+        const branchName = r.getAttribute('data-branch') || 'Main Branch';
+        const branchPhone = r.getAttribute('data-branch-phone') || '9876543210';
+
+        const personalized = rawTemplate
+            .replace(/{customer_name}/g, custName)
+            .replace(/{branch_name}/g, branchName)
+            .replace(/{branch_phone}/g, branchPhone)
+            .replace(/{organization_name}/g, organizationName)
+            .replace(/{gold_rate}/g, currentGoldRateStr);
+
+        // Update snippet
+        const snippet = r.querySelector('.queue-msg-snippet');
+        if (snippet) {
+            snippet.innerText = personalized;
+            snippet.setAttribute('title', personalized);
+        }
+
+        // Update send button URL
+        const sendBtn = r.querySelector('.wa-send-btn');
+        if (sendBtn) {
+            const encoded = encodeURIComponent(personalized);
+            const intlPhone = custPhone.startsWith('91') ? custPhone : ('91' + custPhone);
+            sendBtn.href = `https://api.whatsapp.com/send?phone=${intlPhone}&text=${encoded}`;
+        }
+    });
+
+    // Alert and jump to broadcast queue
+    alert('✨ AI Campaign successfully applied to the Broadcast Queue & Mobile Preview!');
+    document.getElementById('broadcastQueueSection').scrollIntoView({ behavior: 'smooth' });
+}
+
+// ============================================================================
+// 🎨 EDITABLE MARKETING POSTER & FLYER CANVAS GENERATOR ENGINE
+// ============================================================================
+let customUploadedLogoImg = null;
+
+function handleLogoUpload(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                customUploadedLogoImg = img;
+                renderPosterCanvas();
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+function updateCanvasRatio() {
+    const canvas = document.getElementById('posterCanvas');
+    const ratio = document.getElementById('poster_ratio').value;
+    const label = document.getElementById('posterDimensionsLabel');
+    if (ratio === 'portrait') {
+        canvas.width = 1080;
+        canvas.height = 1350;
+        if (label) label.innerText = '1080 × 1350 px (Portrait 4:5)';
+    } else {
+        canvas.width = 1080;
+        canvas.height = 1080;
+        if (label) label.innerText = '1080 × 1080 px (Square 1:1)';
+    }
+    renderPosterCanvas();
+}
+
+function renderPosterCanvas() {
+    const canvas = document.getElementById('posterCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width;
+    const H = canvas.height;
+
+    // Read form inputs
+    const companyName = document.getElementById('poster_company_name').value || 'First Money Gold';
+    const tagline = document.getElementById('poster_tagline').value || 'Trusted Gold Loan & Pawnshop Since 2010';
+    const emblem = document.getElementById('poster_emblem_icon').value;
+    const headline = document.getElementById('poster_headline').value || '🎉 சிறப்பு தங்கக் கடன் பெருவிழா';
+    const subheading = document.getElementById('poster_subheading').value || 'கிராமுக்கு அதிக கடன் & மிகக் குறைந்த வட்டி!';
+    const rateMain = document.getElementById('poster_badge_main').value || '0.99%*';
+    const rateSub = document.getElementById('poster_badge_sub').value || 'மாத வட்டி மட்டுமே';
+    const hl1 = document.getElementById('poster_hl_1').value || '⚡ 5 நிமிடங்களில் ரொக்கம்';
+    const hl2 = document.getElementById('poster_hl_2').value || '🪙 கிராமுக்கு அதிக கடன்';
+    const hl3 = document.getElementById('poster_hl_3').value || '🔒 100% பாதுகாப்பான பெட்டகம்';
+    const address = document.getElementById('poster_address').value || 'Main Branch, Bazaar Street, Theni';
+    const phone = document.getElementById('poster_phone').value || '📞 +91 98765 43210';
+    const disclaimer = document.getElementById('poster_disclaimer').value || '*விதிமுறைகளுக்கு உட்பட்டது • உடனடி ரொக்கப் பட்டுவாடா';
+    const theme = document.getElementById('poster_theme').value;
+
+    // 1. Background Theme Gradient
+    let bgGrad = ctx.createRadialGradient(W/2, H*0.4, 80, W/2, H/2, W*0.75);
+    if (theme === 'midnight_blue') {
+        bgGrad.addColorStop(0, '#1e1b4b');
+        bgGrad.addColorStop(0.5, '#0f172a');
+        bgGrad.addColorStop(1, '#020617');
+    } else if (theme === 'emerald_green') {
+        bgGrad.addColorStop(0, '#064e3b');
+        bgGrad.addColorStop(0.6, '#022c22');
+        bgGrad.addColorStop(1, '#011612');
+    } else if (theme === 'festive_ruby') {
+        bgGrad.addColorStop(0, '#881337');
+        bgGrad.addColorStop(0.6, '#4c0519');
+        bgGrad.addColorStop(1, '#1f020a');
+    } else if (theme === 'obsidian_black') {
+        bgGrad.addColorStop(0, '#27272a');
+        bgGrad.addColorStop(0.6, '#18181b');
+        bgGrad.addColorStop(1, '#09090b');
+    } else {
+        // Royal Maroon default
+        bgGrad.addColorStop(0, '#5b0f1a');
+        bgGrad.addColorStop(0.5, '#3b060e');
+        bgGrad.addColorStop(1, '#1a0104');
+    }
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Decorative radial glow in upper center
+    let centerGlow = ctx.createRadialGradient(W/2, H*0.45, 20, W/2, H*0.45, 360);
+    centerGlow.addColorStop(0, 'rgba(251, 191, 36, 0.22)');
+    centerGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = centerGlow;
+    ctx.fillRect(0, 0, W, H);
+
+    // 2. Luxury Double Gold Foil Border
+    ctx.save();
+    ctx.strokeStyle = '#d4af37';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(30, 30, W - 60, H - 60);
+
+    ctx.strokeStyle = '#fef08a';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(42, 42, W - 84, H - 84);
+
+    // Corner Ornaments
+    const corners = [
+        [42, 42], [W - 42, 42],
+        [42, H - 42], [W - 42, H - 42]
+    ];
+    corners.forEach(([cx, cy]) => {
+        ctx.fillStyle = '#fde047';
+        ctx.beginPath();
+        ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+        ctx.fill();
+    });
+    ctx.restore();
+
+    // 3. Header: Logo & Brand Name
+    let topY = 70;
+    
+    // Draw Logo or Emblem
+    if (customUploadedLogoImg) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(W/2, topY + 36, 36, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(customUploadedLogoImg, W/2 - 36, topY, 72, 72);
+        ctx.restore();
+
+        // Ring around logo
+        ctx.strokeStyle = '#facc15';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(W/2, topY + 36, 38, 0, Math.PI * 2);
+        ctx.stroke();
+    } else {
+        const emblemIcons = {
+            crown: '👑',
+            coin: '🪙',
+            vault: '🏛️',
+            star: '🌟',
+            gem: '💎',
+        };
+        ctx.font = '48px "Segoe UI Emoji", Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(emblemIcons[emblem] || '👑', W/2, topY + 32);
+    }
+
+    topY += 86;
+
+    // Company Name
+    ctx.save();
+    let goldTextGrad = ctx.createLinearGradient(W/2 - 250, 0, W/2 + 250, 0);
+    goldTextGrad.addColorStop(0, '#fef08a');
+    goldTextGrad.addColorStop(0.5, '#facc15');
+    goldTextGrad.addColorStop(1, '#ca8a04');
+    ctx.fillStyle = goldTextGrad;
+    ctx.font = 'bold 40px "Segoe UI", Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+    ctx.shadowBlur = 10;
+    ctx.fillText(companyName.toUpperCase(), W/2, topY);
+    ctx.restore();
+
+    // Tagline
+    topY += 34;
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = '19px "Segoe UI", Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(tagline, W/2, topY);
+
+    // Header Divider Line
+    topY += 24;
+    ctx.strokeStyle = 'rgba(234, 179, 8, 0.4)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(W/2 - 280, topY);
+    ctx.lineTo(W/2 + 280, topY);
+    ctx.stroke();
+
+    // 4. Main Headline & Subheading
+    topY += 46;
+    ctx.save();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 36px "Segoe UI", Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.shadowColor = 'rgba(0,0,0,0.9)';
+    ctx.shadowBlur = 8;
+    ctx.fillText(headline, W/2, topY);
+    ctx.restore();
+
+    topY += 38;
+    // Subheading Pill Box
+    ctx.save();
+    ctx.font = '21px "Segoe UI", Arial, sans-serif';
+    ctx.textAlign = 'center';
+    let subWidth = ctx.measureText(subheading).width + 40;
+    ctx.fillStyle = 'rgba(254, 240, 138, 0.15)';
+    ctx.strokeStyle = 'rgba(250, 204, 21, 0.6)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(W/2 - subWidth/2, topY - 18, subWidth, 36, 18);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#fef08a';
+    ctx.fillText(subheading, W/2, topY + 7);
+    ctx.restore();
+
+    // 5. Big Center Highlight Badge (Interest Rate Showcase)
+    topY += (H > 1100 ? 110 : 80);
+    const badgeRadius = (H > 1100 ? 120 : 105);
+
+    // Glowing Outer Circle
+    ctx.save();
+    ctx.shadowColor = 'rgba(234, 179, 8, 0.5)';
+    ctx.shadowBlur = 30;
+    let badgeGrad = ctx.createLinearGradient(W/2 - badgeRadius, topY - badgeRadius, W/2 + badgeRadius, topY + badgeRadius);
+    badgeGrad.addColorStop(0, '#fef08a');
+    badgeGrad.addColorStop(0.3, '#facc15');
+    badgeGrad.addColorStop(0.7, '#eab308');
+    badgeGrad.addColorStop(1, '#854d0e');
+    ctx.fillStyle = badgeGrad;
+    ctx.beginPath();
+    ctx.arc(W/2, topY, badgeRadius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // Inner Ring
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(W/2, topY, badgeRadius - 10, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Text inside Badge
+    ctx.save();
+    ctx.fillStyle = '#450a0a';
+    ctx.font = 'bold 64px "Segoe UI", Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(rateMain, W/2, topY - 14);
+
+    ctx.font = 'bold 20px "Segoe UI", Arial, sans-serif';
+    ctx.fillStyle = '#1c1917';
+    ctx.fillText(rateSub, W/2, topY + 36);
+    ctx.restore();
+
+    // 6. Three Feature Highlights Badges
+    topY += badgeRadius + (H > 1100 ? 55 : 45);
+    const highlights = [hl1, hl2, hl3];
+    const cardW = 280;
+    const cardH = 58;
+    const cardGap = 20;
+    const startX = (W - (cardW * 3 + cardGap * 2)) / 2;
+
+    highlights.forEach((text, idx) => {
+        let cx = startX + idx * (cardW + cardGap);
+        ctx.save();
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.strokeStyle = 'rgba(250, 204, 21, 0.4)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(cx, topY, cardW, cardH, 12);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 17px "Segoe UI", Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, cx + cardW/2, topY + cardH/2);
+        ctx.restore();
+    });
+
+    // 7. Footer: Address, Phone Hotline Button & Disclaimer
+    topY += cardH + (H > 1100 ? 60 : 40);
+
+    // Address
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '20px "Segoe UI", Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`📍 ${address}`, W/2, topY);
+
+    // Hotline Button Callout
+    topY += 38;
+    ctx.save();
+    const btnW = 420;
+    const btnH = 54;
+    let btnGrad = ctx.createLinearGradient(W/2 - btnW/2, 0, W/2 + btnW/2, 0);
+    btnGrad.addColorStop(0, '#15803d');
+    btnGrad.addColorStop(0.5, '#16a34a');
+    btnGrad.addColorStop(1, '#22c55e');
+    ctx.fillStyle = btnGrad;
+    ctx.shadowColor = 'rgba(34, 197, 94, 0.4)';
+    ctx.shadowBlur = 16;
+    ctx.beginPath();
+    ctx.roundRect(W/2 - btnW/2, topY, btnW, btnH, 27);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 24px "Segoe UI", Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${phone}`, W/2, topY + btnH/2);
+    ctx.restore();
+
+    // Disclaimer
+    topY += btnH + 24;
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '15px "Segoe UI", Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(disclaimer, W/2, topY);
+}
+
+// 1-Click Load from Gemini AI Output into Poster Form
+function loadAiDataIntoPoster() {
+    if (!currentAiCampaignData) {
+        alert('No Gemini AI campaign has been generated yet. Please generate one in the AI Studio tab first!');
+        return;
+    }
+
+    if (currentAiCampaignData.campaign_title) {
+        document.getElementById('poster_headline').value = currentAiCampaignData.campaign_title;
+    }
+
+    // Set highlights if available
+    if (currentAiCampaignData.key_highlights && currentAiCampaignData.key_highlights.length >= 1) {
+        document.getElementById('poster_hl_1').value = `⚡ ${currentAiCampaignData.key_highlights[0]}`;
+        if (currentAiCampaignData.key_highlights[1]) {
+            document.getElementById('poster_hl_2').value = `🪙 ${currentAiCampaignData.key_highlights[1]}`;
+        }
+        if (currentAiCampaignData.key_highlights[2]) {
+            document.getElementById('poster_hl_3').value = `🔒 ${currentAiCampaignData.key_highlights[2]}`;
+        }
+    }
+
+    const aiInterest = document.getElementById('ai_interest_rate');
+    if (aiInterest && aiInterest.value) {
+        document.getElementById('poster_badge_main').value = `${aiInterest.value}*`;
+    }
+
+    renderPosterCanvas();
+    document.getElementById('posterStudioSection').scrollIntoView({ behavior: 'smooth' });
+    alert('✨ Successfully loaded Gemini AI campaign details into Poster Studio!');
+}
+
+// 1-Click Load from Selected Preset
+function loadPresetDataIntoPoster() {
+    const currentTemplateTitle = "{{ current_template.title_ta|default:current_template.title_en }}";
+    document.getElementById('poster_headline').value = currentTemplateTitle || '🎉 சிறப்பு தங்கக் கடன் பெருவிழா';
+    document.getElementById('poster_badge_main').value = '0.99%*';
+    document.getElementById('poster_badge_sub').value = 'மாத வட்டி மட்டுமே';
+    document.getElementById('poster_hl_1').value = '⚡ 5 நிமிடங்களில் ரொக்கம்';
+    document.getElementById('poster_hl_2').value = `🪙 ₹{{ current_gold_rate|floatformat:0 }}/g அதிக கடன்`;
+    document.getElementById('poster_hl_3').value = '🔒 100% பாதுகாப்பான பெட்டகம்';
+    renderPosterCanvas();
+    document.getElementById('posterStudioSection').scrollIntoView({ behavior: 'smooth' });
+}
+
+// Download High-Res PNG
+function downloadPosterImage() {
+    const canvas = document.getElementById('posterCanvas');
+    if (!canvas) return;
+    const link = document.createElement('a');
+    const compName = (document.getElementById('poster_company_name').value || 'gold_loan').toLowerCase().replace(/\s+/g, '_');
+    link.download = `${compName}_marketing_poster_${Date.now()}.png`;
+    link.href = canvas.toDataURL('image/png', 1.0);
+    link.click();
+}
+
+// Copy Image to Clipboard
+async function copyPosterImageToClipboard() {
+    const canvas = document.getElementById('posterCanvas');
+    if (!canvas) return;
+    try {
+        canvas.toBlob(async function(blob) {
+            if (!blob) {
+                alert('Failed to create image blob.');
+                return;
+            }
+            try {
+                await navigator.clipboard.write([
+                    new ClipboardItem({ 'image/png': blob })
+                ]);
+                alert('✨ Poster image copied to clipboard! You can paste it directly into WhatsApp Web, Canva, or Social Media chats.');
+            } catch (err) {
+                console.error(err);
+                alert('Could not copy automatically. You can download the PNG image instead.');
+            }
+        });
+    } catch (e) {
+        alert('Clipboard image copy not supported in this browser. Please use Download PNG.');
+    }
+}
+
+// Render canvas on page load
+document.addEventListener('DOMContentLoaded', function() {
+    renderPosterCanvas();
+});
+
+// Search inside broadcast table
+document.getElementById('queueSearchInput').addEventListener('input', function(e) {
+    const q = e.target.value.toLowerCase();
+    const rows = document.querySelectorAll('#broadcastTable tbody tr');
+    rows.forEach(r => {
+        const text = r.innerText.toLowerCase();
+        r.style.display = text.includes(q) ? '' : 'none';
+    });
+});
+
+// Mark Row Sent visually
+function markRowSent(rowId) {
+    const row = document.getElementById(rowId);
+    if (row) {
+        row.classList.add('table-success');
+        const btn = row.querySelector('.wa-send-btn');
+        if (btn) {
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-outline-success');
+            btn.innerHTML = '<i class="fas fa-check me-1"></i> Sent';
+        }
+    }
+}
+
+// Copy to clipboard helper
+function copyText(elemId) {
+    const el = document.getElementById(elemId);
+    if (el) {
+        el.select();
+        navigator.clipboard.writeText(el.value).then(() => {
+            alert('Copied to clipboard successfully!');
+        }).catch(() => {
+            document.execCommand('copy');
+            alert('Copied to clipboard!');
+        });
+    }
+}
+</script>
+
+<style>
+.hover-shadow:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    transform: translateY(-2px);
+}
+.transition-all {
+    transition: all 0.2s ease-in-out;
+}
+@keyframes pulseGlow {
+    0% { transform: scale(0.98); opacity: 0.85; }
+    50% { transform: scale(1.01); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+}
+.pulse-animation {
+    animation: pulseGlow 0.4s ease-out;
+}
+</style>
+{% endblock %}
+
+

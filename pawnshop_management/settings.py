@@ -286,3 +286,8 @@ EMAIL_BACKEND = env('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBac
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', 'noreply@myapp.com')
 SITE_URL = env('SITE_URL', 'http://127.0.0.1:8000')
 
+# Google Gemini API Settings (Free Tier)
+GEMINI_API_KEY = env('GEMINI_API_KEY', '')
+GEMINI_MODEL = env('GEMINI_MODEL', 'gemini-1.5-flash')
+
+
