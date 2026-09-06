@@ -144,6 +144,17 @@
             {% csrf_token %}
             <button type="submit" class="btn btn-danger">&#9993; Send Demand Notice via Email</button>
         </form>
+        {% if whatsapp_demand_link %}
+        <a href="{{ whatsapp_demand_link }}" target="_blank" class="btn" style="background:#25D366; color:#fff;">
+            💬 Send via WhatsApp Web
+        </a>
+        <form method="post" action="{% url 'loan_send_whatsapp' loan.loan_number %}" style="display:inline;" onsubmit="return confirm('Send Demand Notice via PyWhatKit automated background scheduler to {{ customer_phone }}?');">
+            {% csrf_token %}
+            <input type="hidden" name="whatsapp_type" value="demand_notice">
+            <input type="hidden" name="mode" value="pywhatkit">
+            <button type="submit" class="btn btn-secondary">🤖 Auto-Send WhatsApp (PyWhatKit)</button>
+        </form>
+        {% endif %}
         {% endif %}
     </div>
 </div>

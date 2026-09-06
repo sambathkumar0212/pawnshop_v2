@@ -1690,6 +1690,16 @@ class LoanExpiryNoticeView(LoginRequiredMixin, RoleBranchAccessMixin, View):
             'customer_photo': get_first_item_photo(loan.customer_face_capture) if loan.customer_face_capture else None,
             'first_item_photo': get_first_item_photo(loan.item_photos) if loan.item_photos else None,
         }
+        # Generate WhatsApp demand notice link
+        try:
+            from transactions.services_whatsapp import send_loan_expiry_notice_whatsapp
+            wa_data = send_loan_expiry_notice_whatsapp(loan, request_user=request.user, lang=getattr(request, 'LANGUAGE_CODE', None))
+            context['whatsapp_demand_link'] = wa_data.get('link', '')
+            context['customer_phone'] = wa_data.get('phone', '')
+        except Exception:
+            context['whatsapp_demand_link'] = ''
+            context['customer_phone'] = ''
+
         return render(request, 'transactions/loan_expiry_notice.html', context)
 
     def post(self, request, loan_number):
@@ -1764,6 +1774,68 @@ class LoanSendEmailView(LoginRequiredMixin, RoleBranchAccessMixin, View):
         return redirect(reverse('loan_detail', kwargs={'loan_number': loan_number}))
 
 
+class LoanSendWhatsAppView(LoginRequiredMixin, RoleBranchAccessMixin, View):
+    """
+    POST-only view to trigger WhatsApp notifications (via PyWhatKit or WhatsApp direct).
+    POST params:
+      whatsapp_type: 'reminder' | 'demand_notice' | 'payment_reminder'
+      mode: 'pywhatkit' (default) | 'link'
+    """
+    def post(self, request, loan_number):
+        loan = get_object_or_404(Loan, loan_number=loan_number)
+        self.check_object_branch_access(loan, branch_attr='branch')
+        whatsapp_type = request.POST.get('whatsapp_type', 'reminder')
+        mode = request.POST.get('mode', 'pywhatkit')
+        lang = getattr(request, 'LANGUAGE_CODE', None)
+
+        try:
+            from transactions.services_whatsapp import (
+                send_due_date_reminder_whatsapp,
+                send_loan_expiry_notice_whatsapp,
+            )
+            raw_phone = getattr(loan.customer, 'phone', None)
+            if not raw_phone:
+                messages.warning(
+                    request,
+                    f"No phone number found for customer {loan.customer}. "
+                    "Please update the customer profile with a valid phone number."
+                )
+                return redirect(reverse('loan_detail', kwargs={'loan_number': loan_number}))
+
+            if whatsapp_type == 'demand_notice':
+                res = send_loan_expiry_notice_whatsapp(
+                    loan, request_user=request.user, lang=lang, send_pywhatkit=(mode == 'pywhatkit')
+                )
+                if not res.get('success'):
+                    messages.warning(request, f"Invalid phone number '{raw_phone}'. Could not prepare WhatsApp notification.")
+                elif mode == 'link' and res.get('link'):
+                    return redirect(res['link'])
+                else:
+                    messages.success(
+                        request,
+                        f"💬 Demand Notice WhatsApp message scheduled to {res['phone']} via PyWhatKit automation."
+                    )
+            elif whatsapp_type in ('reminder', 'payment_reminder'):
+                res = send_due_date_reminder_whatsapp(
+                    loan, days_left=None, lang=lang, send_pywhatkit=(mode == 'pywhatkit')
+                )
+                if not res.get('success'):
+                    messages.warning(request, f"Invalid phone number '{raw_phone}'. Could not prepare WhatsApp notification.")
+                elif mode == 'link' and res.get('link'):
+                    return redirect(res['link'])
+                else:
+                    messages.success(
+                        request,
+                        f"💬 Due-date reminder WhatsApp message scheduled to {res['phone']} via PyWhatKit automation."
+                    )
+            else:
+                messages.warning(request, f"Unknown WhatsApp type: {whatsapp_type}")
+        except Exception as exc:
+            messages.error(request, f"Failed to send WhatsApp notification: {exc}")
+
+        return redirect(reverse('loan_detail', kwargs={'loan_number': loan_number}))
+
+
 class LoanDetailView(LoginRequiredMixin, RoleBranchAccessMixin, DetailView):
     model = Loan
     template_name = 'transactions/loan_detail.html'
@@ -1829,6 +1901,30 @@ class LoanDetailView(LoginRequiredMixin, RoleBranchAccessMixin, DetailView):
         # Process item photos for the template using centralized function
         context['item_photos_list'] = process_item_photos_for_display(loan.item_photos)
         context['tiered_rates'] = get_loan_tiered_rates(loan)
+
+        # WhatsApp direct links for seamless 1-click staff action
+        try:
+            from transactions.services_whatsapp import (
+                send_due_date_reminder_whatsapp,
+                send_loan_expiry_notice_whatsapp,
+                get_whatsapp_link,
+                normalize_phone_number,
+            )
+            lang = getattr(self.request, 'LANGUAGE_CODE', None)
+            wa_reminder = send_due_date_reminder_whatsapp(loan, lang=lang)
+            wa_demand = send_loan_expiry_notice_whatsapp(loan, request_user=self.request.user, lang=lang)
+            cust_phone = getattr(loan.customer, 'phone', '')
+            norm_phone = normalize_phone_number(cust_phone)
+            
+            context['whatsapp_reminder_link'] = wa_reminder.get('link', '')
+            context['whatsapp_demand_link'] = wa_demand.get('link', '')
+            context['whatsapp_chat_link'] = get_whatsapp_link(norm_phone, f"Hello {loan.customer.first_name}, regarding Gold Loan #{loan.loan_number} at {loan.branch.name if loan.branch else 'First Money Gold'}.") if norm_phone else ''
+            context['customer_phone_normalized'] = norm_phone
+        except Exception:
+            context['whatsapp_reminder_link'] = ''
+            context['whatsapp_demand_link'] = ''
+            context['whatsapp_chat_link'] = ''
+            context['customer_phone_normalized'] = ''
             
         return context
 
