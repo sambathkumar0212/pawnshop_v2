@@ -15,6 +15,7 @@ def ensure_default_chart_of_accounts(branch=None):
         ('1020', 'Bank Current Account (Main Operational)', AccountCategory.ASSET, 'Branch main current account for transfers & RTGS/NEFT/IMPS'),
         ('1050', 'Gold Loan Portfolio Asset (Principal Outstanding)', AccountCategory.ASSET, 'Pawn loan principal receivables secured against pledged gold items'),
         ('1060', 'Interest Accrued Receivable (Asset)', AccountCategory.ASSET, 'Cumulative daily interest accrued on active gold loans prior to payment realization'),
+        ('1070', 'Purchased Gold & Scrap Inventory Asset', AccountCategory.ASSET, 'Outright purchased gold ornaments and melted scrap bullion inventory asset'),
         
         # Liabilities (2000s)
         ('2010', 'Customer Advances & Excess Funds Payable', AccountCategory.LIABILITY, 'Unadjusted customer payments or advance interest funds'),
@@ -382,6 +383,73 @@ def post_daily_accrual_journal(branch, date, total_accrual, user=None):
         debit=Decimal('0.00'),
         credit=accrual_dec,
         narration=f"Daily interest revenue recognized for {date.strftime('%d-%b-%Y')}"
+    )
+
+    return entry
+
+
+@transaction.atomic
+def post_gold_purchase_journal(gold_purchase, user=None):
+    """
+    Creates double-entry journal voucher for an outright gold purchase from customer.
+    Debit 1070: Purchased Gold & Scrap Inventory Asset
+    Credit 1010/1020: Cash in Hand or Bank Account
+    """
+    branch = getattr(gold_purchase, 'branch', None)
+    ensure_default_chart_of_accounts(branch)
+    gold_asset_acc = get_account_head('1070', branch)
+    
+    pay_mode = (gold_purchase.payment_method or 'cash').lower()
+    if pay_mode in ['bank_transfer', 'cheque', 'upi']:
+        payment_acc = get_account_head('1020', branch)
+        cr_desc = f"Bank payment for gold purchase #{gold_purchase.purchase_number}"
+    else:
+        payment_acc = get_account_head('1010', branch)
+        cr_desc = f"Cash paid at counter for gold purchase #{gold_purchase.purchase_number}"
+
+    amount = Decimal(str(gold_purchase.net_payable_amount or '0.00')).quantize(Decimal('0.01'))
+    if amount <= Decimal('0.00'):
+        return None
+
+    ref_id = f"BUY-{gold_purchase.id}"
+    ref_type = getattr(JournalEntryType, 'GOLD_PURCHASE', 'MANUAL_ADJUSTMENT')
+    existing = JournalEntry.objects.filter(
+        reference_type=ref_type,
+        reference_id=ref_id,
+        branch=branch
+    ).first()
+    if existing:
+        return existing
+
+    entry_num = generate_entry_number(f"JE-BUY-{branch.id if branch else 'HQ'}", gold_purchase.purchase_date)
+    customer_name = gold_purchase.customer.full_name if hasattr(gold_purchase.customer, 'full_name') else str(gold_purchase.customer)
+    
+    entry = JournalEntry.objects.create(
+        entry_number=entry_num,
+        date=gold_purchase.purchase_date,
+        branch=branch,
+        reference_type=ref_type,
+        reference_id=ref_id,
+        narration=f"Gold Purchase #{gold_purchase.purchase_number} from {customer_name} - {gold_purchase.total_net_weight}g net wt.",
+        created_by=user or gold_purchase.purchased_by
+    )
+
+    # Debit 1070 (Inventory Asset)
+    JournalItem.objects.create(
+        entry=entry,
+        account=gold_asset_acc,
+        debit=amount,
+        credit=Decimal('0.00'),
+        narration=f"Purchased gold inventory asset ({gold_purchase.total_net_weight}g net wt)"
+    )
+
+    # Credit 1010/1020 (Cash / Bank)
+    JournalItem.objects.create(
+        entry=entry,
+        account=payment_acc,
+        debit=Decimal('0.00'),
+        credit=amount,
+        narration=cr_desc
     )
 
     return entry

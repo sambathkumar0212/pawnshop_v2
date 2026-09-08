@@ -83,6 +83,7 @@ class JournalEntryType(models.TextChoices):
     MANUAL_ADJUSTMENT = 'MANUAL_ADJUSTMENT', _('Manual Journal Voucher')
     CASH_DRAWER = 'CASH_DRAWER', _('Cash Drawer Adjustment')
     FEE_INCOME = 'FEE_INCOME', _('Fee / Charges Income')
+    GOLD_PURCHASE = 'GOLD_PURCHASE', _('Gold Purchase')
 
 
 class JournalEntry(models.Model):

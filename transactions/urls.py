@@ -3,6 +3,7 @@ from . import views
 from . import views_eod
 from . import views_partial_release
 from . import views_marketing
+from . import views_gold_purchase
 
 urlpatterns = [
     # Loans
@@ -50,6 +51,12 @@ urlpatterns = [
     path('sales/<int:pk>/cancel/', views.SaleCancelView.as_view(), name='sale_cancel'),
     path('sales/<int:pk>/complete/', views.SaleCompleteView.as_view(), name='sale_complete'),
     path('sales/<int:pk>/receipt/', views.SaleReceiptView.as_view(), name='sale_receipt'),
+
+    # Buy Used Gold (Old Gold Purchases)
+    path('gold-purchases/', views_gold_purchase.GoldPurchaseListView.as_view(), name='gold_purchase_list'),
+    path('gold-purchases/add/', views_gold_purchase.GoldPurchaseCreateView.as_view(), name='gold_purchase_create'),
+    path('gold-purchases/<int:pk>/', views_gold_purchase.GoldPurchaseDetailView.as_view(), name='gold_purchase_detail'),
+    path('gold-purchases/<int:pk>/receipt/', views_gold_purchase.GoldPurchaseReceiptPDFView.as_view(), name='gold_purchase_receipt'),
 
     # Digital Marketing & WhatsApp Broadcast Campaign Hub
     path('marketing/', views_marketing.DigitalMarketingDashboardView.as_view(), name='digital_marketing'),

@@ -71,6 +71,11 @@
             </a>
         </li>
         <li class="nav-item">
+            <a href="{% url 'gold_purchase_list' %}" class="nav-link {% block gold_purchase_active %}{% endblock %}">
+                <i class="fas fa-coins" style="color:#eab308;"></i> Buy Used Gold
+            </a>
+        </li>
+        <li class="nav-item">
             <a href="{% url 'eod_console' %}" class="nav-link {% block eod_active %}{% endblock %}">
                 <i class="fas fa-moon" style="color:#818cf8;"></i> EOD & NPA Operations
             </a>

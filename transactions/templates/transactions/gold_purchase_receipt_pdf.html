@@ -1,0 +1,469 @@
+{% load static %}
+{% load i18n %}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>{{ customer_name_display|default:purchase.customer.full_name }} - {{ purchase.purchase_number }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 0.5cm;
+        }
+        @font-face {
+            font-family: 'NotoSansTamil';
+            src: url('{{ tamil_font_file_uri }}') format('truetype');
+        }
+        html, body {
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Helvetica', 'Arial', 'NotoSansTamil', 'Nirmala UI', sans-serif;
+            font-size: 7.5pt;
+            color: #1e293b;
+            line-height: 1.25;
+            -webkit-font-smoothing: antialiased;
+        }
+        .ta, .tamil-text {
+            font-family: 'NotoSansTamil', 'Nirmala UI', 'Latha', sans-serif;
+        }
+        .container {
+            border: 1px solid #334155;
+            padding: 7px;
+        }
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+            border-bottom: 2px solid #0f172a;
+            padding-bottom: 3px;
+            margin-bottom: 5px;
+        }
+        .shop-title {
+            font-size: 13pt;
+            font-weight: bold;
+            color: #0f172a;
+            text-transform: uppercase;
+        }
+        .shop-subtitle {
+            font-size: 7pt;
+            color: #475569;
+            margin-top: 1px;
+            line-height: 1.2;
+        }
+        .voucher-badge {
+            background-color: #0f172a;
+            color: #ffffff;
+            font-size: 8.5pt;
+            font-weight: bold;
+            padding: 3px 5px;
+            text-align: center;
+        }
+        .voucher-badge-sub {
+            font-size: 7.5pt;
+            font-weight: normal;
+            display: block;
+            margin-top: 1px;
+            color: #f1f5f9;
+        }
+        .voucher-meta {
+            font-size: 7pt;
+            margin-top: 2px;
+            color: #334155;
+            text-align: right;
+            line-height: 1.25;
+        }
+        .meta-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 5px;
+        }
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: #f8fafc;
+            border: 1px solid #cbd5e1;
+        }
+        .info-table td {
+            padding: 2.5px 4px;
+            vertical-align: top;
+            font-size: 7pt;
+        }
+        .info-label {
+            color: #475569;
+            font-weight: bold;
+            width: 26%;
+        }
+        .info-val {
+            color: #0f172a;
+            font-weight: 600;
+        }
+        .photo-box {
+            border: 1px solid #cbd5e1;
+            background-color: #f8fafc;
+            text-align: center;
+            padding: 2px;
+        }
+        .photo-img {
+            max-width: 75px;
+            max-height: 60px;
+            height: 60px;
+        }
+        .photo-label {
+            font-size: 6pt;
+            font-weight: bold;
+            color: #475569;
+            text-align: center;
+            margin-top: 1px;
+        }
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 5px;
+        }
+        .items-table th {
+            background-color: #0f172a;
+            color: #ffffff;
+            font-size: 6.5pt;
+            font-weight: bold;
+            padding: 3px 3px;
+            border: 1px solid #0f172a;
+            text-align: left;
+            line-height: 1.15;
+        }
+        .items-table th.text-right, .items-table td.text-right {
+            text-align: right;
+        }
+        .items-table th.text-center, .items-table td.text-center {
+            text-align: center;
+        }
+        .items-table td {
+            padding: 2.5px 3px;
+            border: 1px solid #cbd5e1;
+            font-size: 7pt;
+        }
+        .totals-table {
+            width: 55%;
+            margin-left: auto;
+            border-collapse: collapse;
+            margin-bottom: 5px;
+        }
+        .totals-table td {
+            padding: 1.5px 4px;
+            font-size: 7.5pt;
+        }
+        .totals-label {
+            text-align: right;
+            color: #475569;
+            font-weight: bold;
+        }
+        .totals-val {
+            text-align: right;
+            font-weight: bold;
+            color: #0f172a;
+            font-size: 8pt;
+        }
+        .grand-total-row td {
+            background-color: #0f172a;
+            color: #ffffff !important;
+            font-size: 8.5pt !important;
+            font-weight: bold;
+            padding: 3px 5px;
+        }
+        .grand-total-row .totals-label,
+        .grand-total-row .totals-val {
+            color: #ffffff !important;
+        }
+        .words-box {
+            background-color: #f1f5f9;
+            border-left: 3px solid #0f172a;
+            padding: 3px 5px;
+            margin-bottom: 5px;
+            font-size: 7pt;
+            line-height: 1.3;
+        }
+        .item-photos-section {
+            border: 1px solid #cbd5e1;
+            background-color: #fafafa;
+            padding: 3px 5px;
+            margin-bottom: 5px;
+        }
+        .section-header {
+            font-size: 7pt;
+            font-weight: bold;
+            color: #0f172a;
+            margin-bottom: 2px;
+        }
+        .item-photos-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .item-photos-table td {
+            padding: 2px;
+            text-align: center;
+            vertical-align: middle;
+        }
+        .item-photo-img {
+            max-width: 90px;
+            max-height: 55px;
+            border: 1px solid #cbd5e1;
+        }
+        .declaration {
+            border: 1px solid #cbd5e1;
+            background-color: #fafafa;
+            padding: 3px 5px;
+            font-size: 6.2pt;
+            color: #334155;
+            margin-bottom: 6px;
+            line-height: 1.25;
+        }
+        .signatures-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 4px;
+        }
+        .signatures-table td {
+            width: 50%;
+            vertical-align: bottom;
+            text-align: center;
+            padding-top: 16px;
+        }
+        .sign-line {
+            border-top: 1px dashed #64748b;
+            width: 65%;
+            margin: 0 auto 2px auto;
+        }
+        .sign-title {
+            font-size: 6.8pt;
+            font-weight: bold;
+            color: #0f172a;
+            line-height: 1.2;
+        }
+        .footer {
+            margin-top: 4px;
+            text-align: center;
+            font-size: 5.8pt;
+            color: #94a3b8;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 2px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <!-- Header -->
+    <table class="header-table">
+        <tr>
+            <td style="width: 55%; vertical-align: middle;">
+                <div class="shop-title">{{ bill_shop_name|default:"FIRST MONEY GOLD" }}</div>
+                <div class="shop-subtitle">
+                    {{ branch_address_display|default:purchase.branch.address|default:"Pawnshop & Gold Bullion Purchase Division" }}<br>
+                    <strong>Phone / <span class="ta">தொலைபேசி</span>:</strong> {{ branch_phone_display|default:purchase.branch.phone|default:"-" }}
+                </div>
+            </td>
+            <td style="width: 45%; vertical-align: middle; text-align: right;">
+                <div class="voucher-badge">
+                    GOLD PURCHASE VOUCHER
+                    <span class="voucher-badge-sub ta">தங்கம் கொள்முதல் ரசீது</span>
+                </div>
+                <div class="voucher-meta">
+                    <strong>Voucher # / <span class="ta">ரசீது எண்</span>:</strong> {{ purchase.purchase_number }}<br>
+                    <strong>Date / <span class="ta">தேதி</span>:</strong> {{ purchase_date_display|default:purchase.purchase_date|date:"d-m-Y" }}<br>
+                    <strong>Payment / <span class="ta">வழங்கிய முறை</span>:</strong> {{ purchase.get_payment_method_display }}
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Customer Details & Photos Meta Table -->
+    <table class="meta-table">
+        <tr>
+            <!-- Customer Information (Left) -->
+            <td width="70%" style="vertical-align: top; padding-right: 4px;">
+                <table class="info-table">
+                    <tr>
+                        <td class="info-label" width="30%">Customer / <span class="ta">வாடிக்கையாளர் பெயர்</span>:</td>
+                        <td class="info-val" width="26%"><strong>{{ customer_name_display|default:purchase.customer.full_name }}</strong></td>
+                        <td class="info-label" width="18%">Branch / <span class="ta">கிளை</span>:</td>
+                        <td class="info-val" width="26%">{{ purchase.branch.name }}</td>
+                    </tr>
+                    <tr>
+                        <td class="info-label">Mobile / <span class="ta">கைபேசி எண்</span>:</td>
+                        <td class="info-val">{{ purchase.customer.phone|default:"-" }}</td>
+                        <td class="info-label">KYC / <span class="ta">அடையாளச் சான்று</span>:</td>
+                        <td class="info-val">{{ purchase.get_id_proof_type_display }}: {{ purchase.id_proof_number|default:"Verified" }}</td>
+                    </tr>
+                    <tr>
+                        <td class="info-label">Address / <span class="ta">முகவரி</span>:</td>
+                        <td class="info-val" colspan="3">{{ purchase.customer.address|default:"On File" }}</td>
+                    </tr>
+                </table>
+            </td>
+
+            <!-- Customer Photo (Center) -->
+            <td width="15%" style="vertical-align: top; text-align: center; padding-right: 2px;">
+                <div class="photo-box">
+                    {% if customer_photo %}
+                    <img src="data:image/jpeg;base64,{{ customer_photo }}" class="photo-img" alt="Customer Photo">
+                    {% else %}
+                    <div style="height: 60px; line-height: 60px; font-size: 6pt; color: #94a3b8;">No Photo</div>
+                    {% endif %}
+                    <div class="photo-label">Customer / <span class="ta">வாடிக்கையாளர்</span></div>
+                </div>
+            </td>
+
+            <!-- KYC Document Photo (Right) -->
+            <td width="15%" style="vertical-align: top; text-align: center;">
+                <div class="photo-box">
+                    {% if kyc_document_photo %}
+                    <img src="data:image/jpeg;base64,{{ kyc_document_photo }}" class="photo-img" alt="KYC Document">
+                    {% else %}
+                    <div style="height: 60px; line-height: 60px; font-size: 6pt; color: #94a3b8;">No Doc</div>
+                    {% endif %}
+                    <div class="photo-label">KYC / <span class="ta">அடையாளச் சான்று</span></div>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Purchased Gold Items Table -->
+    <table class="items-table">
+        <thead>
+            <tr>
+                <th style="width: 4%; text-align: center;">#</th>
+                <th style="width: 32%;">Ornament Description<br><span class="ta" style="font-size: 5.5pt; font-weight: normal; color: #cbd5e1;">நகை விவரம்</span></th>
+                <th style="width: 14%; text-align: center;">Purity / Karat<br><span class="ta" style="font-size: 5.5pt; font-weight: normal; color: #cbd5e1;">தரம் (கேரட்)</span></th>
+                <th style="width: 10%; text-align: right;">Gross (g)<br><span class="ta" style="font-size: 5.5pt; font-weight: normal; color: #cbd5e1;">மொத்த எடை</span></th>
+                <th style="width: 10%; text-align: right;">Stone (g)<br><span class="ta" style="font-size: 5.5pt; font-weight: normal; color: #cbd5e1;">கல் / கழிவு</span></th>
+                <th style="width: 10%; text-align: right;">Payable (g)<br><span class="ta" style="font-size: 5.5pt; font-weight: normal; color: #cbd5e1;">நிகர எடை</span></th>
+                <th style="width: 10%; text-align: right;">Rate/g (Rs.)<br><span class="ta" style="font-size: 5.5pt; font-weight: normal; color: #cbd5e1;">கிராம் விலை</span></th>
+                <th style="width: 10%; text-align: right;">Total (Rs.)<br><span class="ta" style="font-size: 5.5pt; font-weight: normal; color: #cbd5e1;">மதிப்பு</span></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for it in items %}
+            <tr>
+                <td class="text-center">{{ forloop.counter }}</td>
+                <td>
+                    <strong>{{ it.item_name }}</strong>
+                    {% if it.tamil_name %}
+                    <br><span class="ta" style="color: #475569; font-size: 6pt;">({{ it.tamil_name }})</span>
+                    {% endif %}
+                </td>
+                <td class="text-center">{{ it.purity_karat }} ({{ it.purity_percentage }}%)</td>
+                <td class="text-right">{{ it.gross_weight|floatformat:3 }}</td>
+                <td class="text-right">{{ it.stone_weight|floatformat:3 }}</td>
+                <td class="text-right"><strong>{{ it.payable_net_weight|floatformat:3 }}</strong></td>
+                <td class="text-right">Rs. {{ it.rate_per_gram|floatformat:0 }}</td>
+                <td class="text-right"><strong>Rs. {{ it.item_total_value|floatformat:2 }}</strong></td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" class="text-center">No item details recorded</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Totals Table -->
+    <table class="totals-table">
+        <tr>
+            <td class="totals-label">Total Gross Wt / <span class="ta">மொத்த எடை</span>:</td>
+            <td class="totals-val">{{ purchase.total_gross_weight|floatformat:3 }} g</td>
+        </tr>
+        <tr>
+            <td class="totals-label">Stone Deduction / <span class="ta">கல் / கழிவு எடை</span>:</td>
+            <td class="totals-val">{{ purchase.total_stone_weight|floatformat:3 }} g</td>
+        </tr>
+        <tr>
+            <td class="totals-label">Total Net Wt / <span class="ta">நிகர எடை</span>:</td>
+            <td class="totals-val">{{ purchase.total_net_weight|floatformat:3 }} g</td>
+        </tr>
+        <tr>
+            <td class="totals-label">Gross Valuation / <span class="ta">தங்கத்தின் மொத்த மதிப்பு</span>:</td>
+            <td class="totals-val">Rs. {{ purchase.subtotal_amount|floatformat:2 }}</td>
+        </tr>
+        {% if purchase.other_deductions > 0 %}
+        <tr>
+            <td class="totals-label">Deductions / <span class="ta">இதர பிடித்தங்கள்</span>:</td>
+            <td class="totals-val">Rs. {{ purchase.other_deductions|floatformat:2 }}</td>
+        </tr>
+        {% endif %}
+        <tr class="grand-total-row">
+            <td class="totals-label">NET PAID / <span class="ta">வழங்கப்பட்ட நிகர தொகை</span>:</td>
+            <td class="totals-val">Rs. {{ purchase.net_payable_amount|floatformat:2 }}</td>
+        </tr>
+    </table>
+
+    <!-- Amount in Words (English & Tamil) -->
+    <div class="words-box">
+        <div><strong>Amount in Words / <span class="ta">தொகையின் எழுத்து வடிவம்</span>:</strong> {{ amount_in_words }}</div>
+        {% if amount_in_words_tamil %}
+        <div style="margin-top: 2px; color: #0f172a;">
+            <strong class="ta">தமிழில்:</strong> <span class="ta">{{ amount_in_words_tamil }}</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Gold Ornaments Photos Section (If captured) -->
+    {% if item_photos %}
+    <div class="item-photos-section">
+        <div class="section-header">Purchased Gold Ornaments Photos / <span class="ta">வாங்கப்பட்ட நகைகளின் புகைப்படங்கள்</span> ({{ item_photos|length }})</div>
+        <table class="item-photos-table">
+            <tr>
+                {% for p in item_photos %}
+                <td width="{% if item_photos|length == 1 %}100%{% elif item_photos|length == 2 %}50%{% elif item_photos|length == 3 %}33%{% else %}25%{% endif %}">
+                    <img src="data:image/jpeg;base64,{{ p }}" class="item-photo-img" alt="Ornament Photo {{ forloop.counter }}">
+                </td>
+                {% if forloop.counter|divisibleby:4 and not forloop.last %}
+                </tr><tr>
+                {% endif %}
+                {% endfor %}
+            </tr>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- Bilingual Customer Legal Declaration -->
+    <div class="declaration">
+        <div style="font-weight: bold; margin-bottom: 2px;">
+            <span class="ta">வாடிக்கையாளர் உறுதிமொழி</span> / <span>Customer Declaration:</span>
+        </div>
+        <div class="ta" style="line-height: 1.35; font-size: 6.5pt; color: #1e293b;">
+            மேலே குறிப்பிடப்பட்டுள்ள தங்க நகைகள் / பொருட்கள் அனைத்தும் எனது முழுமையான, சொந்த மற்றும் சட்டப்பூர்வமான உடைமையாகும். இவற்றின் மீது எவ்வித அடமானம், கடன் அல்லது வில்லங்கங்கள் ஏதுமில்லை என்று உறுதியளிக்கிறேன். இந்நகைகளுக்கான உரிய கொள்முதல் தொகையை முழுமையாகப் பெற்றுக்கொண்டேன்.
+        </div>
+        <div style="color: #64748b; font-size: 5.6pt; margin-top: 2px;">
+            <strong>Customer Declaration:</strong> I hereby confirm that the gold items listed above are my absolute lawful personal property free from any encumbrances and I have received the full purchase consideration of Rs. {{ purchase.net_payable_amount|floatformat:2 }} in final settlement.
+        </div>
+    </div>
+
+    <!-- Signatures -->
+    <table class="signatures-table">
+        <tr>
+            <td>
+                <div class="sign-line"></div>
+                <div class="sign-title">
+                    <span class="ta">வாடிக்கையாளர் கையொப்பம் / கைரேகை</span><br>
+                    <span style="font-size: 5.6pt; font-weight: normal; color: #64748b;">Customer Signature / Thumb Impression</span>
+                </div>
+                <div style="font-size: 6.2pt; color: #334155; font-weight: 600; margin-top: 1px;">{{ customer_name_display|default:purchase.customer.full_name }}</div>
+            </td>
+            <td>
+                <div class="sign-line"></div>
+                <div class="sign-title">
+                    <span class="ta">அங்கீகரிக்கப்பட்ட கிளை கையொப்பம்</span><br>
+                    <span style="font-size: 5.6pt; font-weight: normal; color: #64748b;">Authorized Branch Signatory</span>
+                </div>
+                <div style="font-size: 6.2pt; color: #334155; font-weight: 600; margin-top: 1px;">For {{ purchase.branch.name }}</div>
+            </td>
+        </tr>
+    </table>
+
+    <div class="footer">
+        Computer generated Gold Purchase Voucher &bull; Section 269ST Compliant &bull; <span class="ta">கணினி மூலம் உருவாக்கப்பட்ட தங்கம் கொள்முதல் ரசீது</span> &bull; {{ date_today_display|default:date_today|date:"d-m-Y H:i:s" }}
+    </div>
+
+</div>
+</body>
+</html>

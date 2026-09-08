@@ -2006,3 +2006,131 @@ class MarketingLead(models.Model):
         return f"{self.name} ({self.phone})"
 
 
+class GoldPurchase(models.Model):
+    """
+    Model for Outright Used / Old Gold Purchase transactions directly from customers.
+    """
+    PAYMENT_METHOD_CHOICES = (
+        ('cash', _('Cash')),
+        ('bank_transfer', _('Bank Transfer (NEFT/RTGS/IMPS)')),
+        ('upi', _('UPI / Digital')),
+        ('cheque', _('Cheque')),
+    )
+
+    STATUS_CHOICES = (
+        ('completed', _('Completed')),
+        ('cancelled', _('Cancelled')),
+    )
+
+    ID_PROOF_CHOICES = (
+        ('aadhaar', _('Aadhaar Card')),
+        ('pan', _('PAN Card')),
+        ('voter_id', _('Voter ID')),
+        ('driving_license', _('Driving License')),
+        ('passport', _('Passport')),
+        ('other', _('Other Official ID')),
+    )
+
+    purchase_number = models.CharField(max_length=50, unique=True, db_index=True)
+    branch = models.ForeignKey('branches.Branch', on_delete=models.CASCADE, related_name='gold_purchases')
+    customer = models.ForeignKey(Customer, on_delete=models.PROTECT, related_name='gold_purchases')
+    purchase_date = models.DateField(default=timezone.now, db_index=True)
+
+    # Weights
+    total_gross_weight = models.DecimalField(max_digits=10, decimal_places=3, default=Decimal('0.000'), help_text="Total gross weight in grams")
+    total_stone_weight = models.DecimalField(max_digits=10, decimal_places=3, default=Decimal('0.000'), help_text="Total stone deduction in grams")
+    total_net_weight = models.DecimalField(max_digits=10, decimal_places=3, default=Decimal('0.000'), help_text="Total net weight in grams")
+    total_payable_weight = models.DecimalField(max_digits=10, decimal_places=3, default=Decimal('0.000'), help_text="Total payable net weight in grams")
+    total_fine_gold_weight = models.DecimalField(max_digits=10, decimal_places=3, default=Decimal('0.000'), help_text="24K pure gold equivalent in grams")
+
+    # Financials
+    subtotal_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    melting_deduction_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    other_deductions = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    net_payable_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), help_text="Final amount paid to customer")
+
+    # Payment & KYC
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, default='cash')
+    reference_number = models.CharField(max_length=255, blank=True, null=True, help_text="Bank UTR / Cheque / Transaction ref")
+    id_proof_type = models.CharField(max_length=30, choices=ID_PROOF_CHOICES, default='aadhaar', blank=True)
+    id_proof_number = models.CharField(max_length=100, blank=True, null=True)
+    customer_photo = models.TextField(blank=True, null=True, help_text="Base64-encoded customer face photo")
+    kyc_document = models.ImageField(upload_to='gold_purchases/kyc/', blank=True, null=True, help_text="Uploaded KYC document image")
+    kyc_document_data = models.TextField(blank=True, null=True, help_text="Base64-encoded KYC document file data")
+    item_photos = models.TextField(blank=True, null=True, help_text="JSON array of base64 photos for gold items")
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='completed', db_index=True)
+    notes = models.TextField(blank=True, null=True)
+    
+    # Audit
+    purchased_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='gold_purchases_handled')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _('Gold Purchase')
+        verbose_name_plural = _('Gold Purchases')
+        ordering = ['-purchase_date', '-id']
+
+    def __str__(self):
+        return f"Purchase #{self.purchase_number} - {self.customer} (Rs. {self.net_payable_amount})"
+
+    @classmethod
+    def generate_purchase_number(cls, branch=None):
+        now = timezone.now()
+        b_code = 'DEF'
+        if branch and branch.name:
+            b_code = ''.join([c.upper() for c in branch.name if c.isalpha()])[:3]
+            if len(b_code) < 3:
+                b_code = (b_code + 'DEF')[:3]
+        date_str = now.strftime('%Y%m%d')
+        base_prefix = f"BUY-{b_code}-{date_str}"
+        last_obj = cls.objects.filter(purchase_number__startswith=base_prefix).order_by('-purchase_number').first()
+        if last_obj:
+            try:
+                seq = int(last_obj.purchase_number.split('-')[-1]) + 1
+            except Exception:
+                seq = 1
+        else:
+            seq = 1
+        return f"{base_prefix}-{seq:04d}"
+
+
+class GoldPurchaseItem(models.Model):
+    """
+    Individual gold item / ornament in a GoldPurchase transaction.
+    """
+    PURITY_CHOICES = (
+        ('24K', '24K (99.9% Pure Gold)'),
+        ('22K', '22K (91.6% Standard Gold / 916 Hallmark)'),
+        ('20K', '20K (83.3% Gold)'),
+        ('18K', '18K (75.0% Gold)'),
+        ('14K', '14K (58.5% Gold)'),
+        ('scrap', 'Scrap / Mixed Gold / Melted Bar'),
+    )
+
+    purchase = models.ForeignKey(GoldPurchase, on_delete=models.CASCADE, related_name='items')
+    item_name = models.CharField(max_length=200, help_text="e.g. 22K Gold Chain, Ring, Bangles, Scrap Bar")
+    purity_karat = models.CharField(max_length=10, choices=PURITY_CHOICES, default='22K')
+    purity_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('91.60'))
+    
+    gross_weight = models.DecimalField(max_digits=10, decimal_places=3, help_text="Gross weight in grams")
+    stone_weight = models.DecimalField(max_digits=10, decimal_places=3, default=Decimal('0.000'), help_text="Stone deduction in grams")
+    net_weight = models.DecimalField(max_digits=10, decimal_places=3, help_text="Net gold weight in grams")
+    
+    melting_loss_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'), help_text="Melting / assay loss %")
+    payable_net_weight = models.DecimalField(max_digits=10, decimal_places=3, help_text="Payable net weight after melting loss")
+    
+    rate_per_gram = models.DecimalField(max_digits=10, decimal_places=2, help_text="Buying rate applied per gram")
+    item_total_value = models.DecimalField(max_digits=12, decimal_places=2, help_text="Total value for this item")
+    
+    inventory_item = models.ForeignKey('inventory.Item', on_delete=models.SET_NULL, null=True, blank=True, related_name='gold_purchase_source')
+
+    class Meta:
+        verbose_name = _('Gold Purchase Item')
+        verbose_name_plural = _('Gold Purchase Items')
+
+    def __str__(self):
+        return f"{self.item_name} ({self.purity_karat} - {self.gross_weight}g)"
+
+

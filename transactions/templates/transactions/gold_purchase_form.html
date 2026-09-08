@@ -1,0 +1,1221 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}Buy Used Gold (Old Gold Purchase) - {{ block.super }}{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Remove browser increase/decrease stepper arrows inside number inputs (Gross Wt, Stone Wt, Loss, Rate/g, etc.) */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none !important;
+    margin: 0 !important;
+}
+input[type="number"] {
+    -moz-appearance: textfield !important;
+    appearance: textfield !important;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-2 px-3">
+    <!-- Header Breadcrumbs & Actions -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
+        <div>
+            <nav aria-label="breadcrumb" class="d-none d-md-block">
+                <ol class="breadcrumb mb-0 small" style="font-size: 0.78rem;">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}" class="text-decoration-none">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'gold_purchase_list' %}" class="text-decoration-none">Gold Purchases</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Buy Used Gold</li>
+                </ol>
+            </nav>
+            <h4 class="fw-bold mb-0 text-dark d-flex align-items-center gap-2">
+                <i class="fas fa-coins text-warning"></i> Buy Used Gold / Old Gold Purchase
+            </h4>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+            <a href="{% url 'gold_purchase_list' %}" class="btn btn-outline-secondary btn-sm py-1 px-2" style="font-size: 0.8rem;">
+                <i class="fas fa-list me-1"></i> All Purchases
+            </a>
+            <a href="{% url 'daily_gold_rates' %}" class="btn btn-outline-warning text-dark btn-sm py-1 px-2" style="font-size: 0.8rem;">
+                <i class="fas fa-chart-line me-1"></i> Market Rates
+            </a>
+        </div>
+    </div>
+
+    <!-- Live Daily Gold Rates Banner (Space-Optimized) -->
+    <div class="card border-0 shadow-sm mb-2" style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); color: #fff;">
+        <div class="card-body py-1 px-3">
+            <div class="row align-items-center g-2 text-center text-md-start">
+                <div class="col-12 col-md-3 border-end border-secondary border-opacity-50 py-1">
+                    <div class="d-flex align-items-center justify-content-center justify-content-md-start">
+                        <div class="rounded-circle bg-warning p-1 px-2 me-2 text-dark">
+                            <i class="fas fa-award fs-6"></i>
+                        </div>
+                        <div>
+                            <div class="text-warning small text-uppercase fw-bold" style="letter-spacing:0.04em; font-size: 0.72rem;">Today's Gold Rate</div>
+                            <div class="text-white-50" style="font-size: 0.68rem;">Base: {{ rate_obj.date|default:today_date|date:"d M Y" }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-3 col-md-2 text-center border-end border-secondary border-opacity-50 py-1">
+                    <div class="text-warning small fw-bold" style="font-size:0.7rem;">24K (99.9%)</div>
+                    <div class="fs-6 fw-bold font-monospace text-white">Rs. {{ rate_24k|floatformat:0 }}</div>
+                </div>
+                <div class="col-3 col-md-2 text-center border-end border-secondary border-opacity-50 py-1">
+                    <div class="text-warning small fw-bold" style="font-size:0.7rem;">22K (91.6%)</div>
+                    <div class="fs-6 fw-bold font-monospace text-warning">Rs. {{ rate_22k|floatformat:0 }}</div>
+                </div>
+                <div class="col-3 col-md-2 text-center border-end border-secondary border-opacity-50 py-1">
+                    <div class="text-warning small fw-bold" style="font-size:0.7rem;">20K / 18K</div>
+                    <div class="fs-6 fw-bold font-monospace text-white">Rs. {{ rate_20k|floatformat:0 }} / {{ rate_18k|floatformat:0 }}</div>
+                </div>
+                <div class="col-3 col-md-3 text-center py-1">
+                    <div class="text-warning small fw-bold" style="font-size:0.7rem;">14K / Scrap</div>
+                    <div class="fs-6 fw-bold font-monospace text-white">Rs. {{ rate_14k|floatformat:0 }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Purchase Form -->
+    <form method="post" id="goldPurchaseForm" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="items_json" id="itemsJsonInput" value="{{ submitted_items_json|default:'[]' }}">
+        <input type="hidden" name="customer_photo" id="customerPhotoData" value="{{ submitted_customer_photo|default:'' }}">
+        <input type="hidden" name="kyc_document_data" id="kycDocumentData" value="{{ submitted_kyc_data|default:'' }}">
+        <input type="hidden" name="item_photos" id="itemPhotosData" value="{{ submitted_item_photos|default:'[]' }}">
+
+        <!-- Top Section: Customer & Verification Suite Balanced Grid -->
+        <div class="row g-2 mb-2">
+            <!-- 1. Customer & Branch Card (Balanced col-lg-5) -->
+            <div class="col-lg-5 col-xl-5">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white py-2 px-3 border-0 d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 fw-bold text-dark" style="font-size: 0.88rem;"><i class="fas fa-user-check text-primary me-2"></i>1. Customer & Branch</h6>
+                        <small class="text-muted" style="font-size: 0.7rem;">Quick Entry / Autocomplete</small>
+                    </div>
+                    <div class="card-body p-2 px-3 pt-0">
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-7">
+                                <label class="form-label fw-semibold small text-muted mb-1" style="font-size: 0.76rem;">Customer Name <span class="text-danger">*</span></label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-light text-muted px-2"><i class="fas fa-user"></i></span>
+                                    <input type="text" name="customer_name" id="customerNameInput" class="form-control form-control-sm" list="customerDatalist" value="{{ submitted_customer_name|default:'' }}" placeholder="Type name (e.g. Ramesh Kumar)" required autocomplete="off">
+                                    <datalist id="customerDatalist">
+                                        {% for c in customers %}
+                                        <option value="{{ c.full_name }}" data-id="{{ c.id }}" data-phone="{{ c.phone }}" data-address="{{ c.address|default:'' }}" data-aadhaar="{{ c.id_number|default:'' }}" data-id-type="{{ c.id_type|default:'aadhaar_card' }}" data-photo="{{ c.profile_photo|default:'' }}">{{ c.phone }}</option>
+                                        {% endfor %}
+                                    </datalist>
+                                </div>
+                                <input type="hidden" name="customer" id="customerHiddenId" value="{{ submitted_customer_id|default:'' }}">
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label fw-semibold small text-muted mb-1" style="font-size: 0.76rem;">Mobile Number</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-light text-muted px-2"><i class="fas fa-phone"></i></span>
+                                    <input type="tel" name="customer_phone" id="customerPhoneInput" class="form-control form-control-sm" value="{{ submitted_customer_phone|default:'' }}" placeholder="9876543210" autocomplete="off">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label fw-semibold small text-muted mb-1" style="font-size: 0.76rem;">Customer Address / City</label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-light text-muted px-2"><i class="fas fa-map-marker-alt"></i></span>
+                                <input type="text" name="customer_address" id="customerAddressInput" class="form-control form-control-sm" value="{{ submitted_customer_address|default:'' }}" placeholder="Street, Area, City, Pincode" autocomplete="off">
+                            </div>
+                        </div>
+
+                        <div class="row g-2 mb-2">
+                            {% if branches|length > 1 %}
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold small text-muted mb-1" style="font-size: 0.76rem;">Branch <span class="text-danger">*</span></label>
+                                <select name="branch" class="form-select form-select-sm" required>
+                                    {% for b in branches %}
+                                    <option value="{{ b.id }}" {% if submitted_branch_id and submitted_branch_id == b.id %}selected{% elif branch and branch.id == b.id %}selected{% endif %}>{{ b.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold small text-muted mb-1" style="font-size: 0.76rem;">Purchase Date</label>
+                                <input type="date" name="purchase_date" class="form-control form-control-sm" value="{{ submitted_purchase_date|default:today_date|date:'Y-m-d' }}">
+                            </div>
+                            {% else %}
+                            <input type="hidden" name="branch" value="{{ branch.id }}">
+                            <div class="col-12">
+                                <label class="form-label fw-semibold small text-muted mb-1" style="font-size: 0.76rem;">Purchase Date</label>
+                                <input type="date" name="purchase_date" class="form-control form-control-sm" value="{{ submitted_purchase_date|default:today_date|date:'Y-m-d' }}">
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="row g-2">
+                            <div class="col-5">
+                                <label class="form-label fw-semibold small text-muted mb-1" style="font-size: 0.76rem;">KYC Proof</label>
+                                <select name="id_proof_type" id="idProofTypeSelect" class="form-select form-select-sm">
+                                    {% for code, label in id_proof_choices %}
+                                    <option value="{{ code }}" {% if submitted_id_proof_type and submitted_id_proof_type == code %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-7">
+                                <label class="form-label fw-semibold small text-muted mb-1" style="font-size: 0.76rem;">ID / Aadhaar #</label>
+                                <input type="text" name="id_proof_number" id="idProofNumber" class="form-control form-control-sm" value="{{ submitted_id_proof_number|default:'' }}" placeholder="Aadhaar/PAN/DL #">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Verification & Live Photo Audit Suite (Balanced col-lg-7) -->
+            <div class="col-lg-7 col-xl-7">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white py-2 px-3 border-0 d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 fw-bold text-dark" style="font-size: 0.88rem;"><i class="fas fa-camera text-primary me-2"></i>2. Verification & Live Photo Audit</h6>
+                        <span class="text-muted" style="font-size: 0.7rem;">Direct webcam capture & multi-upload</span>
+                    </div>
+                    <div class="card-body p-2 px-3 pt-0">
+                        <div class="row g-2">
+                            <!-- Card 1: Customer Photo (Unified Viewport) -->
+                            <div class="col-md-4">
+                                <div class="border rounded p-2 bg-light h-100 d-flex flex-column justify-content-between">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="fw-bold text-dark" style="font-size: 0.75rem;"><i class="fas fa-user text-primary me-1"></i>Customer Photo</span>
+                                        <span class="badge bg-primary-subtle text-primary border px-1" id="custPhotoStatus" style="font-size:0.65rem;">No Photo</span>
+                                    </div>
+                                    <!-- Unified Media Viewport -->
+                                    <div class="border rounded bg-white position-relative d-flex align-items-center justify-content-center overflow-hidden mb-1" style="height: 102px;">
+                                        <video id="custCameraVideo" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover; display: none;"></video>
+                                        <canvas id="custPhotoCanvas" style="display: none;"></canvas>
+                                        <img id="custCapturedImg" src="" style="width: 100%; height: 100%; object-fit: contain; display: none;" alt="Customer Photo">
+                                        <div id="custNoPhotoText" class="text-center text-muted p-1">
+                                            <i class="fas fa-user-circle fs-3 text-secondary opacity-50 d-block mb-1"></i>
+                                            <span style="font-size: 0.65rem;">Live Cam / Upload</span>
+                                        </div>
+                                        <button type="button" class="btn btn-xs btn-danger position-absolute top-0 end-0 m-1 p-0 px-1 rounded-circle" id="custClearBtn" style="display:none; width: 18px; height: 18px; font-size: 10px; line-height: 1;" onclick="clearSinglePhoto('cust')" title="Remove">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                    <div class="d-flex gap-1">
+                                        <button type="button" class="btn btn-xs btn-primary flex-fill py-1 px-1" id="custStartCamBtn" onclick="toggleCamera('cust')" style="font-size: 0.7rem;">
+                                            <i class="fas fa-video me-1"></i><span id="custCamBtnText">Start Cam</span>
+                                        </button>
+                                        <button type="button" class="btn btn-xs btn-success flex-fill py-1 px-1" id="custCaptureBtn" onclick="capturePhoto('cust')" disabled style="font-size: 0.7rem;">
+                                            <i class="fas fa-camera me-1"></i>Snap
+                                        </button>
+                                        <label class="btn btn-xs btn-outline-secondary mb-0 flex-fill py-1 px-1 text-nowrap text-center" for="custUploadInput" style="font-size: 0.7rem;" title="Upload Image">
+                                            <i class="fas fa-upload"></i>
+                                        </label>
+                                        <input type="file" id="custUploadInput" class="d-none" accept="image/*" onchange="handleSingleUpload(this, 'cust')">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Card 2: KYC Document Proof (Unified Viewport) -->
+                            <div class="col-md-4">
+                                <div class="border rounded p-2 bg-light h-100 d-flex flex-column justify-content-between">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="fw-bold text-dark" style="font-size: 0.75rem;"><i class="fas fa-id-card text-info me-1"></i>KYC Doc Proof</span>
+                                        <span class="badge bg-info-subtle text-info border px-1" id="kycPhotoStatus" style="font-size:0.65rem;">No Doc</span>
+                                    </div>
+                                    <!-- Unified Media Viewport -->
+                                    <div class="border rounded bg-white position-relative d-flex align-items-center justify-content-center overflow-hidden mb-1" style="height: 102px;">
+                                        <video id="kycCameraVideo" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover; display: none;"></video>
+                                        <canvas id="kycPhotoCanvas" style="display: none;"></canvas>
+                                        <img id="kycCapturedImg" src="" style="width: 100%; height: 100%; object-fit: contain; display: none;" alt="KYC Document">
+                                        <div id="kycNoPhotoText" class="text-center text-muted p-1">
+                                            <i class="fas fa-id-card fs-3 text-secondary opacity-50 d-block mb-1"></i>
+                                            <span style="font-size: 0.65rem;">Aadhaar / PAN / DL</span>
+                                        </div>
+                                        <button type="button" class="btn btn-xs btn-danger position-absolute top-0 end-0 m-1 p-0 px-1 rounded-circle" id="kycClearBtn" style="display:none; width: 18px; height: 18px; font-size: 10px; line-height: 1;" onclick="clearSinglePhoto('kyc')" title="Remove">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                    <div class="d-flex gap-1">
+                                        <button type="button" class="btn btn-xs btn-info text-white flex-fill py-1 px-1" id="kycStartCamBtn" onclick="toggleCamera('kyc')" style="font-size: 0.7rem;">
+                                            <i class="fas fa-video me-1"></i><span id="kycCamBtnText">Start Cam</span>
+                                        </button>
+                                        <button type="button" class="btn btn-xs btn-success flex-fill py-1 px-1" id="kycCaptureBtn" onclick="capturePhoto('kyc')" disabled style="font-size: 0.7rem;">
+                                            <i class="fas fa-camera me-1"></i>Snap
+                                        </button>
+                                        <label class="btn btn-xs btn-outline-secondary mb-0 flex-fill py-1 px-1 text-nowrap text-center" for="kycUploadInput" style="font-size: 0.7rem;" title="Upload Document / PDF">
+                                            <i class="fas fa-upload"></i>
+                                        </label>
+                                        <input type="file" name="kyc_document" id="kycUploadInput" class="d-none" accept="image/*,.pdf" onchange="handleSingleUpload(this, 'kyc')">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Card 3: Gold Ornament Photos (Unified Viewport & Gallery) -->
+                            <div class="col-md-4">
+                                <div class="border rounded p-2 bg-light h-100 d-flex flex-column justify-content-between">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="fw-bold text-dark" style="font-size: 0.75rem;"><i class="fas fa-gem text-warning me-1"></i>Ornament Photos</span>
+                                        <span class="badge bg-secondary px-1" id="itemPhotoCountBadge" style="font-size:0.65rem;">0 Photos</span>
+                                    </div>
+                                    <!-- Unified Media Viewport / Gallery -->
+                                    <div class="border rounded bg-white position-relative d-flex align-items-center justify-content-center overflow-hidden mb-1" style="height: 102px;">
+                                        <video id="itemCameraVideo" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover; display: none;"></video>
+                                        <canvas id="itemPhotoCanvas" style="display: none;"></canvas>
+                                        <div id="itemPhotosContainer" class="w-100 h-100 p-1 d-flex flex-wrap gap-1 align-content-start overflow-auto">
+                                            <div id="noItemPhotosText" class="text-muted w-100 text-center my-auto py-2" style="font-size: 0.65rem;">
+                                                <i class="fas fa-gem fs-3 text-warning opacity-50 d-block mb-1"></i>
+                                                <span>Snap / Upload Items</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex gap-1">
+                                        <button type="button" class="btn btn-xs btn-warning text-dark flex-fill py-1 px-1" id="itemStartCamBtn" onclick="toggleCamera('item')" style="font-size: 0.7rem;">
+                                            <i class="fas fa-video me-1"></i><span id="itemCamBtnText">Start Cam</span>
+                                        </button>
+                                        <button type="button" class="btn btn-xs btn-success flex-fill py-1 px-1" id="itemCaptureBtn" onclick="captureOrnamentPhoto()" disabled style="font-size: 0.7rem;">
+                                            <i class="fas fa-camera me-1"></i>Snap
+                                        </button>
+                                        <label class="btn btn-xs btn-outline-secondary mb-0 flex-fill py-1 px-1 text-nowrap text-center" for="itemPhotosUploadInput" style="font-size: 0.7rem;" title="Upload Photos">
+                                            <i class="fas fa-upload"></i>
+                                        </label>
+                                        <input type="file" id="itemPhotosUploadInput" class="d-none" accept="image/*" multiple onchange="handleItemPhotosUpload(this)">
+                                        <button type="button" class="btn btn-xs btn-outline-danger py-1 px-1" id="clearAllItemsBtn" style="display: none;" onclick="clearAllOrnamentPhotos()" title="Clear All Photos">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Full-Width Section: Gold Ornaments / Scrap Valuation (Spans 100% Width) -->
+        <datalist id="ornamentDatalist">
+            <option value="Gold Chain">
+            <option value="Chain with Dollar">
+            <option value="Chain without Dollar">
+            <option value="Gold Ring (Mothiram)">
+            <option value="Gold Bangle (Valai)">
+            <option value="Gold Necklace (Malai)">
+            <option value="Gold Earrings (Jimikki)">
+            <option value="Gold Studs (Thodu / Koppu)">
+            <option value="Thali (Mangalsutra)">
+            <option value="Gold Coin (Kasoo)">
+            <option value="Gold Bracelet">
+            <option value="Gold Anklet (Kolusu)">
+            <option value="Gold Toe Ring (Metti)">
+            <option value="Waist Belt (Odiyanam)">
+            <option value="Gold Armlet (Vanki)">
+            <option value="Gold Pendant / Locket">
+            <option value="Scrap Gold / Melt Bar">
+            <option value="Broken Gold Bits / Jewelry">
+        </datalist>
+
+        <div class="card border-0 shadow-sm mb-2">
+            <div class="card-header bg-white py-2 px-3 border-0 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div>
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center gap-2" style="font-size: 0.88rem;">
+                        <i class="fas fa-balance-scale text-warning"></i> Gold Ornaments / Scrap Valuation
+                    </h6>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-warning btn-sm text-dark fw-bold py-1 px-2" style="font-size: 0.78rem;" onclick="addNewItemRow()">
+                        <i class="fas fa-plus me-1"></i> Add Ornament Row
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover align-middle mb-0 table-sm" id="itemsTable">
+                        <thead class="table-light small text-uppercase text-muted" style="font-size: 0.72rem;">
+                            <tr class="text-center align-middle">
+                                <th style="min-width: 200px;" class="text-start ps-2">Ornament Description <span class="text-danger">*</span></th>
+                                <th style="width: 135px;">Purity / Karat</th>
+                                <th style="width: 115px;">Gross Wt (g) <span class="text-danger">*</span></th>
+                                <th style="width: 105px;">Stone Wt (g)</th>
+                                <th style="width: 95px;">Loss %</th>
+                                <th style="width: 110px;">Payable Wt</th>
+                                <th style="width: 130px;">Rate / g (Rs.) <span class="text-danger">*</span></th>
+                                <th style="width: 135px;">Item Valuation</th>
+                                <th style="width: 35px;" class="text-center"><i class="fas fa-trash"></i></th>
+                            </tr>
+                        </thead>
+                        <tbody id="itemsTableBody">
+                            <!-- Dynamic Rows Generated via JS -->
+                        </tbody>
+                        <tfoot class="table-light fw-bold" style="font-size: 0.82rem;">
+                            <tr class="align-middle">
+                                <td colspan="2" class="text-end text-muted small text-uppercase ps-2">Totals:</td>
+                                <td class="text-end font-monospace text-dark" id="tableTotalGross">0.000 g</td>
+                                <td class="text-end font-monospace text-danger" id="tableTotalStone">0.000 g</td>
+                                <td class="text-center text-muted small">—</td>
+                                <td class="text-end font-monospace text-success" id="tableTotalPayable">0.000 g</td>
+                                <td class="text-center text-muted small">—</td>
+                                <td class="text-end font-monospace text-primary fs-6" id="tableTotalValuation">Rs. 0.00</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer bg-light py-1 px-3 d-flex justify-content-between align-items-center" style="font-size: 0.72rem;">
+                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size: 0.72rem;" onclick="addNewItemRow()">
+                    <i class="fas fa-plus me-1"></i> Add Another Ornament
+                </button>
+                <span class="text-muted"><i class="fas fa-info-circle me-1"></i>Rates automatically update based on selected karat purity.</span>
+            </div>
+        </div>
+
+        <!-- Bottom Section: Financial Settlement & Payout Grid -->
+        <div class="row g-2 mb-2">
+            <!-- 1. Weights Summary & Appraisal Remarks -->
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white py-2 px-3 border-0">
+                        <h6 class="mb-0 fw-bold text-dark" style="font-size: 0.84rem;"><i class="fas fa-weight-hanging text-secondary me-2"></i>Weight Breakdown & Remarks</h6>
+                    </div>
+                    <div class="card-body p-2 px-3 pt-0">
+                        <div class="p-2 bg-light rounded mb-2" style="font-size: 0.78rem;">
+                            <div class="d-flex justify-content-between py-1">
+                                <span class="text-muted">Total Gross Weight:</span>
+                                <span class="fw-bold font-monospace" id="summaryGrossWt">0.000 g</span>
+                            </div>
+                            <div class="d-flex justify-content-between py-1">
+                                <span class="text-muted">Total Stone Deduction:</span>
+                                <span class="fw-bold font-monospace text-danger" id="summaryStoneWt">0.000 g</span>
+                            </div>
+                            <div class="d-flex justify-content-between py-1 border-top">
+                                <span class="text-muted">Total Net Weight:</span>
+                                <span class="fw-bold font-monospace text-primary" id="summaryNetWt">0.000 g</span>
+                            </div>
+                            <div class="d-flex justify-content-between py-1">
+                                <span class="fw-bold text-success">Total Payable Weight:</span>
+                                <span class="fw-bold font-monospace text-success" id="summaryPayableWt">0.000 g</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="form-label small fw-semibold text-muted mb-1" style="font-size: 0.74rem;">Notes / Testing Remarks</label>
+                            <textarea name="notes" class="form-control form-control-sm" rows="2" placeholder="Testing remarks, acid test, touchstone, etc.">{{ submitted_notes|default:'' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Payment Settlement & Compliance -->
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white py-2 px-3 border-0">
+                        <h6 class="mb-0 fw-bold text-dark" style="font-size: 0.84rem;"><i class="fas fa-money-check-alt text-success me-2"></i>Payment Mode & Deductions</h6>
+                    </div>
+                    <div class="card-body p-2 px-3 pt-0">
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label small fw-semibold text-muted mb-1" style="font-size: 0.74rem;">Gross Valuation</label>
+                                <div class="form-control form-control-sm bg-light text-end font-monospace fw-bold" id="summarySubtotal">Rs. 0.00</div>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-semibold text-muted mb-1" style="font-size: 0.74rem;">Other Deductions (Rs.)</label>
+                                <input type="number" step="0.01" name="other_deductions" id="otherDeductionsInput" class="form-control form-control-sm text-end font-monospace" value="{{ submitted_other_deductions|default:'0.00' }}" oninput="calculateAll()">
+                            </div>
+                        </div>
+
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label small fw-semibold text-muted mb-1" style="font-size: 0.74rem;">Payment Mode <span class="text-danger">*</span></label>
+                                <select name="payment_method" id="paymentMethodSelect" class="form-select form-select-sm" onchange="checkCompliance()" required>
+                                    {% for code, label in payment_method_choices %}
+                                    <option value="{{ code }}" {% if submitted_payment_method and submitted_payment_method == code %}selected{% elif code == 'cash' %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-6" id="refNumberGroup">
+                                <label class="form-label small fw-semibold text-muted mb-1" style="font-size: 0.74rem;">Ref / UTR / Chq #</label>
+                                <input type="text" name="reference_number" class="form-control form-control-sm" value="{{ submitted_reference_number|default:'' }}" placeholder="UTR / Voucher #">
+                            </div>
+                        </div>
+
+                        <!-- Section 269ST Compliance Alert -->
+                        <div id="complianceAlert" class="alert alert-danger small p-2 mb-0" style="display: none; font-size: 0.72rem;">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            <strong>Section 269ST Violation:</strong> Cash exceeds ₹1,99,999 limit. Please select Bank Transfer or UPI.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Net Payout & Action Buttons -->
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm h-100 d-flex flex-column justify-content-between">
+                    <div class="card-header py-2 px-3 text-white" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); border-radius: 0.5rem 0.5rem 0 0;">
+                        <h6 class="mb-0 fw-bold"><i class="fas fa-hand-holding-usd me-2"></i>Net Payout Summary</h6>
+                    </div>
+                    <div class="card-body p-3 text-center d-flex flex-column justify-content-center">
+                        <div class="p-2 rounded border border-success bg-success-subtle mb-2">
+                            <span class="text-uppercase text-muted fw-semibold d-block" style="font-size: 0.68rem;">Net Cash/Bank Payable to Customer</span>
+                            <div class="fs-2 fw-bold text-success font-monospace" id="summaryNetPayable">Rs. 0.00</div>
+                            <div id="netPayableWords" class="text-success fst-italic fw-semibold" style="font-size: 0.72rem;"></div>
+                        </div>
+
+                        <div class="d-grid gap-1">
+                            <button type="submit" class="btn btn-warning btn-md fw-bold text-dark shadow-sm py-2" id="submitPurchaseBtn">
+                                <i class="fas fa-check-circle me-1"></i> Confirm & Complete Purchase
+                            </button>
+                            <a href="{% url 'gold_purchase_list' %}" class="btn btn-outline-secondary btn-sm py-1">Cancel</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const RATES = {
+    '24K': {{ rate_24k }},
+    '22K': {{ rate_22k }},
+    '20K': {{ rate_20k }},
+    '18K': {{ rate_18k }},
+    '14K': {{ rate_14k }},
+    'scrap': {{ rate_14k }}
+};
+
+const PURITY_PCTS = {
+    '24K': 99.90,
+    '22K': 91.60,
+    '20K': 83.30,
+    '18K': 75.00,
+    '14K': 58.50,
+    'scrap': 58.50
+};
+
+let rowCounter = 0;
+
+function addNewItemRow(defaultName = 'Gold Chain / Ornament', defaultKarat = '22K', grossVal = '', stoneVal = '', lossVal = '', rateVal = null) {
+    try {
+        rowCounter++;
+        const rowId = `item_row_${rowCounter}`;
+        const defaultRate = rateVal !== null && rateVal !== undefined ? parseFloat(rateVal) : (RATES[defaultKarat] || RATES['22K']);
+
+        const html = `
+        <tr id="${rowId}" class="item-row align-middle">
+            <td>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light text-muted small px-1"><i class="fas fa-gem"></i></span>
+                    <input type="text" class="form-control form-control-sm item-name" list="ornamentDatalist" placeholder="Type or select ornament (e.g. 22K Gold Chain, Ring)" value="${defaultName}" oninput="saveDraftToStorage()" required autocomplete="off">
+                </div>
+            </td>
+            <td>
+                <select class="form-select form-select-sm item-karat fw-semibold" onchange="onKaratChange('${rowId}')">
+                    <option value="24K" ${defaultKarat==='24K'?'selected':''}>24K (99.9%)</option>
+                    <option value="22K" ${defaultKarat==='22K'?'selected':''}>22K (91.6%)</option>
+                    <option value="20K" ${defaultKarat==='20K'?'selected':''}>20K (83.3%)</option>
+                    <option value="18K" ${defaultKarat==='18K'?'selected':''}>18K (75.0%)</option>
+                    <option value="14K" ${defaultKarat==='14K'?'selected':''}>14K (58.5%)</option>
+                    <option value="scrap" ${defaultKarat==='scrap'?'selected':''}>Scrap / Melt</option>
+                </select>
+            </td>
+            <td>
+                <div class="input-group input-group-sm">
+                    <input type="number" step="0.001" class="form-control font-monospace text-end item-gross" placeholder="0.000" value="${grossVal}" oninput="calculateRow('${rowId}')" required>
+                    <span class="input-group-text bg-light text-muted small px-1">g</span>
+                </div>
+            </td>
+            <td>
+                <div class="input-group input-group-sm">
+                    <input type="number" step="0.001" class="form-control font-monospace text-end item-stone" placeholder="0.000" value="${stoneVal}" oninput="calculateRow('${rowId}')">
+                    <span class="input-group-text bg-light text-muted small px-1">g</span>
+                </div>
+            </td>
+            <td>
+                <div class="input-group input-group-sm">
+                    <input type="number" step="0.1" class="form-control font-monospace text-end item-loss" placeholder="0" value="${lossVal}" oninput="calculateRow('${rowId}')">
+                    <span class="input-group-text bg-light text-muted small px-1">%</span>
+                </div>
+            </td>
+            <td class="font-monospace text-end fw-bold text-success item-payable-wt fs-6">0.000 g</td>
+            <td>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light text-muted small px-1">Rs.</span>
+                    <input type="number" step="0.01" class="form-control font-monospace text-end item-rate fw-semibold" value="${isNaN(defaultRate) ? 6600 : defaultRate.toFixed(2)}" oninput="calculateRow('${rowId}')" required>
+                </div>
+            </td>
+            <td class="font-monospace text-end fw-bold text-dark item-total fs-6">Rs. 0.00</td>
+            <td class="text-center">
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeItemRow('${rowId}')" title="Delete Row"><i class="fas fa-trash"></i></button>
+            </td>
+        </tr>`;
+
+        document.getElementById('itemsTableBody').insertAdjacentHTML('beforeend', html);
+        calculateRow(rowId);
+    } catch (e) {
+        console.error('Error adding item row:', e);
+    }
+}
+
+function removeItemRow(rowId) {
+    try {
+        const row = document.getElementById(rowId);
+        if (row) row.remove();
+        calculateAll();
+        saveDraftToStorage();
+    } catch (e) {
+        console.error('Error removing item row:', e);
+    }
+}
+
+function onKaratChange(rowId) {
+    try {
+        const row = document.getElementById(rowId);
+        if (!row) return;
+        const karat = row.querySelector('.item-karat').value;
+        const rateInput = row.querySelector('.item-rate');
+        if (RATES[karat]) {
+            rateInput.value = RATES[karat].toFixed(2);
+        }
+        calculateRow(rowId);
+    } catch (e) {
+        console.error('Error in onKaratChange:', e);
+    }
+}
+
+function calculateRow(rowId) {
+    try {
+        const row = document.getElementById(rowId);
+        if (!row) return;
+
+        const gross = parseFloat(row.querySelector('.item-gross')?.value) || 0;
+        const stone = parseFloat(row.querySelector('.item-stone')?.value) || 0;
+        const lossPct = parseFloat(row.querySelector('.item-loss')?.value) || 0;
+        const rate = parseFloat(row.querySelector('.item-rate')?.value) || 0;
+
+        const net = Math.max(0, gross - stone);
+        const payableWt = net * (100 - lossPct) / 100;
+        const itemTotal = payableWt * rate;
+
+        const payableEl = row.querySelector('.item-payable-wt');
+        const totalEl = row.querySelector('.item-total');
+
+        if (payableEl) payableEl.textContent = payableWt.toFixed(3) + ' g';
+        if (totalEl) totalEl.textContent = 'Rs. ' + itemTotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+        calculateAll();
+        saveDraftToStorage();
+    } catch (e) {
+        console.error('Error in calculateRow:', e);
+    }
+}
+
+function calculateAll() {
+    try {
+        const rows = document.querySelectorAll('#itemsTableBody tr');
+        let totalGross = 0;
+        let totalStone = 0;
+        let totalNet = 0;
+        let totalPayable = 0;
+        let subtotal = 0;
+
+        rows.forEach(row => {
+            const gross = parseFloat(row.querySelector('.item-gross')?.value) || 0;
+            const stone = parseFloat(row.querySelector('.item-stone')?.value) || 0;
+            const lossPct = parseFloat(row.querySelector('.item-loss')?.value) || 0;
+            const rate = parseFloat(row.querySelector('.item-rate')?.value) || 0;
+
+            const net = Math.max(0, gross - stone);
+            const payableWt = net * (100 - lossPct) / 100;
+            const itemTotal = payableWt * rate;
+
+            totalGross += gross;
+            totalStone += stone;
+            totalNet += net;
+            totalPayable += payableWt;
+            subtotal += itemTotal;
+        });
+
+        const otherDeductions = parseFloat(document.getElementById('otherDeductionsInput')?.value) || 0;
+        const netPayable = Math.max(0, subtotal - otherDeductions);
+
+        const grossEl = document.getElementById('summaryGrossWt');
+        const stoneEl = document.getElementById('summaryStoneWt');
+        const netEl = document.getElementById('summaryNetWt');
+        const payableEl = document.getElementById('summaryPayableWt');
+        const subtotalEl = document.getElementById('summarySubtotal');
+        const netPayableEl = document.getElementById('summaryNetPayable');
+
+        const tableGrossEl = document.getElementById('tableTotalGross');
+        const tableStoneEl = document.getElementById('tableTotalStone');
+        const tablePayableEl = document.getElementById('tableTotalPayable');
+        const tableValuationEl = document.getElementById('tableTotalValuation');
+
+        if (grossEl) grossEl.textContent = totalGross.toFixed(3) + ' g';
+        if (stoneEl) stoneEl.textContent = totalStone.toFixed(3) + ' g';
+        if (netEl) netEl.textContent = totalNet.toFixed(3) + ' g';
+        if (payableEl) payableEl.textContent = totalPayable.toFixed(3) + ' g';
+        if (subtotalEl) subtotalEl.textContent = 'Rs. ' + subtotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        if (netPayableEl) netPayableEl.textContent = 'Rs. ' + netPayable.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+        if (tableGrossEl) tableGrossEl.textContent = totalGross.toFixed(3) + ' g';
+        if (tableStoneEl) tableStoneEl.textContent = totalStone.toFixed(3) + ' g';
+        if (tablePayableEl) tablePayableEl.textContent = totalPayable.toFixed(3) + ' g';
+        if (tableValuationEl) tableValuationEl.textContent = 'Rs. ' + subtotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+        fetchWords(netPayable);
+        checkCompliance();
+    } catch (e) {
+        console.error('Error in calculateAll:', e);
+    }
+}
+
+let wordsTimer = null;
+function fetchWords(n) {
+    const wrd = document.getElementById('netPayableWords');
+    if (!wrd) return;
+    if (n <= 0) { wrd.textContent = ''; return; }
+    clearTimeout(wordsTimer);
+    wordsTimer = setTimeout(() => {
+        fetch(`/transactions/number_to_words/${Math.round(n)}/`)
+            .then(r => r.json())
+            .then(d => { if (d.words) wrd.textContent = d.words; })
+            .catch(() => { wrd.textContent = ''; });
+    }, 400);
+}
+
+function checkCompliance() {
+    try {
+        const payMethod = document.getElementById('paymentMethodSelect')?.value;
+        const subtotalText = document.getElementById('summaryNetPayable')?.textContent.replace(/[^0-9.]/g, '') || '0';
+        const netPayable = parseFloat(subtotalText) || 0;
+        const alertBox = document.getElementById('complianceAlert');
+        const submitBtn = document.getElementById('submitPurchaseBtn');
+
+        if (payMethod === 'cash' && netPayable >= 200000) {
+            if (alertBox) alertBox.style.display = 'block';
+            if (submitBtn) submitBtn.disabled = true;
+        } else {
+            if (alertBox) alertBox.style.display = 'none';
+            if (submitBtn) submitBtn.disabled = false;
+        }
+    } catch (e) {
+        console.error('Error in checkCompliance:', e);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// UNIVERSAL CAMERA & PHOTO MODULE (Customer, KYC, Ornament)
+// ═══════════════════════════════════════════════════════════════════
+const cameraStreams = {
+    cust: null,
+    kyc: null,
+    item: null
+};
+
+async function toggleCamera(type) {
+    if (cameraStreams[type]) {
+        stopCamera(type);
+    } else {
+        Object.keys(cameraStreams).forEach(k => {
+            if (k !== type && cameraStreams[k]) stopCamera(k);
+        });
+        await startCamera(type);
+    }
+}
+
+async function startCamera(type) {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert('Webcam is not supported on this browser or requires HTTPS/localhost.');
+        return;
+    }
+
+    const video = document.getElementById(`${type}CameraVideo`);
+    const placeholder = document.getElementById(`${type}CameraPlaceholder`);
+    const captureBtn = document.getElementById(`${type}CaptureBtn`);
+    const startBtn = document.getElementById(`${type}StartCamBtn`);
+    const camBtnText = document.getElementById(`${type}CamBtnText`);
+
+    const facing = type === 'cust' ? 'user' : 'environment';
+
+    try {
+        cameraStreams[type] = await navigator.mediaDevices.getUserMedia({
+            video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: facing },
+            audio: false
+        });
+        video.srcObject = cameraStreams[type];
+        video.style.display = 'block';
+        
+        const noPhoto = document.getElementById(`${type}NoPhotoText`);
+        if (noPhoto) noPhoto.style.display = 'none';
+        const img = document.getElementById(`${type}CapturedImg`);
+        if (img) img.style.display = 'none';
+        const itemContainer = document.getElementById('itemPhotosContainer');
+        if (type === 'item' && itemContainer) itemContainer.style.display = 'none';
+
+        if (captureBtn) captureBtn.disabled = false;
+        if (camBtnText) camBtnText.textContent = 'Stop Cam';
+        if (startBtn) {
+            startBtn.classList.remove('btn-primary', 'btn-info', 'btn-warning', 'text-dark', 'text-white');
+            startBtn.classList.add('btn-outline-danger');
+        }
+    } catch (err) {
+        console.warn(`${type} primary camera failed, trying generic fallback:`, err);
+        try {
+            cameraStreams[type] = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            video.srcObject = cameraStreams[type];
+            video.style.display = 'block';
+
+            const noPhoto = document.getElementById(`${type}NoPhotoText`);
+            if (noPhoto) noPhoto.style.display = 'none';
+            const img = document.getElementById(`${type}CapturedImg`);
+            if (img) img.style.display = 'none';
+            const itemContainer = document.getElementById('itemPhotosContainer');
+            if (type === 'item' && itemContainer) itemContainer.style.display = 'none';
+
+            if (captureBtn) captureBtn.disabled = false;
+            if (camBtnText) camBtnText.textContent = 'Stop Cam';
+            if (startBtn) {
+                startBtn.classList.remove('btn-primary', 'btn-info', 'btn-warning', 'text-dark', 'text-white');
+                startBtn.classList.add('btn-outline-danger');
+            }
+        } catch (err2) {
+            alert('Unable to access camera. Please check permissions or upload from file instead.');
+        }
+    }
+}
+
+function stopCamera(type) {
+    if (cameraStreams[type]) {
+        cameraStreams[type].getTracks().forEach(track => track.stop());
+        cameraStreams[type] = null;
+    }
+
+    const video = document.getElementById(`${type}CameraVideo`);
+    const captureBtn = document.getElementById(`${type}CaptureBtn`);
+    const startBtn = document.getElementById(`${type}StartCamBtn`);
+    const camBtnText = document.getElementById(`${type}CamBtnText`);
+
+    if (video) video.style.display = 'none';
+
+    if (type === 'item') {
+        const itemContainer = document.getElementById('itemPhotosContainer');
+        if (itemContainer) itemContainer.style.display = 'flex';
+    } else {
+        const dataInput = document.getElementById(type === 'cust' ? 'customerPhotoData' : 'kycDocumentData');
+        const img = document.getElementById(`${type}CapturedImg`);
+        const noPhoto = document.getElementById(`${type}NoPhotoText`);
+        if (dataInput && dataInput.value && img) {
+            img.style.display = 'block';
+            if (noPhoto) noPhoto.style.display = 'none';
+        } else {
+            if (img) img.style.display = 'none';
+            if (noPhoto) noPhoto.style.display = 'block';
+        }
+    }
+
+    if (captureBtn) captureBtn.disabled = true;
+    if (camBtnText) camBtnText.textContent = 'Start Cam';
+
+    if (startBtn) {
+        startBtn.classList.remove('btn-outline-danger');
+        if (type === 'cust') startBtn.classList.add('btn-primary');
+        else if (type === 'kyc') startBtn.classList.add('btn-info', 'text-white');
+        else if (type === 'item') startBtn.classList.add('btn-warning', 'text-dark');
+    }
+}
+
+// Single Photo Capture (Customer Photo & KYC Document)
+function capturePhoto(type) {
+    if (!cameraStreams[type]) return;
+
+    const video = document.getElementById(`${type}CameraVideo`);
+    const canvas = document.getElementById(`${type}PhotoCanvas`);
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+    setSinglePhoto(type, dataUrl, 'Live Captured');
+    stopCamera(type);
+}
+
+function handleSingleUpload(input, type) {
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+        if (file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                setSinglePhoto(type, e.target.result, 'Uploaded Image');
+            };
+            reader.readAsDataURL(file);
+        } else {
+            const img = document.getElementById(`${type}CapturedImg`);
+            const noPhoto = document.getElementById(`${type}NoPhotoText`);
+            const status = document.getElementById(`${type}PhotoStatus`);
+            const clearBtn = document.getElementById(`${type}ClearBtn`);
+
+            if (img) img.style.display = 'none';
+            if (noPhoto) {
+                noPhoto.innerHTML = `<i class="fas fa-file-pdf fs-3 text-danger d-block mb-1"></i><span class="small fw-semibold text-dark">${file.name}</span>`;
+                noPhoto.style.display = 'block';
+            }
+            if (clearBtn) clearBtn.style.display = 'block';
+            if (status) {
+                status.textContent = 'PDF Attached';
+                status.className = 'badge bg-success text-white border';
+            }
+        }
+    }
+}
+
+function setSinglePhoto(type, dataUrl, statusText = 'Photo Added') {
+    const dataInput = document.getElementById(type === 'cust' ? 'customerPhotoData' : 'kycDocumentData');
+    const img = document.getElementById(`${type}CapturedImg`);
+    const noPhoto = document.getElementById(`${type}NoPhotoText`);
+    const status = document.getElementById(`${type}PhotoStatus`);
+    const clearBtn = document.getElementById(`${type}ClearBtn`);
+
+    if (dataInput) dataInput.value = dataUrl;
+    if (img) {
+        img.src = dataUrl;
+        img.style.display = 'block';
+    }
+    if (noPhoto) noPhoto.style.display = 'none';
+    if (clearBtn) clearBtn.style.display = 'block';
+    if (status) {
+        status.textContent = statusText;
+        status.className = 'badge bg-success text-white border';
+    }
+}
+
+function clearSinglePhoto(type) {
+    const dataInput = document.getElementById(type === 'cust' ? 'customerPhotoData' : 'kycDocumentData');
+    const uploadInput = document.getElementById(type === 'cust' ? 'custUploadInput' : 'kycUploadInput');
+    const img = document.getElementById(`${type}CapturedImg`);
+    const noPhoto = document.getElementById(`${type}NoPhotoText`);
+    const status = document.getElementById(`${type}PhotoStatus`);
+    const clearBtn = document.getElementById(`${type}ClearBtn`);
+
+    if (dataInput) dataInput.value = '';
+    if (uploadInput) uploadInput.value = '';
+    if (img) {
+        img.src = '';
+        img.style.display = 'none';
+    }
+    if (noPhoto) {
+        noPhoto.innerHTML = type === 'cust' ?
+            `<i class="fas fa-user-circle fs-3 text-secondary opacity-50 d-block mb-1"></i><span style="font-size: 0.65rem;">Live Cam / Upload</span>` :
+            `<i class="fas fa-id-card fs-3 text-secondary opacity-50 d-block mb-1"></i><span style="font-size: 0.65rem;">Aadhaar / PAN / DL</span>`;
+        noPhoto.style.display = 'block';
+    }
+    if (clearBtn) clearBtn.style.display = 'none';
+    if (status) {
+        status.textContent = type === 'cust' ? 'No Photo' : 'No Document';
+        status.className = `badge bg-${type==='cust'?'primary':'info'}-subtle text-${type==='cust'?'primary':'info'} border`;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// GOLD ORNAMENT PHOTOS MODULE (Live Capture & Multi-Upload)
+// ═══════════════════════════════════════════════════════════════════
+let itemPhotosList = [];
+
+function captureOrnamentPhoto() {
+    if (!cameraStreams['item']) return;
+
+    const video = document.getElementById('itemCameraVideo');
+    const canvas = document.getElementById('itemPhotoCanvas');
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+    itemPhotosList.push(dataUrl);
+    renderItemPhotos();
+}
+
+function handleItemPhotosUpload(input) {
+    if (input.files && input.files.length > 0) {
+        Array.from(input.files).forEach(file => {
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    itemPhotosList.push(e.target.result);
+                    renderItemPhotos();
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+        input.value = '';
+    }
+}
+
+function removeItemPhoto(index) {
+    itemPhotosList.splice(index, 1);
+    renderItemPhotos();
+}
+
+function clearAllOrnamentPhotos() {
+    itemPhotosList = [];
+    renderItemPhotos();
+}
+
+function renderItemPhotos() {
+    const container = document.getElementById('itemPhotosContainer');
+    const badge = document.getElementById('itemPhotoCountBadge');
+    const dataInput = document.getElementById('itemPhotosData');
+    const clearAllBtn = document.getElementById('clearAllItemsBtn');
+
+    if (dataInput) dataInput.value = JSON.stringify(itemPhotosList);
+    if (badge) badge.textContent = `${itemPhotosList.length} Photos`;
+
+    if (!container) return;
+
+    if (itemPhotosList.length === 0) {
+        container.innerHTML = `
+        <div id="noItemPhotosText" class="text-muted small w-100 text-center py-4" style="font-size: 0.75rem;">
+            <i class="fas fa-camera text-secondary opacity-50 fs-4 d-block mb-1"></i>
+            Snap with camera or upload photos of ornaments
+        </div>`;
+        if (clearAllBtn) clearAllBtn.style.display = 'none';
+        return;
+    }
+
+    if (clearAllBtn) clearAllBtn.style.display = 'inline';
+
+    let html = '';
+    itemPhotosList.forEach((src, idx) => {
+        html += `
+        <div class="position-relative d-inline-block border rounded shadow-xs overflow-hidden bg-white" style="width: 52px; height: 52px;">
+            <img src="${src}" style="width: 100%; height: 100%; object-fit: cover;">
+            <button type="button" class="btn btn-danger p-0 position-absolute top-0 end-0 rounded-circle" style="width: 16px; height: 16px; font-size: 10px; line-height: 1;" onclick="removeItemPhoto(${idx})" title="Delete">
+                &times;
+            </button>
+        </div>`;
+    });
+    container.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DRAFT AUTO-SAVE & STATE RESTORATION
+// ═══════════════════════════════════════════════════════════════════
+function saveDraftToStorage() {
+    try {
+        const rows = document.querySelectorAll('#itemsTableBody tr');
+        const items = [];
+        rows.forEach(row => {
+            items.push({
+                item_name: row.querySelector('.item-name')?.value || '',
+                purity_karat: row.querySelector('.item-karat')?.value || '22K',
+                gross_weight: row.querySelector('.item-gross')?.value || '',
+                stone_weight: row.querySelector('.item-stone')?.value || '',
+                melting_loss_percentage: row.querySelector('.item-loss')?.value || '',
+                rate_per_gram: row.querySelector('.item-rate')?.value || ''
+            });
+        });
+        if (items.length > 0) {
+            sessionStorage.setItem('gold_purchase_draft_items', JSON.stringify(items));
+        }
+    } catch (e) {
+        console.warn('SessionStorage write error:', e);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CUSTOMER AUTO-FILL & SUGGESTION HANDLER
+// ═══════════════════════════════════════════════════════════════════
+const custNameInput = document.getElementById('customerNameInput');
+const custDatalist = document.getElementById('customerDatalist');
+
+custNameInput?.addEventListener('input', function() {
+    try {
+        const val = this.value.trim();
+        const hiddenId = document.getElementById('customerHiddenId');
+        if (hiddenId) hiddenId.value = '';
+
+        if (!custDatalist) return;
+        const options = custDatalist.querySelectorAll('option');
+        for (let opt of options) {
+            if (opt.value.toLowerCase() === val.toLowerCase() || opt.textContent.trim() === val) {
+                if (hiddenId) hiddenId.value = opt.getAttribute('data-id') || '';
+                const phone = opt.getAttribute('data-phone');
+                const address = opt.getAttribute('data-address');
+                const aadhaar = opt.getAttribute('data-aadhaar');
+                const idType = opt.getAttribute('data-id-type');
+                const photo = opt.getAttribute('data-photo');
+
+                const phoneInput = document.getElementById('customerPhoneInput');
+                if (phoneInput && phone && !phoneInput.value) phoneInput.value = phone;
+
+                const addressInput = document.getElementById('customerAddressInput');
+                if (addressInput && address && !addressInput.value) addressInput.value = address;
+
+                const idField = document.getElementById('idProofNumber');
+                if (idField && aadhaar && !idField.value) idField.value = aadhaar;
+
+                if (idType) {
+                    const typeSelect = document.getElementById('idProofTypeSelect');
+                    if (typeSelect) {
+                        if (idType.includes('pan')) typeSelect.value = 'pan';
+                        else if (idType.includes('voter')) typeSelect.value = 'voter_id';
+                        else if (idType.includes('driving')) typeSelect.value = 'driving_license';
+                        else if (idType.includes('passport')) typeSelect.value = 'passport';
+                        else typeSelect.value = 'aadhaar';
+                    }
+                }
+
+                const custPhotoData = document.getElementById('customerPhotoData');
+                if (photo && photo.trim() && (!custPhotoData || !custPhotoData.value)) {
+                    setSinglePhoto('cust', photo, 'Customer Profile');
+                }
+                break;
+            }
+        }
+    } catch (e) {
+        console.error('Customer name input handler error:', e);
+    }
+});
+
+// Form Submission packaging
+document.getElementById('goldPurchaseForm')?.addEventListener('submit', function(e) {
+    try {
+        const rows = document.querySelectorAll('#itemsTableBody tr');
+        if (rows.length === 0) {
+            e.preventDefault();
+            alert('Please add at least one gold item.');
+            return;
+        }
+
+        const items = [];
+        let hasZeroGross = false;
+
+        rows.forEach(row => {
+            const name = row.querySelector('.item-name')?.value.trim() || 'Gold Ornament';
+            const karat = row.querySelector('.item-karat')?.value || '22K';
+            const gross = parseFloat(row.querySelector('.item-gross')?.value) || 0;
+            const stone = parseFloat(row.querySelector('.item-stone')?.value) || 0;
+            const lossPct = parseFloat(row.querySelector('.item-loss')?.value) || 0;
+            const rate = parseFloat(row.querySelector('.item-rate')?.value) || 0;
+
+            if (gross <= 0) hasZeroGross = true;
+
+            items.push({
+                item_name: name,
+                purity_karat: karat,
+                purity_percentage: PURITY_PCTS[karat] || 91.60,
+                gross_weight: gross,
+                stone_weight: stone,
+                melting_loss_percentage: lossPct,
+                rate_per_gram: rate
+            });
+        });
+
+        if (hasZeroGross) {
+            e.preventDefault();
+            alert('Please enter a valid gross weight for all gold items.');
+            return;
+        }
+
+        document.getElementById('itemsJsonInput').value = JSON.stringify(items);
+        // Clear draft on submission
+        sessionStorage.removeItem('gold_purchase_draft_items');
+    } catch (e) {
+        console.error('Form submit error:', e);
+    }
+});
+
+// Initialize and restore state
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        // 1. Check if backend provided submitted items (from failed POST)
+        let restoredItems = null;
+        const serverJsonRaw = document.getElementById('itemsJsonInput')?.value;
+        if (serverJsonRaw && serverJsonRaw !== '[]' && serverJsonRaw !== '') {
+            try {
+                restoredItems = JSON.parse(serverJsonRaw);
+            } catch (e) {
+                restoredItems = null;
+            }
+        }
+
+        // 2. If no server items, check sessionStorage draft
+        if (!restoredItems || restoredItems.length === 0) {
+            try {
+                const draftRaw = sessionStorage.getItem('gold_purchase_draft_items');
+                if (draftRaw) {
+                    restoredItems = JSON.parse(draftRaw);
+                }
+            } catch (e) {
+                restoredItems = null;
+            }
+        }
+
+        // 3. Render items
+        if (restoredItems && Array.isArray(restoredItems) && restoredItems.length > 0) {
+            restoredItems.forEach(it => {
+                addNewItemRow(
+                    it.item_name || 'Gold Chain / Ornament',
+                    it.purity_karat || '22K',
+                    it.gross_weight || '',
+                    it.stone_weight !== undefined ? it.stone_weight : '',
+                    it.melting_loss_percentage !== undefined ? it.melting_loss_percentage : '',
+                    it.rate_per_gram || null
+                );
+            });
+        } else {
+            addNewItemRow('Gold Chain / Ornament', '22K');
+        }
+
+        // 4. Restore submitted photos if present
+        const custPhotoVal = document.getElementById('customerPhotoData')?.value;
+        if (custPhotoVal && custPhotoVal.trim()) {
+            setSinglePhoto('cust', custPhotoVal, 'Restored Photo');
+        }
+
+        const kycDataVal = document.getElementById('kycDocumentData')?.value;
+        if (kycDataVal && kycDataVal.trim()) {
+            setSinglePhoto('kyc', kycDataVal, 'Restored Document');
+        }
+
+        const itemPhotosVal = document.getElementById('itemPhotosData')?.value;
+        if (itemPhotosVal && itemPhotosVal !== '[]' && itemPhotosVal.trim()) {
+            try {
+                itemPhotosList = JSON.parse(itemPhotosVal);
+                renderItemPhotos();
+            } catch (e) {
+                itemPhotosList = [];
+            }
+        }
+
+        calculateAll();
+    } catch (e) {
+        console.error('Initialization error:', e);
+        if (document.querySelectorAll('#itemsTableBody tr').length === 0) {
+            addNewItemRow('Gold Chain / Ornament', '22K');
+        }
+    }
+});
+
+// Auto-remove default 0 value when user focuses / clicks on any numeric box
+document.addEventListener('focusin', function(e) {
+    if (e.target && e.target.tagName === 'INPUT' && (e.target.type === 'number' || e.target.classList.contains('font-monospace') || e.target.classList.contains('item-stone') || e.target.classList.contains('item-loss') || e.target.classList.contains('item-gross'))) {
+        const val = e.target.value.trim();
+        if (val === '0' || val === '0.0' || val === '0.00' || val === '0.000') {
+            e.target.value = '';
+        } else if (val) {
+            e.target.select();
+        }
+    }
+});
+
+// Prevent mouse wheel from incrementing/decrementing values on any number inputs (Gross Wt, Stone Wt, Loss, Rate, etc.)
+document.addEventListener('wheel', function(e) {
+    if (document.activeElement && document.activeElement.type === 'number') {
+        document.activeElement.blur();
+    }
+}, { passive: true });
+</script>
+{% endblock %}
