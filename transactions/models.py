@@ -898,8 +898,10 @@ class Loan(models.Model):
 
     @property
     def remaining_balance(self):
-        """Calculate remaining balance including interest"""
-        return max(Decimal('0.00'), self.total_payable_mature - self.amount_paid)
+        """Calculate remaining balance including interest due today"""
+        if self.status != 'active':
+            return Decimal('0.00')
+        return self.total_payable_till_date
 
     def calculate_months_date_to_date(self, target_date=None):
         """
@@ -930,27 +932,10 @@ class Loan(models.Model):
 
     @property
     def net_payable_still_due(self):
-        """Calculate net payable (still due) - what customer owes right now including minimum interest"""
-        if self.status != 'active' or not self.scheme:
-            return max(Decimal('0.00'), self.principal_amount - self.amount_paid)
-        
-        principal = self.principal_amount
-        monthly_info = self.monthly_interest
-        monthly_amount = Decimal(str(monthly_info['amount']))
-        
-        months_count = Decimal(str(self.calculate_months_date_to_date()))
-        
-        # Calculate total interest
-        if self.is_first_month_interest_paid:
-            months_count = max(Decimal('0'), months_count - Decimal('1'))
-            
-        total_interest = monthly_amount * months_count
-        
-        # Total payable is principal + interest till date
-        total_payable = principal + total_interest
-        
-        # Net payable is what's still due after payments
-        return max(Decimal('0.00'), total_payable - self.amount_paid)
+        """Calculate net payable (still due) - what customer owes right now including interest"""
+        if self.status != 'active':
+            return Decimal('0.00')
+        return self.total_payable_till_date
     
     @property
     def days_since_issue(self):
@@ -980,7 +965,7 @@ class Loan(models.Model):
         if self.status != 'active':
             return Decimal('0.00')
         
-        principal_amount = self.principal_amount
+        principal_amount = self.principal_amount or Decimal('0.00')
         
         # Get scheme details from the scheme model
         if not self.scheme:
@@ -989,6 +974,10 @@ class Loan(models.Model):
         # For schemes with no_interest_period_days, check if we're still in that period
         if self.scheme.no_interest_period_days and self.days_since_issue <= self.scheme.no_interest_period_days:
             return principal_amount
+            
+        # If accrued_interest field is tracked (>0, e.g. via daily EOD batch), use it
+        if getattr(self, 'accrued_interest', None) and self.accrued_interest > Decimal('0.00'):
+            return principal_amount + self.accrued_interest
             
         # Use monthly interest calculation instead of daily
         return principal_amount + self.monthly_interest_till_date()
@@ -1031,9 +1020,10 @@ class Loan(models.Model):
         if self.is_first_month_interest_paid:
             days_elapsed = max(0, days_elapsed - 30)
             
-        # Calculate interest based on scheme interest rate on distribution amount
-        base_dist_amount = self.distribution_amount if self.distribution_amount is not None \
+        # Use current outstanding principal to reflect part payments
+        orig_dist = self.distribution_amount if self.distribution_amount is not None \
             else ((self.principal_amount or Decimal('0')) - Decimal(str(self.processing_fee or 0)))
+        base_dist_amount = min(orig_dist, self.principal_amount or Decimal('0'))
         
         # For schemes with no_interest_period_days, check if we're still in that period
         if self.scheme.no_interest_period_days and days_elapsed <= self.scheme.no_interest_period_days:
@@ -1041,9 +1031,9 @@ class Loan(models.Model):
             
         # Calculate interest based on scheme interest rate on base distribution amount
         daily_rate = self.scheme.interest_rate / Decimal('36500')  # Convert annual rate to daily rate
-        interest = base_dist_amount * daily_rate * days_elapsed
+        interest = base_dist_amount * daily_rate * Decimal(str(days_elapsed))
         
-        return interest
+        return interest.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         
     @property
     def monthly_interest(self):
@@ -1561,7 +1551,7 @@ class Payment(models.Model):
         # Prevent excess payment over outstanding balance
         if self.amount and hasattr(self, 'loan') and self.loan:
             try:
-                rem_balance = max(Decimal('0.00'), self.loan.total_payable_till_date - self.loan.amount_paid)
+                rem_balance = max(Decimal('0.00'), self.loan.total_payable_till_date)
                 if self.pk:
                     old_payment = Payment.objects.filter(pk=self.pk).first()
                     if old_payment:

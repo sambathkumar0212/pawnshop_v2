@@ -20,32 +20,84 @@ def get_current_gold_rate_22k(branch=None):
 
 def get_loan_current_interest_due(loan):
     """
-    Returns today's active interest due on the loan based on Net Payable position:
-    Interest = Net Payable Still Due - Outstanding Principal
-    Also considers accrued_interest field and calculate_interest() method.
+    Returns today's active interest due on the loan.
+    Calculates interest only from the LAST payment date to avoid double-counting
+    interest that was already cleared by prior payments.
     """
     if not loan or getattr(loan, 'status', None) != 'active':
         return Decimal('0.00')
 
-    # 1. Primary: Net Payable interest due (date-to-date monthly cycle / minimum 1 month)
+    # 1. Check accrued_interest field on model if tracked (>0, e.g. via daily EOD batch)
+    field_accrued = Decimal(str(getattr(loan, 'accrued_interest', None) or '0.00'))
+    if field_accrued > Decimal('0.00'):
+        return field_accrued.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+    # 2. Calculate interest since last payment date (interest-first allocation principle).
+    #    After a part payment clears interest, the next period's interest starts fresh
+    #    from the date that payment was made — NOT from the original loan issue date.
+    try:
+        if loan.scheme:
+            current_date = timezone.now().date()
+            last_payment = loan.payments.order_by('-payment_date', '-id').first()
+
+            if not last_payment:
+                # No prior payments: standard interest from issue date (handles upfront interest, grace periods)
+                return Decimal(str(loan.monthly_interest_till_date() or '0.00')).quantize(
+                    Decimal('0.01'), rounding=ROUND_HALF_UP
+                )
+
+            # Prior payment exists: check if same day
+            if current_date <= last_payment.payment_date:
+                return Decimal('0.00')
+
+            interest_start_date = last_payment.payment_date
+
+            if loan.scheme.is_days_based:
+                # Days-based: interest on current principal for days since last payment
+                days_elapsed = (current_date - interest_start_date).days
+                if days_elapsed <= 0:
+                    return Decimal('0.00')
+
+                base_amount = loan.principal_amount or Decimal('0.00')
+                annual_rate = loan.scheme.get_interest_rate_for_days(
+                    (current_date - loan.issue_date).days
+                )
+                daily_rate = annual_rate / Decimal('36500')
+                calc_int = (Decimal(str(base_amount)) * daily_rate * Decimal(str(days_elapsed))).quantize(
+                    Decimal('0.01'), rounding=ROUND_HALF_UP
+                )
+            else:
+                # Months-based: date-to-date calculation from last payment date
+                year_diff = current_date.year - interest_start_date.year
+                month_diff = current_date.month - interest_start_date.month
+                months_diff = year_diff * 12 + month_diff
+
+                if current_date.day > interest_start_date.day:
+                    months_elapsed = months_diff + 1
+                else:
+                    months_elapsed = max(1, months_diff)
+
+                if months_elapsed <= 0:
+                    return Decimal('0.00')
+
+                monthly_info = loan.monthly_interest
+                monthly_amount = monthly_info['amount']
+                calc_int = (monthly_amount * Decimal(str(months_elapsed))).quantize(
+                    Decimal('0.01'), rounding=ROUND_HALF_UP
+                )
+
+            if calc_int > Decimal('0.00'):
+                return calc_int
+    except Exception:
+        pass
+
+    # 3. Fallback to net_payable_still_due - principal_amount
     try:
         net_payable = Decimal(str(loan.net_payable_still_due or '0.00'))
         net_interest = max(Decimal('0.00'), net_payable - Decimal(str(loan.principal_amount or '0.00')))
+        return net_interest.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     except Exception:
-        net_interest = Decimal('0.00')
-
-    # 2. Check accrued_interest field on model
-    field_accrued = Decimal(str(getattr(loan, 'accrued_interest', None) or '0.00'))
-
-    # 3. Check calculate_interest() method
-    calc_accrued = Decimal('0.00')
-    if hasattr(loan, 'calculate_interest'):
-        try:
-            calc_accrued = Decimal(str(loan.calculate_interest() or '0.00'))
-        except Exception:
-            calc_accrued = Decimal('0.00')
-
-    return max(net_interest, field_accrued, calc_accrued).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        return Decimal('0.00')
 
 
 def calculate_item_market_value(loan_item, gold_rate=None, net_weight=None):

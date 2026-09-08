@@ -133,13 +133,13 @@
                 <thead>
                     <tr>
                         <th>{% trans "Description" %}</th>
-                        <th style="text-align: right;">{% trans "Amount" %} (&#8377;)</th>
+                        <th style="text-align: right;">{% trans "Amount" %} (Rs.)</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
                         <td>{% trans "Payment towards Loan" %} #{{ loan.loan_number }}</td>
-                        <td style="text-align: right; font-weight: bold;">&#8377;{{ payment.amount|floatformat:0 }}</td>
+                        <td style="text-align: right; font-weight: bold;">Rs. {{ payment.amount|floatformat:0 }}</td>
                     </tr>
                     {% if payment_type == 'full' %}
                     <tr>
@@ -158,24 +158,28 @@
             <table class="totals-table">
                 <tr>
                     <td class="total-label">{% trans "Total Amount Paid:" %}</td>
-                    <td class="total-amount"><span class="currency-symbol">&#8377;</span>{{ payment.amount|floatformat:0 }}</td>
+                    <td class="total-amount">Rs. {{ payment.amount|floatformat:0 }}</td>
                 </tr>
                 <tr>
-                    <td class="total-label">{% trans "Principal Amount:" %}</td>
-                    <td class="total-amount"><span class="currency-symbol">&#8377;</span>{{ loan.principal_amount|floatformat:0 }}</td>
+                    <td class="total-label">{% trans "Interest Covered:" %}</td>
+                    <td class="total-amount">Rs. {{ interest_amount|floatformat:0 }}</td>
                 </tr>
                 <tr>
-                    <td class="total-label">{% trans "Interest Accrued:" %}</td>
-                    <td class="total-amount"><span class="currency-symbol">&#8377;</span>{{ interest_amount|floatformat:0 }}</td>
+                    <td class="total-label">{% trans "Principal Reduced:" %}</td>
+                    <td class="total-amount">Rs. {{ principal_amount_paid|floatformat:0 }}</td>
+                </tr>
+                <tr>
+                    <td class="total-label">{% trans "Outstanding Principal:" %}</td>
+                    <td class="total-amount">Rs. {{ loan.principal_amount|floatformat:0 }}</td>
                 </tr>
                 <tr>
                     <td class="total-label">{% trans "Total Paid Till Date:" %}</td>
-                    <td class="total-amount"><span class="currency-symbol">&#8377;</span>{{ total_paid|floatformat:0 }}</td>
+                    <td class="total-amount">Rs. {{ total_paid|floatformat:0 }}</td>
                 </tr>
                 {% if remaining_balance > 0 %}
                 <tr>
                     <td class="total-label">{% trans "Remaining Balance:" %}</td>
-                    <td class="total-amount"><span class="currency-symbol">&#8377;</span>{{ remaining_balance|floatformat:0 }}</td>
+                    <td class="total-amount">Rs. {{ remaining_balance|floatformat:0 }}</td>
                 </tr>
                 {% else %}
                 <tr>
@@ -211,7 +215,7 @@
             <div class="customer-sign">
                 <div class="line"></div>
                 <p class="signature-title">{% trans "Customer Signature" %}</p>
-                <p class="signature-name">{{ loan.customer.full_name }}</p>
+                <p class="signature-name">{{ customer_name_display|default:loan.customer.full_name }}</p>
             </div>
             <div class="branch-sign">
                 <div class="line"></div>

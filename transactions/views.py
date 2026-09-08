@@ -1144,7 +1144,7 @@ class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, Lis
                 if hasattr(loan, 'amount_paid'):
                     amount_paid = round(float(loan.amount_paid))
                 
-                remaining_balance = total_payable - amount_paid
+                remaining_balance = total_payable
             except:
                 monthly_interest = 0
                 total_payable = 0
@@ -1207,7 +1207,7 @@ class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, Lis
             if hasattr(loan, 'amount_paid'):
                 amount_paid = round(float(loan.amount_paid))
 
-            remaining_balance = total_payable - amount_paid
+            remaining_balance = total_payable
         except Exception:
             monthly_interest = 0
             total_payable = 0
@@ -1341,17 +1341,7 @@ class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, Lis
                 if tp is None:
                     tp = getattr(ln, 'principal_amount', 0) or 0
 
-                ap = getattr(ln, 'amount_paid', None)
-                if callable(ap):
-                    ap = ap()
-                if ap is None:
-                    try:
-                        ap = sum(p.amount for p in (ln.payments.all() if hasattr(ln, 'payments') else []))
-                    except Exception:
-                        ap = 0
-
-                out = Decimal(tp or 0) - Decimal(ap or 0)
-                return out if out > 0 else Decimal('0.00')
+                return Decimal(str(tp or 0))
             except Exception:
                 return Decimal('0.00')
 
@@ -2343,13 +2333,6 @@ class PaymentCreateView(LoginRequiredMixin, RoleBranchAccessMixin, CreateView):
         self.check_object_branch_access(loan, branch_attr='branch')
         context['loan'] = loan
 
-        # Calculate remaining balance for full payment
-        try:
-            remaining_balance = loan.total_payable_till_date - loan.amount_paid
-            context['remaining_balance'] = max(remaining_balance, 0)
-        except:
-            context['remaining_balance'] = 0
-
         # Today's accrued interest & net payable for live calculator
         try:
             from transactions.services_partial_release import get_loan_current_interest_due
@@ -2357,10 +2340,12 @@ class PaymentCreateView(LoginRequiredMixin, RoleBranchAccessMixin, CreateView):
             context['today_interest'] = today_interest
             context['today_net_payable'] = loan.principal_amount + today_interest
             context['loan_principal'] = loan.principal_amount
+            context['remaining_balance'] = loan.principal_amount + today_interest
         except Exception:
             context['today_interest'] = Decimal('0.00')
             context['today_net_payable'] = loan.principal_amount
             context['loan_principal'] = loan.principal_amount
+            context['remaining_balance'] = loan.principal_amount
 
         # Payment history
         context['payments'] = loan.payments.order_by('-payment_date')[:10]
@@ -2407,7 +2392,9 @@ class PaymentCreateView(LoginRequiredMixin, RoleBranchAccessMixin, CreateView):
         
         # Calculate remaining balance before this payment and prevent excess payment
         try:
-            remaining_balance = max(Decimal('0.00'), loan.total_payable_till_date - loan.amount_paid)
+            from transactions.services_partial_release import get_loan_current_interest_due
+            current_interest_due = get_loan_current_interest_due(loan)
+            remaining_balance = loan.principal_amount + current_interest_due
             if payment_amount > remaining_balance:
                 form.add_error(
                     'amount',
@@ -3120,7 +3107,7 @@ class LoanPaymentHistoryDownloadView(LoginRequiredMixin, RoleBranchAccessMixin, 
         elements.append(Paragraph("PAYMENT SUMMARY", section_style))
         
         # Calculate remaining balance - ensure it's never negative (0 for fully paid loans)
-        remaining_balance = max(0, loan.total_payable_till_date - total_amount_paid)
+        remaining_balance = max(0, loan.total_payable_till_date)
         
         summary_data = [
             ['Total Payments Made:', str(total_payments)],
@@ -3765,7 +3752,7 @@ class LoanScheduleView(LoginRequiredMixin, RoleBranchAccessMixin, View):
         elements.append(Paragraph("PAYMENT SUMMARY", section_style))
         
         # Calculate remaining balance - ensure it's never negative (0 for fully paid loans)
-        remaining_balance = max(0, loan.total_payable_till_date - total_amount_paid)
+        remaining_balance = max(0, loan.total_payable_till_date)
         
         summary_data = [
             ['Total Payments Made:', str(total_payments)],
@@ -4101,9 +4088,54 @@ class PaymentReceiptView(LoginRequiredMixin, View):
         # Keep receipt generation fast by avoiding runtime network translation.
         payment.notes_tamil = payment.notes or ''
 
+        # Extract interest paid and principal paid for THIS specific payment from notes.
+        # Notes are stored as: "Part Payment (Interest: Rs.X, Principal: Rs.Y)"
+        import re as _re
+        this_payment_interest = Decimal('0.00')
+        this_payment_principal = Decimal('0.00')
+        if payment.notes:
+            int_match = _re.search(r'Interest[:\s]+(?:Rs\.?|₹)\s*([\d,]+\.?\d*)', payment.notes, _re.IGNORECASE)
+            pri_match = _re.search(r'Principal[:\s]+(?:Rs\.?|₹)\s*([\d,]+\.?\d*)', payment.notes, _re.IGNORECASE)
+            if int_match:
+                this_payment_interest = Decimal(int_match.group(1).replace(',', ''))
+            if pri_match:
+                this_payment_principal = Decimal(pri_match.group(1).replace(',', ''))
+        # Fallback: if notes don't have breakdown, treat full amount as principal
+        if this_payment_interest == Decimal('0.00') and this_payment_principal == Decimal('0.00'):
+            this_payment_principal = payment.amount
+
+        # Calculate total paid till date (including this payment) and remaining balance.
+        # Sum all payments for this loan up to and including this payment's date.
+        from django.db.models import Sum as _Sum
+        total_paid_till_this = loan.payments.filter(
+            payment_date__lte=payment.payment_date, id__lte=payment.id
+        ).aggregate(total=_Sum('amount'))['total'] or Decimal('0.00')
+
+        # Remaining balance: after this payment was recorded, what was left?
+        # For closed loans it's 0; for active, use current principal + current interest.
+        from transactions.services_partial_release import get_loan_current_interest_due
+        current_interest_due = get_loan_current_interest_due(loan)
+        is_closed = loan.status in ['closed', 'repaid', 'foreclosed'] or (loan.principal_amount or 0) <= 0
+        payment_type = 'full' if is_closed else 'partial'
+        remaining_balance = Decimal('0.00') if is_closed else (loan.principal_amount + current_interest_due)
+
+        # Customer display name
+        customer_name_display = ""
+        if loan.customer:
+            customer_name_display = f"{loan.customer.first_name or ''} {loan.customer.last_name or ''}".strip()
+            if not customer_name_display and hasattr(loan.customer, 'full_name'):
+                customer_name_display = str(loan.customer.full_name or '')
+
         context = {
             'payment': payment,
             'loan': loan,
+            'customer_name_display': customer_name_display,
+            'payment_type': payment_type,
+            'interest_amount': this_payment_interest,
+            'principal_amount_paid': this_payment_principal,
+            'total_paid': total_paid_till_this,
+            'remaining_balance': remaining_balance,
+            'date_today': timezone.now(),
             'branch_phone_display': get_branch_bill_header_phones(getattr(loan, 'branch', None)),
             'branch_address_display': bill_details.get('address', ''),
             'bill_shop_name': bill_details.get('shop_name', ''),

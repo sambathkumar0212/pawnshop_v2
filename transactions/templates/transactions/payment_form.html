@@ -101,8 +101,10 @@
                     </ul>
 
                     <!-- Payment Progress -->
-                    {% if loan.total_payable_till_date %}
-                    {% with pct=loan.amount_paid|percentage:loan.total_payable_till_date %}
+                    {% if loan.amount_paid or remaining_balance %}
+                    {% with total_obligation=loan.amount_paid|add:remaining_balance %}
+                    {% if total_obligation > 0 %}
+                    {% with pct=loan.amount_paid|percentage:total_obligation %}
                     <div class="mb-3">
                         <div class="d-flex justify-content-between small text-muted mb-1">
                             <span>Payment Progress</span>
@@ -110,9 +112,11 @@
                         </div>
                         <div class="progress" style="height: 12px;">
                             <div class="progress-bar {% if pct < 30 %}bg-danger{% elif pct < 70 %}bg-warning{% else %}bg-success{% endif %}"
-                                 style="width: {{ pct }}%"></div>
+                                 style="width: {{ pct|floatformat:0 }}%"></div>
                         </div>
                     </div>
+                    {% endwith %}
+                    {% endif %}
                     {% endwith %}
                     {% endif %}
 
@@ -309,10 +313,10 @@
 
 {% block extra_scripts %}
 <script>
-const LOAN_PRINCIPAL    = {{ loan_principal|floatformat:0 }};
-const TODAY_INTEREST    = {{ today_interest|floatformat:0 }};
-const REMAINING_BALANCE = {{ remaining_balance|floatformat:0 }};
-const NET_PAYABLE_TODAY = {{ today_net_payable|floatformat:0 }};
+const LOAN_PRINCIPAL    = {{ loan_principal|floatformat:2 }};
+const TODAY_INTEREST    = {{ today_interest|floatformat:2 }};
+const REMAINING_BALANCE = {{ remaining_balance|floatformat:2 }};
+const NET_PAYABLE_TODAY = {{ today_net_payable|floatformat:2 }};
 
 document.addEventListener('DOMContentLoaded', function () {
     const liveInput  = document.getElementById('liveAmountInput');
