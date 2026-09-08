@@ -1961,3 +1961,58 @@ class PartialReleaseRecord(models.Model):
         return f"Partial Release #{self.release_number} for Loan #{self.loan.loan_number}"
 
 
+class MarketingCampaignTemplate(models.Model):
+    """
+    Stores built-in and user-customized WhatsApp & Digital Marketing Campaign Templates.
+    Allows saving Gemini AI generated templates as new presets or overwriting existing templates.
+    """
+    key = models.CharField(max_length=100, unique=True, db_index=True)
+    title_en = models.CharField(max_length=255)
+    title_ta = models.CharField(max_length=255)
+    category = models.CharField(max_length=100, default='Custom')
+    badge = models.CharField(max_length=50, default='Custom')
+    body_en = models.TextField(blank=True, default='')
+    body_ta = models.TextField(blank=True, default='')
+    is_custom = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='created_marketing_templates'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _('Marketing Campaign Template')
+        verbose_name_plural = _('Marketing Campaign Templates')
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f"{self.title_en} ({self.key})"
+
+
+class MarketingLead(models.Model):
+    """
+    Stores external prospect leads (imported via CSV or added manually)
+    who are not yet registered customers, for WhatsApp broadcasts & marketing campaigns.
+    """
+    name = models.CharField(max_length=150)
+    phone = models.CharField(max_length=25)
+    norm_phone = models.CharField(max_length=25, blank=True, db_index=True)
+    city = models.CharField(max_length=100, blank=True, null=True)
+    branch = models.ForeignKey('branches.Branch', on_delete=models.SET_NULL, null=True, blank=True, related_name='marketing_leads')
+    notes = models.CharField(max_length=255, blank=True, null=True)
+    source = models.CharField(max_length=50, default='csv_import')  # 'csv_import', 'manual_entry'
+    is_contacted = models.BooleanField(default=False)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _('Marketing Lead')
+        verbose_name_plural = _('Marketing Leads')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.name} ({self.phone})"
+
+

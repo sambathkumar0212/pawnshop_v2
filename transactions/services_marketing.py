@@ -214,13 +214,45 @@ MARKETING_TEMPLATES = {
 
 def get_segmented_audience(segment_type='all', branch_id=None, organization=None):
     """
-    Returns a list of customer dictionaries matching the segment criteria:
-    - 'all': All customers with phone numbers
+    Returns a list of customer/prospect dictionaries matching the segment criteria:
+    - 'all': All registered customers with phone numbers
     - 'active_borrowers': Customers who have at least one active loan
     - 'closed_loans': Customers who had loans that are now closed/foreclosed (re-engagement prospects)
     - 'overdue': Customers who have overdue active loans
     - 'high_value': Customers with total principal > ₹1,00,000
+    - 'new_prospects': External new leads imported via CSV or added manually
     """
+    if segment_type in ('new_prospects', 'imported_leads', 'leads'):
+        from transactions.models import MarketingLead
+        lead_qs = MarketingLead.objects.all()
+        if branch_id:
+            lead_qs = lead_qs.filter(branch_id=branch_id)
+        
+        audience = []
+        for lead in lead_qs:
+            raw_phone = lead.phone or ''
+            norm_phone = lead.norm_phone or normalize_phone_number(raw_phone)
+            branch = lead.branch
+            branch_name = getattr(branch, 'name', '') if branch else ''
+            branch_phone = getattr(branch, 'phone', '') if branch else ''
+
+            audience.append({
+                'customer_id': f"LEAD-{lead.id}",
+                'lead_id': lead.id,
+                'name': lead.name or 'Valued Customer',
+                'raw_phone': raw_phone,
+                'norm_phone': norm_phone,
+                'is_valid_whatsapp': bool(norm_phone),
+                'city': lead.city or '',
+                'branch_name': branch_name,
+                'branch_phone': branch_phone,
+                'active_loans_count': 0,
+                'total_borrowed': Decimal('0.00'),
+                'is_external_lead': True,
+                'source': lead.source,
+            })
+        return audience
+
     qs = Customer.objects.all().select_related('branch')
     if branch_id:
         qs = qs.filter(branch_id=branch_id)
@@ -259,6 +291,7 @@ def get_segmented_audience(segment_type='all', branch_id=None, organization=None
 
         audience.append({
             'customer_id': c.id,
+            'lead_id': None,
             'name': full_name,
             'raw_phone': raw_phone,
             'norm_phone': norm_phone,
@@ -268,14 +301,267 @@ def get_segmented_audience(segment_type='all', branch_id=None, organization=None
             'branch_phone': branch_phone,
             'active_loans_count': active_loans_count,
             'total_borrowed': total_borrowed,
+            'is_external_lead': False,
+            'source': 'customer_directory',
         })
 
     return audience
 
 
 # ---------------------------------------------------------------------------
+# External Lead Import & Management
+# ---------------------------------------------------------------------------
+
+def import_leads_from_csv(file_obj, branch_id=None, user=None, save_as_customer=False):
+    """
+    Parses a CSV file containing external prospect leads (name, phone, city)
+    and saves them to MarketingLead (and optionally Customer model).
+    Returns (imported_count, skipped_count, error_messages).
+    """
+    import csv
+    import io
+    from transactions.models import MarketingLead
+    from branches.models import Branch
+
+    branch = None
+    if branch_id:
+        try:
+            branch = Branch.objects.get(id=branch_id)
+        except Exception:
+            branch = None
+
+    decoded = file_obj.read().decode('utf-8-sig', errors='replace')
+    reader = csv.reader(io.StringIO(decoded))
+    
+    rows = list(reader)
+    if not rows:
+        return 0, 0, ["CSV file is empty."]
+
+    # Header identification
+    first_row = [c.strip().lower() for c in rows[0]]
+    has_header = any(h in first_row for h in ('name', 'phone', 'mobile', 'customer', 'customer_name', 'phone_number', 'contact', 'city'))
+    
+    name_idx, phone_idx, city_idx, notes_idx = 0, 1, 2, 3
+    data_rows = rows
+    if has_header:
+        data_rows = rows[1:]
+        for idx, col in enumerate(first_row):
+            if col in ('name', 'customer_name', 'full_name', 'customer', 'lead_name', 'பெயர்'):
+                name_idx = idx
+            elif col in ('phone', 'mobile', 'phone_number', 'mobile_no', 'contact', 'whatsapp', 'தொலைபேசி'):
+                phone_idx = idx
+            elif col in ('city', 'place', 'location', 'address', 'ஊர்'):
+                city_idx = idx
+            elif col in ('notes', 'note', 'remarks', 'scheme'):
+                notes_idx = idx
+
+    imported_count = 0
+    skipped_count = 0
+    errors = []
+
+    for line_num, row in enumerate(data_rows, start=2 if has_header else 1):
+        if not row or not any(row):
+            continue
+        
+        name = row[name_idx].strip() if len(row) > name_idx else f"Prospect {imported_count+1}"
+        phone_raw = row[phone_idx].strip() if len(row) > phone_idx else ''
+        city = row[city_idx].strip() if len(row) > city_idx else ''
+        notes = row[notes_idx].strip() if len(row) > notes_idx else ''
+
+        if not name:
+            name = f"Customer {phone_raw[-4:]}" if len(phone_raw) >= 4 else "Valued Customer"
+
+        norm_phone = normalize_phone_number(phone_raw)
+        if not norm_phone:
+            skipped_count += 1
+            errors.append(f"Row {line_num}: Invalid phone number '{phone_raw}' for '{name}'.")
+            continue
+
+        # Create or update MarketingLead
+        MarketingLead.objects.update_or_create(
+            norm_phone=norm_phone,
+            defaults={
+                'name': name,
+                'phone': phone_raw,
+                'city': city,
+                'branch': branch,
+                'notes': notes,
+                'source': 'csv_import',
+                'created_by': user if user and user.is_authenticated else None,
+            }
+        )
+        imported_count += 1
+
+        # Optionally also register as customer prospect in customer directory
+        if save_as_customer:
+            try:
+                from accounts.models import Customer
+                if not Customer.objects.filter(phone=norm_phone).exists():
+                    Customer.objects.create(
+                        first_name=name.split()[0],
+                        last_name=" ".join(name.split()[1:]) if len(name.split()) > 1 else "",
+                        phone=norm_phone,
+                        city=city,
+                        branch=branch,
+                    )
+            except Exception as e:
+                logger.warning("Could not auto-create customer from lead: %s", e)
+
+    return imported_count, skipped_count, errors
+
+
+def add_single_lead(name, phone_raw, city=None, notes=None, branch_id=None, user=None, save_as_customer=False):
+    """
+    Adds a single prospect lead manually.
+    """
+    from transactions.models import MarketingLead
+    from branches.models import Branch
+
+    norm_phone = normalize_phone_number(phone_raw)
+    if not norm_phone:
+        raise ValueError(f"Invalid phone number '{phone_raw}'. Must be a valid 10-digit mobile number.")
+
+    branch = None
+    if branch_id:
+        try:
+            branch = Branch.objects.get(id=branch_id)
+        except Exception:
+            branch = None
+
+    lead, _ = MarketingLead.objects.update_or_create(
+        norm_phone=norm_phone,
+        defaults={
+            'name': name.strip() or 'Valued Customer',
+            'phone': phone_raw.strip(),
+            'city': (city or '').strip(),
+            'notes': (notes or '').strip(),
+            'branch': branch,
+            'source': 'manual_entry',
+            'created_by': user if user and user.is_authenticated else None,
+        }
+    )
+
+    if save_as_customer:
+        try:
+            from accounts.models import Customer
+            if not Customer.objects.filter(phone=norm_phone).exists():
+                Customer.objects.create(
+                    first_name=name.split()[0],
+                    last_name=" ".join(name.split()[1:]) if len(name.split()) > 1 else "",
+                    phone=norm_phone,
+                    city=city,
+                    branch=branch,
+                )
+        except Exception as e:
+            logger.warning("Could not create customer: %s", e)
+
+    return lead
+
+
+def clear_all_marketing_leads(branch_id=None):
+    """
+    Deletes all imported marketing prospect leads.
+    """
+    from transactions.models import MarketingLead
+    qs = MarketingLead.objects.all()
+    if branch_id:
+        qs = qs.filter(branch_id=branch_id)
+    count, _ = qs.delete()
+    return count
+
+
+
+# ---------------------------------------------------------------------------
 # Message Rendering & Link Generator
 # ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Template Retrieval & Persistence (Database + Built-in Presets)
+# ---------------------------------------------------------------------------
+
+def get_all_marketing_templates():
+    """
+    Returns a unified dict of marketing templates merging built-in presets
+    with database-persisted / user-saved / overridden templates.
+    """
+    from transactions.models import MarketingCampaignTemplate
+
+    templates = {}
+    # 1. Load built-in presets as base
+    for k, v in MARKETING_TEMPLATES.items():
+        templates[k] = {
+            'key': k,
+            'title_en': v['title_en'],
+            'title_ta': v['title_ta'],
+            'category': v.get('category', 'General'),
+            'badge': v.get('badge', 'Preset'),
+            'body_en': v['body_en'],
+            'body_ta': v['body_ta'],
+            'is_custom': False,
+            'is_overridden': False,
+        }
+
+    # 2. Merge database saved templates (overriding defaults if key matches, or appending custom)
+    try:
+        db_templates = MarketingCampaignTemplate.objects.all().order_by('created_at')
+        for db_t in db_templates:
+            k = db_t.key
+            is_built_in = k in MARKETING_TEMPLATES
+            templates[k] = {
+                'key': k,
+                'id': db_t.id,
+                'title_en': db_t.title_en or (MARKETING_TEMPLATES[k]['title_en'] if is_built_in else k),
+                'title_ta': db_t.title_ta or (MARKETING_TEMPLATES[k]['title_ta'] if is_built_in else k),
+                'category': db_t.category or 'Custom',
+                'badge': db_t.badge or ('Custom' if db_t.is_custom else 'Updated'),
+                'body_en': db_t.body_en or (MARKETING_TEMPLATES[k]['body_en'] if is_built_in else ''),
+                'body_ta': db_t.body_ta or (MARKETING_TEMPLATES[k]['body_ta'] if is_built_in else ''),
+                'is_custom': db_t.is_custom,
+                'is_overridden': is_built_in,
+                'updated_at': db_t.updated_at,
+            }
+    except Exception as exc:
+        logger.warning("Could not fetch database marketing templates: %s", exc)
+
+    return templates
+
+
+def save_or_overwrite_template(key, title_en, title_ta, body_en, body_ta, category='Custom', badge='Saved', is_custom=True, user=None):
+    """
+    Saves a new custom template or overwrites an existing preset template in the database.
+    """
+    from transactions.models import MarketingCampaignTemplate
+
+    key = (key or '').strip().lower().replace(' ', '_')
+    if not key:
+        import time
+        key = f"custom_template_{int(time.time())}"
+
+    obj, created = MarketingCampaignTemplate.objects.update_or_create(
+        key=key,
+        defaults={
+            'title_en': title_en,
+            'title_ta': title_ta,
+            'category': category,
+            'badge': badge,
+            'body_en': body_en,
+            'body_ta': body_ta,
+            'is_custom': is_custom,
+            'created_by': user if user and user.is_authenticated else None,
+        }
+    )
+    return obj, created
+
+
+def delete_or_reset_template(key):
+    """
+    Deletes a custom template or resets an overridden preset template back to its default built-in version.
+    """
+    from transactions.models import MarketingCampaignTemplate
+
+    deleted_count, _ = MarketingCampaignTemplate.objects.filter(key=key).delete()
+    return deleted_count > 0
+
 
 def render_campaign_message(template_key, customer_dict, use_tamil=False, custom_body=None, gold_rate=None):
     """
@@ -284,8 +570,9 @@ def render_campaign_message(template_key, customer_dict, use_tamil=False, custom
     if custom_body:
         raw_template = custom_body
     else:
-        tmpl = MARKETING_TEMPLATES.get(template_key, MARKETING_TEMPLATES['festival_offer'])
-        raw_template = tmpl['body_ta'] if use_tamil else tmpl['body_en']
+        all_templates = get_all_marketing_templates()
+        tmpl = all_templates.get(template_key, all_templates.get('festival_offer', {}))
+        raw_template = tmpl.get('body_ta' if use_tamil else 'body_en', '')
 
     org_name = getattr(settings, 'ORGANIZATION_NAME', 'First Money Gold')
     gr_str = f"{gold_rate:,.0f}" if gold_rate else "6,850"
@@ -332,33 +619,65 @@ def build_broadcast_queue(audience_list, template_key='festival_offer', use_tami
     return queue
 
 
+
 # ---------------------------------------------------------------------------
 # Background PyWhatKit Bulk Broadcast Runner
 # ---------------------------------------------------------------------------
 
-def _run_pywhatkit_bulk_broadcast(broadcast_queue, delay_seconds=20):
+def _run_pywhatkit_bulk_broadcast(broadcast_queue, delay_seconds=20, image_path=None, send_mode='message_and_image'):
     """
-    Sequentially sends WhatsApp messages with safe delay interval.
-    Runs in a background daemon thread.
+    Sequentially sends WhatsApp messages or images with safe delay interval.
+    Runs in a background daemon thread. Supports:
+    - 'message_and_image': Sends promotional flyer image with personalized message as caption
+    - 'image_only': Sends image flyer alone
+    - 'message_only': Standard text message
     """
     try:
+        import os
         import pywhatkit
         total = len(broadcast_queue)
-        logger.info("Starting PyWhatKit bulk broadcast for %d contacts with %ds delay...", total, delay_seconds)
+        has_valid_image = bool(image_path and os.path.exists(image_path))
+        logger.info(
+            "Starting PyWhatKit bulk broadcast for %d contacts (delay: %ds, mode: %s, image: %s)...",
+            total, delay_seconds, send_mode, has_valid_image
+        )
 
         for idx, item in enumerate(broadcast_queue, start=1):
             phone = item['phone']
             msg = item['message']
             try:
-                logger.info("[%d/%d] Dispatching WhatsApp campaign to %s...", idx, total, phone)
-                pywhatkit.sendwhatmsg_instantly(
-                    phone_no=phone,
-                    message=msg,
-                    wait_time=15,
-                    tab_close=True,
-                    close_time=3
-                )
-                logger.info("[%d/%d] Successfully sent to %s.", idx, total, phone)
+                logger.info("[%d/%d] Dispatching WhatsApp campaign to %s (mode: %s)...", idx, total, phone, send_mode)
+                
+                if has_valid_image and send_mode == 'image_only':
+                    # Send image alone without text caption
+                    pywhatkit.sendwhats_image(
+                        receiver=phone,
+                        img_path=image_path,
+                        caption="",
+                        wait_time=15,
+                        tab_close=True,
+                        close_time=3
+                    )
+                elif has_valid_image and send_mode in ('message_and_image', 'image_with_caption'):
+                    # Send image with personalized message as caption
+                    pywhatkit.sendwhats_image(
+                        receiver=phone,
+                        img_path=image_path,
+                        caption=msg,
+                        wait_time=15,
+                        tab_close=True,
+                        close_time=3
+                    )
+                else:
+                    # Message only
+                    pywhatkit.sendwhatmsg_instantly(
+                        phone_no=phone,
+                        message=msg,
+                        wait_time=15,
+                        tab_close=True,
+                        close_time=3
+                    )
+                logger.info("[%d/%d] Successfully dispatched to %s.", idx, total, phone)
             except Exception as exc:
                 logger.warning("[%d/%d] Failed to send to %s: %s", idx, total, phone, exc)
 
@@ -370,21 +689,22 @@ def _run_pywhatkit_bulk_broadcast(broadcast_queue, delay_seconds=20):
         logger.error("PyWhatKit bulk broadcast runner error: %s", exc)
 
 
-def launch_pywhatkit_broadcast_async(broadcast_queue, delay_seconds=20):
+def launch_pywhatkit_broadcast_async(broadcast_queue, delay_seconds=20, image_path=None, send_mode='message_and_image'):
     """
-    Launches the background broadcast runner thread.
+    Launches the background broadcast runner thread with image attachment support.
     """
     if not broadcast_queue:
         return False
 
     t = threading.Thread(
         target=_run_pywhatkit_bulk_broadcast,
-        args=(broadcast_queue, delay_seconds),
+        args=(broadcast_queue, delay_seconds, image_path, send_mode),
         daemon=True,
         name="pywhatkit-bulk-broadcast-worker"
     )
     t.start()
     return True
+
 
 
 # ---------------------------------------------------------------------------

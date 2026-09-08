@@ -55,6 +55,8 @@ urlpatterns = [
     path('marketing/', views_marketing.DigitalMarketingDashboardView.as_view(), name='digital_marketing'),
     path('marketing/broadcast/', views_marketing.ExecuteBroadcastActionView.as_view(), name='marketing_broadcast_execute'),
     path('marketing/generate-ai/', views_marketing.GenerateAICampaignView.as_view(), name='marketing_generate_ai'),
+    path('marketing/templates/save/', views_marketing.SaveMarketingTemplateView.as_view(), name='marketing_save_template'),
+    path('marketing/leads/import/', views_marketing.ImportMarketingLeadsView.as_view(), name='marketing_import_leads'),
 
     # Utilities
     path('number_to_words/<str:number>/', views.number_to_words, name='number_to_words'),
