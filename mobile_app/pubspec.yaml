@@ -1,0 +1,40 @@
+name: pawnshop_mobile
+description: "Cross-platform mobile application for FirstMoney Gold Pawnshop Management"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Networking & Serialization
+  http: ^1.2.0
+  dio: ^5.4.1
+  
+  # State Management & Architecture
+  provider: ^6.1.2
+  
+  # Secure Local Storage for JWT Tokens
+  flutter_secure_storage: ^9.0.0
+  shared_preferences: ^2.2.2
+
+  # Date & Currency Formatting (Indian Rupee ₹)
+  intl: ^0.19.0
+
+  # Camera & Media Capture for Gold Ornaments & KYC
+  image_picker: ^1.0.7
+
+  # UI Enhancement & Icons
+  cupertino_icons: ^1.0.6
+  google_fonts: ^6.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true

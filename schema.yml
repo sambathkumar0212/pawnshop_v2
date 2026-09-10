@@ -1,0 +1,1490 @@
+openapi: 3.0.3
+info:
+  title: Pawnshop Management & Mobile API
+  version: 1.0.0
+  description: Comprehensive REST API documentation for Counter Web App and Cross-Platform
+    Mobile Applications (Loans, Repayments, Dashboard KPIs, Inventory, Authentication).
+paths:
+  /api/v1/auth/change-password/:
+    post:
+      operationId: v1_auth_change_password_create
+      description: |-
+        POST /api/v1/auth/change-password/
+        Change password for the authenticated user.
+      summary: Change User Password
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/auth/login/:
+    post:
+      operationId: v1_auth_login_create
+      description: |-
+        POST /api/v1/auth/login/
+        Login with username or email + password. Returns JWT access & refresh tokens
+        plus complete user profile and branch/role info.
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomTokenObtainPairRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomTokenObtainPairRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomTokenObtainPairRequest'
+        required: true
+      responses:
+        '200':
+          description: No response body
+  /api/v1/auth/me/:
+    get:
+      operationId: v1_auth_me_retrieve
+      description: |-
+        GET /api/v1/auth/me/
+        Retrieve the profile of the currently authenticated user.
+      summary: Get Current User Profile
+      tags:
+      - Authentication
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+          description: ''
+  /api/v1/auth/refresh/:
+    post:
+      operationId: v1_auth_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /api/v1/auth/update-profile/:
+    patch:
+      operationId: v1_auth_update_profile_partial_update
+      description: |-
+        PATCH /api/v1/auth/update-profile/
+        Update the authenticated user's first name, last name, phone, or email.
+      summary: Update User Profile
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUserUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUserUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUserUpdateRequest'
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+          description: ''
+  /api/v1/auth/verify/:
+    post:
+      operationId: v1_auth_verify_create
+      description: |-
+        Takes a token and indicates if it is valid.  This view provides no
+        information about a token's fitness for a particular use.
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenVerifyRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenVerifyRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenVerifyRequest'
+        required: true
+      responses:
+        '200':
+          description: No response body
+  /api/v1/dashboard/summary/:
+    get:
+      operationId: v1_dashboard_summary_retrieve
+      description: Returns daily collections, active portfolio stats, cash flow, and
+        gold inventory in custody.
+      summary: Get Dashboard KPI Summary
+      parameters:
+      - in: query
+        name: branch_id
+        schema:
+          type: integer
+        description: Filter by Branch ID
+      - in: query
+        name: date
+        schema:
+          type: string
+        description: Target date in YYYY-MM-DD format (defaults to today)
+      tags:
+      - Dashboard & Analytics
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSummaryResponse'
+          description: ''
+  /api/v1/loans/:
+    get:
+      operationId: v1_loans_list
+      description: List and filter loans by status, customer name, phone number, or
+        branch with pagination.
+      summary: List & Search Loans
+      parameters:
+      - in: query
+        name: branch_id
+        schema:
+          type: integer
+        description: Filter by Branch ID
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Page number
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Items per page
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Search by loan number, customer name, or phone
+      - in: query
+        name: status
+        schema:
+          type: string
+        description: Filter by loan status (active, repaid, overdue)
+      tags:
+      - Loans & Pledges
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LoanList'
+          description: ''
+  /api/v1/loans/{loan_identifier}/:
+    get:
+      operationId: v1_loans_retrieve
+      description: Retrieve complete loan details, customer info, pledged ornaments,
+        interest calculations, and payment history.
+      summary: Get Loan Details
+      parameters:
+      - in: path
+        name: loan_identifier
+        schema:
+          type: string
+        required: true
+      tags:
+      - Loans & Pledges
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanDetail'
+          description: ''
+  /api/v1/loans/{loan_identifier}/repay/:
+    post:
+      operationId: v1_loans_repay_create
+      description: Records a payment (Cash, UPI, Bank Transfer) towards a loan and
+        validates Section 269ST limits.
+      summary: Record Loan Repayment
+      parameters:
+      - in: path
+        name: loan_identifier
+        schema:
+          type: string
+        required: true
+      tags:
+      - Repayments & Cash
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PaymentCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PaymentCreateRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+          description: ''
+  /api/v1/loans/create/:
+    post:
+      operationId: v1_loans_create_create
+      description: Create a loan with pledged gold ornaments, item weights, camera
+        photos, and disbursement records.
+      summary: Create New Loan / Pledge
+      tags:
+      - Loans & Pledges
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoanCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LoanCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LoanCreateRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanDetail'
+          description: ''
+  /api/v1/payments/:
+    get:
+      operationId: v1_payments_list
+      description: Retrieve payment transactions with filtering by loan number, date,
+        or branch.
+      summary: List Repayments
+      parameters:
+      - in: query
+        name: date
+        schema:
+          type: string
+        description: Filter by Date (YYYY-MM-DD)
+      - in: query
+        name: loan_number
+        schema:
+          type: string
+        description: Filter by Loan Number
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Page number
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Items per page
+      tags:
+      - Repayments & Cash
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Payment'
+          description: ''
+components:
+  schemas:
+    BlankEnum:
+      enum:
+      - ''
+    BranchBasic:
+      type: object
+      description: Lightweight serializer for user's assigned branch
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        phone:
+          type: string
+          maxLength: 20
+        address:
+          type: string
+        city:
+          type: string
+          maxLength: 100
+        state:
+          type: string
+          maxLength: 100
+        is_active:
+          type: boolean
+      required:
+      - address
+      - city
+      - id
+      - name
+      - phone
+      - state
+    CategoryEnum:
+      enum:
+      - management
+      - frontline
+      - support
+      - headoffice
+      type: string
+      description: |-
+        * `management` - Management
+        * `frontline` - Front-Line Staff
+        * `support` - Support
+        * `headoffice` - Head Office
+    ChangePasswordRequest:
+      type: object
+      description: Serializer for password change endpoint
+      properties:
+        old_password:
+          type: string
+          writeOnly: true
+          minLength: 1
+        new_password:
+          type: string
+          writeOnly: true
+          minLength: 6
+      required:
+      - new_password
+      - old_password
+    CustomTokenObtainPairRequest:
+      type: object
+      description: |-
+        Custom JWT login serializer that:
+        1. Supports login with either username or email.
+        2. Embeds useful claims into the JWT token payload.
+        3. Returns full user profile & permissions alongside tokens.
+      properties:
+        username:
+          type: string
+          writeOnly: true
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - password
+      - username
+    Customer:
+      type: object
+      description: Serializer for customer management on mobile app
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        first_name:
+          type: string
+          maxLength: 100
+        last_name:
+          type: string
+          maxLength: 100
+        full_name:
+          type: string
+          readOnly: true
+        email:
+          nullable: true
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+        phone:
+          type: string
+          maxLength: 20
+        branch:
+          type: integer
+          nullable: true
+          description: Branch where this customer is registered
+        branch_name:
+          type: string
+          readOnly: true
+          default: ''
+        address:
+          type: string
+        city:
+          type: string
+          maxLength: 100
+        state:
+          type: string
+          maxLength: 100
+        zip_code:
+          type: string
+          maxLength: 20
+        id_type:
+          description: |-
+            Type of ID provided
+
+            * `aadhar_card` - Aadhar Card
+            * `pan_card` - PAN Card
+            * `passport` - Passport
+            * `driving_license` - Driving License
+            * `voter_id` - Voter ID Card
+            * `ration_card` - Ration Card
+            * `bank_passbook` - Bank Passbook
+            * `other` - Other
+          oneOf:
+          - $ref: '#/components/schemas/IdTypeEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - branch_name
+      - created_at
+      - first_name
+      - full_name
+      - id
+      - last_name
+      - phone
+    DashboardKPI:
+      type: object
+      description: Financial & Operational KPI summary metrics
+      properties:
+        today_disbursed_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        today_disbursed_count:
+          type: integer
+        today_collection_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        today_collection_count:
+          type: integer
+        today_cash_collected:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        today_digital_collected:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        today_net_cash_flow:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        active_loans_count:
+          type: integer
+        active_loans_principal:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        overdue_loans_count:
+          type: integer
+        loans_due_today_count:
+          type: integer
+        total_pledged_gross_weight_grams:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+        total_pledged_net_weight_grams:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+        total_active_pledge_items:
+          type: integer
+        total_customers_count:
+          type: integer
+        new_customers_today:
+          type: integer
+        total_inventory_items:
+          type: integer
+      required:
+      - active_loans_count
+      - active_loans_principal
+      - loans_due_today_count
+      - new_customers_today
+      - overdue_loans_count
+      - today_cash_collected
+      - today_collection_amount
+      - today_collection_count
+      - today_digital_collected
+      - today_disbursed_amount
+      - today_disbursed_count
+      - today_net_cash_flow
+      - total_active_pledge_items
+      - total_customers_count
+      - total_inventory_items
+      - total_pledged_gross_weight_grams
+      - total_pledged_net_weight_grams
+    DashboardSummaryResponse:
+      type: object
+      description: Main response structure for /api/v1/dashboard/summary/
+      properties:
+        date:
+          type: string
+          format: date
+        branch_filter:
+          type: object
+          additionalProperties: {}
+          nullable: true
+        kpis:
+          $ref: '#/components/schemas/DashboardKPI'
+        recent_loans:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecentLoan'
+        recent_payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecentPayment'
+      required:
+      - branch_filter
+      - date
+      - kpis
+      - recent_loans
+      - recent_payments
+    DisbursementPaymentModeEnum:
+      enum:
+      - CASH
+      - BANK_TRANSFER
+      - UPI
+      - CHEQUE
+      type: string
+      description: |-
+        * `CASH` - CASH
+        * `BANK_TRANSFER` - BANK_TRANSFER
+        * `UPI` - UPI
+        * `CHEQUE` - CHEQUE
+    IdTypeEnum:
+      enum:
+      - aadhar_card
+      - pan_card
+      - passport
+      - driving_license
+      - voter_id
+      - ration_card
+      - bank_passbook
+      - other
+      type: string
+      description: |-
+        * `aadhar_card` - Aadhar Card
+        * `pan_card` - PAN Card
+        * `passport` - Passport
+        * `driving_license` - Driving License
+        * `voter_id` - Voter ID Card
+        * `ration_card` - Ration Card
+        * `bank_passbook` - Bank Passbook
+        * `other` - Other
+    LoanCreateRequest:
+      type: object
+      description: Serializer for creating a new pledge/loan from mobile app
+      properties:
+        customer_id:
+          type: integer
+          nullable: true
+        customer_first_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        customer_last_name:
+          type: string
+          minLength: 1
+          default: ''
+          maxLength: 100
+        customer_phone:
+          type: string
+          minLength: 1
+          maxLength: 20
+        customer_address:
+          type: string
+          default: ''
+        branch_id:
+          type: integer
+          nullable: true
+        scheme_id:
+          type: integer
+          nullable: true
+        principal_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        interest_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        duration_months:
+          type: integer
+          maximum: 36
+          minimum: 1
+          default: 12
+        issue_date:
+          type: string
+          format: date
+        processing_fee:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,6}(?:\.\d{0,2})?$
+          default: '0.00'
+        is_processing_fee_paid:
+          type: boolean
+          default: false
+        is_first_month_interest_paid:
+          type: boolean
+          default: false
+        disbursement_payment_mode:
+          allOf:
+          - $ref: '#/components/schemas/DisbursementPaymentModeEnum'
+          default: CASH
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/LoanItemInputRequest'
+        item_photos:
+          type: array
+          items:
+            type: string
+            minLength: 1
+        customer_face_capture:
+          type: string
+          default: ''
+        notes:
+          type: string
+          default: ''
+      required:
+      - items
+      - principal_amount
+    LoanDetail:
+      type: object
+      description: Detailed loan serializer with calculation metrics & ornament list
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        loan_number:
+          type: string
+          description: Unique loan identifier
+          maxLength: 50
+        customer:
+          allOf:
+          - $ref: '#/components/schemas/Customer'
+          readOnly: true
+        branch:
+          allOf:
+          - $ref: '#/components/schemas/BranchBasic'
+          readOnly: true
+        scheme:
+          type: integer
+          nullable: true
+        principal_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,0})?$
+        interest_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        processing_fee:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          description: Processing fee amount in whole Rupees
+        is_processing_fee_paid:
+          type: boolean
+          title: Is processing fees paid?
+        is_first_month_interest_paid:
+          type: boolean
+          title: Is first month interest paid?
+        issue_date:
+          type: string
+          format: date
+        due_date:
+          type: string
+          format: date
+        grace_period_end:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/Status114Enum'
+        is_overdue:
+          type: string
+          readOnly: true
+        days_since_issue:
+          type: string
+          readOnly: true
+        days_remaining:
+          type: string
+          readOnly: true
+        total_paid:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
+        current_interest_due:
+          type: string
+          readOnly: true
+        remaining_balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
+        loan_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/LoanItem'
+          readOnly: true
+        payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Payment'
+          readOnly: true
+        item_photos_list:
+          type: array
+          items: {}
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - branch
+      - created_at
+      - current_interest_due
+      - customer
+      - days_remaining
+      - days_since_issue
+      - due_date
+      - grace_period_end
+      - id
+      - is_overdue
+      - issue_date
+      - item_photos_list
+      - loan_items
+      - loan_number
+      - payments
+      - principal_amount
+      - remaining_balance
+      - total_paid
+      - updated_at
+    LoanItem:
+      type: object
+      description: Serializer for pledged ornaments in a loan
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        item_id:
+          type: integer
+          readOnly: true
+        item_name:
+          type: string
+          readOnly: true
+        category_name:
+          type: string
+          readOnly: true
+          default: ''
+        quantity:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          description: Number of items
+        gold_karat:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,2}(?:\.\d{0,2})?$
+          description: Purity of gold in karats
+        gross_weight:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,3})?$
+          description: Total weight of the ornament in grams
+        net_weight:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,3})?$
+          description: Weight of pure gold content in grams
+        stone_weight:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,3})?$
+          nullable: true
+          description: Weight of stones if any in grams
+        market_price_22k:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          description: Market price of 22K gold per gram at the time of loan
+        status:
+          $ref: '#/components/schemas/LoanItemStatusEnum'
+        item_valuation:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
+      required:
+      - category_name
+      - gold_karat
+      - gross_weight
+      - id
+      - item_id
+      - item_name
+      - item_valuation
+      - market_price_22k
+      - net_weight
+    LoanItemInputRequest:
+      type: object
+      description: Input serializer for ornaments when creating a loan via mobile
+        app
+      properties:
+        name:
+          type: string
+          minLength: 1
+          default: Gold Ornament
+          maxLength: 255
+        category_id:
+          type: integer
+          nullable: true
+        quantity:
+          type: integer
+          minimum: 1
+          default: 1
+        gold_karat:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,2}(?:\.\d{0,2})?$
+          default: '22.00'
+        gross_weight:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,3})?$
+        net_weight:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,3})?$
+        stone_weight:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,3})?$
+          default: '0.000'
+        market_price_22k:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          default: '6000.00'
+      required:
+      - gross_weight
+      - net_weight
+    LoanItemStatusEnum:
+      enum:
+      - pledged
+      - released
+      - redeemed
+      type: string
+      description: |-
+        * `pledged` - Pledged (In Custody)
+        * `released` - Partially Released
+        * `redeemed` - Fully Redeemed
+    LoanList:
+      type: object
+      description: Lightweight serializer for loan listing & search on mobile
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        loan_number:
+          type: string
+          description: Unique loan identifier
+          maxLength: 50
+        customer:
+          type: integer
+        customer_name:
+          type: string
+          readOnly: true
+        customer_phone:
+          type: string
+          readOnly: true
+        branch:
+          type: integer
+        branch_name:
+          type: string
+          readOnly: true
+        principal_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,0})?$
+        interest_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        issue_date:
+          type: string
+          format: date
+        due_date:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/Status114Enum'
+        is_overdue:
+          type: string
+          readOnly: true
+        remaining_balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
+        total_gross_weight:
+          type: string
+          readOnly: true
+        total_net_weight:
+          type: string
+          readOnly: true
+        items_count:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - branch
+      - branch_name
+      - created_at
+      - customer
+      - customer_name
+      - customer_phone
+      - due_date
+      - id
+      - is_overdue
+      - issue_date
+      - items_count
+      - loan_number
+      - principal_amount
+      - remaining_balance
+      - total_gross_weight
+      - total_net_weight
+    OrganizationBasic:
+      type: object
+      description: Lightweight serializer for tenant organization
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          description: Organization name
+          maxLength: 100
+        slug:
+          type: string
+          description: URL-friendly identifier
+          maxLength: 50
+          pattern: ^[-a-zA-Z0-9_]+$
+        plan:
+          $ref: '#/components/schemas/PlanEnum'
+        status:
+          $ref: '#/components/schemas/OrganizationBasicStatusEnum'
+      required:
+      - id
+      - name
+      - slug
+    OrganizationBasicStatusEnum:
+      enum:
+      - active
+      - pending
+      - suspended
+      - cancelled
+      type: string
+      description: |-
+        * `active` - Active
+        * `pending` - Pending Verification
+        * `suspended` - Suspended
+        * `cancelled` - Cancelled
+    PatchedUserUpdateRequest:
+      type: object
+      description: Serializer for users updating their own profile details
+      properties:
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 20
+        email:
+          title: Email address
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+    Payment:
+      type: object
+      description: Serializer for loan repayments
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        loan:
+          type: integer
+        loan_number:
+          type: string
+          readOnly: true
+        customer_name:
+          type: string
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        payment_date:
+          type: string
+          format: date
+        payment_method:
+          $ref: '#/components/schemas/PaymentMethodEnum'
+        reference_number:
+          type: string
+          nullable: true
+          maxLength: 255
+        received_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        received_by_name:
+          type: string
+          readOnly: true
+          default: ''
+        notes:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - amount
+      - created_at
+      - customer_name
+      - id
+      - loan
+      - loan_number
+      - payment_date
+      - payment_method
+      - received_by
+      - received_by_name
+    PaymentCreateRequest:
+      type: object
+      description: Serializer for submitting a new repayment from mobile
+      properties:
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        payment_date:
+          type: string
+          format: date
+        payment_method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          default: cash
+        reference_number:
+          type: string
+          nullable: true
+          maxLength: 255
+        notes:
+          type: string
+          nullable: true
+      required:
+      - amount
+    PaymentMethodEnum:
+      enum:
+      - cash
+      - credit_card
+      - debit_card
+      - bank_transfer
+      - online
+      - other
+      type: string
+      description: |-
+        * `cash` - Cash
+        * `credit_card` - Credit Card
+        * `debit_card` - Debit Card
+        * `bank_transfer` - Bank Transfer
+        * `online` - Online Payment
+        * `other` - Other
+    PlanEnum:
+      enum:
+      - free
+      - basic
+      - professional
+      - enterprise
+      type: string
+      description: |-
+        * `free` - Free Plan
+        * `basic` - Basic Plan
+        * `professional` - Professional Plan
+        * `enterprise` - Enterprise Plan
+    RecentLoan:
+      type: object
+      description: Lightweight serializer for recent loans on mobile dashboard
+      properties:
+        id:
+          type: integer
+        loan_number:
+          type: string
+        customer_name:
+          type: string
+        customer_phone:
+          type: string
+        principal_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        status:
+          type: string
+        issue_date:
+          type: string
+          format: date
+        branch_name:
+          type: string
+      required:
+      - branch_name
+      - customer_name
+      - customer_phone
+      - id
+      - issue_date
+      - loan_number
+      - principal_amount
+      - status
+    RecentPayment:
+      type: object
+      description: Lightweight serializer for recent payments on mobile dashboard
+      properties:
+        id:
+          type: integer
+        loan_number:
+          type: string
+        customer_name:
+          type: string
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        payment_method:
+          type: string
+        payment_date:
+          type: string
+          format: date
+        reference_number:
+          type: string
+          nullable: true
+      required:
+      - amount
+      - customer_name
+      - id
+      - loan_number
+      - payment_date
+      - payment_method
+      - reference_number
+    Role:
+      type: object
+      description: Serializer for user roles
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 50
+        role_type:
+          $ref: '#/components/schemas/RoleTypeEnum'
+        category:
+          $ref: '#/components/schemas/CategoryEnum'
+        description:
+          type: string
+          nullable: true
+      required:
+      - id
+      - name
+    RoleTypeEnum:
+      enum:
+      - branch_manager
+      - regional_manager
+      - loan_officer
+      - appraiser
+      - cashier
+      - security
+      - inventory_manager
+      - customer_service
+      - it_admin
+      - finance_manager
+      - compliance_officer
+      type: string
+      description: |-
+        * `branch_manager` - Branch Manager
+        * `regional_manager` - Regional Manager
+        * `loan_officer` - Loan Officer/Pawnbroker
+        * `appraiser` - Appraiser/Valuation Expert
+        * `cashier` - Cashier/Teller
+        * `security` - Security Personnel
+        * `inventory_manager` - Inventory Manager
+        * `customer_service` - Customer Service Representative
+        * `it_admin` - IT Administrator
+        * `finance_manager` - Finance/Accounting Manager
+        * `compliance_officer` - Compliance Officer
+    Status114Enum:
+      enum:
+      - draft
+      - pending_approval
+      - approved
+      - rejected
+      - active
+      - repaid
+      - defaulted
+      - extended
+      - foreclosed
+      type: string
+      description: |-
+        * `draft` - Draft
+        * `pending_approval` - Pending Approval
+        * `approved` - Approved (Ready for Disbursal)
+        * `rejected` - Rejected
+        * `active` - Active
+        * `repaid` - Repaid
+        * `defaulted` - Defaulted
+        * `extended` - Extended
+        * `foreclosed` - Foreclosed
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+    TokenRefreshRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+          minLength: 1
+      required:
+      - refresh
+    TokenVerifyRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - token
+    UserProfile:
+      type: object
+      description: Detailed user profile serializer for authenticated sessions
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          readOnly: true
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+        email:
+          type: string
+          format: email
+          readOnly: true
+          title: Email address
+        first_name:
+          type: string
+          readOnly: true
+        last_name:
+          type: string
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+        phone:
+          type: string
+          readOnly: true
+        role:
+          allOf:
+          - $ref: '#/components/schemas/Role'
+          readOnly: true
+        branch:
+          allOf:
+          - $ref: '#/components/schemas/BranchBasic'
+          readOnly: true
+        organization:
+          allOf:
+          - $ref: '#/components/schemas/OrganizationBasic'
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        is_staff:
+          type: boolean
+          readOnly: true
+          title: Staff status
+          description: Designates whether the user can log into this admin site.
+        is_superuser:
+          type: boolean
+          readOnly: true
+          title: Superuser status
+          description: Designates that this user has all permissions without explicitly
+            assigning them.
+        is_organization_admin:
+          type: boolean
+          readOnly: true
+          description: Whether user is an admin for their organization
+        is_pawnshop_admin:
+          type: boolean
+          readOnly: true
+          description: Whether user is a pawnshop admin (only admin can manage staff)
+        is_branch_manager:
+          type: string
+          readOnly: true
+        is_regional_manager:
+          type: string
+          readOnly: true
+        permissions:
+          type: string
+          readOnly: true
+        date_joined:
+          type: string
+          format: date-time
+          readOnly: true
+        last_login:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - branch
+      - date_joined
+      - email
+      - first_name
+      - full_name
+      - id
+      - is_active
+      - is_branch_manager
+      - is_organization_admin
+      - is_pawnshop_admin
+      - is_regional_manager
+      - is_staff
+      - is_superuser
+      - last_login
+      - last_name
+      - organization
+      - permissions
+      - phone
+      - role
+      - username
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    tokenAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Token-based authentication with required prefix "Token"
