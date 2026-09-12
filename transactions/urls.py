@@ -37,6 +37,11 @@ urlpatterns = [
     # Task 2.2: Automated EOD Batch Operations & RBI IRAC NPA Tagging Console
     path('eod-console/', views_eod.EODConsoleView.as_view(), name='eod_console'),
     path('eod-console/run/', views_eod.EODRunBatchActionView.as_view(), name='eod_run_batch'),
+    path('eod-console/irac-alert/', views_eod.SendIRACAlertActionView.as_view(), name='eod_send_irac_alert'),
+    path('eod-console/irac-export/', views_eod.ExportIRACWatchlistCSVView.as_view(), name='eod_export_irac_watchlist'),
+    path('eod-console/pair-whatsapp/', views_eod.PairWhatsAppSessionView.as_view(), name='eod_pair_whatsapp'),
+    path('eod-console/get-whatsapp-qr/', views_eod.GetWhatsAppQRView.as_view(), name='eod_get_whatsapp_qr'),
+    path('eod-console/auto-dispatch-irac/', views_eod.AutoDispatchIRACAlertsView.as_view(), name='eod_auto_dispatch_irac'),
     
     # Payments
     path('payments/', views.PaymentListView.as_view(), name='payment_list'),
@@ -61,9 +66,12 @@ urlpatterns = [
     # Digital Marketing & WhatsApp Broadcast Campaign Hub
     path('marketing/', views_marketing.DigitalMarketingDashboardView.as_view(), name='digital_marketing'),
     path('marketing/broadcast/', views_marketing.ExecuteBroadcastActionView.as_view(), name='marketing_broadcast_execute'),
+    path('marketing/log-broadcast/', views_marketing.LogBroadcastAPIView.as_view(), name='marketing_log_broadcast'),
+    path('marketing/logs/export/', views_marketing.ExportCampaignLogsView.as_view(), name='marketing_export_logs'),
     path('marketing/generate-ai/', views_marketing.GenerateAICampaignView.as_view(), name='marketing_generate_ai'),
     path('marketing/templates/save/', views_marketing.SaveMarketingTemplateView.as_view(), name='marketing_save_template'),
     path('marketing/leads/import/', views_marketing.ImportMarketingLeadsView.as_view(), name='marketing_import_leads'),
+    path('marketing/groups/contacts/', views_marketing.GroupContactsAPIView.as_view(), name='marketing_group_contacts_api'),
 
     # Utilities
     path('number_to_words/<str:number>/', views.number_to_words, name='number_to_words'),

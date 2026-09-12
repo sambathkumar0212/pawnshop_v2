@@ -77,7 +77,12 @@
         </li>
         <li class="nav-item">
             <a href="{% url 'eod_console' %}" class="nav-link {% block eod_active %}{% endblock %}">
-                <i class="fas fa-moon" style="color:#818cf8;"></i> EOD & NPA Operations
+                <i class="fas fa-moon" style="color:#818cf8;"></i> EOD Operations
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="{% url 'eod_console' %}#watchlistSection" class="nav-link">
+                <i class="fas fa-triangle-exclamation" style="color:#f87171;"></i> IRAC / NPA Risk Alerts
             </a>
         </li>
         <li class="nav-item">

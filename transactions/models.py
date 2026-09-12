@@ -624,7 +624,31 @@ class Loan(models.Model):
             {'field': 'grace_period_end', 'label': 'Grace Period End Date', 'value': str(self.grace_period_end),
              'is_changed': 'grace_period_end' in changed_fields_map,
              'old_value': changed_fields_map['grace_period_end']['old'] if 'grace_period_end' in changed_fields_map else ''},
+            {'field': 'is_first_month_interest_paid', 'label': '1st Month Interest Paid Upfront', 'value': "Yes" if self.is_first_month_interest_paid else "No",
+             'is_changed': 'is_first_month_interest_paid' in changed_fields_map,
+             'old_value': changed_fields_map['is_first_month_interest_paid']['old'] if 'is_first_month_interest_paid' in changed_fields_map else ''},
+            {'field': 'is_processing_fee_paid', 'label': 'Processing Fee Paid Upfront', 'value': "Yes" if self.is_processing_fee_paid else "No",
+             'is_changed': 'is_processing_fee_paid' in changed_fields_map,
+             'old_value': changed_fields_map['is_processing_fee_paid']['old'] if 'is_processing_fee_paid' in changed_fields_map else ''},
         ]
+
+        # Add Gold Ornaments Summary
+        try:
+            loan_items = list(self.loanitem_set.select_related('item').all())
+            if loan_items:
+                total_gross = sum((li.gross_weight or Decimal('0.00')) for li in loan_items)
+                total_net = sum((li.net_weight or Decimal('0.00')) for li in loan_items)
+                items_summary = ", ".join(f"{li.item.name} ({li.quantity} pcs)" for li in loan_items if li.item)
+                details_list.append({
+                    'field': 'items_summary', 'label': 'Pledged Ornaments', 'value': items_summary or f"{len(loan_items)} items",
+                    'is_changed': False, 'old_value': ''
+                })
+                details_list.append({
+                    'field': 'total_weight', 'label': 'Total Gross / Net Weight', 'value': f"{total_gross:.2f}g (Gross) / {total_net:.2f}g (Net)",
+                    'is_changed': False, 'old_value': ''
+                })
+        except Exception:
+            pass
 
         if self.gold_location or 'gold_location' in changed_fields_map:
             details_list.append({
@@ -1980,6 +2004,27 @@ class MarketingCampaignTemplate(models.Model):
         return f"{self.title_en} ({self.key})"
 
 
+class MarketingGroup(models.Model):
+    """
+    Stores named marketing groups (e.g. 'Diwali Mela 2026', 'VIP Buyers')
+    for targeted WhatsApp broadcasts and bulk campaigns.
+    """
+    name = models.CharField(max_length=150)
+    description = models.CharField(max_length=255, blank=True, null=True)
+    branch = models.ForeignKey('branches.Branch', on_delete=models.SET_NULL, null=True, blank=True, related_name='marketing_groups')
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _('Marketing Group')
+        verbose_name_plural = _('Marketing Groups')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.name
+
+
 class MarketingLead(models.Model):
     """
     Stores external prospect leads (imported via CSV or added manually)
@@ -1989,6 +2034,7 @@ class MarketingLead(models.Model):
     phone = models.CharField(max_length=25)
     norm_phone = models.CharField(max_length=25, blank=True, db_index=True)
     city = models.CharField(max_length=100, blank=True, null=True)
+    group = models.ForeignKey(MarketingGroup, on_delete=models.SET_NULL, null=True, blank=True, related_name='leads')
     branch = models.ForeignKey('branches.Branch', on_delete=models.SET_NULL, null=True, blank=True, related_name='marketing_leads')
     notes = models.CharField(max_length=255, blank=True, null=True)
     source = models.CharField(max_length=50, default='csv_import')  # 'csv_import', 'manual_entry'
@@ -2004,6 +2050,89 @@ class MarketingLead(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.phone})"
+
+
+class MarketingCampaignLog(models.Model):
+    """
+    Audit log of all marketing broadcasts and campaign dispatches across WhatsApp, SMS, and PyWhatKit.
+    """
+    CHANNEL_CHOICES = (
+        ('whatsapp_web', _('WhatsApp Web (Direct Link)')),
+        ('pywhatkit', _('PyWhatKit Auto-Blast')),
+        ('sms', _('SMS Gateway')),
+        ('api', _('Cloud API')),
+    )
+    STATUS_CHOICES = (
+        ('sent', _('Sent')),
+        ('queued', _('Queued')),
+        ('failed', _('Failed')),
+    )
+
+    template_key = models.CharField(max_length=100, blank=True, default='')
+    campaign_name = models.CharField(max_length=255, blank=True, default='Broadcast')
+    recipient_name = models.CharField(max_length=150)
+    recipient_phone = models.CharField(max_length=25)
+    recipient_type = models.CharField(max_length=30, default='customer')  # 'customer', 'lead'
+    group = models.ForeignKey(MarketingGroup, on_delete=models.SET_NULL, null=True, blank=True, related_name='campaign_logs')
+    branch = models.ForeignKey('branches.Branch', on_delete=models.SET_NULL, null=True, blank=True, related_name='campaign_logs')
+    channel = models.CharField(max_length=50, choices=CHANNEL_CHOICES, default='whatsapp_web')
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='sent')
+    message_snippet = models.TextField(blank=True, default='')
+    sent_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='sent_campaign_logs')
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = _('Marketing Campaign Log')
+        verbose_name_plural = _('Marketing Campaign Logs')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.campaign_name} to {self.recipient_name} ({self.recipient_phone}) - {self.status}"
+
+
+class IRACAlertLog(models.Model):
+    """
+    Tracks all automated and manual regulatory IRAC overdue alerts, pre-NPA warnings,
+    and statutory auction notices dispatched to borrowers.
+    """
+    BUCKET_CHOICES = (
+        ('SMA_0', _('SMA-0 (1-30 Days Overdue)')),
+        ('SMA_1', _('SMA-1 (31-60 Days Overdue)')),
+        ('SMA_2', _('SMA-2 (61-90 Days Overdue / Pre-NPA)')),
+        ('NPA_SUBSTANDARD', _('NPA Substandard (91-180 Days)')),
+        ('NPA_DOUBTFUL', _('NPA Doubtful (181-365 Days)')),
+        ('NPA_LOSS', _('NPA Loss (>365 Days / Auction Stage)')),
+    )
+    CHANNEL_CHOICES = (
+        ('whatsapp_web', _('WhatsApp Web')),
+        ('pywhatkit', _('PyWhatKit Auto-Blast')),
+        ('sms', _('SMS Gateway')),
+        ('letter', _('Formal Letter / Notice')),
+    )
+    STATUS_CHOICES = (
+        ('sent', _('Sent')),
+        ('failed', _('Failed')),
+        ('delivered', _('Delivered')),
+    )
+
+    loan = models.ForeignKey('transactions.Loan', on_delete=models.CASCADE, related_name='irac_alert_logs')
+    customer = models.ForeignKey('accounts.Customer', on_delete=models.CASCADE, related_name='irac_alert_logs')
+    irac_bucket = models.CharField(max_length=30, choices=BUCKET_CHOICES, db_index=True)
+    overdue_days = models.IntegerField(default=0)
+    overdue_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    channel = models.CharField(max_length=30, choices=CHANNEL_CHOICES, default='whatsapp_web')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='sent')
+    message_sent = models.TextField(blank=True, default='')
+    sent_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='dispatched_irac_alerts')
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = _('IRAC Alert Log')
+        verbose_name_plural = _('IRAC Alert Logs')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"[{self.irac_bucket}] Alert for Loan #{self.loan.loan_number} - {self.customer} ({self.created_at.strftime('%d-%b-%Y')})"
 
 
 class GoldPurchase(models.Model):

@@ -209,25 +209,50 @@ MARKETING_TEMPLATES = {
 
 
 # ---------------------------------------------------------------------------
-# Audience Segmentation Engine
+# Audience Segmentation & Group Engine
 # ---------------------------------------------------------------------------
 
-def get_segmented_audience(segment_type='all', branch_id=None, organization=None):
+def get_all_marketing_groups(branch_id=None):
     """
-    Returns a list of customer/prospect dictionaries matching the segment criteria:
+    Returns all marketing groups with lead count.
+    """
+    from transactions.models import MarketingGroup
+    from django.db.models import Count
+
+    qs = MarketingGroup.objects.all()
+    if branch_id:
+        qs = qs.filter(branch_id=branch_id)
+    return qs.annotate(lead_count=Count('leads')).order_by('-created_at')
+
+
+def get_segmented_audience(segment_type='all', branch_id=None, group_id=None, organization=None):
+    """
+    Returns a list of customer/prospect dictionaries matching the segment or group criteria:
     - 'all': All registered customers with phone numbers
     - 'active_borrowers': Customers who have at least one active loan
     - 'closed_loans': Customers who had loans that are now closed/foreclosed (re-engagement prospects)
     - 'overdue': Customers who have overdue active loans
     - 'high_value': Customers with total principal > ₹1,00,000
-    - 'new_prospects': External new leads imported via CSV or added manually
+    - 'new_prospects' / 'leads': External leads
+    - 'group_<id>': All leads in a specific MarketingGroup
     """
-    if segment_type in ('new_prospects', 'imported_leads', 'leads'):
-        from transactions.models import MarketingLead
-        lead_qs = MarketingLead.objects.all()
+    from transactions.models import MarketingLead
+
+    # Handle Group Segment selection
+    target_group_id = group_id
+    if segment_type.startswith('group_'):
+        try:
+            target_group_id = int(segment_type.replace('group_', ''))
+        except ValueError:
+            target_group_id = None
+
+    if target_group_id or segment_type in ('new_prospects', 'imported_leads', 'leads', 'group'):
+        lead_qs = MarketingLead.objects.all().select_related('branch', 'group')
         if branch_id:
             lead_qs = lead_qs.filter(branch_id=branch_id)
-        
+        if target_group_id:
+            lead_qs = lead_qs.filter(group_id=target_group_id)
+
         audience = []
         for lead in lead_qs:
             raw_phone = lead.phone or ''
@@ -235,6 +260,7 @@ def get_segmented_audience(segment_type='all', branch_id=None, organization=None
             branch = lead.branch
             branch_name = getattr(branch, 'name', '') if branch else ''
             branch_phone = getattr(branch, 'phone', '') if branch else ''
+            group_name = lead.group.name if lead.group else ''
 
             audience.append({
                 'customer_id': f"LEAD-{lead.id}",
@@ -244,6 +270,8 @@ def get_segmented_audience(segment_type='all', branch_id=None, organization=None
                 'norm_phone': norm_phone,
                 'is_valid_whatsapp': bool(norm_phone),
                 'city': lead.city or '',
+                'group_id': lead.group_id,
+                'group_name': group_name,
                 'branch_name': branch_name,
                 'branch_phone': branch_phone,
                 'active_loans_count': 0,
@@ -297,6 +325,8 @@ def get_segmented_audience(segment_type='all', branch_id=None, organization=None
             'norm_phone': norm_phone,
             'is_valid_whatsapp': bool(norm_phone),
             'city': getattr(c, 'city', '') or '',
+            'group_id': None,
+            'group_name': '',
             'branch_name': branch_name,
             'branch_phone': branch_phone,
             'active_loans_count': active_loans_count,
@@ -309,14 +339,59 @@ def get_segmented_audience(segment_type='all', branch_id=None, organization=None
 
 
 # ---------------------------------------------------------------------------
-# External Lead Import & Management
+# External Lead & Contact Group Management
 # ---------------------------------------------------------------------------
 
-def import_leads_from_csv(file_obj, branch_id=None, user=None, save_as_customer=False):
+def get_or_create_marketing_group(group_id=None, new_group_name=None, group_description=None, branch_id=None, user=None):
+    """
+    Resolves or creates a MarketingGroup instance based on input.
+    Prioritizes existing group lookup when group_id is provided,
+    and prevents duplicate group creation by checking name case-insensitively.
+    """
+    from transactions.models import MarketingGroup
+    from branches.models import Branch
+
+    branch = None
+    if branch_id:
+        try:
+            branch = Branch.objects.get(id=branch_id)
+        except Exception:
+            branch = None
+
+    if group_id:
+        try:
+            return MarketingGroup.objects.get(id=group_id)
+        except Exception:
+            pass
+
+    if new_group_name and str(new_group_name).strip():
+        name_clean = str(new_group_name).strip()
+        existing_qs = MarketingGroup.objects.filter(name__iexact=name_clean)
+        if branch:
+            existing_qs = existing_qs.filter(branch=branch)
+        existing_group = existing_qs.first()
+        if existing_group:
+            if group_description and not existing_group.description:
+                existing_group.description = group_description.strip()
+                existing_group.save()
+            return existing_group
+
+        group = MarketingGroup.objects.create(
+            name=name_clean,
+            description=(group_description or '').strip(),
+            branch=branch,
+            created_by=user if user and user.is_authenticated else None,
+        )
+        return group
+
+    return None
+
+
+def import_leads_from_csv(file_obj, branch_id=None, user=None, save_as_customer=False, group_id=None, new_group_name=None, group_description=None):
     """
     Parses a CSV file containing external prospect leads (name, phone, city)
-    and saves them to MarketingLead (and optionally Customer model).
-    Returns (imported_count, skipped_count, error_messages).
+    and saves them to MarketingLead (appended to new or existing MarketingGroup).
+    Returns (imported_count, skipped_count, error_messages, group_instance).
     """
     import csv
     import io
@@ -330,12 +405,20 @@ def import_leads_from_csv(file_obj, branch_id=None, user=None, save_as_customer=
         except Exception:
             branch = None
 
+    group = get_or_create_marketing_group(
+        group_id=group_id,
+        new_group_name=new_group_name,
+        group_description=group_description,
+        branch_id=branch_id,
+        user=user
+    )
+
     decoded = file_obj.read().decode('utf-8-sig', errors='replace')
     reader = csv.reader(io.StringIO(decoded))
     
     rows = list(reader)
     if not rows:
-        return 0, 0, ["CSV file is empty."]
+        return 0, 0, ["CSV file is empty."], group
 
     # Header identification
     first_row = [c.strip().lower() for c in rows[0]]
@@ -377,9 +460,10 @@ def import_leads_from_csv(file_obj, branch_id=None, user=None, save_as_customer=
             errors.append(f"Row {line_num}: Invalid phone number '{phone_raw}' for '{name}'.")
             continue
 
-        # Create or update MarketingLead
-        MarketingLead.objects.update_or_create(
+        # Create or update MarketingLead scoped to this specific group
+        lead, _ = MarketingLead.objects.update_or_create(
             norm_phone=norm_phone,
+            group=group,
             defaults={
                 'name': name,
                 'phone': phone_raw,
@@ -407,12 +491,12 @@ def import_leads_from_csv(file_obj, branch_id=None, user=None, save_as_customer=
             except Exception as e:
                 logger.warning("Could not auto-create customer from lead: %s", e)
 
-    return imported_count, skipped_count, errors
+    return imported_count, skipped_count, errors, group
 
 
-def add_single_lead(name, phone_raw, city=None, notes=None, branch_id=None, user=None, save_as_customer=False):
+def add_single_lead(name, phone_raw, city=None, notes=None, branch_id=None, user=None, save_as_customer=False, group_id=None, new_group_name=None, group_description=None):
     """
-    Adds a single prospect lead manually.
+    Adds a single prospect lead manually to a new or existing group (appended to existing contacts).
     """
     from transactions.models import MarketingLead
     from branches.models import Branch
@@ -428,8 +512,17 @@ def add_single_lead(name, phone_raw, city=None, notes=None, branch_id=None, user
         except Exception:
             branch = None
 
+    group = get_or_create_marketing_group(
+        group_id=group_id,
+        new_group_name=new_group_name,
+        group_description=group_description,
+        branch_id=branch_id,
+        user=user
+    )
+
     lead, _ = MarketingLead.objects.update_or_create(
         norm_phone=norm_phone,
+        group=group,
         defaults={
             'name': name.strip() or 'Valued Customer',
             'phone': phone_raw.strip(),
@@ -455,17 +548,37 @@ def add_single_lead(name, phone_raw, city=None, notes=None, branch_id=None, user
         except Exception as e:
             logger.warning("Could not create customer: %s", e)
 
-    return lead
+    return lead, group
 
 
-def clear_all_marketing_leads(branch_id=None):
+def delete_marketing_group(group_id, delete_leads=True):
     """
-    Deletes all imported marketing prospect leads.
+    Deletes a MarketingGroup and optionally its assigned leads.
+    """
+    from transactions.models import MarketingGroup, MarketingLead
+
+    try:
+        group = MarketingGroup.objects.get(id=group_id)
+        if delete_leads:
+            group.leads.all().delete()
+        group_name = group.name
+        group.delete()
+        return True, group_name
+    except Exception as exc:
+        logger.warning("Error deleting marketing group %s: %s", group_id, exc)
+        return False, str(exc)
+
+
+def clear_all_marketing_leads(branch_id=None, group_id=None):
+    """
+    Deletes imported marketing prospect leads.
     """
     from transactions.models import MarketingLead
     qs = MarketingLead.objects.all()
     if branch_id:
         qs = qs.filter(branch_id=branch_id)
+    if group_id:
+        qs = qs.filter(group_id=group_id)
     count, _ = qs.delete()
     return count
 
@@ -608,11 +721,18 @@ def build_broadcast_queue(audience_list, template_key='festival_offer', use_tami
 
         queue.append({
             'customer_id': cust['customer_id'],
+            'lead_id': cust.get('lead_id'),
             'name': cust['name'],
             'phone': cust['norm_phone'],
-            'city': cust['city'],
-            'branch_name': cust['branch_name'],
-            'active_loans_count': cust['active_loans_count'],
+            'raw_phone': cust.get('raw_phone', cust['norm_phone']),
+            'city': cust.get('city', ''),
+            'branch_name': cust.get('branch_name', ''),
+            'branch_phone': cust.get('branch_phone', ''),
+            'group_id': cust.get('group_id'),
+            'group_name': cust.get('group_name', ''),
+            'active_loans_count': cust.get('active_loans_count', 0),
+            'is_external_lead': cust.get('is_external_lead', False),
+            'source': cust.get('source', ''),
             'message': msg,
             'whatsapp_url': wa_url,
         })
@@ -624,6 +744,65 @@ def build_broadcast_queue(audience_list, template_key='festival_offer', use_tami
 # Background PyWhatKit Bulk Broadcast Runner
 # ---------------------------------------------------------------------------
 
+def _copy_image_to_clipboard_windows(image_path):
+    """
+    Copies an image file to the Windows clipboard in a format that Chrome/WhatsApp Web can paste.
+    Uses PowerShell as primary method (most reliable for Chrome), with win32clipboard as fallback.
+    Returns True if successful, False otherwise.
+    """
+    import subprocess
+    import os
+
+    if not image_path or not os.path.exists(image_path):
+        return False
+
+    # Method 1: PowerShell (most reliable for Chrome / WhatsApp Web)
+    try:
+        ps_script = (
+            f"Add-Type -AssemblyName System.Windows.Forms; "
+            f"Add-Type -AssemblyName System.Drawing; "
+            f"$img = [System.Drawing.Image]::FromFile('{image_path}'); "
+            f"[System.Windows.Forms.Clipboard]::SetImage($img); "
+            f"$img.Dispose();"
+        )
+        result = subprocess.run(
+            ['powershell', '-NoProfile', '-NonInteractive', '-Command', ps_script],
+            capture_output=True, timeout=10
+        )
+        if result.returncode == 0:
+            logger.info("Clipboard image set via PowerShell: %s", image_path)
+            return True
+        else:
+            logger.warning("PowerShell clipboard set failed: %s", result.stderr.decode(errors='replace'))
+    except Exception as e:
+        logger.warning("PowerShell clipboard fallback triggered: %s", e)
+
+    # Method 2: win32clipboard with CF_DIB fallback
+    try:
+        import win32clipboard
+        from PIL import Image
+        from io import BytesIO
+
+        img = Image.open(image_path).convert("RGB")
+        output = BytesIO()
+        img.save(output, "BMP")
+        bmp_data = output.getvalue()[14:]   # strip 14-byte BMP file header → raw DIB
+        output.close()
+
+        win32clipboard.OpenClipboard()
+        win32clipboard.EmptyClipboard()
+        win32clipboard.SetClipboardData(win32clipboard.CF_DIB, bmp_data)
+        win32clipboard.CloseClipboard()
+        logger.info("Clipboard image set via win32clipboard CF_DIB: %s", image_path)
+        return True
+    except ImportError:
+        logger.warning("win32clipboard not available. Install pywin32: pip install pywin32")
+    except Exception as e:
+        logger.warning("win32clipboard clipboard set failed: %s", e)
+
+    return False
+
+
 def _run_pywhatkit_bulk_broadcast(broadcast_queue, delay_seconds=20, image_path=None, send_mode='message_and_image'):
     """
     Sequentially sends WhatsApp messages or images with safe delay interval.
@@ -632,61 +811,175 @@ def _run_pywhatkit_bulk_broadcast(broadcast_queue, delay_seconds=20, image_path=
     - 'image_only': Sends image flyer alone
     - 'message_only': Standard text message
     """
+    import os
+    import re
+    import urllib.parse
+    import webbrowser
+    import pyautogui
+
+    # Disable pyautogui fail-safe for automation (move mouse to corner won't abort)
+    pyautogui.FAILSAFE = False
+    pyautogui.PAUSE = 0.1
+
     try:
-        import os
-        import pywhatkit
         total = len(broadcast_queue)
         has_valid_image = bool(image_path and os.path.exists(image_path))
+        screen_w, screen_h = pyautogui.size()
+
         logger.info(
-            "Starting PyWhatKit bulk broadcast for %d contacts (delay: %ds, mode: %s, image: %s)...",
-            total, delay_seconds, send_mode, has_valid_image
+            "Starting WhatsApp bulk auto-broadcast for %d contacts (delay: %ds, mode: %s, image_ready: %s, screen: %dx%d)...",
+            total, delay_seconds, send_mode, has_valid_image, screen_w, screen_h
         )
 
+        if has_valid_image and send_mode != 'message_only':
+            logger.info("Image flyer path: %s (%d bytes)", image_path, os.path.getsize(image_path))
+        elif send_mode != 'message_only':
+            logger.warning("Image mode selected (%s) but no valid image_path provided! Will send text only.", send_mode)
+
         for idx, item in enumerate(broadcast_queue, start=1):
-            phone = item['phone']
-            msg = item['message']
+            raw_phone = str(item.get('phone', '')).strip()
+            msg = item.get('message', '')
+
+            # Ensure phone is in valid international format
+            clean_digits = re.sub(r'\D', '', raw_phone)
+            if clean_digits.startswith('91') and len(clean_digits) == 12:
+                phone_num = clean_digits
+            elif len(clean_digits) == 10:
+                phone_num = '91' + clean_digits
+            else:
+                phone_num = clean_digits
+
             try:
-                logger.info("[%d/%d] Dispatching WhatsApp campaign to %s (mode: %s)...", idx, total, phone, send_mode)
-                
-                if has_valid_image and send_mode == 'image_only':
-                    # Send image alone without text caption
-                    pywhatkit.sendwhats_image(
-                        receiver=phone,
-                        img_path=image_path,
-                        caption="",
-                        wait_time=15,
-                        tab_close=True,
-                        close_time=3
-                    )
-                elif has_valid_image and send_mode in ('message_and_image', 'image_with_caption'):
-                    # Send image with personalized message as caption
-                    pywhatkit.sendwhats_image(
-                        receiver=phone,
-                        img_path=image_path,
-                        caption=msg,
-                        wait_time=15,
-                        tab_close=True,
-                        close_time=3
-                    )
+                logger.info("[%d/%d] Dispatching WhatsApp to +%s (mode: %s)...", idx, total, phone_num, send_mode)
+
+                if has_valid_image and send_mode != 'message_only':
+                    # ── IMAGE DISPATCH FLOW ─────────────────────────────────────
+                    # Step 1: Build URL (no &text param for image_only)
+                    if send_mode == 'image_only':
+                        url = f"https://web.whatsapp.com/send?phone={phone_num}"
+                    else:
+                        encoded_msg = urllib.parse.quote(msg) if msg else ""
+                        url = f"https://web.whatsapp.com/send?phone={phone_num}&text={encoded_msg}"
+
+                    # Step 2: Open WhatsApp Web
+                    webbrowser.open(url)
+
+                    # Step 3: Wait for WhatsApp Web to fully load (chat must appear)
+                    logger.info("[%d/%d] Waiting for WhatsApp Web to load...", idx, total)
+                    time.sleep(12)
+
+                    # Step 4: Copy image to clipboard AFTER page loads
+                    # (do it here so Chrome doesn't overwrite it on navigation)
+                    clipboard_ok = _copy_image_to_clipboard_windows(image_path)
+                    if not clipboard_ok:
+                        logger.warning("[%d/%d] Could not set clipboard image. Skipping paste.", idx, total)
+                    else:
+                        time.sleep(0.5)   # tiny pause to ensure clipboard write is committed
+
+                        # Step 5: Click the WhatsApp Web chat message input box
+                        # WhatsApp Web input is roughly at center-X, ~88% down the screen
+                        input_x = int(screen_w * 0.55)
+                        input_y = int(screen_h * 0.88)
+                        pyautogui.click(input_x, input_y)
+                        time.sleep(0.8)
+
+                        # Step 6: Paste image (Ctrl+V)
+                        pyautogui.hotkey('ctrl', 'v')
+                        logger.info("[%d/%d] Ctrl+V paste triggered.", idx, total)
+
+                        # Step 7: WhatsApp Web shows image preview popup — wait for it to render
+                        time.sleep(3)
+
+                        # Step 8: Press Enter to confirm send from the image preview dialog
+                        pyautogui.press('enter')
+                        time.sleep(1)
+
+                        # Sometimes a second Enter is needed if WhatsApp opens caption box first
+                        pyautogui.press('enter')
+
+                        # Step 9: Wait for image to fully upload & send (4 seconds)
+                        # WhatsApp Web uploads the image before marking it sent —
+                        # closing too early will cancel the upload.
+                        logger.info("[%d/%d] Waiting for image to upload and send...", idx, total)
+                        time.sleep(4)
+
+                    # Step 10: Close the WhatsApp Web tab automatically
+                    logger.info("[%d/%d] Closing tab...", idx, total)
+                    pyautogui.hotkey('ctrl', 'w')
+                    time.sleep(0.5)
+                    # If Chrome shows a "Close tab?" confirmation dialog, press Enter to confirm
+                    pyautogui.press('enter')
+                    time.sleep(1)
+
                 else:
-                    # Message only
-                    pywhatkit.sendwhatmsg_instantly(
-                        phone_no=phone,
-                        message=msg,
-                        wait_time=15,
-                        tab_close=True,
-                        close_time=3
+                    # ── TEXT-ONLY DISPATCH FLOW ─────────────────────────────────
+                    encoded_msg = urllib.parse.quote(msg) if msg else ""
+                    url = f"https://web.whatsapp.com/send?phone={phone_num}&text={encoded_msg}"
+                    webbrowser.open(url)
+                    time.sleep(13)
+
+                    # Click the chat input box (text pre-filled via URL)
+                    input_x = int(screen_w * 0.55)
+                    input_y = int(screen_h * 0.88)
+                    pyautogui.click(input_x, input_y)
+                    time.sleep(0.8)
+                    pyautogui.press('enter')
+
+                    # Wait for message to be sent before closing
+                    logger.info("[%d/%d] Waiting for text message to send...", idx, total)
+                    time.sleep(3)
+
+                    # Close tab automatically
+                    logger.info("[%d/%d] Closing tab...", idx, total)
+                    pyautogui.hotkey('ctrl', 'w')
+                    time.sleep(0.5)
+                    # Confirm close if Chrome shows a dialog
+                    pyautogui.press('enter')
+                    time.sleep(1)
+
+                logger.info("[%d/%d] Successfully dispatched to +%s.", idx, total, phone_num)
+                # Log campaign broadcast
+                try:
+                    log_campaign_broadcast(
+                        template_key=item.get('template_key', ''),
+                        campaign_name=item.get('campaign_name', 'PyWhatKit Auto-Blast'),
+                        recipient_name=item.get('name', 'Valued Customer'),
+                        recipient_phone=item.get('phone', phone_num),
+                        recipient_type='lead' if item.get('is_lead') else 'customer',
+                        group_id=item.get('group_id'),
+                        branch_id=item.get('branch_id'),
+                        channel='pywhatkit',
+                        status='sent',
+                        message_snippet=msg[:500] if msg else ''
                     )
-                logger.info("[%d/%d] Successfully dispatched to %s.", idx, total, phone)
+                except Exception as log_err:
+                    logger.warning("Could not write PyWhatKit campaign log: %s", log_err)
+
             except Exception as exc:
-                logger.warning("[%d/%d] Failed to send to %s: %s", idx, total, phone, exc)
+                logger.warning("[%d/%d] Failed to send to +%s: %s", idx, total, phone_num, exc)
+                try:
+                    log_campaign_broadcast(
+                        template_key=item.get('template_key', ''),
+                        campaign_name=item.get('campaign_name', 'PyWhatKit Auto-Blast'),
+                        recipient_name=item.get('name', 'Valued Customer'),
+                        recipient_phone=item.get('phone', phone_num),
+                        recipient_type='lead' if item.get('is_lead') else 'customer',
+                        group_id=item.get('group_id'),
+                        branch_id=item.get('branch_id'),
+                        channel='pywhatkit',
+                        status='failed',
+                        message_snippet=msg[:500] if msg else ''
+                    )
+                except Exception:
+                    pass
 
             if idx < total:
+                logger.info("[%d/%d] Waiting %ds before next contact...", idx, total, delay_seconds)
                 time.sleep(delay_seconds)
 
-        logger.info("PyWhatKit bulk broadcast completed successfully for %d contacts.", total)
+        logger.info("WhatsApp bulk auto-broadcast completed for %d contacts.", total)
     except Exception as exc:
-        logger.error("PyWhatKit bulk broadcast runner error: %s", exc)
+        logger.error("WhatsApp bulk auto-broadcast runner error: %s", exc)
 
 
 def launch_pywhatkit_broadcast_async(broadcast_queue, delay_seconds=20, image_path=None, send_mode='message_and_image'):
@@ -705,6 +998,101 @@ def launch_pywhatkit_broadcast_async(broadcast_queue, delay_seconds=20, image_pa
     t.start()
     return True
 
+
+# ---------------------------------------------------------------------------
+# Campaign Logging & Analytics Services
+# ---------------------------------------------------------------------------
+
+def log_campaign_broadcast(
+    template_key='',
+    campaign_name='Broadcast',
+    recipient_name='',
+    recipient_phone='',
+    recipient_type='customer',
+    group_id=None,
+    branch_id=None,
+    channel='whatsapp_web',
+    status='sent',
+    message_snippet='',
+    user=None
+):
+    """
+    Records an outgoing campaign message into MarketingCampaignLog and marks
+    prospect MarketingLead as contacted if applicable.
+    """
+    from transactions.models import MarketingCampaignLog, MarketingLead, MarketingGroup
+    from branches.models import Branch
+
+    group_obj = None
+    if group_id:
+        try:
+            group_obj = MarketingGroup.objects.get(id=group_id)
+        except Exception:
+            group_obj = None
+
+    branch_obj = None
+    if branch_id:
+        try:
+            branch_obj = Branch.objects.get(id=branch_id)
+        except Exception:
+            branch_obj = None
+
+    log_entry = MarketingCampaignLog.objects.create(
+        template_key=template_key or '',
+        campaign_name=campaign_name or 'Broadcast Campaign',
+        recipient_name=recipient_name or 'Valued Customer',
+        recipient_phone=recipient_phone or '',
+        recipient_type=recipient_type,
+        group=group_obj,
+        branch=branch_obj,
+        channel=channel,
+        status=status,
+        message_snippet=message_snippet or '',
+        sent_by=user if user and user.is_authenticated else None
+    )
+
+    # If this was sent to a MarketingLead, mark is_contacted = True
+    if recipient_phone:
+        norm = normalize_phone_number(recipient_phone)
+        MarketingLead.objects.filter(norm_phone=norm).update(is_contacted=True)
+
+    return log_entry
+
+
+def get_campaign_analytics(branch_id=None, limit=100):
+    """
+    Calculates aggregated analytics and fetches recent execution history for the marketing hub.
+    """
+    from django.db.models import Count, Q
+    from django.utils import timezone
+    from transactions.models import MarketingCampaignLog
+
+    qs = MarketingCampaignLog.objects.all()
+    if branch_id:
+        qs = qs.filter(branch_id=branch_id)
+
+    today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    month_start = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    total_sent = qs.filter(status='sent').count()
+    total_today = qs.filter(status='sent', created_at__gte=today_start).count()
+    total_this_month = qs.filter(status='sent', created_at__gte=month_start).count()
+    total_failed = qs.filter(status='failed').count()
+
+    whatsapp_count = qs.filter(channel__in=['whatsapp_web', 'pywhatkit', 'api']).count()
+    sms_count = qs.filter(channel='sms').count()
+
+    recent_logs = qs.select_related('group', 'branch', 'sent_by').order_by('-created_at')[:limit]
+
+    return {
+        'total_sent': total_sent,
+        'total_today': total_today,
+        'total_this_month': total_this_month,
+        'total_failed': total_failed,
+        'whatsapp_count': whatsapp_count,
+        'sms_count': sms_count,
+        'recent_logs': recent_logs,
+    }
 
 
 # ---------------------------------------------------------------------------

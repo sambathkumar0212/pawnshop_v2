@@ -51,6 +51,7 @@
                 {% csrf_token %}
                 <input type="hidden" name="action" value="export_csv">
                 <input type="hidden" name="segment" value="{{ segment }}">
+                <input type="hidden" name="group" value="{{ selected_group_id }}">
                 <input type="hidden" name="template" value="{{ template_key }}">
                 <input type="hidden" name="lang" value="{{ lang }}">
                 <input type="hidden" name="branch" value="{{ selected_branch_id }}">
@@ -72,17 +73,17 @@
     </div>
 
     <!-- ═══ INTERACTIVE AUDIENCE SEGMENT / KPI CARDS (COMBINED) ═══ -->
-    <div class="row g-2 mb-3">
+    <div class="row g-2 mb-2">
         <!-- 1. All Customers -->
         <div class="col-6 col-md-4 col-xl-2">
             <a href="?segment=all&template={{ template_key }}&lang={{ lang }}&branch={{ selected_branch_id }}" class="text-decoration-none d-block h-100">
-                <div class="card border-0 shadow-sm rounded-3 h-100 transition-all {% if segment == 'all' %}bg-primary text-white ring-active{% else %}bg-white hover-shadow border-start border-primary border-3{% endif %}">
+                <div class="card border-0 shadow-sm rounded-3 h-100 transition-all {% if segment == 'all' and not selected_group_id %}bg-primary text-white ring-active{% else %}bg-white hover-shadow border-start border-primary border-3{% endif %}">
                     <div class="card-body p-2 px-3 d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="small text-uppercase fw-semibold d-block {% if segment == 'all' %}text-white-50{% else %}text-muted{% endif %}" style="font-size: 0.7rem;">All Contacts</span>
-                            <h5 class="mb-0 fw-bold {% if segment == 'all' %}text-white{% else %}text-primary{% endif %}">{{ kpis.total_customers|intcomma }}</h5>
+                            <span class="small text-uppercase fw-semibold d-block {% if segment == 'all' and not selected_group_id %}text-white-50{% else %}text-muted{% endif %}" style="font-size: 0.7rem;">All Contacts</span>
+                            <h5 class="mb-0 fw-bold {% if segment == 'all' and not selected_group_id %}text-white{% else %}text-primary{% endif %}">{{ kpis.total_customers|intcomma }}</h5>
                         </div>
-                        <i class="fas fa-users fa-lg {% if segment == 'all' %}text-white-50{% else %}text-primary opacity-50{% endif %}"></i>
+                        <i class="fas fa-users fa-lg {% if segment == 'all' and not selected_group_id %}text-white-50{% else %}text-primary opacity-50{% endif %}"></i>
                     </div>
                 </div>
             </a>
@@ -91,14 +92,14 @@
         <!-- 2. New Prospects (CSV / Manual) -->
         <div class="col-6 col-md-4 col-xl-2">
             <a href="?segment=new_prospects&template={{ template_key }}&lang={{ lang }}&branch={{ selected_branch_id }}" class="text-decoration-none d-block h-100">
-                <div class="card border-0 shadow-sm rounded-3 h-100 transition-all {% if segment == 'new_prospects' %}text-white ring-active{% else %}bg-white hover-shadow border-start border-3{% endif %}" 
-                     style="{% if segment == 'new_prospects' %}background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);{% else %}border-left-color: #8b5cf6 !important;{% endif %}">
+                <div class="card border-0 shadow-sm rounded-3 h-100 transition-all {% if segment == 'new_prospects' and not selected_group_id %}text-white ring-active{% else %}bg-white hover-shadow border-start border-3{% endif %}" 
+                     style="{% if segment == 'new_prospects' and not selected_group_id %}background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);{% else %}border-left-color: #8b5cf6 !important;{% endif %}">
                     <div class="card-body p-2 px-3 d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="small text-uppercase fw-semibold d-block {% if segment == 'new_prospects' %}text-white-50{% else %}text-muted{% endif %}" style="font-size: 0.7rem;">🆕 New Prospects</span>
-                            <h5 class="mb-0 fw-bold {% if segment == 'new_prospects' %}text-white{% else %}" style="color: #7c3aed;{% endif %}">{{ kpis.new_prospects_count|intcomma }}</h5>
+                            <span class="small text-uppercase fw-semibold d-block {% if segment == 'new_prospects' and not selected_group_id %}text-white-50{% else %}text-muted{% endif %}" style="font-size: 0.7rem;">🆕 All Prospects</span>
+                            <h5 class="mb-0 fw-bold {% if segment == 'new_prospects' and not selected_group_id %}text-white{% else %}" style="color: #7c3aed;{% endif %}">{{ kpis.new_prospects_count|intcomma }}</h5>
                         </div>
-                        <i class="fas fa-users-viewfinder fa-lg {% if segment == 'new_prospects' %}text-white-50{% else %}" style="color: #8b5cf6; opacity: 0.6;{% endif %}"></i>
+                        <i class="fas fa-users-viewfinder fa-lg {% if segment == 'new_prospects' and not selected_group_id %}text-white-50{% else %}" style="color: #8b5cf6; opacity: 0.6;{% endif %}"></i>
                     </div>
                 </div>
             </a>
@@ -107,13 +108,13 @@
         <!-- 3. Active Borrowers -->
         <div class="col-6 col-md-4 col-xl-2">
             <a href="?segment=active_borrowers&template={{ template_key }}&lang={{ lang }}&branch={{ selected_branch_id }}" class="text-decoration-none d-block h-100">
-                <div class="card border-0 shadow-sm rounded-3 h-100 transition-all {% if segment == 'active_borrowers' %}bg-info text-white ring-active{% else %}bg-white hover-shadow border-start border-info border-3{% endif %}">
+                <div class="card border-0 shadow-sm rounded-3 h-100 transition-all {% if segment == 'active_borrowers' and not selected_group_id %}bg-info text-white ring-active{% else %}bg-white hover-shadow border-start border-info border-3{% endif %}">
                     <div class="card-body p-2 px-3 d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="small text-uppercase fw-semibold d-block {% if segment == 'active_borrowers' %}text-white-50{% else %}text-muted{% endif %}" style="font-size: 0.7rem;">Active Borrowers</span>
-                            <h5 class="mb-0 fw-bold {% if segment == 'active_borrowers' %}text-white{% else %}text-info{% endif %}">{{ kpis.active_borrowers_count|intcomma }}</h5>
+                            <span class="small text-uppercase fw-semibold d-block {% if segment == 'active_borrowers' and not selected_group_id %}text-white-50{% else %}text-muted{% endif %}" style="font-size: 0.7rem;">Active Borrowers</span>
+                            <h5 class="mb-0 fw-bold {% if segment == 'active_borrowers' and not selected_group_id %}text-white{% else %}text-info{% endif %}">{{ kpis.active_borrowers_count|intcomma }}</h5>
                         </div>
-                        <i class="fas fa-coins fa-lg {% if segment == 'active_borrowers' %}text-white-50{% else %}text-info opacity-50{% endif %}"></i>
+                        <i class="fas fa-coins fa-lg {% if segment == 'active_borrowers' and not selected_group_id %}text-white-50{% else %}text-info opacity-50{% endif %}"></i>
                     </div>
                 </div>
             </a>
@@ -122,11 +123,11 @@
         <!-- 4. Closed Loan Customers (Re-engage) -->
         <div class="col-6 col-md-4 col-xl-2">
             <a href="?segment=closed_loans&template={{ template_key }}&lang={{ lang }}&branch={{ selected_branch_id }}" class="text-decoration-none d-block h-100">
-                <div class="card border-0 shadow-sm rounded-3 h-100 transition-all {% if segment == 'closed_loans' %}bg-warning text-dark ring-active{% else %}bg-white hover-shadow border-start border-warning border-3{% endif %}">
+                <div class="card border-0 shadow-sm rounded-3 h-100 transition-all {% if segment == 'closed_loans' and not selected_group_id %}bg-warning text-dark ring-active{% else %}bg-white hover-shadow border-start border-warning border-3{% endif %}">
                     <div class="card-body p-2 px-3 d-flex justify-content-between align-items-center">
                         <div>
                             <span class="small text-uppercase fw-semibold d-block text-muted" style="font-size: 0.7rem;">🤝 Past Borrowers</span>
-                            <h5 class="mb-0 fw-bold {% if segment == 'closed_loans' %}text-dark{% else %}text-warning{% endif %}">{{ kpis.closed_prospects_count|intcomma }}</h5>
+                            <h5 class="mb-0 fw-bold {% if segment == 'closed_loans' and not selected_group_id %}text-dark{% else %}text-warning{% endif %}">{{ kpis.closed_prospects_count|intcomma }}</h5>
                         </div>
                         <i class="fas fa-handshake fa-lg text-warning opacity-75"></i>
                     </div>
@@ -137,13 +138,13 @@
         <!-- 5. Overdue (OTS Offers) -->
         <div class="col-6 col-md-4 col-xl-2">
             <a href="?segment=overdue&template={{ template_key }}&lang={{ lang }}&branch={{ selected_branch_id }}" class="text-decoration-none d-block h-100">
-                <div class="card border-0 shadow-sm rounded-3 h-100 transition-all {% if segment == 'overdue' %}bg-danger text-white ring-active{% else %}bg-white hover-shadow border-start border-danger border-3{% endif %}">
+                <div class="card border-0 shadow-sm rounded-3 h-100 transition-all {% if segment == 'overdue' and not selected_group_id %}bg-danger text-white ring-active{% else %}bg-white hover-shadow border-start border-danger border-3{% endif %}">
                     <div class="card-body p-2 px-3 d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="small text-uppercase fw-semibold d-block {% if segment == 'overdue' %}text-white-50{% else %}text-muted{% endif %}" style="font-size: 0.7rem;">⚠️ Overdue (OTS)</span>
-                            <h5 class="mb-0 fw-bold {% if segment == 'overdue' %}text-white{% else %}text-danger{% endif %}">{{ kpis.overdue_count|intcomma }}</h5>
+                            <span class="small text-uppercase fw-semibold d-block {% if segment == 'overdue' and not selected_group_id %}text-white-50{% else %}text-muted{% endif %}" style="font-size: 0.7rem;">⚠️ Overdue (OTS)</span>
+                            <h5 class="mb-0 fw-bold {% if segment == 'overdue' and not selected_group_id %}text-white{% else %}text-danger{% endif %}">{{ kpis.overdue_count|intcomma }}</h5>
                         </div>
-                        <i class="fas fa-exclamation-circle fa-lg {% if segment == 'overdue' %}text-white-50{% else %}text-danger opacity-50{% endif %}"></i>
+                        <i class="fas fa-exclamation-circle fa-lg {% if segment == 'overdue' and not selected_group_id %}text-white-50{% else %}text-danger opacity-50{% endif %}"></i>
                     </div>
                 </div>
             </a>
@@ -152,17 +153,85 @@
         <!-- 6. High Value Borrowers -->
         <div class="col-6 col-md-4 col-xl-2">
             <a href="?segment=high_value&template={{ template_key }}&lang={{ lang }}&branch={{ selected_branch_id }}" class="text-decoration-none d-block h-100">
-                <div class="card border-0 shadow-sm rounded-3 h-100 transition-all {% if segment == 'high_value' %}bg-dark text-white ring-active{% else %}bg-white hover-shadow border-start border-dark border-3{% endif %}">
+                <div class="card border-0 shadow-sm rounded-3 h-100 transition-all {% if segment == 'high_value' and not selected_group_id %}bg-dark text-white ring-active{% else %}bg-white hover-shadow border-start border-dark border-3{% endif %}">
                     <div class="card-body p-2 px-3 d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="small text-uppercase fw-semibold d-block {% if segment == 'high_value' %}text-white-50{% else %}text-muted{% endif %}" style="font-size: 0.7rem;">💎 High Value (&gt;1L)</span>
-                            <h5 class="mb-0 fw-bold {% if segment == 'high_value' %}text-white{% else %}text-dark{% endif %}">{{ kpis.high_value_count|intcomma }}</h5>
+                            <span class="small text-uppercase fw-semibold d-block {% if segment == 'high_value' and not selected_group_id %}text-white-50{% else %}text-muted{% endif %}" style="font-size: 0.7rem;">💎 High Value (&gt;1L)</span>
+                            <h5 class="mb-0 fw-bold {% if segment == 'high_value' and not selected_group_id %}text-white{% else %}text-dark{% endif %}">{{ kpis.high_value_count|intcomma }}</h5>
                         </div>
-                        <i class="fas fa-gem fa-lg {% if segment == 'high_value' %}text-white-50{% else %}text-secondary opacity-50{% endif %}"></i>
+                        <i class="fas fa-gem fa-lg {% if segment == 'high_value' and not selected_group_id %}text-white-50{% else %}text-secondary opacity-50{% endif %}"></i>
                     </div>
                 </div>
             </a>
         </div>
+    </div>
+
+    <!-- ═══ CONTACT GROUPS STRIP & QUICK MANAGEMENT BAR ═══ -->
+    <div class="card border-0 shadow-sm rounded-3 mb-3 bg-white">
+        <div class="card-body p-2 px-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="d-flex flex-wrap align-items-center gap-1">
+                <button type="button" class="btn btn-xs fw-bold text-white px-2 py-1 me-1 d-flex align-items-center gap-1 shadow-2xs" 
+                        style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); font-size: 0.75rem;"
+                        onclick="openGroupDirectoryModal('{{ selected_group_id|default:'' }}')" title="Open Contact Groups Directory">
+                    <i class="fas fa-folder-tree"></i> Contact Groups ({{ kpis.groups_count }})
+                </button>
+
+                {% for g in groups %}
+                <div class="btn-group btn-group-xs me-1">
+                    <a href="?segment=group_{{ g.id }}&template={{ template_key }}&lang={{ lang }}&branch={{ selected_branch_id }}&group={{ g.id }}" 
+                       class="btn btn-xs fw-semibold rounded-start-pill px-2 py-0.5 text-decoration-none transition-all {% if selected_group_id == g.id|stringformat:'s' %}btn-primary shadow-sm text-white{% else %}btn-outline-secondary bg-light text-dark{% endif %}"
+                       style="font-size: 0.76rem;" title="Filter Queue by {{ g.name }}">
+                        🏷️ {{ g.name }} <span class="badge {% if selected_group_id == g.id|stringformat:'s' %}bg-white text-primary{% else %}bg-secondary text-white{% endif %} rounded-pill ms-1" style="font-size: 0.65rem;">{{ g.lead_count|default:0 }}</span>
+                    </a>
+                    <button type="button" class="btn btn-xs {% if selected_group_id == g.id|stringformat:'s' %}btn-primary text-white border-start border-white-50{% else %}btn-outline-secondary bg-light text-muted{% endif %} rounded-end-pill px-1"
+                            onclick="openGroupDirectoryModal('{{ g.id }}')" title="View contacts in {{ g.name }}">
+                        <i class="fas fa-eye" style="font-size: 0.7rem;"></i>
+                    </button>
+                </div>
+                {% empty %}
+                <small class="text-muted fst-italic" style="font-size: 0.76rem;">No custom groups yet. Click "+ Create Group" to upload contacts into a named group.</small>
+                {% endfor %}
+            </div>
+
+            <div class="d-flex align-items-center gap-1">
+                <button type="button" class="btn btn-outline-dark btn-xs py-0.5 px-2 fw-semibold shadow-2xs" style="font-size: 0.75rem;" onclick="openGroupDirectoryModal('{{ selected_group_id|default:'' }}')">
+                    <i class="fas fa-users-rectangle me-1 text-primary"></i> 📂 Manage Groups &amp; Contacts
+                </button>
+
+                {% if active_group %}
+                <form method="post" action="{% url 'marketing_import_leads' %}" class="d-inline" onsubmit="return confirm('Delete group \'{{ active_group.name }}\' and all its contacts?');">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="delete_group">
+                    <input type="hidden" name="delete_group_id" value="{{ active_group.id }}">
+                    <input type="hidden" name="branch" value="{{ selected_branch_id }}">
+                    <button type="submit" class="btn btn-outline-danger btn-xs py-0.5 px-2" style="font-size: 0.74rem;" title="Delete this group and contacts">
+                        <i class="fas fa-trash-alt me-1"></i> Delete Group
+                    </button>
+                </form>
+                {% endif %}
+
+                <button type="button" class="btn btn-primary btn-xs py-0.5 px-2 fw-semibold shadow-2xs" style="font-size: 0.75rem;" onclick="openGroupCreateModal()">
+                    <i class="fas fa-plus me-1"></i> New Group
+                </button>
+            </div>
+        </div>
+
+        {% if active_group %}
+        <div class="px-3 pb-2 pt-0 d-flex flex-wrap justify-content-between align-items-center text-primary small" style="font-size: 0.75rem;">
+            <div>
+                <i class="fas fa-filter text-primary me-1"></i>
+                <span>Showing contacts filtered for Group: <strong>{{ active_group.name }}</strong> ({{ total_queue_count }} contacts)</span>
+                <a href="?segment=all&template={{ template_key }}&lang={{ lang }}&branch={{ selected_branch_id }}" class="text-danger ms-2 text-decoration-none fw-semibold">
+                    <i class="fas fa-times-circle me-1"></i>Clear Filter
+                </a>
+            </div>
+            <div>
+                <button type="button" class="btn btn-link btn-xs p-0 text-primary fw-semibold text-decoration-none" onclick="openGroupDirectoryModal('{{ active_group.id }}')">
+                    <i class="fas fa-list-ul me-1"></i>View Full Contact List in Directory &rarr;
+                </button>
+            </div>
+        </div>
+        {% endif %}
     </div>
 
     <!-- ═══ MAIN WORKSPACE (Campaign Studio & Live Mobile Preview) ═══ -->
@@ -235,6 +304,7 @@
                             <div class="d-flex flex-wrap align-items-center gap-1 mb-2 bg-light p-1 px-2 rounded border">
                                 <span class="text-muted fw-bold small me-1" style="font-size: 0.72rem;"><i class="fas fa-magic text-primary me-1"></i>Variables:</span>
                                 <button type="button" class="btn btn-white btn-xs border shadow-2xs py-0 px-1 text-primary fw-semibold" style="font-size: 0.72rem; background: #fff;" onclick="insertVariableIntoMessage('{customer_name}')" title="Insert customer name">+ {customer_name}</button>
+                                <button type="button" class="btn btn-white btn-xs border shadow-2xs py-0 px-1 text-primary fw-semibold" style="font-size: 0.72rem; background: #fff;" onclick="insertVariableIntoMessage('{city}')" title="Insert city / location">+ {city}</button>
                                 <button type="button" class="btn btn-white btn-xs border shadow-2xs py-0 px-1 text-primary fw-semibold" style="font-size: 0.72rem; background: #fff;" onclick="insertVariableIntoMessage('{branch_name}')" title="Insert branch name">+ {branch_name}</button>
                                 <button type="button" class="btn btn-white btn-xs border shadow-2xs py-0 px-1 text-primary fw-semibold" style="font-size: 0.72rem; background: #fff;" onclick="insertVariableIntoMessage('{branch_phone}')" title="Insert branch phone">+ {branch_phone}</button>
                                 <button type="button" class="btn btn-white btn-xs border shadow-2xs py-0 px-1 text-primary fw-semibold" style="font-size: 0.72rem; background: #fff;" onclick="insertVariableIntoMessage('{gold_rate}')" title="Insert gold rate">+ {gold_rate}</button>
@@ -476,6 +546,9 @@
 
                             <!-- WhatsApp Bubble -->
                             <div id="phoneChatBubble" class="bg-white p-2 rounded-3 shadow-2xs position-relative ms-auto" style="border-top-left-radius: 0 !important; max-width: 95%;">
+                                <div id="previewFlyerImgBox" class="mb-2 text-center d-none">
+                                    <img id="previewFlyerImg" src="" alt="Flyer Preview" class="rounded shadow-sm" style="width: 100%; max-height: 180px; object-fit: contain; background: #f8fafc;">
+                                </div>
                                 <div id="previewMessageContent" class="small text-dark" style="white-space: pre-wrap; font-size: 0.78rem; line-height: 1.4;">{{ sample_preview_text }}</div>
                                 <div class="text-end text-muted mt-1" style="font-size: 0.6rem;">
                                     10:30 AM <i class="fas fa-check-double text-primary ms-1"></i>
@@ -511,59 +584,46 @@
             <!-- Top Row: Title + Search + Lead Actions -->
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
                 <div class="d-flex align-items-center gap-2">
-                    <span class="badge {% if segment == 'new_prospects' %}bg-purple text-white{% else %}bg-success{% endif %} rounded-pill p-2">
-                        <i class="fas {% if segment == 'new_prospects' %}fa-users-viewfinder{% else %}fa-paper-plane{% endif %}"></i>
+                    <span class="badge {% if selected_group_id %}bg-purple text-white{% elif segment == 'new_prospects' %}bg-purple text-white{% else %}bg-success{% endif %} rounded-pill p-2">
+                        <i class="fas {% if selected_group_id %}fa-folder-open{% elif segment == 'new_prospects' %}fa-users-viewfinder{% else %}fa-paper-plane{% endif %}"></i>
                     </span>
                     <div>
                         <h5 class="mb-0 fw-bold text-dark" style="font-size: 1.05rem;">
-                            {% if segment == 'new_prospects' %}
-                            🆕 New Prospect Leads Broadcast Queue
+                            {% if active_group %}
+                            🏷️ Group: <span class="text-primary">{{ active_group.name }}</span>
+                            {% elif segment == 'new_prospects' %}
+                            🆕 New Prospect Leads Queue
                             {% else %}
                             Interactive 1-Click Broadcast Queue
                             {% endif %}
                             <span class="badge bg-success-subtle text-success border border-success-subtle ms-1 px-2 py-0.5 fw-semibold" style="font-size: 0.75rem;">
-                                {{ total_queue_count }} Targeted
+                                {{ total_queue_count }} Targeted Contacts
                             </span>
                         </h5>
                         <p class="text-muted small mb-0" style="font-size: 0.75rem;">
-                            Click <strong>"Send"</strong> on any row to open WhatsApp Web with pre-filled text &amp; clipboard flyer.
+                            Dispatch campaign via <strong>1-Click WhatsApp PyWhatKit Auto-Blast</strong> or send row-by-row.
                         </p>
                     </div>
                 </div>
 
                 <!-- Right Action Buttons -->
                 <div class="d-flex flex-wrap gap-1 align-items-center">
-                    <input type="text" id="queueSearchInput" class="form-control form-control-sm" placeholder="🔍 Search contacts..." style="width: 170px; font-size: 0.78rem;">
+                    <input type="text" id="queueSearchInput" class="form-control form-control-sm" placeholder="🔍 Search contacts..." style="width: 160px; font-size: 0.78rem;">
 
-                    {% if segment == 'new_prospects' %}
                     <button type="button" class="btn btn-light btn-sm fw-semibold text-dark border shadow-2xs" style="font-size: 0.78rem;" data-bs-toggle="modal" data-bs-target="#importLeadsModal">
-                        <i class="fas fa-file-arrow-up me-1 text-primary"></i> Upload CSV
+                        <i class="fas fa-user-plus me-1 text-primary"></i> Add / Upload Contacts
                     </button>
-                    <button type="button" class="btn btn-light btn-sm fw-semibold text-dark border shadow-2xs" style="font-size: 0.78rem;" onclick="openManualLeadModal()">
-                        <i class="fas fa-plus me-1 text-success"></i> Add 1-by-1
-                    </button>
+
                     <a href="{% url 'marketing_import_leads' %}?action=download_sample" class="btn btn-outline-secondary btn-sm shadow-2xs" style="font-size: 0.78rem;" title="Download Sample CSV">
                         <i class="fas fa-download"></i> Sample
                     </a>
-                    {% if broadcast_queue %}
-                    <form method="post" action="{% url 'marketing_import_leads' %}" class="d-inline" onsubmit="return confirm('Are you sure you want to clear all imported prospect leads?');">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="clear_leads">
-                        <input type="hidden" name="branch" value="{{ selected_branch_id }}">
-                        <button type="submit" class="btn btn-outline-danger btn-sm shadow-2xs" style="font-size: 0.78rem;" title="Clear Leads">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
-                    </form>
-                    {% endif %}
-                    {% endif %}
 
                     {% if broadcast_queue %}
-                    <!-- Primary CTA: WhatsApp Broadcast Wizard -->
-                    <button type="button" class="btn btn-success btn-sm fw-bold shadow-sm px-3" style="font-size: 0.8rem;"
-                            data-bs-toggle="modal" data-bs-target="#broadcastSetupWizardModal"
-                            onclick="openBroadcastSetupWizard()"
-                            title="Create a WhatsApp Broadcast List and send your flyer to all contacts at once">
-                        <i class="fab fa-whatsapp me-1"></i> Create Broadcast &amp; Send Flyer
+                    <!-- Primary CTA: 1-Click WhatsApp PyWhatKit Auto-Blast -->
+                    <button type="button" class="btn btn-success btn-sm fw-bold shadow-sm px-3" style="font-size: 0.82rem;"
+                            data-bs-toggle="modal" data-bs-target="#pywhatkitModal"
+                            title="Launch 1-Click WhatsApp PyWhatKit Auto-Blast to all contacts">
+                        <i class="fab fa-whatsapp me-1"></i> 🚀 1-Click Auto-Blast
                     </button>
                     {% endif %}
                 </div>
@@ -623,6 +683,30 @@
 
         </div>
 
+        <!-- Batch Selection Toolbar (Visible when contacts available) -->
+        {% if broadcast_queue %}
+        <div id="batchSelectionBar" class="d-flex flex-wrap justify-content-between align-items-center bg-primary-subtle border-bottom px-3 py-1 text-primary small">
+            <div class="d-flex align-items-center gap-2">
+                <span class="fw-bold" style="font-size: 0.78rem;">
+                    <i class="fas fa-check-square me-1"></i>Selected: 
+                    <span id="selectedQueueCount" class="badge bg-primary text-white">0</span> / {{ total_queue_count }} Contacts
+                </span>
+                <button type="button" class="btn btn-link btn-xs p-0 text-primary text-decoration-none fw-semibold" onclick="selectAllQueueRows(true)">
+                    Select All
+                </button>
+                <span class="text-muted">|</span>
+                <button type="button" class="btn btn-link btn-xs p-0 text-secondary text-decoration-none" onclick="selectAllQueueRows(false)">
+                    Deselect All
+                </button>
+            </div>
+            <div class="d-flex align-items-center gap-1">
+                <button type="button" id="launchBatchPlayerBtn" class="btn btn-primary btn-xs py-1 px-3 fw-bold shadow-sm" disabled onclick="openBatchPlayerModal()">
+                    <i class="fas fa-play me-1"></i> ▶️ Launch Auto-Player (<span id="batchPlayerCount">0</span>)
+                </button>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Broadcast Table Body -->
         <div class="card-body p-0">
             {% if broadcast_queue %}
@@ -630,13 +714,16 @@
                 <table class="table table-hover align-middle mb-0" id="broadcastTable">
                     <thead class="table-light sticky-top" style="font-size: 0.75rem;">
                         <tr>
-                            <th class="ps-3" style="width: 40px;">#</th>
+                            <th class="ps-3" style="width: 36px;">
+                                <input type="checkbox" id="selectAllQueueCheckboxes" class="form-check-input" onchange="toggleSelectAllQueue(this)" title="Select/Deselect All">
+                            </th>
+                            <th style="width: 36px;">#</th>
                             <th>Contact / Prospect</th>
+                            <th>Group / Category</th>
                             <th>Phone (WhatsApp)</th>
                             <th>Branch</th>
-                            <th>Status / Loans</th>
                             <th>Personalized Message Snippet</th>
-                            <th class="text-end pe-3" style="width: 130px;">Action</th>
+                            <th class="text-end pe-3" style="width: 140px;">Action</th>
                         </tr>
                     </thead>
                     <tbody style="font-size: 0.82rem;">
@@ -646,11 +733,34 @@
                             data-phone="{{ item.phone }}" 
                             data-branch="{{ item.branch_name|default:'Main Branch' }}" 
                             data-branch-phone="{{ item.branch_phone|default:'9876543210' }}">
-                            <td class="ps-3 text-muted fw-bold">{{ forloop.counter }}</td>
+                            <td class="ps-3">
+                                <input type="checkbox" class="form-check-input queue-row-chk" 
+                                       id="chk-row-{{ forloop.counter }}"
+                                       onchange="updateSelectedQueueCount()"
+                                       data-idx="{{ forloop.counter }}"
+                                       data-name="{{ item.name }}"
+                                       data-phone="{{ item.phone }}"
+                                       data-url="{{ item.whatsapp_url }}"
+                                       data-message="{{ item.message|escapejs }}"
+                                       data-is-lead="{% if item.is_external_lead %}1{% else %}0{% endif %}"
+                                       data-group-id="{{ item.group_id|default:'' }}"
+                                       data-group-name="{{ item.group_name|default:'' }}"
+                                       data-branch-id="{{ item.branch_id|default:'' }}"
+                                       data-branch-name="{{ item.branch_name|default:'' }}">
+                            </td>
+                            <td class="text-muted fw-bold">{{ forloop.counter }}</td>
                             <td>
                                 <strong class="text-dark">{{ item.name }}</strong>
-                                {% if item.is_external_lead %}
-                                <span class="badge text-white ms-1" style="font-size: 0.6rem; background: #8b5cf6;">Lead</span>
+                            </td>
+                            <td>
+                                {% if item.group_name %}
+                                <span class="badge text-white" style="font-size: 0.68rem; background: #6366f1;">🏷️ {{ item.group_name }}</span>
+                                {% elif item.is_external_lead %}
+                                <span class="badge text-white" style="font-size: 0.65rem; background: #8b5cf6;">Lead (General)</span>
+                                {% elif item.active_loans_count > 0 %}
+                                <span class="badge bg-info-subtle text-info border border-info-subtle" style="font-size: 0.68rem;">{{ item.active_loans_count }} Active Loans</span>
+                                {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary" style="font-size: 0.68rem;">Customer</span>
                                 {% endif %}
                             </td>
                             <td>
@@ -661,15 +771,6 @@
                             <td>
                                 <span class="text-muted small">{{ item.branch_name|default:"Main" }}</span>
                             </td>
-                            <td>
-                                {% if item.is_external_lead %}
-                                <span class="badge bg-purple-subtle text-dark border" style="background: #f3e8ff; font-size: 0.7rem;">Lead ({% if item.source == 'manual_entry' %}Manual{% else %}CSV{% endif %})</span>
-                                {% elif item.active_loans_count > 0 %}
-                                <span class="badge bg-info-subtle text-info border border-info-subtle" style="font-size: 0.7rem;">{{ item.active_loans_count }} Active</span>
-                                {% else %}
-                                <span class="badge bg-secondary-subtle text-secondary" style="font-size: 0.7rem;">0 Active</span>
-                                {% endif %}
-                            </td>
                             <td style="max-width: 280px;">
                                 <div class="text-truncate text-muted queue-msg-snippet" style="font-size: 0.75rem;" title="{{ item.message }}">
                                     {{ item.message }}
@@ -679,12 +780,17 @@
                                 <div class="d-inline-flex align-items-center gap-1">
                                     <a href="{{ item.whatsapp_url }}" target="_blank" 
                                        class="btn btn-success btn-xs px-2 shadow-2xs fw-semibold wa-send-btn" style="font-size: 0.75rem;"
-                                       onclick="handleQueueRowSendClick(event, 'queue-row-{{ forloop.counter }}', this)">
+                                       onclick="handleQueueRowSendClick(event, 'queue-row-{{ forloop.counter }}', this, '{{ item.name|escapejs }}', '{{ item.phone }}', '{{ item.is_external_lead|yesno:'lead,customer' }}', '{{ item.group_id|default:'' }}', '{{ item.branch_id|default:'' }}', '{{ item.message|escapejs }}')">
                                         <i class="fab fa-whatsapp me-1"></i> Send
                                     </a>
                                     <button type="button" class="btn btn-outline-secondary btn-xs px-1 shadow-2xs" title="Copy Attached Flyer" onclick="copyCurrentFlyerBlob()">
                                         <i class="fas fa-image"></i>
                                     </button>
+                                    {% if item.lead_id %}
+                                    <button type="button" class="btn btn-outline-danger btn-xs px-1 shadow-2xs" title="Remove contact from this group" onclick="deleteLeadFromQueue('{{ item.lead_id }}', '{{ item.name|escapejs }}', '{{ item.group_id|default:'' }}')">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                    {% endif %}
                                 </div>
                             </td>
                         </tr>
@@ -694,25 +800,12 @@
             </div>
             {% else %}
             <div class="text-center py-4 text-muted">
-                {% if segment == 'new_prospects' %}
-                <div class="bg-primary-subtle text-primary rounded-circle d-inline-flex align-items-center justify-content-center mb-2" style="width: 52px; height: 52px;">
-                    <i class="fas fa-user-plus fa-lg" style="color: #7c3aed;"></i>
-                </div>
-                <h6 class="fw-bold text-dark mb-1">No New Prospect Leads Added Yet</h6>
-                <p class="text-muted small mb-2" style="font-size: 0.78rem;">Upload a CSV list or add contacts one-by-one to send bulk WhatsApp promotions.</p>
-                <div class="d-flex justify-content-center gap-2">
-                    <button type="button" class="btn text-white btn-sm fw-bold px-3 shadow-sm" style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important; font-size: 0.78rem;" data-bs-toggle="modal" data-bs-target="#importLeadsModal">
-                        <i class="fas fa-file-arrow-up me-1"></i> Upload CSV Leads
-                    </button>
-                    <button type="button" class="btn btn-outline-primary btn-sm fw-bold px-3 shadow-sm" style="font-size: 0.78rem;" onclick="openManualLeadModal()">
-                        <i class="fas fa-plus me-1"></i> Add Contact
-                    </button>
-                </div>
-                {% else %}
                 <i class="fas fa-users-slash fa-2x mb-2 text-secondary opacity-50"></i>
-                <h6 class="mb-1">No WhatsApp-ready contacts found in this segment.</h6>
-                <p class="small mb-0">Try changing the audience segment filter above.</p>
-                {% endif %}
+                <h6 class="mb-1 text-dark fw-bold">No contacts found in this group/segment.</h6>
+                <p class="small mb-3 text-muted">Click below to upload CSV contacts or add contacts one-by-one into a group.</p>
+                <button type="button" class="btn btn-primary btn-sm px-3 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#importLeadsModal">
+                    <i class="fas fa-user-plus me-1"></i> Add Contacts to Group
+                </button>
             </div>
             {% endif %}
         </div>
@@ -942,303 +1035,334 @@
             </div>
         </div>
     </div>
-    <div class="modal fade" id="broadcastSetupWizardModal" tabindex="-1" aria-labelledby="broadcastWizardLabel" aria-hidden="true">
+
+    <!-- ═══ CAMPAIGN EXECUTION LOGS & BROADCAST HISTORY ═══ -->
+    <div class="card border-0 shadow-sm rounded-3 mb-4" id="campaignLogsSection">
+        <div class="card-header bg-white border-bottom p-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-primary rounded-pill p-2">
+                    <i class="fas fa-clock-rotate-left"></i>
+                </span>
+                <div>
+                    <h5 class="mb-0 fw-bold text-dark" style="font-size: 1.05rem;">
+                        📋 Campaign Execution Logs &amp; Audit Trail
+                    </h5>
+                    <small class="text-muted">Real-time delivery records across WhatsApp Direct, PyWhatKit Blast, and SMS</small>
+                </div>
+            </div>
+
+            <!-- Summary KPI Badges & Export -->
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size: 0.75rem;">
+                    <i class="fas fa-paper-plane me-1"></i>Total Sent: <strong>{{ campaign_analytics.total_sent|default:0 }}</strong>
+                </span>
+                <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1" style="font-size: 0.75rem;">
+                    <i class="fas fa-calendar-day me-1"></i>Today: <strong>{{ campaign_analytics.total_today|default:0 }}</strong>
+                </span>
+                <span class="badge bg-purple-subtle text-purple border border-purple-subtle px-2 py-1" style="font-size: 0.75rem;">
+                    <i class="fab fa-whatsapp me-1"></i>WhatsApp: <strong>{{ campaign_analytics.whatsapp_count|default:0 }}</strong>
+                </span>
+                <a href="{% url 'marketing_export_logs' %}?branch={{ selected_branch_id }}" class="btn btn-outline-secondary btn-sm shadow-2xs py-1" style="font-size: 0.75rem;">
+                    <i class="fas fa-file-csv me-1"></i> Export Logs CSV
+                </a>
+            </div>
+        </div>
+
+        <div class="card-body p-0">
+            {% if campaign_analytics.recent_logs %}
+            <div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
+                <table class="table table-hover align-middle mb-0" style="font-size: 0.8rem;">
+                    <thead class="table-light sticky-top" style="font-size: 0.75rem;">
+                        <tr>
+                            <th class="ps-3" style="width: 40px;">#</th>
+                            <th>Timestamp</th>
+                            <th>Campaign / Template</th>
+                            <th>Recipient</th>
+                            <th>Group / Type</th>
+                            <th>Channel</th>
+                            <th>Status</th>
+                            <th>Dispatched By</th>
+                            <th>Message Snippet</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in campaign_analytics.recent_logs %}
+                        <tr>
+                            <td class="ps-3 text-muted fw-bold">{{ forloop.counter }}</td>
+                            <td class="text-nowrap text-muted" style="font-size: 0.75rem;">
+                                {{ log.created_at|date:"d M Y, h:i A" }}
+                            </td>
+                            <td>
+                                <strong class="text-dark">{{ log.campaign_name|default:log.template_key }}</strong>
+                            </td>
+                            <td>
+                                <div class="fw-semibold text-dark">{{ log.recipient_name }}</div>
+                                <span class="font-monospace text-success small" style="font-size: 0.72rem;">{{ log.recipient_phone }}</span>
+                            </td>
+                            <td>
+                                {% if log.group %}
+                                <span class="badge text-white" style="font-size: 0.65rem; background: #6366f1;">🏷️ {{ log.group.name }}</span>
+                                {% else %}
+                                <span class="badge bg-light text-secondary border" style="font-size: 0.65rem;">{{ log.recipient_type|title }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if log.channel == 'pywhatkit' %}
+                                <span class="badge bg-success" style="font-size: 0.68rem;"><i class="fab fa-whatsapp me-1"></i>PyWhatKit Blast</span>
+                                {% elif log.channel == 'whatsapp_web' %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.68rem;"><i class="fab fa-whatsapp me-1"></i>WhatsApp Web</span>
+                                {% elif log.channel == 'sms' %}
+                                <span class="badge bg-info-subtle text-info border border-info-subtle" style="font-size: 0.68rem;"><i class="fas fa-sms me-1"></i>SMS Gateway</span>
+                                {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary" style="font-size: 0.68rem;">{{ log.get_channel_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if log.status == 'sent' %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.68rem;"><i class="fas fa-check-circle me-1"></i>Sent</span>
+                                {% elif log.status == 'failed' %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size: 0.68rem;"><i class="fas fa-times-circle me-1"></i>Failed</span>
+                                {% else %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle" style="font-size: 0.68rem;">{{ log.get_status_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="text-muted small">{{ log.sent_by.username|default:"System" }}</span>
+                            </td>
+                            <td style="max-width: 260px;">
+                                <div class="text-truncate text-muted" style="font-size: 0.74rem;" title="{{ log.message_snippet }}">
+                                    {{ log.message_snippet|default:"—" }}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4 text-muted">
+                <i class="fas fa-clipboard-list fa-2x mb-2 text-secondary opacity-50"></i>
+                <h6 class="mb-1 text-dark fw-bold">No campaign broadcasts logged yet.</h6>
+                <p class="small mb-0 text-muted">Outgoing WhatsApp and SMS broadcasts will be recorded here automatically.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    <!-- ═══ MANAGE CONTACT GROUPS & CONTACTS DIRECTORY MODAL ═══ -->
+    <div class="modal fade" id="manageGroupsModal" tabindex="-1" aria-labelledby="manageGroupsModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-xl">
-            <div class="modal-content border-0 shadow-lg overflow-hidden">
-
-                <!-- Header -->
-                <div class="modal-header text-white border-0 p-4" style="background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);">
-                    <div>
-                        <h4 class="modal-title fw-bold mb-1" id="broadcastWizardLabel">
-                            <i class="fab fa-whatsapp me-2"></i>WhatsApp Broadcast Setup Wizard
-                        </h4>
-                        <p class="mb-0 opacity-90 small">Create a WhatsApp Broadcast List with your {{ total_queue_count }} contacts, then send your flyer to all at once — like a private campaign blast.</p>
-                    </div>
-                    <button type="button" class="btn-close btn-close-white ms-3" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-
-                <!-- Step Indicator -->
-                <div class="p-0">
-                    <div class="d-flex" style="background: #f0fdf4;">
-                        <div id="wiz-step-1-tab" class="flex-fill text-center py-3 px-2 border-bottom border-3 fw-bold" style="border-color: #16a34a !important; cursor: pointer; font-size: 0.9rem;" onclick="showWizardStep(1)">
-                            <span class="badge bg-success rounded-circle me-1" style="width:22px;height:22px;line-height:22px;font-size:0.75rem;">1</span>
-                            Add Contacts to Broadcast List
-                        </div>
-                        <div id="wiz-step-2-tab" class="flex-fill text-center py-3 px-2 border-bottom text-muted fw-semibold" style="border-color: #d1d5db !important; cursor: pointer; font-size: 0.9rem;" onclick="showWizardStep(2)">
-                            <span class="badge bg-secondary rounded-circle me-1" style="width:22px;height:22px;line-height:22px;font-size:0.75rem;">2</span>
-                            Send Flyer to Broadcast
+            <div class="modal-content border-0 shadow-lg" style="min-height: 540px;">
+                <div class="modal-header text-white" style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important;">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fas fa-folder-tree fa-lg"></i>
+                        <div>
+                            <h5 class="modal-title fw-bold mb-0" id="manageGroupsModalLabel">
+                                Contact Groups &amp; Member Directory
+                            </h5>
+                            <small class="opacity-90">Browse contact lists by group, add new contacts, view phone numbers, or broadcast</small>
                         </div>
                     </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-
                 <div class="modal-body p-0">
-
-                    <!-- ═══ STEP 1: CREATE BROADCAST LIST ═══ -->
-                    <div id="wiz-step-1-pane" class="p-4">
-
-                        <div class="row g-4">
-                            <!-- Left: Instructions -->
-                            <div class="col-md-5">
-                                <h6 class="fw-bold text-dark mb-3"><i class="fas fa-list-ol me-2 text-success"></i>How to Create a WhatsApp Broadcast List</h6>
-
-                                <div class="d-flex flex-column gap-3">
-                                    <div class="d-flex gap-3 align-items-start">
-                                        <div class="rounded-circle bg-success text-white fw-bold d-flex align-items-center justify-content-center flex-shrink-0" style="width:32px;height:32px;font-size:0.85rem;">1</div>
-                                        <div>
-                                            <div class="fw-semibold text-dark small">Open WhatsApp on your phone</div>
-                                            <div class="text-muted" style="font-size:0.8rem;">Go to the WhatsApp app (not WhatsApp Web — broadcast lists are created on the phone app)</div>
-                                        </div>
+                    <div class="row g-0">
+                        <!-- Left Sidebar: Groups List -->
+                        <div class="col-md-4 border-end bg-light p-3" style="min-height: 480px; max-height: 560px; overflow-y: auto;">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="fw-bold text-dark small"><i class="fas fa-folders me-1 text-primary"></i>Groups ({{ groups|length }})</span>
+                                <button type="button" class="btn btn-primary btn-xs py-1 px-2 fw-semibold shadow-2xs" onclick="openGroupCreateModal()">
+                                    <i class="fas fa-plus me-1"></i>New Group
+                                </button>
+                            </div>
+                            <div class="mb-2">
+                                <input type="text" id="dirGroupSearchInput" class="form-control form-control-sm" placeholder="🔍 Search groups..." onkeyup="filterGroupList(this.value)">
+                            </div>
+                            <div class="list-group list-group-flush rounded-3 border" id="dirGroupList">
+                                {% for g in groups %}
+                                <a href="javascript:void(0)" 
+                                   class="list-group-item list-group-item-action p-2 dir-group-item {% if forloop.first %}active{% endif %}" 
+                                   id="dir-group-btn-{{ g.id }}"
+                                   data-group-id="{{ g.id }}"
+                                   data-group-name="{{ g.name }}"
+                                   data-group-desc="{{ g.description|default:'' }}"
+                                   data-lead-count="{{ g.lead_count|default:0 }}"
+                                   onclick="selectGroupInDirectory('{{ g.id }}', '{{ g.name|escapejs }}', '{{ g.description|default:''|escapejs }}', '{{ g.lead_count|default:0 }}')">
+                                    <div class="d-flex w-100 justify-content-between align-items-center mb-1">
+                                        <h6 class="mb-0 fw-bold dir-group-title text-truncate" style="font-size: 0.85rem;">🏷️ {{ g.name }}</h6>
+                                        <span class="badge {% if forloop.first %}bg-white text-purple{% else %}bg-purple text-white{% endif %} rounded-pill lead-cnt-badge" style="font-size: 0.68rem;">{{ g.lead_count|default:0 }}</span>
                                     </div>
-
-                                    <div class="d-flex gap-3 align-items-start">
-                                        <div class="rounded-circle bg-success text-white fw-bold d-flex align-items-center justify-content-center flex-shrink-0" style="width:32px;height:32px;font-size:0.85rem;">2</div>
-                                        <div>
-                                            <div class="fw-semibold text-dark small">Tap <strong>New Broadcast</strong></div>
-                                            <div class="text-muted" style="font-size:0.8rem;">
-                                                On <strong>Android</strong>: Tap ⋮ (3 dots) → "New Broadcast"<br>
-                                                On <strong>iPhone</strong>: Tap "Broadcast Lists" at the top left → "New List"
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="d-flex gap-3 align-items-start">
-                                        <div class="rounded-circle bg-success text-white fw-bold d-flex align-items-center justify-content-center flex-shrink-0" style="width:32px;height:32px;font-size:0.85rem;">3</div>
-                                        <div>
-                                            <div class="fw-semibold text-dark small">Add contacts from the list below</div>
-                                            <div class="text-muted" style="font-size:0.8rem;">Search for each contact using the phone numbers shown on the right and add them to the broadcast list. Save the list as <strong>"Campaign Leads"</strong> or any name you prefer.</div>
-                                        </div>
-                                    </div>
-
-                                    <div class="d-flex gap-3 align-items-start">
-                                        <div class="rounded-circle bg-success text-white fw-bold d-flex align-items-center justify-content-center flex-shrink-0" style="width:32px;height:32px;font-size:0.85rem;">4</div>
-                                        <div>
-                                            <div class="fw-semibold text-dark small">Done! Now go to Step 2</div>
-                                            <div class="text-muted" style="font-size:0.8rem;">Once the broadcast list is created, proceed to Step 2 to download your flyer and send it to all contacts in one tap.</div>
-                                        </div>
-                                    </div>
+                                    <small class="{% if forloop.first %}text-white-50{% else %}text-muted{% endif %} d-block text-truncate dir-group-desc" style="font-size: 0.73rem;">{{ g.description|default:"No description" }}</small>
+                                </a>
+                                {% empty %}
+                                <div class="p-3 text-center text-muted">
+                                    <i class="fas fa-folder-open fa-2x mb-2 opacity-25"></i>
+                                    <p class="small mb-1">No groups yet.</p>
+                                    <button type="button" class="btn btn-primary btn-xs" onclick="openGroupCreateModal()">Create Group</button>
                                 </div>
+                                {% endfor %}
+                            </div>
+                        </div>
 
-                                <div class="alert alert-warning border-0 py-2 mt-3 small" style="background:#fffbeb; border-left: 3px solid #f59e0b !important; border-radius:6px;">
-                                    <i class="fas fa-exclamation-circle me-1 text-warning"></i>
-                                    <strong>Important:</strong> Contacts must have saved your number in their phone to receive broadcast messages. Ask them to save <strong>{{ organization_name }}</strong>'s number first.
+                        <!-- Right Pane: Active Group Contacts & Management -->
+                        <div class="col-md-8 p-3 d-flex flex-column" style="min-height: 480px; max-height: 560px;">
+                            <!-- Active Group Header -->
+                            <div class="d-flex flex-wrap justify-content-between align-items-center pb-2 mb-2 border-bottom">
+                                <div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <h5 class="fw-bold mb-0 text-dark" id="dirActiveGroupName">
+                                            {% if groups %}{{ groups.0.name }}{% else %}Select a Group{% endif %}
+                                        </h5>
+                                        <span class="badge bg-purple-subtle text-purple border border-purple-subtle px-2 py-0.5 fw-bold" id="dirActiveGroupBadge" style="font-size: 0.75rem;">
+                                            {% if groups %}{{ groups.0.lead_count|default:0 }} Contacts{% else %}0 Contacts{% endif %}
+                                        </span>
+                                    </div>
+                                    <small class="text-muted" id="dirActiveGroupDesc">
+                                        {% if groups %}{{ groups.0.description|default:"Group Contacts Directory" }}{% else %}Create or select a group to view contacts{% endif %}
+                                    </small>
+                                </div>
+                                <div class="d-flex align-items-center gap-1 mt-1 mt-md-0" id="dirGroupActionsBar">
+                                    {% if groups %}
+                                    <a href="?segment=group_{{ groups.0.id }}&template={{ template_key }}&lang={{ lang }}&branch={{ selected_branch_id }}&group={{ groups.0.id }}" 
+                                       id="dirBroadcastGroupBtn" class="btn btn-success btn-xs px-2 py-1 fw-bold shadow-2xs" style="font-size: 0.75rem;">
+                                        <i class="fab fa-whatsapp me-1"></i> Broadcast to Group
+                                    </a>
+                                    <button type="button" class="btn btn-primary btn-xs px-2 py-1 fw-semibold shadow-2xs" style="font-size: 0.75rem;" onclick="toggleInlineAddContactForm()">
+                                        <i class="fas fa-user-plus me-1"></i> + Add Contact
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary btn-xs px-2 py-1 fw-semibold shadow-2xs" style="font-size: 0.75rem;" onclick="openCsvUploadForActiveGroup()">
+                                        <i class="fas fa-file-csv me-1"></i> Upload CSV
+                                    </button>
+                                    <button type="button" id="dirDeleteGroupBtn" class="btn btn-outline-danger btn-xs px-2 py-1 shadow-2xs" style="font-size: 0.75rem;" onclick="deleteActiveDirectoryGroup()">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                    {% endif %}
                                 </div>
                             </div>
 
-                            <!-- Right: Phone Number List -->
-                            <div class="col-md-7">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <h6 class="fw-bold text-dark mb-0">
-                                        <i class="fab fa-whatsapp me-1 text-success"></i>
-                                        Contact Phone Numbers ({{ total_queue_count }} leads)
-                                    </h6>
-                                    <div class="d-flex gap-2">
-                                        <button type="button" class="btn btn-outline-success btn-sm fw-semibold" onclick="copyAllPhoneNumbers()">
-                                            <i class="fas fa-copy me-1"></i>Copy All Numbers
-                                        </button>
-                                        <button type="button" class="btn btn-outline-secondary btn-sm fw-semibold" onclick="downloadNumbersAsTxt()">
-                                            <i class="fas fa-download me-1"></i>Download .txt
-                                        </button>
+                            <!-- Inline Quick Add Contact Form (Collapsible) -->
+                            <div id="inlineQuickAddForm" class="card card-body bg-light border p-2 mb-2 d-none">
+                                <form method="post" action="{% url 'marketing_import_leads' %}" id="quickAddLeadForm">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="manual_add">
+                                    <input type="hidden" name="group_option" value="existing">
+                                    <input type="hidden" name="existing_group_id" id="quickAddGroupId" value="{% if groups %}{{ groups.0.id }}{% endif %}">
+                                    <input type="hidden" name="segment" value="{{ segment }}">
+                                    <input type="hidden" name="template" value="{{ template_key }}">
+                                    <input type="hidden" name="lang" value="{{ lang }}">
+                                    <input type="hidden" name="branch" value="{{ selected_branch_id }}">
+                                    
+                                    <div class="row g-2 align-items-center">
+                                        <div class="col-md-4">
+                                            <input type="text" name="name" class="form-control form-control-sm" placeholder="Customer Name *" required>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <input type="tel" name="phone" class="form-control form-control-sm" placeholder="WhatsApp Mobile Number *" required>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <input type="text" name="city" class="form-control form-control-sm" placeholder="City (Optional)">
+                                        </div>
+                                        <div class="col-md-2 d-flex gap-1">
+                                            <button type="submit" class="btn btn-success btn-sm w-100 fw-bold py-1" style="font-size: 0.75rem;">
+                                                <i class="fas fa-check"></i> Add
+                                            </button>
+                                            <button type="button" class="btn btn-outline-secondary btn-sm py-1" onclick="toggleInlineAddContactForm()">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
+                                </form>
+                            </div>
 
-                                <!-- Scrollable number list -->
-                                <div class="border rounded-3 bg-light" style="max-height: 340px; overflow-y: auto;">
-                                    <table class="table table-sm table-hover mb-0 align-middle" style="font-size:0.83rem;">
-                                        <thead class="table-dark sticky-top">
-                                            <tr>
-                                                <th class="ps-3">#</th>
-                                                <th>Name</th>
-                                                <th>Phone Number</th>
-                                                <th class="text-center">WhatsApp</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="wizardPhoneList">
-                                            {% for item in broadcast_queue %}
-                                            <tr>
-                                                <td class="ps-3 text-muted">{{ forloop.counter }}</td>
-                                                <td class="fw-semibold">{{ item.name }}</td>
-                                                <td>
-                                                    <code class="text-success fw-bold">+91{{ item.phone|slice:"2:" }}</code>
-                                                </td>
-                                                <td class="text-center">
-                                                    <a href="{{ item.whatsapp_url }}" target="_blank" class="btn btn-success btn-xs px-2 py-0" style="font-size:0.72rem;">
-                                                        <i class="fab fa-whatsapp me-1"></i>Open
-                                                    </a>
-                                                </td>
-                                            </tr>
-                                            {% empty %}
-                                            <tr><td colspan="4" class="text-center text-muted py-3">No prospects loaded. Upload a CSV first.</td></tr>
-                                            {% endfor %}
-                                        </tbody>
-                                    </table>
+                            <!-- Search bar for contacts in group -->
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div class="input-group input-group-sm" style="max-width: 250px;">
+                                    <span class="input-group-text bg-white border-end-0 py-0"><i class="fas fa-search text-muted" style="font-size: 0.72rem;"></i></span>
+                                    <input type="text" id="dirContactSearchInput" class="form-control border-start-0 py-0" placeholder="Filter group contacts..." style="font-size: 0.76rem;" onkeyup="filterGroupContactsTable(this.value)">
                                 </div>
+                                <small class="text-muted" id="dirContactsCountText" style="font-size: 0.75rem;">Loading contacts...</small>
+                            </div>
 
-                                <!-- Hidden plain text version for clipboard copy -->
-                                <textarea id="allPhoneNumbersText" class="d-none" readonly>{% for item in broadcast_queue %}{{ item.name }}: +91{{ item.phone|slice:"2:" }}
-{% endfor %}</textarea>
-
-                                <div class="mt-2 d-flex justify-content-between align-items-center">
-                                    <small class="text-muted"><i class="fas fa-info-circle me-1 text-primary"></i>Only contacts who have saved your number will receive messages.</small>
-                                    <button type="button" class="btn btn-success fw-bold px-4" onclick="showWizardStep(2)">
-                                        Next: Send Flyer <i class="fas fa-arrow-right ms-1"></i>
-                                    </button>
-                                </div>
+                            <!-- Contacts Table -->
+                            <div class="table-responsive border rounded-3 bg-white flex-grow-1" style="overflow-y: auto;">
+                                <table class="table table-hover align-middle mb-0" id="dirContactsTable" style="font-size: 0.8rem;">
+                                    <thead class="table-light sticky-top" style="font-size: 0.74rem;">
+                                        <tr>
+                                            <th class="ps-3" style="width: 35px;">#</th>
+                                            <th>Name</th>
+                                            <th>WhatsApp Number</th>
+                                            <th>City</th>
+                                            <th>Source</th>
+                                            <th>Added Date</th>
+                                            <th class="text-end pe-3" style="width: 90px;">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="dirContactsTableBody">
+                                        <tr>
+                                            <td colspan="7" class="text-center py-4 text-muted">
+                                                <div class="spinner-border spinner-border-sm text-primary me-2"></div>Loading group contacts...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
-
-                    <!-- ═══ STEP 2: SEND FLYER TO BROADCAST ═══ -->
-                    <div id="wiz-step-2-pane" class="p-4 d-none">
-
-                        <div class="row g-4">
-                            <!-- Left: Flyer Preview & Actions -->
-                            <div class="col-md-5">
-                                <h6 class="fw-bold text-dark mb-3"><i class="fas fa-image me-2 text-primary"></i>Your Campaign Flyer</h6>
-
-                                <!-- Flyer Preview Box -->
-                                <div class="border rounded-3 bg-light d-flex align-items-center justify-content-center overflow-hidden mb-3" style="min-height: 240px; background: #f8fafc;">
-                                    <div id="wizFlyerPreview" class="w-100 text-center p-3">
-                                        <canvas id="wizMiniPosterCanvas" class="rounded shadow-sm d-none" style="max-width: 100%; max-height: 220px;"></canvas>
-                                        <div id="wizFlyerUploadedPreview" class="d-none">
-                                            <img id="wizFlyerUploadedImg" src="" alt="Flyer" class="rounded shadow-sm" style="max-width: 100%; max-height: 220px; object-fit: contain;">
-                                        </div>
-                                        <div id="wizNoFlyerMsg" class="text-muted py-4">
-                                            <i class="fas fa-image fa-3x mb-2 opacity-25"></i>
-                                            <p class="small mb-0">No flyer attached yet</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Flyer Source Options -->
-                                <div class="d-flex flex-column gap-2">
-                                    <label class="btn btn-warning fw-bold mb-0" style="cursor:pointer;">
-                                        <i class="fas fa-upload me-1"></i> Upload Image / Flyer
-                                        <input type="file" class="d-none" accept="image/*" onchange="loadWizardFlyer(this)">
-                                    </label>
-                                    <button type="button" class="btn btn-outline-primary fw-semibold" onclick="loadWizardFlyerFromPoster()">
-                                        <i class="fas fa-palette me-1"></i> Use Poster Studio Flyer
-                                    </button>
-                                </div>
-
-                                <!-- Action Buttons -->
-                                <div class="d-flex gap-2 mt-3">
-                                    <button type="button" class="btn btn-success flex-fill fw-bold" onclick="downloadWizardFlyer()" id="wizDownloadBtn" disabled>
-                                        <i class="fas fa-download me-1"></i> Download Flyer
-                                    </button>
-                                    <button type="button" class="btn btn-primary flex-fill fw-bold" onclick="copyWizardFlyerToClipboard()" id="wizCopyBtn" disabled>
-                                        <i class="fas fa-copy me-1"></i> Copy Image
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- Right: Step-by-Step Send Instructions -->
-                            <div class="col-md-7">
-                                <h6 class="fw-bold text-dark mb-3"><i class="fas fa-list-ol me-2 text-success"></i>How to Send Flyer to Your Broadcast List</h6>
-
-                                <div class="d-flex flex-column gap-3">
-                                    <div class="d-flex gap-3 align-items-start p-3 rounded-3 border" style="background:#f0fdf4;">
-                                        <div class="rounded-circle bg-success text-white fw-bold d-flex align-items-center justify-content-center flex-shrink-0" style="width:32px;height:32px;font-size:0.85rem;">1</div>
-                                        <div>
-                                            <div class="fw-bold text-dark small mb-1">Download or Copy the flyer image</div>
-                                            <div class="text-muted" style="font-size:0.8rem;">Click <strong>"Download Flyer"</strong> to save the image to your device, or <strong>"Copy Image"</strong> to copy it directly to clipboard.</div>
-                                        </div>
-                                    </div>
-
-                                    <div class="d-flex gap-3 align-items-start p-3 rounded-3 border" style="background:#eff6ff;">
-                                        <div class="rounded-circle bg-primary text-white fw-bold d-flex align-items-center justify-content-center flex-shrink-0" style="width:32px;height:32px;font-size:0.85rem;">2</div>
-                                        <div>
-                                            <div class="fw-bold text-dark small mb-1">Open your Broadcast List in WhatsApp</div>
-                                            <div class="text-muted" style="font-size:0.8rem;">
-                                                On Android: ⋮ → Broadcast Lists → select your "Campaign Leads" list<br>
-                                                On iPhone: Tap "Broadcast Lists" → your saved list
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="d-flex gap-3 align-items-start p-3 rounded-3 border" style="background:#fefce8;">
-                                        <div class="rounded-circle bg-warning text-dark fw-bold d-flex align-items-center justify-content-center flex-shrink-0" style="width:32px;height:32px;font-size:0.85rem;">3</div>
-                                        <div>
-                                            <div class="fw-bold text-dark small mb-1">Tap the attachment (📎) icon</div>
-                                            <div class="text-muted" style="font-size:0.8rem;">In the broadcast chat, tap the <strong>📎 paperclip</strong> → "Gallery" → select the downloaded flyer image.</div>
-                                        </div>
-                                    </div>
-
-                                    <div class="d-flex gap-3 align-items-start p-3 rounded-3 border" style="background:#fdf4ff;">
-                                        <div class="rounded-circle text-white fw-bold d-flex align-items-center justify-content-center flex-shrink-0" style="width:32px;height:32px;font-size:0.85rem;background:#7c3aed;">4</div>
-                                        <div>
-                                            <div class="fw-bold text-dark small mb-1">Add caption (optional) and Send</div>
-                                            <div class="text-muted" style="font-size:0.8rem;">You can add a short caption text, then tap <strong>Send</strong>. All contacts in your broadcast list receive the flyer as a private individual message — just like a direct chat!</div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- WhatsApp Web Alternative -->
-                                <div class="alert alert-info border-0 py-2 mt-3 small" style="background:#eff6ff; border-left:3px solid #3b82f6 !important; border-radius:6px;">
-                                    <i class="fas fa-desktop me-1 text-primary"></i>
-                                    <strong>WhatsApp Web alternative:</strong> Open <a href="https://web.whatsapp.com" target="_blank" class="fw-bold">web.whatsapp.com</a>, open your broadcast, click the 📎 attachment icon, select the downloaded flyer file, and send.
-                                </div>
-
-                                <div class="d-flex justify-content-between mt-3">
-                                    <button type="button" class="btn btn-outline-secondary" onclick="showWizardStep(1)">
-                                        <i class="fas fa-arrow-left me-1"></i> Back to Contacts
-                                    </button>
-                                    <button type="button" class="btn btn-success fw-bold px-4" data-bs-dismiss="modal" onclick="downloadWizardFlyer()">
-                                        <i class="fas fa-paper-plane me-1"></i> Download Flyer &amp; Done!
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                    </div><!-- /step-2-pane -->
-
-                </div><!-- /modal-body -->
-
-                <div class="modal-footer bg-light border-top py-2">
-                    <small class="text-muted me-auto"><i class="fas fa-shield-alt me-1 text-success"></i>WhatsApp Broadcast keeps each message private — recipients do NOT see each other.</small>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
                 </div>
-
+                <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- ═══ IMPORT / ADD NEW CUSTOMERS (LEADS) MODAL ═══ -->
+    <!-- Hidden form for deleting a group -->
+    <form method="post" action="{% url 'marketing_import_leads' %}" id="deleteGroupForm" style="display: none;">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="delete_group">
+        <input type="hidden" name="delete_group_id" id="deleteGroupIdInput" value="">
+        <input type="hidden" name="segment" value="{{ segment }}">
+        <input type="hidden" name="template" value="{{ template_key }}">
+        <input type="hidden" name="lang" value="{{ lang }}">
+        <input type="hidden" name="branch" value="{{ selected_branch_id }}">
+    </form>
+
+    <!-- Hidden form for deleting single lead -->
+    <form method="post" action="{% url 'marketing_import_leads' %}" id="deleteLeadForm" style="display: none;">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="delete_lead">
+        <input type="hidden" name="lead_id" id="deleteLeadIdInput" value="">
+        <input type="hidden" name="group_id" id="deleteLeadGroupIdInput" value="">
+        <input type="hidden" name="segment" value="{{ segment }}">
+        <input type="hidden" name="template" value="{{ template_key }}">
+        <input type="hidden" name="lang" value="{{ lang }}">
+        <input type="hidden" name="branch" value="{{ selected_branch_id }}">
+    </form>
+
+    <!-- ═══ IMPORT / ADD NEW CUSTOMERS & GROUPS MODAL ═══ -->
     <div class="modal fade" id="importLeadsModal" tabindex="-1" aria-labelledby="importLeadsModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content border-0 shadow-lg">
                 <div class="modal-header text-white" style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important;">
                     <div>
                         <h5 class="modal-title fw-bold mb-0" id="importLeadsModalLabel">
-                            <i class="fas fa-users me-2"></i>Import / Add New Prospect Customers
+                            <i class="fas fa-user-group me-2"></i>Upload Contacts &amp; Organize Groups
                         </h5>
-                        <small class="opacity-75">Send WhatsApp campaigns to new leads who are not yet in your customer directory</small>
+                        <small class="opacity-90">Add prospect contacts to targeted groups for bulk WhatsApp auto-broadcasting</small>
                     </div>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-4">
 
-                    <!-- Step-by-Step Guide -->
-                    <div class="alert alert-primary border-0 py-2 mb-4" style="background: #eff6ff; border-left: 4px solid #3b82f6 !important; border-radius: 8px;">
-                        <div class="fw-bold text-primary mb-1"><i class="fas fa-list-ol me-1"></i> How to Send Bulk WhatsApp to New Customers (Step-by-Step)</div>
-                        <ol class="mb-0 small text-dark ps-3">
-                            <li class="mb-1"><strong>Add leads</strong> — Upload CSV file or add contacts one-by-one below</li>
-                            <li class="mb-1"><strong>Select Segment</strong> — Switch to <span class="badge bg-success text-white" style="font-size:0.7rem;">🆕 New Prospects</span> tab on the dashboard</li>
-                            <li class="mb-1"><strong>Choose Template</strong> — Pick a campaign template or generate one via Gemini AI</li>
-                            <li class="mb-1"><strong>Review Queue</strong> — See the personalised messages in the broadcast table</li>
-                            <li><strong>Send Messages</strong> — Use "Send via WhatsApp" links row-by-row, or click <em>Auto-Broadcast (PyWhatKit)</em> to send all automatically</li>
-                        </ol>
-                    </div>
-
                     <!-- Tab: CSV Upload vs Manual -->
-                    <ul class="nav nav-pills mb-3" id="leadImportTabs" role="tablist">
+                    <ul class="nav nav-pills mb-4 nav-justified" id="leadImportTabs" role="tablist">
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link active fw-semibold" id="csv-lead-tab" data-bs-toggle="pill" data-bs-target="#csv-lead-pane" type="button" role="tab">
-                                <i class="fas fa-file-csv me-1"></i> Upload CSV File
+                            <button class="nav-link active fw-bold py-2" id="csv-lead-tab" data-bs-toggle="pill" data-bs-target="#csv-lead-pane" type="button" role="tab">
+                                <i class="fas fa-file-csv me-2"></i>Upload CSV File (Bulk)
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link fw-semibold" id="manual-lead-tab" data-bs-toggle="pill" data-bs-target="#manual-lead-pane" type="button" role="tab">
-                                <i class="fas fa-user-plus me-1"></i> Add One-by-One
+                            <button class="nav-link fw-bold py-2" id="manual-lead-tab" data-bs-toggle="pill" data-bs-target="#manual-lead-pane" type="button" role="tab">
+                                <i class="fas fa-user-plus me-2"></i>Add Contact One-by-One
                             </button>
                         </li>
                     </ul>
@@ -1255,6 +1379,57 @@
                                 <input type="hidden" name="lang" value="{{ lang }}">
                                 <input type="hidden" name="branch" value="{{ selected_branch_id }}">
 
+                                <!-- Group Assignment Options -->
+                                <div class="card mb-3 border-primary-subtle bg-light">
+                                    <div class="card-header bg-white border-0 py-2">
+                                        <label class="form-label fw-bold text-dark small mb-0">
+                                            <i class="fas fa-folder me-1 text-primary"></i>Assign Contacts to Group:
+                                        </label>
+                                    </div>
+                                    <div class="card-body pt-2 pb-3">
+                                        <div class="d-flex flex-wrap gap-3 mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="group_option" id="csv_group_opt_new" value="new" {% if not active_group and not selected_group_id %}checked{% endif %} onchange="toggleGroupSelectionMode('csv')">
+                                                <label class="form-check-label fw-bold small text-dark" for="csv_group_opt_new">
+                                                    ➕ Create New Group
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="group_option" id="csv_group_opt_existing" value="existing" {% if active_group or selected_group_id %}checked{% endif %} onchange="toggleGroupSelectionMode('csv')">
+                                                <label class="form-check-label fw-bold small text-dark" for="csv_group_opt_existing">
+                                                    📁 Add to Existing Group
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="group_option" id="csv_group_opt_unassigned" value="unassigned" onchange="toggleGroupSelectionMode('csv')">
+                                                <label class="form-check-label small text-muted" for="csv_group_opt_unassigned">
+                                                    General Prospects (No Group)
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <!-- New Group Inputs -->
+                                        <div id="csv_new_group_fields" class="row g-2 {% if active_group or selected_group_id %}d-none{% endif %}">
+                                            <div class="col-md-6">
+                                                <input type="text" class="form-control form-control-sm" name="new_group_name" id="csv_new_group_name" placeholder="New Group Name (e.g. Diwali Gold Loan Mela)">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <input type="text" class="form-control form-control-sm" name="group_description" placeholder="Short description / campaign tag (Optional)">
+                                            </div>
+                                        </div>
+
+                                        <!-- Existing Group Select -->
+                                        <div id="csv_existing_group_fields" class="{% if not active_group and not selected_group_id %}d-none{% endif %}">
+                                            <select class="form-select form-select-sm" name="existing_group_id" id="csv_existing_group_id">
+                                                <option value="">-- Select an Existing Group --</option>
+                                                {% for g in groups %}
+                                                <option value="{{ g.id }}" {% if selected_group_id == g.id|stringformat:"s" or selected_group == g.id|stringformat:"s" %}selected{% endif %}>{{ g.name }} ({{ g.lead_count|default:0 }} contacts)</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <!-- CSV Format Guide -->
                                 <div class="bg-light rounded p-3 mb-3 border">
                                     <div class="d-flex justify-content-between align-items-center mb-2">
@@ -1269,8 +1444,7 @@
                                         Murugan K, 9443322110, Madurai, Festival Mela Enquiry
                                     </div>
                                     <small class="text-muted d-block mt-1" style="font-size: 0.73rem;">
-                                        <i class="fas fa-check-circle me-1 text-success"></i><strong>Name</strong> and <strong>Phone</strong> columns are required. City and Notes are optional.
-                                        Duplicate phone numbers are automatically skipped.
+                                        <i class="fas fa-check-circle me-1 text-success"></i><strong>Name</strong> and <strong>Phone</strong> columns are required. Duplicate phone numbers are automatically updated/skipped.
                                     </small>
                                 </div>
 
@@ -1278,24 +1452,23 @@
                                 <div class="mb-3">
                                     <label for="lead_csv_file" class="form-label fw-bold small text-dark">Select CSV File to Upload:</label>
                                     <input type="file" class="form-control" id="lead_csv_file" name="lead_csv_file" accept=".csv,.txt" required>
-                                    <div class="form-text">Accepted formats: .csv · Maximum: 5,000 rows per upload</div>
+                                    <div class="form-text">Accepted formats: .csv, .txt · Maximum: 5,000 rows per upload</div>
                                 </div>
 
                                 <!-- Optional: Save as Customer -->
                                 <div class="form-check mb-3">
                                     <input class="form-check-input" type="checkbox" id="csv_save_as_customer" name="save_as_customer">
                                     <label class="form-check-label small text-dark fw-semibold" for="csv_save_as_customer">
-                                        Also add these leads to the Customer Directory (creates new Customer profiles)
+                                        Also add these leads to Customer Directory (creates permanent Customer profiles)
                                     </label>
-                                    <div class="form-text">If unchecked, leads are stored as a separate marketing list only.</div>
                                 </div>
 
                                 <div class="d-flex justify-content-between align-items-center mt-3">
-                                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="clearAllLeads()">
-                                        <i class="fas fa-trash me-1"></i>Clear All Leads
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">
+                                        Cancel
                                     </button>
                                     <button type="submit" class="btn text-white fw-bold px-4" style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);">
-                                        <i class="fas fa-file-arrow-up me-1"></i>Upload & Import Leads
+                                        <i class="fas fa-file-arrow-up me-1"></i>Upload &amp; Save to Group
                                     </button>
                                 </div>
                             </form>
@@ -1310,6 +1483,57 @@
                                 <input type="hidden" name="template" value="{{ template_key }}">
                                 <input type="hidden" name="lang" value="{{ lang }}">
                                 <input type="hidden" name="branch" value="{{ selected_branch_id }}">
+
+                                <!-- Group Assignment Options (Manual) -->
+                                <div class="card mb-3 border-primary-subtle bg-light">
+                                    <div class="card-header bg-white border-0 py-2">
+                                        <label class="form-label fw-bold text-dark small mb-0">
+                                            <i class="fas fa-folder me-1 text-primary"></i>Assign Contact to Group:
+                                        </label>
+                                    </div>
+                                    <div class="card-body pt-2 pb-3">
+                                        <div class="d-flex flex-wrap gap-3 mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="group_option" id="man_group_opt_new" value="new" {% if not active_group and not selected_group_id %}checked{% endif %} onchange="toggleGroupSelectionMode('man')">
+                                                <label class="form-check-label fw-bold small text-dark" for="man_group_opt_new">
+                                                    ➕ Create New Group
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="group_option" id="man_group_opt_existing" value="existing" {% if active_group or selected_group_id %}checked{% endif %} onchange="toggleGroupSelectionMode('man')">
+                                                <label class="form-check-label fw-bold small text-dark" for="man_group_opt_existing">
+                                                    📁 Add to Existing Group
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="group_option" id="man_group_opt_unassigned" value="unassigned" onchange="toggleGroupSelectionMode('man')">
+                                                <label class="form-check-label small text-muted" for="man_group_opt_unassigned">
+                                                    General Prospects
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <!-- New Group Inputs -->
+                                        <div id="man_new_group_fields" class="row g-2 {% if active_group or selected_group_id %}d-none{% endif %}">
+                                            <div class="col-md-6">
+                                                <input type="text" class="form-control form-control-sm" name="new_group_name" id="man_new_group_name" placeholder="New Group Name">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <input type="text" class="form-control form-control-sm" name="group_description" placeholder="Short description (Optional)">
+                                            </div>
+                                        </div>
+
+                                        <!-- Existing Group Select -->
+                                        <div id="man_existing_group_fields" class="{% if not active_group and not selected_group_id %}d-none{% endif %}">
+                                            <select class="form-select form-select-sm" name="existing_group_id" id="man_existing_group_id">
+                                                <option value="">-- Select an Existing Group --</option>
+                                                {% for g in groups %}
+                                                <option value="{{ g.id }}" {% if selected_group_id == g.id|stringformat:"s" or selected_group == g.id|stringformat:"s" %}selected{% endif %}>{{ g.name }} ({{ g.lead_count|default:0 }} contacts)</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
 
                                 <div class="row g-3">
                                     <div class="col-md-6">
@@ -1326,9 +1550,9 @@
                                         <div class="input-group">
                                             <span class="input-group-text bg-success text-white fw-bold">+91</span>
                                             <input type="text" class="form-control" id="manual_lead_phone" name="phone"
-                                                   placeholder="9876543210" pattern="[0-9]{10,13}" maxlength="13" required>
+                                                   placeholder="9876543210" required>
                                         </div>
-                                        <div class="form-text">10-digit mobile number</div>
+                                        <div class="form-text">Enter 10-digit mobile number</div>
                                     </div>
                                     <div class="col-md-6">
                                         <label for="manual_lead_city" class="form-label small fw-semibold text-dark">City / Town</label>
@@ -1353,21 +1577,12 @@
                                 </div>
 
                                 <div class="d-flex justify-content-between align-items-center mt-4">
-                                    <div class="text-muted small">
-                                        <i class="fas fa-info-circle me-1 text-primary"></i>
-                                        Current leads: <strong>{{ kpis.new_prospects_count }}</strong> prospects ready in queue
-                                    </div>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
                                     <button type="submit" class="btn btn-primary fw-bold px-4">
-                                        <i class="fas fa-plus-circle me-1"></i>Add to Broadcast List
+                                        <i class="fas fa-plus-circle me-1"></i>Save Contact to Group
                                     </button>
                                 </div>
                             </form>
-
-                            <!-- Quick add confirmation tip -->
-                            <div class="alert alert-success border-0 py-2 mt-3 small" style="background: #f0fdf4; border-left: 3px solid #22c55e !important; border-radius: 6px;">
-                                <i class="fas fa-lightbulb me-1 text-warning"></i>
-                                <strong>Tip:</strong> After adding contacts, switch to the <strong>🆕 New Prospects</strong> segment tab on the dashboard and use the broadcast table to send personalized messages.
-                            </div>
                         </div>
 
                     </div><!-- /.tab-content -->
@@ -1376,7 +1591,7 @@
                 <div class="modal-footer bg-light border-top">
                     <div class="me-auto small text-muted">
                         <i class="fas fa-shield-alt me-1 text-primary"></i>
-                        All prospect data is stored securely and used only for WhatsApp marketing campaigns.
+                        All contact groups are securely partitioned by branch.
                     </div>
                     <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">
                         <i class="fas fa-times me-1"></i>Close
@@ -1396,86 +1611,256 @@
         <input type="hidden" name="branch" value="{{ selected_branch_id }}">
     </form>
 
-    <!-- ═══ PYWHATKIT AUTO-BROADCAST MODAL ═══ -->
+    <!-- ═══ 1-CLICK WHATSAPP PYWHATKIT & AUTO-BLAST MODAL ═══ -->
     <div class="modal fade" id="pywhatkitModal" tabindex="-1" aria-labelledby="pywhatkitModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content border-0 shadow-lg">
-                <form method="post" action="{% url 'marketing_broadcast_execute' %}" enctype="multipart/form-data" id="pywhatkitForm">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="pywhatkit_broadcast">
-                    <input type="hidden" name="segment" value="{{ segment }}">
-                    <input type="hidden" name="template" value="{{ template_key }}">
-                    <input type="hidden" name="lang" value="{{ lang }}">
-                    <input type="hidden" name="branch" value="{{ selected_branch_id }}">
-                    <input type="hidden" name="custom_message" id="pywhatkitCustomMessageInput" value="">
-                    <input type="hidden" name="campaign_image_base64" id="pywhatkitImageBase64Input" value="">
-                    <input type="hidden" name="send_mode" id="pywhatkitSendModeInput" value="message_and_image">
-
-                    <div class="modal-header bg-success text-white">
-                        <h5 class="modal-title fw-bold" id="pywhatkitModalLabel">
-                            <i class="fab fa-whatsapp me-2"></i>Automated PyWhatKit Broadcast
+                <div class="modal-header text-white" style="background: linear-gradient(135deg, #16a34a 0%, #0d9488 100%) !important;">
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0" id="pywhatkitModalLabel">
+                            <i class="fab fa-whatsapp me-2"></i>WhatsApp Marketing Campaign Auto-Blast
                         </h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <small class="opacity-90">Choose your preferred automated dispatch method</small>
                     </div>
-                    <div class="modal-body p-4">
-                        <div class="alert alert-info py-2 small">
-                            <i class="fas fa-robot me-1"></i>
-                            PyWhatKit will open your desktop browser, navigate to WhatsApp Web, and dispatch messages &amp; flyers automatically contact by contact.
-                        </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
 
-                        <!-- Send Mode Selection in Modal -->
-                        <div class="mb-3">
-                            <label class="form-label fw-bold small">Broadcast Send Mode:</label>
-                            <select class="form-select form-select-sm" id="modal_send_mode_select" onchange="syncModalSendMode(this.value)">
-                                <option value="message_and_image" selected>🖼️+💬 Send Image Flyer + Personalized Message</option>
-                                <option value="image_only">🖼️ Send Image Flyer Alone (Flyer Only)</option>
-                                <option value="message_only">💬 Send Text Message Only</option>
-                            </select>
+                    <!-- Target Audience summary box -->
+                    <div class="p-3 mb-3 rounded-3 border" style="background: #f0fdf4; border-color: #86efac !important;">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small fw-bold text-muted text-uppercase">Target Audience / Group:</span>
+                            <span class="badge bg-success fw-bold px-2 py-1 fs-6">{{ total_queue_count }} Contacts</span>
                         </div>
+                        <div class="fw-bold text-success fs-5">
+                            {% if active_group %}
+                            <i class="fas fa-users-rectangle me-1 text-purple"></i>Group: <span class="text-purple">{{ active_group.name }}</span> <span class="badge bg-purple ms-1" style="font-size: 0.72rem;">Only This Group</span>
+                            {% elif selected_group_obj %}
+                            <i class="fas fa-users-rectangle me-1 text-purple"></i>Group: <span class="text-purple">{{ selected_group_obj.name }}</span> <span class="badge bg-purple ms-1" style="font-size: 0.72rem;">Only This Group</span>
+                            {% elif segment == 'new_prospects' %}
+                            <i class="fas fa-user-plus me-1 text-success"></i>All New Prospects (Unassigned &amp; Groups)
+                            {% elif segment == 'active_borrowers' %}
+                            <i class="fas fa-users me-1 text-primary"></i>Active Borrowers
+                            {% elif segment == 'overdue_customers' %}
+                            <i class="fas fa-exclamation-circle me-1 text-danger"></i>Overdue Borrowers
+                            {% elif segment == 'closed_good_history' %}
+                            <i class="fas fa-star me-1 text-warning"></i>Closed - Good History
+                            {% else %}
+                            <i class="fas fa-address-book me-1 text-primary"></i>{{ segment|title }}
+                            {% endif %}
+                        </div>
+                    </div>
 
-                        <!-- Image Attachment Box in Modal -->
-                        <div class="mb-3 p-2 bg-light rounded border" id="modalImageAttachmentBox">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <label class="form-label fw-bold small mb-0">Attached Flyer Image:</label>
-                                <button type="button" class="btn btn-outline-primary btn-xs py-0 px-2" onclick="attachCurrentPosterToQueue()">
-                                    <i class="fas fa-sync me-1"></i>Sync from Poster Studio
-                                </button>
-                            </div>
-                            <div class="d-flex align-items-center gap-2 mt-1">
-                                <img id="modalAttachedThumb" src="" alt="Thumbnail" class="rounded border" style="width: 48px; height: 48px; object-fit: cover; display: none;">
-                                <div class="flex-grow-1">
-                                    <small id="modalAttachedLabel" class="text-muted d-block fw-semibold">No Image Attached</small>
-                                    <input type="file" name="campaign_image" id="modalUploadFileInput" class="form-control form-control-sm mt-1" accept="image/*" onchange="handleModalImageFileUpload(this)">
+                    <div class="row g-3">
+                        <!-- Option 1: In-Browser Interactive Auto-Blaster (Recommended) -->
+                        <div class="col-md-6">
+                            <div class="card h-100 border-2 border-success shadow-sm rounded-3 bg-white">
+                                <div class="card-header bg-success text-white py-2 d-flex justify-content-between align-items-center">
+                                    <span class="fw-bold"><i class="fas fa-bolt me-1"></i> Option 1: In-Browser Auto-Blaster</span>
+                                    <span class="badge bg-warning text-dark font-monospace" style="font-size: 0.65rem;">RECOMMENDED</span>
+                                </div>
+                                <div class="card-body p-3 d-flex flex-column justify-content-between">
+                                    <div>
+                                        <p class="small text-muted mb-2">
+                                            Runs directly inside your browser tab with <strong>zero background setup</strong>.
+                                        </p>
+                                        <ul class="small text-dark ps-3 mb-3" style="font-size: 0.78rem;">
+                                            <li>✨ <strong>Auto-copies flyer</strong> to your clipboard instantly.</li>
+                                            <li>🚀 Opens WhatsApp Web chat with customer with personalized text.</li>
+                                            <li>⏱️ <strong>Auto-Run Mode:</strong> automatically advances contact-by-contact with safety timer.</li>
+                                            <li>📊 Live progress bar &amp; interactive checklist.</li>
+                                        </ul>
+                                    </div>
+                                    <button type="button" class="btn btn-success fw-bold w-100 py-2 shadow-sm" onclick="startInBrowserAutoBlast()">
+                                        <i class="fas fa-play me-1"></i> 🚀 Launch In-Browser Auto-Blaster
+                                    </button>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="mb-3">
-                            <label class="form-label fw-bold small">Target Audience Count:</label>
-                            <div class="fw-bold text-success fs-5">{{ total_queue_count }} Customers</div>
-                        </div>
+                        <!-- Option 2: Python Background Robot -->
+                        <div class="col-md-6">
+                            <div class="card h-100 border border-secondary-subtle shadow-sm rounded-3 bg-light">
+                                <div class="card-header bg-dark text-white py-2">
+                                    <span class="fw-bold"><i class="fas fa-robot me-1"></i> Option 2: Desktop Python Robot</span>
+                                </div>
+                                <div class="card-body p-3 d-flex flex-column justify-content-between">
+                                    <div>
+                                        <p class="small text-muted mb-2">
+                                            Uses Python automation (<kbd class="bg-secondary text-white">pyautogui</kbd>) on your desktop machine.
+                                        </p>
+                                        <ul class="small text-dark ps-3 mb-3" style="font-size: 0.78rem;">
+                                            <li>Requires Chrome/Edge to remain active &amp; visible on screen.</li>
+                                            <li>WhatsApp Web must already be logged in.</li>
+                                            <li>Simulates clipboard paste &amp; tab closing in background thread.</li>
+                                        </ul>
+                                    </div>
+                                    <form method="post" action="{% url 'marketing_broadcast_execute' %}" enctype="multipart/form-data" id="pywhatkitForm" onsubmit="syncPywhatkitFormBeforeSubmit()">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="pywhatkit_broadcast">
+                                        <input type="hidden" name="segment" value="{{ segment }}">
+                                        <input type="hidden" name="group" value="{{ selected_group }}">
+                                        <input type="hidden" name="template" value="{{ template_key }}">
+                                        <input type="hidden" name="lang" value="{{ lang }}">
+                                        <input type="hidden" name="branch" value="{{ selected_branch_id }}">
+                                        <input type="hidden" name="custom_message" id="pywhatkitCustomMessageInput" value="">
+                                        <input type="hidden" name="campaign_image_base64" id="pywhatkitImageBase64Input" value="">
+                                        <input type="hidden" name="send_mode" id="pywhatkitSendModeInput" value="message_and_image">
+                                        <input type="hidden" name="delay_seconds" id="pywhatkitDelaySecondsInput" value="8">
+                                        <!-- Speed / Safety Delay Selector -->
+                                        <div class="mb-2 p-2 rounded border bg-white">
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <span class="small fw-bold text-dark" style="font-size:0.77rem;"><i class="fas fa-bolt text-warning me-1"></i>Blast Speed (gap between contacts)</span>
+                                                <span class="badge bg-success-subtle text-success border border-success-subtle" id="pywhatkitSpeedBadge" style="font-size:0.68rem;">Fast</span>
+                                            </div>
+                                            <div class="btn-group w-100" role="group">
+                                                <input type="radio" class="btn-check" name="pywhatkit_speed" id="speed_fast" value="8" checked onchange="setPywhatkitSpeed(this)">
+                                                <label class="btn btn-outline-success btn-sm fw-bold" for="speed_fast" style="font-size:0.74rem;">⚡ Fast<br><small class="fw-normal opacity-75">8s gap</small></label>
 
-                        <div class="mb-3">
-                            <label class="form-label fw-bold small">Safety Delay Between Messages (Seconds):</label>
-                            <input type="number" name="delay_seconds" class="form-control" value="20" min="10" max="120" required>
-                            <small class="text-muted">A 20-30 second pause between contacts prevents WhatsApp spam detection.</small>
-                        </div>
+                                                <input type="radio" class="btn-check" name="pywhatkit_speed" id="speed_normal" value="12" onchange="setPywhatkitSpeed(this)">
+                                                <label class="btn btn-outline-primary btn-sm fw-bold" for="speed_normal" style="font-size:0.74rem;">🚀 Normal<br><small class="fw-normal opacity-75">12s gap</small></label>
 
-                        <div class="bg-light p-3 rounded border">
-                            <small class="text-muted d-block fw-bold mb-1">Pre-flight Checklist:</small>
-                            <ul class="small text-muted mb-0 ps-3">
-                                <li>Ensure you are logged into WhatsApp Web in Chrome/Edge.</li>
-                                <li>Do not switch focus or click other windows while sending is active.</li>
-                            </ul>
+                                                <input type="radio" class="btn-check" name="pywhatkit_speed" id="speed_safe" value="20" onchange="setPywhatkitSpeed(this)">
+                                                <label class="btn btn-outline-secondary btn-sm fw-bold" for="speed_safe" style="font-size:0.74rem;">🛡️ Safe<br><small class="fw-normal opacity-75">20s gap</small></label>
+                                            </div>
+                                            <div class="mt-1 text-muted" style="font-size:0.68rem;"><i class="fas fa-info-circle me-1"></i>Fast = more contacts/hour. Safe = lower ban risk from WhatsApp.</div>
+                                        </div>
+                                        <button type="submit" class="btn btn-outline-dark fw-bold w-100 py-2" onclick="return confirm('Launch Python Desktop Background Robot for {{ total_queue_count }} contacts? Keep your WhatsApp Web browser window open!');">
+                                            <i class="fab fa-python me-1"></i> 🤖 Start Desktop Robot
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div class="modal-footer bg-light">
-                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-success fw-bold px-4" onclick="return confirm('Launch PyWhatKit background automated broadcast to {{ total_queue_count }} customers?');">
-                            🚀 Start Auto-Broadcast
-                        </button>
+
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ IN-BROWSER INTERACTIVE AUTO-BLASTER MODAL ═══ -->
+    <div class="modal fade" id="inBrowserAutoBlastModal" tabindex="-1" aria-labelledby="inBrowserAutoBlastModalLabel" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header text-white" style="background: linear-gradient(135deg, #16a34a 0%, #0d9488 100%) !important;">
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0" id="inBrowserAutoBlastModalLabel">
+                            <i class="fab fa-whatsapp me-2"></i>WhatsApp In-Browser Auto-Blaster
+                        </h5>
+                        <small class="opacity-90">Fast, interactive step-through campaign dispatcher</small>
                     </div>
-                </form>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" onclick="runnerPause()"></button>
+                </div>
+
+                <div class="modal-body p-4">
+                    
+                    <!-- Progress Bar & Counter -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small fw-bold text-dark" id="runnerProgressText">Contact 1 of 0 (0%)</span>
+                            <span class="badge bg-success fw-bold" id="runnerStatusBadge">Ready</span>
+                        </div>
+                        <div class="progress" style="height: 10px;">
+                            <div id="runnerProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style="width: 0%;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Active Contact Card -->
+                    <div class="card border-primary border-2 shadow-sm rounded-3 mb-3 bg-light">
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <span class="badge bg-primary text-white mb-1" id="runnerContactBadge">#1 Current Recipient</span>
+                                    <h5 class="fw-bold text-dark mb-0" id="runnerContactName">Customer Name</h5>
+                                    <span class="text-success fw-bold font-monospace small" id="runnerContactPhone"><i class="fab fa-whatsapp me-1"></i>+91 9876543210</span>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-white text-dark border shadow-2xs" id="runnerContactBranch">Branch: Main</span>
+                                    <div id="runnerFlyerStatusBox" class="mt-1 small text-success fw-semibold">
+                                        <i class="fas fa-image me-1"></i>Flyer Ready to Paste
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Message Content Box -->
+                            <div class="p-2 rounded bg-white border font-monospace small text-dark mb-2" style="max-height: 130px; overflow-y: auto; font-size: 0.78rem; line-height: 1.4;" id="runnerMessagePreview">
+                                Message text will appear here...
+                            </div>
+
+                            <div class="alert alert-info py-1 px-2 small mb-0 d-flex align-items-center gap-2" style="font-size: 0.74rem;">
+                                <i class="fas fa-info-circle text-primary"></i>
+                                <span>When chat opens, press <kbd class="bg-dark text-white px-1 rounded">Ctrl + V</kbd> to paste the flyer, then hit <strong>Enter</strong> to send!</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Runner Controls Bar -->
+                    <div class="p-3 bg-white rounded-3 border shadow-2xs mb-3">
+                        <div class="row g-2 align-items-center">
+                            
+                            <div class="col-md-5">
+                                <button type="button" class="btn btn-success fw-bold w-100 py-2 shadow-sm" id="runnerSendBtn" onclick="runnerSendCurrent()">
+                                    <i class="fab fa-whatsapp me-1"></i> 🚀 Open Chat &amp; Copy Flyer
+                                </button>
+                            </div>
+
+                            <div class="col-md-4">
+                                <button type="button" class="btn btn-outline-primary fw-bold w-100 py-2" id="runnerAutoRunBtn" onclick="runnerToggleAutoRun()">
+                                    <i class="fas fa-play me-1"></i> ▶️ Start Auto-Run
+                                </button>
+                            </div>
+
+                            <div class="col-md-3">
+                                <div class="d-flex gap-1">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm flex-fill" title="Skip this contact" onclick="runnerSkip()">
+                                        <i class="fas fa-forward me-1"></i> Skip
+                                    </button>
+                                    <button type="button" class="btn btn-outline-dark btn-sm flex-fill" title="Pause auto-run" onclick="runnerPause()">
+                                        <i class="fas fa-pause"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <!-- Auto-run delay settings & status -->
+                        <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="small text-muted fw-semibold" style="font-size: 0.75rem;">Pacing Delay:</span>
+                                <select id="runnerPacingDelaySelect" class="form-select form-select-sm" style="width: 80px; font-size: 0.75rem;" onchange="updateRunnerPacingDelay(this.value)">
+                                    <option value="5" selected>5s</option>
+                                    <option value="8">8s</option>
+                                    <option value="12">12s</option>
+                                    <option value="20">20s</option>
+                                </select>
+                            </div>
+                            <span class="small text-muted fw-semibold" id="runnerTimerCountdownText" style="font-size: 0.75rem;"></span>
+                        </div>
+                    </div>
+
+                    <!-- Queue Checklist / Live Log -->
+                    <div class="border rounded-3 p-2 bg-light">
+                        <div class="d-flex justify-content-between align-items-center mb-1 px-1">
+                            <span class="small fw-bold text-dark" style="font-size: 0.75rem;"><i class="fas fa-list-check me-1 text-primary"></i>Broadcast Queue Dispatch Log:</span>
+                            <span class="small text-muted" id="runnerCompletedCount" style="font-size: 0.72rem;">0 sent / 0 total</span>
+                        </div>
+                        <div style="max-height: 160px; overflow-y: auto;" id="runnerQueueLogContainer">
+                            <!-- Items populated dynamically via JS -->
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" onclick="runnerPause()">Close &amp; Exit</button>
+                    <button type="button" class="btn btn-primary btn-sm fw-bold" onclick="runnerRestart()">
+                        <i class="fas fa-redo me-1"></i> Restart Queue
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -2408,15 +2793,16 @@ function syncModalSendMode(val) {
     updateTableRowsForSendMode();
 }
 
-function attachCurrentPosterToQueue() {
-    renderPosterCanvas();
-    const canvas = document.getElementById('posterCanvas');
-    if (!canvas) return;
+// ── Unified Campaign Flyer Engine ──────────────────────────────────────────
 
-    const dataUrl = canvas.toDataURL('image/png');
+function applyCampaignFlyer(dataUrl, fileName, fileSize, notify) {
+    if (!dataUrl) return;
     currentCampaignAttachedImageBase64 = dataUrl;
 
-    // Update UI thumbnail
+    const cleanName = fileName || 'Campaign Flyer';
+    const sizeStr = fileSize ? ` (${(fileSize / 1024).toFixed(1)} KB)` : '';
+
+    // 1. Broadcast Queue Toolbar UI
     const thumb = document.getElementById('attachedImageThumb');
     if (thumb) {
         thumb.src = dataUrl;
@@ -2424,17 +2810,14 @@ function attachCurrentPosterToQueue() {
     }
     const label = document.getElementById('attachedImageLabel');
     if (label) {
-        label.innerText = '🎨 Studio Poster Attached';
+        label.innerText = `📁 ${cleanName}${sizeStr}`;
         label.classList.remove('text-muted');
         label.classList.add('text-success');
     }
-    const status = document.getElementById('attachedImageStatus');
-    if (status) status.innerText = 'Ready for 1-click WhatsApp & PyWhatKit';
-
     const removeBtn = document.getElementById('removeAttachedImageBtn');
     if (removeBtn) removeBtn.classList.remove('d-none');
 
-    // Update modal elements
+    // 2. PyWhatKit Modal UI
     const modalThumb = document.getElementById('modalAttachedThumb');
     if (modalThumb) {
         modalThumb.src = dataUrl;
@@ -2442,88 +2825,100 @@ function attachCurrentPosterToQueue() {
     }
     const modalLabel = document.getElementById('modalAttachedLabel');
     if (modalLabel) {
-        modalLabel.innerText = '🎨 Studio Poster Attached (Ready)';
+        modalLabel.innerText = `📁 ${cleanName}${sizeStr} (Attached)`;
         modalLabel.classList.remove('text-muted');
         modalLabel.classList.add('text-success');
     }
     const modalBase64Input = document.getElementById('pywhatkitImageBase64Input');
     if (modalBase64Input) modalBase64Input.value = dataUrl;
 
-    alert('🎨 Marketing Flyer Poster attached to your broadcast queue! It will be sent with your messages or alone based on your selected mode.');
+    // 3. Live Phone Mockup Preview
+    const previewBox = document.getElementById('previewFlyerImgBox');
+    const previewImg = document.getElementById('previewFlyerImg');
+    if (previewBox && previewImg) {
+        previewImg.src = dataUrl;
+        previewBox.classList.remove('d-none');
+    }
+
+    // 4. Update Table Rows for Send Mode
     updateTableRowsForSendMode();
+
+    if (notify) {
+        alert(`🖼️ Campaign Flyer "${cleanName}" attached successfully!\n\nIt will be included in 1-Click WhatsApp PyWhatKit Auto-Blast and row sends.`);
+    }
+}
+
+function processAndApplyImageFile(file, notify=true) {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+        alert('Please select a valid image file (.png, .jpg, .jpeg, .webp).');
+        return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+        alert('Image file is too large (Maximum 20MB allowed).');
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const rawDataUrl = e.target.result;
+        const img = new Image();
+        img.onload = function() {
+            try {
+                // Convert to crisp PNG for maximum WhatsApp clipboard & PyWhatKit reliability
+                const offCanvas = document.createElement('canvas');
+                offCanvas.width = img.naturalWidth || img.width;
+                offCanvas.height = img.naturalHeight || img.height;
+                const ctx = offCanvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                const pngDataUrl = offCanvas.toDataURL('image/png', 0.95);
+                applyCampaignFlyer(pngDataUrl, file.name, file.size, notify);
+            } catch (err) {
+                applyCampaignFlyer(rawDataUrl, file.name, file.size, notify);
+            }
+        };
+        img.onerror = function() {
+            applyCampaignFlyer(rawDataUrl, file.name, file.size, notify);
+        };
+        img.src = rawDataUrl;
+    };
+    reader.readAsDataURL(file);
+}
+
+function attachCurrentPosterToQueue() {
+    if (typeof renderPosterCanvas === 'function') renderPosterCanvas();
+    const canvas = document.getElementById('posterCanvas');
+    if (!canvas) {
+        alert('Poster Studio canvas is not ready. Please scroll down to Poster Studio.');
+        return;
+    }
+    const dataUrl = canvas.toDataURL('image/png');
+    applyCampaignFlyer(dataUrl, '🎨 Studio Poster Flyer', 150000, true);
 }
 
 function handleCampaignImageUpload(input) {
     if (input.files && input.files[0]) {
-        const file = input.files[0];
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            currentCampaignAttachedImageBase64 = e.target.result;
-
-            const thumb = document.getElementById('attachedImageThumb');
-            if (thumb) {
-                thumb.src = e.target.result;
-                thumb.style.display = 'block';
-            }
-            const label = document.getElementById('attachedImageLabel');
-            if (label) {
-                label.innerText = `📁 ${file.name}`;
-                label.classList.remove('text-muted');
-                label.classList.add('text-success');
-            }
-            const status = document.getElementById('attachedImageStatus');
-            if (status) status.innerText = `${(file.size/1024).toFixed(1)} KB image attached`;
-
-            const removeBtn = document.getElementById('removeAttachedImageBtn');
-            if (removeBtn) removeBtn.classList.remove('d-none');
-
-            // Modal sync
-            const modalThumb = document.getElementById('modalAttachedThumb');
-            if (modalThumb) {
-                modalThumb.src = e.target.result;
-                modalThumb.style.display = 'block';
-            }
-            const modalLabel = document.getElementById('modalAttachedLabel');
-            if (modalLabel) {
-                modalLabel.innerText = `📁 ${file.name} Attached`;
-                modalLabel.classList.remove('text-muted');
-                modalLabel.classList.add('text-success');
-            }
-            const modalBase64Input = document.getElementById('pywhatkitImageBase64Input');
-            if (modalBase64Input) modalBase64Input.value = e.target.result;
-
-            alert('🖼️ Custom Campaign Image attached successfully!');
-            updateTableRowsForSendMode();
-        };
-        reader.readAsDataURL(file);
+        processAndApplyImageFile(input.files[0], true);
     }
 }
 
 function handleModalImageFileUpload(input) {
     if (input.files && input.files[0]) {
-        const file = input.files[0];
-        const modalLabel = document.getElementById('modalAttachedLabel');
-        if (modalLabel) {
-            modalLabel.innerText = `📁 ${file.name} Uploaded`;
-            modalLabel.classList.remove('text-muted');
-            modalLabel.classList.add('text-success');
-        }
+        processAndApplyImageFile(input.files[0], false);
     }
 }
 
 function removeAttachedCampaignImage() {
     currentCampaignAttachedImageBase64 = null;
-    
+
     const thumb = document.getElementById('attachedImageThumb');
     if (thumb) thumb.style.display = 'none';
     const label = document.getElementById('attachedImageLabel');
     if (label) {
-        label.innerText = 'No Image Attached';
+        label.innerText = 'No Flyer Attached';
         label.classList.add('text-muted');
         label.classList.remove('text-success');
     }
-    const status = document.getElementById('attachedImageStatus');
-    if (status) status.innerText = 'Click attach to add a flyer';
     const removeBtn = document.getElementById('removeAttachedImageBtn');
     if (removeBtn) removeBtn.classList.add('d-none');
 
@@ -2531,18 +2926,45 @@ function removeAttachedCampaignImage() {
     if (modalThumb) modalThumb.style.display = 'none';
     const modalLabel = document.getElementById('modalAttachedLabel');
     if (modalLabel) {
-        modalLabel.innerText = 'No Image Attached';
+        modalLabel.innerText = 'No Flyer Synced Yet';
         modalLabel.classList.add('text-muted');
         modalLabel.classList.remove('text-success');
     }
     const modalBase64Input = document.getElementById('pywhatkitImageBase64Input');
     if (modalBase64Input) modalBase64Input.value = '';
 
+    const previewBox = document.getElementById('previewFlyerImgBox');
+    const previewImg = document.getElementById('previewFlyerImg');
+    if (previewBox) previewBox.classList.add('d-none');
+    if (previewImg) previewImg.src = '';
+
+    // Clear file inputs so re-selecting the same file works
+    const queueInput = document.getElementById('campaignImageFileInput');
+    if (queueInput) queueInput.value = '';
+    const modalInput = document.getElementById('modalUploadFileInput');
+    if (modalInput) modalInput.value = '';
+
     updateTableRowsForSendMode();
 }
 
 function updateTableRowsForSendMode() {
     const rows = document.querySelectorAll('#broadcastTable tbody tr');
+    const previewFlyerBox = document.getElementById('previewFlyerImgBox');
+    const previewMsgContent = document.getElementById('previewMessageContent');
+
+    // Update Live Mobile Mockup Bubble
+    if (currentCampaignSendMode === 'image_only') {
+        if (previewMsgContent) previewMsgContent.classList.add('d-none');
+        if (previewFlyerBox && currentCampaignAttachedImageBase64) previewFlyerBox.classList.remove('d-none');
+    } else if (currentCampaignSendMode === 'message_only') {
+        if (previewMsgContent) previewMsgContent.classList.remove('d-none');
+        if (previewFlyerBox) previewFlyerBox.classList.add('d-none');
+    } else {
+        // message_and_image
+        if (previewMsgContent) previewMsgContent.classList.remove('d-none');
+        if (previewFlyerBox && currentCampaignAttachedImageBase64) previewFlyerBox.classList.remove('d-none');
+    }
+
     rows.forEach(r => {
         const snippet = r.querySelector('.queue-msg-snippet');
         const sendBtn = r.querySelector('.wa-send-btn');
@@ -2550,12 +2972,11 @@ function updateTableRowsForSendMode() {
         const intlPhone = custPhone.startsWith('91') ? custPhone : ('91' + custPhone);
 
         if (currentCampaignSendMode === 'image_only') {
-            if (sendBtn) sendBtn.href = `https://api.whatsapp.com/send?phone=${intlPhone}`;
-            if (snippet && currentCampaignAttachedImageBase64) {
-                snippet.innerHTML = `<span class="badge bg-primary-subtle text-primary border border-primary-subtle me-1"><i class="fas fa-image me-1"></i>Image Flyer Alone</span> <small class="text-muted">No text caption</small>`;
+            if (sendBtn) sendBtn.href = `https://web.whatsapp.com/send?phone=${intlPhone}`;
+            if (snippet) {
+                snippet.innerHTML = `<span class="badge text-white me-1" style="background: #4f46e5;"><i class="fas fa-image me-1"></i>Image Flyer Only</span> <small class="text-muted">No text message</small>`;
             }
-        } else {
-            // Message + Image or Message Only
+        } else if (currentCampaignSendMode === 'message_only') {
             const rawTemplate = document.getElementById('campaignMessageInput') ? document.getElementById('campaignMessageInput').value : '';
             const custName = r.getAttribute('data-name') || 'Customer';
             const branchName = r.getAttribute('data-branch') || 'Main Branch';
@@ -2568,7 +2989,25 @@ function updateTableRowsForSendMode() {
                 .replace(/{gold_rate}/g, currentGoldRateStr);
             
             const encoded = encodeURIComponent(personalized);
-            if (sendBtn) sendBtn.href = `https://api.whatsapp.com/send?phone=${intlPhone}&text=${encoded}`;
+            if (sendBtn) sendBtn.href = `https://web.whatsapp.com/send?phone=${intlPhone}&text=${encoded}`;
+            if (snippet) {
+                snippet.innerText = personalized;
+            }
+        } else {
+            // Message + Image
+            const rawTemplate = document.getElementById('campaignMessageInput') ? document.getElementById('campaignMessageInput').value : '';
+            const custName = r.getAttribute('data-name') || 'Customer';
+            const branchName = r.getAttribute('data-branch') || 'Main Branch';
+            const branchPhone = r.getAttribute('data-branch-phone') || '9876543210';
+            const personalized = rawTemplate
+                .replace(/{customer_name}/g, custName)
+                .replace(/{branch_name}/g, branchName)
+                .replace(/{branch_phone}/g, branchPhone)
+                .replace(/{organization_name}/g, organizationName)
+                .replace(/{gold_rate}/g, currentGoldRateStr);
+            
+            const encoded = encodeURIComponent(personalized);
+            if (sendBtn) sendBtn.href = `https://web.whatsapp.com/send?phone=${intlPhone}&text=${encoded}`;
             if (snippet) {
                 if (currentCampaignAttachedImageBase64) {
                     snippet.innerHTML = `<span class="badge bg-success-subtle text-success border border-success-subtle me-1"><i class="fas fa-image me-1"></i>Flyer + Msg</span> ${personalized}`;
@@ -2661,8 +3100,49 @@ function closeFlyerPasteToast() {
     if (toast) toast.classList.add('d-none');
 }
 
-async function handleQueueRowSendClick(event, rowId, btnElem) {
+function getCsrfToken() {
+    const cookieValue = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('csrftoken='))
+        ?.split('=')[1];
+    return cookieValue || '{{ csrf_token }}';
+}
+
+// Asynchronously record a campaign broadcast log in the backend audit trail
+async function logCampaignBroadcastAsync(payload) {
+    try {
+        const response = await fetch("{% url 'marketing_log_broadcast' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify(payload)
+        });
+        const resData = await response.json();
+        console.log("Broadcast log saved:", resData);
+        return resData;
+    } catch (err) {
+        console.warn("Could not save broadcast log:", err);
+    }
+}
+
+async function handleQueueRowSendClick(event, rowId, btnElem, name, phone, recType, groupId, branchId, message) {
     markRowSent(rowId);
+
+    // Asynchronously log the broadcast click
+    logCampaignBroadcastAsync({
+        template_key: "{{ template_key|default:'custom' }}",
+        campaign_name: "{{ current_template.title_en|default:'Direct Broadcast'|escapejs }}",
+        recipient_name: name || 'Valued Customer',
+        recipient_phone: phone || '',
+        recipient_type: recType || 'customer',
+        group_id: groupId || null,
+        branch_id: branchId || '{{ selected_branch_id }}' || null,
+        channel: 'whatsapp_web',
+        status: 'sent',
+        message_snippet: message ? message.substring(0, 300) : ''
+    });
 
     // If dispatch mode involves image
     if (currentCampaignSendMode !== 'message_only') {
@@ -3077,160 +3557,952 @@ function updateProspectsSendMode(val) {
 }
 
 // ============================================================================
-// 📢 WHATSAPP BROADCAST SETUP WIZARD
+// 📁 CONTACT GROUPS & 1-CLICK AUTO-BLAST CONTROLS
 // ============================================================================
 
-function openBroadcastSetupWizard() {
-    try {
-        // Pre-load flyer from existing attached image or poster canvas
-        if (currentCampaignAttachedImageBase64) {
-            wizardFlyerDataUrl = currentCampaignAttachedImageBase64;
-        } else {
-            const canvas = document.getElementById('posterCanvas');
-            if (canvas) {
-                try {
-                    wizardFlyerDataUrl = canvas.toDataURL('image/png');
-                } catch (e) {
-                    console.warn('Unable to export poster canvas:', e);
-                }
-            }
-        }
-    } catch (err) {
-        console.warn('Error reading flyer for wizard:', err);
+function openGroupCreateModal() {
+    // Hide manage groups modal if open
+    const mgEl = document.getElementById('manageGroupsModal');
+    if (mgEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        const mgInst = bootstrap.Modal.getInstance(mgEl);
+        if (mgInst) mgInst.hide();
     }
 
-    refreshWizardFlyerPreview();
+    const modalEl = document.getElementById('importLeadsModal');
+    if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        const inst = bootstrap.Modal.getOrCreateInstance(modalEl);
+        inst.show();
+        
+        // Select 'new group' radio by default
+        const csvNewRadio = document.getElementById('csv_group_opt_new');
+        if (csvNewRadio) {
+            csvNewRadio.checked = true;
+            toggleGroupSelectionMode('csv');
+        }
+        setTimeout(() => {
+            const input = document.getElementById('csv_new_group_name');
+            if (input) input.focus();
+        }, 400);
+    }
+}
 
-    // Open the modal at Step 1
-    showWizardStep(1);
-    const modalEl = document.getElementById('broadcastSetupWizardModal');
+function openManageGroupsModal() {
+    const modalEl = document.getElementById('manageGroupsModal');
     if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
         bootstrap.Modal.getOrCreateInstance(modalEl).show();
     }
 }
 
-function showWizardStep(step) {
-    const pane1 = document.getElementById('wiz-step-1-pane');
-    const pane2 = document.getElementById('wiz-step-2-pane');
-    const tab1  = document.getElementById('wiz-step-1-tab');
-    const tab2  = document.getElementById('wiz-step-2-tab');
+function toggleGroupSelectionMode(prefix) {
+    const newRadio = document.getElementById(prefix + '_group_opt_new');
+    const existRadio = document.getElementById(prefix + '_group_opt_existing');
+    const newFields = document.getElementById(prefix + '_new_group_fields');
+    const existFields = document.getElementById(prefix + '_existing_group_fields');
 
-    if (step === 1) {
-        if (pane1) pane1.classList.remove('d-none');
-        if (pane2) pane2.classList.add('d-none');
-        if (tab1) { tab1.style.borderColor = '#16a34a'; tab1.classList.remove('text-muted'); tab1.classList.add('fw-bold'); }
-        if (tab2) { tab2.style.borderColor = '#d1d5db'; tab2.classList.add('text-muted'); tab2.classList.remove('fw-bold'); }
+    if (newRadio && newRadio.checked) {
+        if (newFields) newFields.classList.remove('d-none');
+        if (existFields) existFields.classList.add('d-none');
+    } else if (existRadio && existRadio.checked) {
+        if (newFields) newFields.classList.add('d-none');
+        if (existFields) existFields.classList.remove('d-none');
     } else {
-        if (pane1) pane1.classList.add('d-none');
-        if (pane2) pane2.classList.remove('d-none');
-        if (tab1) { tab1.style.borderColor = '#d1d5db'; tab1.classList.add('text-muted'); tab1.classList.remove('fw-bold'); }
-        if (tab2) { tab2.style.borderColor = '#16a34a'; tab2.classList.remove('text-muted'); tab2.classList.add('fw-bold'); }
-        refreshWizardFlyerPreview();
+        if (newFields) newFields.classList.add('d-none');
+        if (existFields) existFields.classList.add('d-none');
     }
 }
 
-function refreshWizardFlyerPreview() {
-    const noMsg = document.getElementById('wizNoFlyerMsg');
-    const uploadedPreview = document.getElementById('wizFlyerUploadedPreview');
-    const uploadedImg = document.getElementById('wizFlyerUploadedImg');
-    const miniCanvas = document.getElementById('wizMiniPosterCanvas');
-    const dlBtn = document.getElementById('wizDownloadBtn');
-    const cpBtn = document.getElementById('wizCopyBtn');
-
-    if (wizardFlyerDataUrl) {
-        if (noMsg) noMsg.classList.add('d-none');
-        if (uploadedPreview) uploadedPreview.classList.remove('d-none');
-        if (uploadedImg) uploadedImg.src = wizardFlyerDataUrl;
-        if (miniCanvas) miniCanvas.classList.add('d-none');
-        if (dlBtn) dlBtn.disabled = false;
-        if (cpBtn) cpBtn.disabled = false;
-    } else {
-        if (noMsg) noMsg.classList.remove('d-none');
-        if (uploadedPreview) uploadedPreview.classList.add('d-none');
-        if (dlBtn) dlBtn.disabled = true;
-        if (cpBtn) cpBtn.disabled = true;
+function deleteContactGroup(groupId, groupName) {
+    if (!confirm('Are you sure you want to delete the contact group "' + groupName + '"?\n\nThe contacts in this group will be unassigned or cleared.')) {
+        return;
+    }
+    const form = document.getElementById('deleteGroupForm');
+    const input = document.getElementById('deleteGroupIdInput');
+    if (form && input) {
+        input.value = groupId;
+        form.submit();
     }
 }
 
-function copyAllPhoneNumbers() {
-    const ta = document.getElementById('allPhoneNumbersText');
-    if (!ta) return;
-    navigator.clipboard.writeText(ta.value).then(function() {
-        alert('All ' + ta.value.split('\n').filter(l => l.trim()).length + ' contact numbers copied to clipboard!\n\nPaste them anywhere to reference while adding contacts to your WhatsApp Broadcast List.');
-    }).catch(function() {
-        ta.select();
-        document.execCommand('copy');
-        alert('Phone numbers copied!');
+/**
+ * syncPywhatkitFormBeforeSubmit
+ * Called by the pywhatkitForm onsubmit handler.
+ * Guarantees the hidden inputs for campaign_image_base64 and send_mode
+ * are up-to-date with the in-memory JS variables at the moment of form submit,
+ * regardless of when the user attached the image or changed mode.
+ */
+function syncPywhatkitFormBeforeSubmit() {
+    // 1. Ensure image is sourced from canvas if nothing was explicitly uploaded
+    if (!currentCampaignAttachedImageBase64) {
+        const canvas = document.getElementById('posterCanvas');
+        if (canvas) {
+            try {
+                currentCampaignAttachedImageBase64 = canvas.toDataURL('image/png');
+            } catch(e) {}
+        }
+    }
+
+    // 2. Push base64 image into hidden field
+    const b64Input = document.getElementById('pywhatkitImageBase64Input');
+    if (b64Input) {
+        b64Input.value = currentCampaignAttachedImageBase64 || '';
+    }
+
+    // 3. Push current send_mode into hidden field
+    const modeInput = document.getElementById('pywhatkitSendModeInput');
+    if (modeInput) {
+        modeInput.value = currentCampaignSendMode || 'message_and_image';
+    }
+
+    // 4. Push current custom message text if any
+    const msgInput = document.getElementById('pywhatkitCustomMessageInput');
+    const campaignMsgEl = document.getElementById('campaignMessageInput');
+    if (msgInput && campaignMsgEl) {
+        msgInput.value = campaignMsgEl.value || '';
+    }
+
+    // 5. Push selected delay_seconds from speed radio buttons
+    const checkedSpeed = document.querySelector('input[name="pywhatkit_speed"]:checked');
+    const delayInput = document.getElementById('pywhatkitDelaySecondsInput');
+    if (delayInput && checkedSpeed) {
+        delayInput.value = checkedSpeed.value;
+    }
+
+    // Allow form submission to proceed
+    return true;
+}
+
+function setPywhatkitSpeed(radio) {
+    const val = parseInt(radio.value) || 8;
+    const delayInput = document.getElementById('pywhatkitDelaySecondsInput');
+    if (delayInput) delayInput.value = val;
+
+    const badge = document.getElementById('pywhatkitSpeedBadge');
+    if (badge) {
+        if (val <= 8) {
+            badge.className = 'badge bg-success-subtle text-success border border-success-subtle';
+            badge.textContent = '⚡ Fast';
+        } else if (val <= 12) {
+            badge.className = 'badge bg-primary-subtle text-primary border border-primary-subtle';
+            badge.textContent = '🚀 Normal';
+        } else {
+            badge.className = 'badge bg-secondary-subtle text-secondary border border-secondary-subtle';
+            badge.textContent = '🛡️ Safe';
+        }
+    }
+}
+
+function openPywhatkitAutoBlast() {
+    // Ensure canvas poster is auto-attached if nothing has been attached yet
+    if (!currentCampaignAttachedImageBase64) {
+        const canvas = document.getElementById('posterCanvas');
+        if (canvas) {
+            try {
+                currentCampaignAttachedImageBase64 = canvas.toDataURL('image/png');
+            } catch(e) {}
+        }
+    }
+    // Sync the latest image and send_mode into the form hidden inputs
+    const modalThumb = document.getElementById('modalAttachedThumb');
+    if (modalThumb && currentCampaignAttachedImageBase64) {
+        modalThumb.src = currentCampaignAttachedImageBase64;
+        modalThumb.style.display = 'block';
+    }
+    const modalBase64Input = document.getElementById('pywhatkitImageBase64Input');
+    if (modalBase64Input) modalBase64Input.value = currentCampaignAttachedImageBase64 || '';
+    const modalSendMode = document.getElementById('pywhatkitSendModeInput');
+    if (modalSendMode) modalSendMode.value = currentCampaignSendMode || 'message_and_image';
+    const modalEl = document.getElementById('pywhatkitModal');
+    if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
+}
+
+// ============================================================================
+// 🚀 IN-BROWSER AUTO-BLASTER RUNNER & BATCH SELECTION ENGINE
+// ============================================================================
+
+let runnerQueue = [];
+let runnerIndex = 0;
+let runnerIsAutoRunning = false;
+let runnerTimer = null;
+let runnerCountdownTimer = null;
+let runnerPacingDelay = 5; // seconds
+
+// ── Multi-Select Checkbox Handlers ─────────────────────────────────────────
+
+function updateSelectedQueueCount() {
+    const allRowCheckboxes = document.querySelectorAll('.queue-row-chk');
+    const checkedCheckboxes = document.querySelectorAll('.queue-row-chk:checked');
+    const count = checkedCheckboxes.length;
+    const total = allRowCheckboxes.length;
+
+    const countBadge = document.getElementById('selectedQueueCount');
+    if (countBadge) countBadge.innerText = count;
+
+    const playerCountBadge = document.getElementById('batchPlayerCount');
+    if (playerCountBadge) playerCountBadge.innerText = count > 0 ? count : total;
+
+    const launchBtn = document.getElementById('launchBatchPlayerBtn');
+    if (launchBtn) {
+        launchBtn.disabled = false;
+    }
+
+    const masterCheckbox = document.getElementById('selectAllQueueCheckboxes');
+    if (masterCheckbox) {
+        masterCheckbox.checked = (count === total && total > 0);
+        masterCheckbox.indeterminate = (count > 0 && count < total);
+    }
+}
+
+function toggleSelectAllQueue(masterCheckbox) {
+    const isChecked = masterCheckbox.checked;
+    selectAllQueueRows(isChecked);
+}
+
+function selectAllQueueRows(checked) {
+    const allRowCheckboxes = document.querySelectorAll('.queue-row-chk');
+    allRowCheckboxes.forEach(chk => {
+        chk.checked = checked;
+    });
+    updateSelectedQueueCount();
+}
+
+function openBatchPlayerModal() {
+    startInBrowserAutoBlast();
+}
+
+function initRunnerQueue() {
+    runnerQueue = [];
+    const checkedBoxes = document.querySelectorAll('.queue-row-chk:checked');
+    const rows = (checkedBoxes.length > 0)
+        ? Array.from(checkedBoxes).map(chk => chk.closest('tr'))
+        : Array.from(document.querySelectorAll('#broadcastTable tbody tr'));
+
+    rows.forEach((r, idx) => {
+        if (!r) return;
+        const name = r.getAttribute('data-name') || 'Customer';
+        const phone = r.getAttribute('data-phone') || '';
+        const branch = r.getAttribute('data-branch') || 'Main Branch';
+        const branchPhone = r.getAttribute('data-branch-phone') || '9876543210';
+        const sendBtn = r.querySelector('.wa-send-btn');
+        const url = sendBtn ? sendBtn.getAttribute('href') : '';
+        const snippetEl = r.querySelector('.queue-msg-snippet');
+        const snippet = snippetEl ? snippetEl.innerText.trim() : '';
+        const chk = r.querySelector('.queue-row-chk');
+        const isLead = chk ? (chk.getAttribute('data-is-lead') === '1') : false;
+        const groupId = chk ? chk.getAttribute('data-group-id') : null;
+        const branchId = chk ? chk.getAttribute('data-branch-id') : null;
+
+        runnerQueue.push({
+            index: idx,
+            rowId: r.id,
+            name: name,
+            phone: phone,
+            branch: branch,
+            branchPhone: branchPhone,
+            url: url,
+            message: snippet,
+            isLead: isLead,
+            groupId: groupId,
+            branchId: branchId,
+            status: 'pending', // 'pending', 'sent', 'skipped'
+        });
     });
 }
 
-function downloadNumbersAsTxt() {
-    const ta = document.getElementById('allPhoneNumbersText');
-    if (!ta) return;
-    const blob = new Blob([ta.value], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'broadcast_contacts_' + new Date().toISOString().slice(0,10) + '.txt';
-    a.click();
-    URL.revokeObjectURL(url);
-}
+function startInBrowserAutoBlast() {
+    // 1. Hide pywhatkit modal if open
+    const pwModal = document.getElementById('pywhatkitModal');
+    if (pwModal && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        const pwInst = bootstrap.Modal.getInstance(pwModal);
+        if (pwInst) pwInst.hide();
+    }
 
-function loadWizardFlyer(input) {
-    if (!input.files || !input.files[0]) return;
-    const file = input.files[0];
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        wizardFlyerDataUrl = e.target.result;
-        // Also sync to global so it's ready for row sends
-        currentCampaignAttachedImageBase64 = wizardFlyerDataUrl;
-        refreshWizardFlyerPreview();
-    };
-    reader.readAsDataURL(file);
-}
+    // 2. Ensure flyer is attached — use canvas as auto-source if nothing uploaded
+    if (!currentCampaignAttachedImageBase64) {
+        const canvas = document.getElementById('posterCanvas');
+        if (canvas) {
+            try {
+                currentCampaignAttachedImageBase64 = canvas.toDataURL('image/png');
+                // Also sync to pywhatkitForm hidden input for consistency
+                const b64Input = document.getElementById('pywhatkitImageBase64Input');
+                if (b64Input) b64Input.value = currentCampaignAttachedImageBase64;
+                // Update toolbar thumb
+                const thumb = document.getElementById('attachedImageThumb');
+                if (thumb) { thumb.src = currentCampaignAttachedImageBase64; thumb.style.display = 'block'; }
+                const label = document.getElementById('attachedImageLabel');
+                if (label) { label.textContent = '🎨 Studio Poster Attached'; label.classList.remove('text-muted'); label.classList.add('text-success'); }
+            } catch(e) {}
+        }
+    }
 
-function loadWizardFlyerFromPoster() {
-    if (typeof renderPosterCanvas === 'function') renderPosterCanvas();
-    const canvas = document.getElementById('posterCanvas');
-    if (!canvas) {
-        alert('Poster Studio is not loaded. Scroll up and check the Poster Studio section.');
+    // 3. Initialize queue data from table
+    initRunnerQueue();
+
+    if (runnerQueue.length === 0) {
+        alert('No contacts available in the current queue to broadcast to.');
         return;
     }
-    wizardFlyerDataUrl = canvas.toDataURL('image/png');
-    currentCampaignAttachedImageBase64 = wizardFlyerDataUrl;
-    refreshWizardFlyerPreview();
-    alert('Poster Studio flyer loaded! You can now download it and send to your WhatsApp Broadcast.');
+
+    runnerIndex = 0;
+    runnerIsAutoRunning = false;
+    if (runnerTimer) clearTimeout(runnerTimer);
+    if (runnerCountdownTimer) clearInterval(runnerCountdownTimer);
+
+    renderRunnerLogList();
+    renderRunnerCurrentContact();
+
+    // 4. Open inBrowserAutoBlastModal
+    const modalEl = document.getElementById('inBrowserAutoBlastModal');
+    if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
 }
 
-function downloadWizardFlyer() {
-    if (!wizardFlyerDataUrl) {
-        alert('No flyer loaded. Please upload an image or use the Poster Studio flyer first.');
-        return;
-    }
-    const a = document.createElement('a');
-    a.download = 'campaign_flyer_' + new Date().toISOString().slice(0,10) + '.png';
-    a.href = wizardFlyerDataUrl;
-    a.click();
+function renderRunnerLogList() {
+    const container = document.getElementById('runnerQueueLogContainer');
+    if (!container) return;
+    
+    let html = '<div class="list-group list-group-flush small">';
+    runnerQueue.forEach((item, i) => {
+        let badge = '<span class="badge bg-secondary">Pending</span>';
+        let bgClass = '';
+        if (item.status === 'sent') {
+            badge = '<span class="badge bg-success"><i class="fas fa-check me-1"></i>Sent</span>';
+            bgClass = 'bg-success-subtle text-dark';
+        } else if (item.status === 'skipped') {
+            badge = '<span class="badge bg-warning text-dark"><i class="fas fa-forward me-1"></i>Skipped</span>';
+            bgClass = 'bg-warning-subtle text-dark';
+        } else if (i === runnerIndex) {
+            badge = '<span class="badge bg-primary"><i class="fas fa-arrow-right me-1"></i>Current</span>';
+            bgClass = 'bg-white border-primary border-start border-3 fw-bold';
+        }
+
+        html += `
+            <div class="list-group-item d-flex justify-content-between align-items-center py-1 px-2 ${bgClass}" style="cursor: pointer;" onclick="runnerJumpTo(${i})">
+                <div class="text-truncate me-2" style="max-width: 70%;">
+                    <span class="text-muted fw-bold me-1">#${i+1}</span>
+                    <strong>${item.name}</strong> 
+                    <span class="text-muted font-monospace small">(${item.phone})</span>
+                </div>
+                <div>${badge}</div>
+            </div>
+        `;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+
+    const sentCount = runnerQueue.filter(q => q.status === 'sent').length;
+    const completedEl = document.getElementById('runnerCompletedCount');
+    if (completedEl) completedEl.innerText = `${sentCount} sent / ${runnerQueue.length} total`;
 }
 
-async function copyWizardFlyerToClipboard() {
-    if (!wizardFlyerDataUrl) {
-        alert('No flyer loaded. Please upload an image or use the Poster Studio flyer first.');
+function renderRunnerCurrentContact() {
+    if (runnerIndex >= runnerQueue.length) {
+        renderRunnerFinished();
         return;
     }
-    try {
-        const base64Data = wizardFlyerDataUrl.split('base64,')[1];
-        const byteChars = atob(base64Data);
-        const byteArr = new Uint8Array(byteChars.length);
-        for (let i = 0; i < byteChars.length; i++) { byteArr[i] = byteChars.charCodeAt(i); }
-        const blob = new Blob([byteArr], { type: 'image/png' });
-        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-        alert('Flyer image copied to clipboard!\n\nNow open your WhatsApp Broadcast List and paste (Ctrl+V or long-press) to attach it before sending.');
-    } catch (err) {
-        // Fallback - just download
-        alert('Could not copy to clipboard automatically. Downloading the flyer instead — then attach it in WhatsApp manually.');
-        downloadWizardFlyer();
+
+    const item = runnerQueue[runnerIndex];
+    const total = runnerQueue.length;
+    const progressPercent = Math.round(((runnerIndex) / total) * 100);
+
+    const progressText = document.getElementById('runnerProgressText');
+    if (progressText) progressText.innerText = `Contact ${runnerIndex + 1} of ${total} (${progressPercent}%)`;
+
+    const progressBar = document.getElementById('runnerProgressBar');
+    if (progressBar) progressBar.style.width = `${progressPercent}%`;
+
+    const contactBadge = document.getElementById('runnerContactBadge');
+    if (contactBadge) {
+        if (currentCampaignSendMode === 'image_only') {
+            contactBadge.innerHTML = `#${runnerIndex + 1} Recipient • <span class="badge bg-purple ms-1">🖼️ Image Only</span>`;
+        } else if (currentCampaignSendMode === 'message_only') {
+            contactBadge.innerHTML = `#${runnerIndex + 1} Recipient • <span class="badge bg-secondary ms-1">💬 Text Only</span>`;
+        } else {
+            contactBadge.innerHTML = `#${runnerIndex + 1} Recipient • <span class="badge bg-success ms-1">🖼️+💬 Flyer + Text</span>`;
+        }
     }
+
+    const nameEl = document.getElementById('runnerContactName');
+    if (nameEl) nameEl.innerText = item.name;
+
+    const phoneEl = document.getElementById('runnerContactPhone');
+    if (phoneEl) phoneEl.innerHTML = `<i class="fab fa-whatsapp me-1"></i>+${item.phone}`;
+
+    const branchEl = document.getElementById('runnerContactBranch');
+    if (branchEl) branchEl.innerText = `Branch: ${item.branch}`;
+
+    const msgBox = document.getElementById('runnerMessagePreview');
+    if (msgBox) {
+        if (currentCampaignSendMode === 'image_only') {
+            msgBox.innerHTML = `
+                <div class="p-3 text-center rounded border" style="background: #f5f3ff; border-color: #ddd6fe !important;">
+                    <i class="fas fa-image fa-2x mb-1 text-purple"></i>
+                    <div class="fw-bold text-dark" style="font-size: 0.85rem;">🖼️ Promotional Flyer Alone</div>
+                    <small class="text-muted d-block mt-1" style="font-size: 0.74rem;">No text message. Flyer will be copied to your clipboard — press <kbd class="bg-dark text-white px-1 rounded">Ctrl + V</kbd> in WhatsApp to paste!</small>
+                </div>
+            `;
+        } else {
+            msgBox.innerText = item.message || 'Personalized WhatsApp Message';
+        }
+    }
+
+    const flyerBox = document.getElementById('runnerFlyerStatusBox');
+    if (flyerBox) {
+        if (currentCampaignSendMode === 'image_only') {
+            flyerBox.innerHTML = `<i class="fas fa-image text-purple me-1"></i><span class="text-purple fw-bold">Promotional Flyer (Image Only)</span>`;
+        } else if (currentCampaignSendMode === 'message_only') {
+            flyerBox.innerHTML = `<i class="fas fa-font text-secondary me-1"></i><span class="text-muted">Text Message Only</span>`;
+        } else {
+            if (currentCampaignAttachedImageBase64) {
+                flyerBox.innerHTML = `<i class="fas fa-image text-success me-1"></i><span class="text-success fw-bold">Flyer Attached &amp; Text Caption</span>`;
+            } else {
+                flyerBox.innerHTML = `<i class="fas fa-font text-secondary me-1"></i><span class="text-secondary">Text Only</span>`;
+            }
+        }
+    }
+
+    renderRunnerLogList();
+}
+
+async function runnerSendCurrent() {
+    if (runnerIndex >= runnerQueue.length) return;
+    const item = runnerQueue[runnerIndex];
+    const custPhone = (item.phone || '').replace(/\D/g, '');
+    const intlPhone = custPhone.startsWith('91') ? custPhone : ('91' + custPhone);
+
+    let targetUrl = '';
+    if (currentCampaignSendMode === 'image_only') {
+        // IMAGE ONLY: URL must NOT have &text= param
+        targetUrl = `https://web.whatsapp.com/send?phone=${intlPhone}`;
+        
+        // Copy flyer blob to clipboard
+        try {
+            const blob = await getOrGenerateCurrentFlyerBlob();
+            if (blob) {
+                await navigator.clipboard.write([
+                    new ClipboardItem({ 'image/png': blob })
+                ]);
+            }
+        } catch (err) {
+            console.warn('Clipboard write warning:', err);
+        }
+    } else if (currentCampaignSendMode === 'message_only') {
+        // TEXT ONLY: No image copied
+        const rawTemplate = document.getElementById('campaignMessageInput') ? document.getElementById('campaignMessageInput').value : '';
+        const personalized = rawTemplate
+            .replace(/{customer_name}/g, item.name)
+            .replace(/{branch_name}/g, item.branch)
+            .replace(/{branch_phone}/g, item.branchPhone)
+            .replace(/{organization_name}/g, organizationName)
+            .replace(/{gold_rate}/g, currentGoldRateStr);
+        const encoded = encodeURIComponent(personalized);
+        targetUrl = `https://web.whatsapp.com/send?phone=${intlPhone}&text=${encoded}`;
+    } else {
+        // FLYER + TEXT: Both image and text
+        const rawTemplate = document.getElementById('campaignMessageInput') ? document.getElementById('campaignMessageInput').value : '';
+        const personalized = rawTemplate
+            .replace(/{customer_name}/g, item.name)
+            .replace(/{branch_name}/g, item.branch)
+            .replace(/{branch_phone}/g, item.branchPhone)
+            .replace(/{organization_name}/g, organizationName)
+            .replace(/{gold_rate}/g, currentGoldRateStr);
+        const encoded = encodeURIComponent(personalized);
+        targetUrl = `https://web.whatsapp.com/send?phone=${intlPhone}&text=${encoded}`;
+
+        try {
+            const blob = await getOrGenerateCurrentFlyerBlob();
+            if (blob) {
+                await navigator.clipboard.write([
+                    new ClipboardItem({ 'image/png': blob })
+                ]);
+            }
+        } catch (err) {
+            console.warn('Clipboard write warning:', err);
+        }
+    }
+
+    // Open WhatsApp Web
+    if (targetUrl) {
+        window.open(targetUrl, '_blank');
+    }
+
+    // Mark row as sent
+    item.status = 'sent';
+    markRowSent(item.rowId);
+
+    // Asynchronously log this broadcast in backend
+    logCampaignBroadcastAsync({
+        template_key: "{{ template_key|default:'custom' }}",
+        campaign_name: "{{ current_template.title_en|default:'Auto-Blaster Broadcast'|escapejs }}",
+        recipient_name: item.name || 'Valued Customer',
+        recipient_phone: item.phone || '',
+        recipient_type: item.isLead ? 'lead' : 'customer',
+        group_id: item.groupId || null,
+        branch_id: item.branchId || '{{ selected_branch_id }}' || null,
+        channel: 'whatsapp_web',
+        status: 'sent',
+        message_snippet: item.message ? item.message.substring(0, 300) : ''
+    });
+
+    // Update UI
+    renderRunnerCurrentContact();
+
+    // If auto-run is active, trigger countdown for next
+    if (runnerIsAutoRunning) {
+        startRunnerNextCountdown();
+    } else {
+        runnerIndex++;
+        if (runnerIndex < runnerQueue.length) {
+            renderRunnerCurrentContact();
+        } else {
+            renderRunnerFinished();
+        }
+    }
+}
+
+function startRunnerNextCountdown() {
+    let secondsLeft = runnerPacingDelay;
+    const countdownEl = document.getElementById('runnerTimerCountdownText');
+    if (countdownEl) countdownEl.innerHTML = `⏱️ Opening next contact in <strong class="text-primary">${secondsLeft}s</strong>...`;
+
+    if (runnerCountdownTimer) clearInterval(runnerCountdownTimer);
+    runnerCountdownTimer = setInterval(() => {
+        secondsLeft--;
+        if (secondsLeft <= 0) {
+            clearInterval(runnerCountdownTimer);
+            if (countdownEl) countdownEl.innerText = '';
+            runnerIndex++;
+            if (runnerIndex < runnerQueue.length) {
+                renderRunnerCurrentContact();
+                runnerSendCurrent();
+            } else {
+                renderRunnerFinished();
+            }
+        } else {
+            if (countdownEl) countdownEl.innerHTML = `⏱️ Opening next contact in <strong class="text-primary">${secondsLeft}s</strong>...`;
+        }
+    }, 1000);
+}
+
+function runnerToggleAutoRun() {
+    runnerIsAutoRunning = !runnerIsAutoRunning;
+    const autoBtn = document.getElementById('runnerAutoRunBtn');
+
+    if (runnerIsAutoRunning) {
+        if (autoBtn) {
+            autoBtn.className = 'btn btn-warning fw-bold w-100 py-2 text-dark';
+            autoBtn.innerHTML = '<i class="fas fa-pause me-1"></i> ⏸️ Pause Auto-Run';
+        }
+        const statusBadge = document.getElementById('runnerStatusBadge');
+        if (statusBadge) {
+            statusBadge.className = 'badge bg-warning text-dark fw-bold';
+            statusBadge.innerText = '⚡ Auto-Running';
+        }
+        runnerSendCurrent();
+    } else {
+        runnerPause();
+    }
+}
+
+function runnerPause() {
+    runnerIsAutoRunning = false;
+    if (runnerCountdownTimer) clearInterval(runnerCountdownTimer);
+    if (runnerTimer) clearTimeout(runnerTimer);
+
+    const autoBtn = document.getElementById('runnerAutoRunBtn');
+    if (autoBtn) {
+        autoBtn.className = 'btn btn-outline-primary fw-bold w-100 py-2';
+        autoBtn.innerHTML = '<i class="fas fa-play me-1"></i> ▶️ Start Auto-Run';
+    }
+
+    const countdownEl = document.getElementById('runnerTimerCountdownText');
+    if (countdownEl) countdownEl.innerText = '⏸️ Paused';
+
+    const statusBadge = document.getElementById('runnerStatusBadge');
+    if (statusBadge) {
+        statusBadge.className = 'badge bg-secondary fw-bold';
+        statusBadge.innerText = 'Paused';
+    }
+}
+
+function runnerSkip() {
+    if (runnerIndex < runnerQueue.length) {
+        runnerQueue[runnerIndex].status = 'skipped';
+        runnerIndex++;
+        if (runnerIndex < runnerQueue.length) {
+            renderRunnerCurrentContact();
+        } else {
+            renderRunnerFinished();
+        }
+    }
+}
+
+function runnerJumpTo(idx) {
+    if (idx >= 0 && idx < runnerQueue.length) {
+        runnerPause();
+        runnerIndex = idx;
+        renderRunnerCurrentContact();
+    }
+}
+
+function runnerRestart() {
+    runnerPause();
+    runnerQueue.forEach(q => q.status = 'pending');
+    runnerIndex = 0;
+    renderRunnerCurrentContact();
+}
+
+function renderRunnerFinished() {
+    runnerPause();
+    const total = runnerQueue.length;
+    const sentCount = runnerQueue.filter(q => q.status === 'sent').length;
+
+    const progressBar = document.getElementById('runnerProgressBar');
+    if (progressBar) progressBar.style.width = '100%';
+
+    const progressText = document.getElementById('runnerProgressText');
+    if (progressText) progressText.innerText = `Completed all ${total} contacts! (${sentCount} sent)`;
+
+    const statusBadge = document.getElementById('runnerStatusBadge');
+    if (statusBadge) {
+        statusBadge.className = 'badge bg-success fw-bold';
+        statusBadge.innerText = '🎉 Broadcast Completed';
+    }
+
+    const nameEl = document.getElementById('runnerContactName');
+    if (nameEl) nameEl.innerText = '🎉 All Contacts Dispatched!';
+
+    const msgBox = document.getElementById('runnerMessagePreview');
+    if (msgBox) {
+        msgBox.innerHTML = `<span class="text-success fw-bold">All targeted contacts have been processed successfully. You can close this window or restart.</span>`;
+    }
+
+    renderRunnerLogList();
+}
+
+function updateRunnerPacingDelay(val) {
+    runnerPacingDelay = parseInt(val) || 5;
+}
+
+function toggleGroupSelectionMode(prefix) {
+    const isNew = document.getElementById(`${prefix}_group_opt_new`)?.checked;
+    const isExisting = document.getElementById(`${prefix}_group_opt_existing`)?.checked;
+
+    const newFields = document.getElementById(`${prefix}_new_group_fields`);
+    const existingFields = document.getElementById(`${prefix}_existing_group_fields`);
+
+    if (newFields) {
+        if (isNew) {
+            newFields.classList.remove('d-none');
+        } else {
+            newFields.classList.add('d-none');
+        }
+    }
+
+    if (existingFields) {
+        if (isExisting) {
+            existingFields.classList.remove('d-none');
+        } else {
+            existingFields.classList.add('d-none');
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Contact Groups & Member Directory Modal Logic
+// ═══════════════════════════════════════════════════════════════════════════════
+let currentDirectoryGroupId = null;
+let currentDirectoryGroupName = '';
+let currentDirectoryGroupContacts = [];
+
+function openGroupDirectoryModal(groupId) {
+    const modalEl = document.getElementById('manageGroupsModal');
+    if (!modalEl) return;
+    const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    bsModal.show();
+
+    let targetGroupId = groupId;
+    if (!targetGroupId) {
+        const firstItem = document.querySelector('.dir-group-item');
+        if (firstItem) {
+            targetGroupId = firstItem.dataset.groupId;
+        }
+    }
+
+    if (targetGroupId) {
+        const targetBtn = document.getElementById(`dir-group-btn-${targetGroupId}`);
+        if (targetBtn) {
+            selectGroupInDirectory(
+                targetGroupId, 
+                targetBtn.dataset.groupName, 
+                targetBtn.dataset.groupDesc, 
+                targetBtn.dataset.leadCount
+            );
+        } else {
+            const firstItem = document.querySelector('.dir-group-item');
+            if (firstItem) {
+                selectGroupInDirectory(
+                    firstItem.dataset.groupId, 
+                    firstItem.dataset.groupName, 
+                    firstItem.dataset.groupDesc, 
+                    firstItem.dataset.leadCount
+                );
+            }
+        }
+    }
+}
+
+function selectGroupInDirectory(groupId, groupName, groupDesc, leadCount) {
+    currentDirectoryGroupId = groupId;
+    currentDirectoryGroupName = groupName;
+
+    // Highlight active list item
+    document.querySelectorAll('.dir-group-item').forEach(el => {
+        el.classList.remove('active');
+        const badge = el.querySelector('.lead-cnt-badge');
+        if (badge) {
+            badge.className = 'badge bg-purple text-white rounded-pill lead-cnt-badge';
+        }
+        const desc = el.querySelector('.dir-group-desc');
+        if (desc) desc.className = 'text-muted d-block text-truncate dir-group-desc';
+    });
+
+    const activeBtn = document.getElementById(`dir-group-btn-${groupId}`);
+    if (activeBtn) {
+        activeBtn.classList.add('active');
+        const badge = activeBtn.querySelector('.lead-cnt-badge');
+        if (badge) {
+            badge.className = 'badge bg-white text-purple rounded-pill lead-cnt-badge';
+        }
+        const desc = activeBtn.querySelector('.dir-group-desc');
+        if (desc) desc.className = 'text-white-50 d-block text-truncate dir-group-desc';
+    }
+
+    // Update Header
+    const nameEl = document.getElementById('dirActiveGroupName');
+    if (nameEl) nameEl.innerText = `🏷️ ${groupName}`;
+
+    const descEl = document.getElementById('dirActiveGroupDesc');
+    if (descEl) descEl.innerText = groupDesc || 'Group Contacts Directory';
+
+    const badgeEl = document.getElementById('dirActiveGroupBadge');
+    if (badgeEl) badgeEl.innerText = `${leadCount || 0} Contacts`;
+
+    // Update hidden form inputs
+    const quickAddGroupInput = document.getElementById('quickAddGroupId');
+    if (quickAddGroupInput) quickAddGroupInput.value = groupId;
+
+    // Update broadcast link
+    const bcastBtn = document.getElementById('dirBroadcastGroupBtn');
+    if (bcastBtn) {
+        bcastBtn.href = `?segment=group_${groupId}&template={{ template_key }}&lang={{ lang }}&branch={{ selected_branch_id }}&group=${groupId}`;
+    }
+
+    // Fetch contacts from server
+    fetchGroupContacts(groupId);
+}
+
+function fetchGroupContacts(groupId) {
+    const tbody = document.getElementById('dirContactsTableBody');
+    const countText = document.getElementById('dirContactsCountText');
+    if (tbody) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center py-4 text-muted">
+                    <div class="spinner-border spinner-border-sm text-primary me-2"></div>Loading contacts...
+                </td>
+            </tr>
+        `;
+    }
+
+    fetch(`/transactions/marketing/groups/contacts/?group_id=${groupId}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                currentDirectoryGroupContacts = data.contacts || [];
+                renderDirectoryContactsTable(currentDirectoryGroupContacts);
+
+                if (countText) {
+                    countText.innerText = `${currentDirectoryGroupContacts.length} contacts found`;
+                }
+                const badgeEl = document.getElementById('dirActiveGroupBadge');
+                if (badgeEl) badgeEl.innerText = `${currentDirectoryGroupContacts.length} Contacts`;
+            } else {
+                if (tbody) {
+                    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-4">${data.message || 'Error loading contacts'}</td></tr>`;
+                }
+            }
+        })
+        .catch(err => {
+            if (tbody) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-4">Network error loading contacts: ${err}</td></tr>`;
+            }
+        });
+}
+
+function renderDirectoryContactsTable(contacts) {
+    const tbody = document.getElementById('dirContactsTableBody');
+    if (!tbody) return;
+
+    if (!contacts || contacts.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center py-4 text-muted">
+                    <i class="fas fa-users-slash fa-2x mb-2 opacity-25 d-block"></i>
+                    No contacts in this group yet.<br>
+                    <button type="button" class="btn btn-primary btn-xs mt-2" onclick="toggleInlineAddContactForm()">
+                        <i class="fas fa-plus me-1"></i> Add First Contact
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-xs mt-2 ms-1" onclick="openCsvUploadForActiveGroup()">
+                        <i class="fas fa-upload me-1"></i> Upload CSV
+                    </button>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    let rowsHtml = '';
+    contacts.forEach((c, idx) => {
+        const phone = c.norm_phone || c.phone;
+        const srcBadge = c.source === 'csv_import' 
+            ? '<span class="badge bg-light text-dark border">CSV Import</span>'
+            : '<span class="badge bg-light text-primary border">Manual Entry</span>';
+
+        rowsHtml += `
+            <tr>
+                <td class="ps-3 text-muted fw-semibold">${idx + 1}</td>
+                <td><strong class="text-dark">${escapeHtml(c.name)}</strong></td>
+                <td>
+                    <a href="https://wa.me/${phone}" target="_blank" class="badge bg-success-subtle text-success border border-success-subtle font-monospace text-decoration-none">
+                        <i class="fab fa-whatsapp me-1"></i>+${phone}
+                    </a>
+                </td>
+                <td class="text-muted">${escapeHtml(c.city || '—')}</td>
+                <td>${srcBadge}</td>
+                <td class="text-muted small">${c.created_at || '—'}</td>
+                <td class="text-end pe-3">
+                    <button type="button" class="btn btn-outline-danger btn-xs px-1" title="Remove contact from this group" onclick="deleteContactFromGroup('${c.id}', '${escapeHtml(c.name)}')">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    tbody.innerHTML = rowsHtml;
+}
+
+function filterGroupContactsTable(query) {
+    const q = (query || '').toLowerCase().trim();
+    if (!q) {
+        renderDirectoryContactsTable(currentDirectoryGroupContacts);
+        return;
+    }
+    const filtered = currentDirectoryGroupContacts.filter(c => {
+        const name = (c.name || '').toLowerCase();
+        const phone = (c.phone || '').toLowerCase();
+        const city = (c.city || '').toLowerCase();
+        return name.includes(q) || phone.includes(q) || city.includes(q);
+    });
+    renderDirectoryContactsTable(filtered);
+    const countText = document.getElementById('dirContactsCountText');
+    if (countText) countText.innerText = `Showing ${filtered.length} of ${currentDirectoryGroupContacts.length}`;
+}
+
+function filterGroupList(query) {
+    const q = (query || '').toLowerCase().trim();
+    document.querySelectorAll('.dir-group-item').forEach(item => {
+        const name = (item.dataset.groupName || '').toLowerCase();
+        const desc = (item.dataset.groupDesc || '').toLowerCase();
+        if (name.includes(q) || desc.includes(q)) {
+            item.classList.remove('d-none');
+        } else {
+            item.classList.add('d-none');
+        }
+    });
+}
+
+function toggleInlineAddContactForm() {
+    const form = document.getElementById('inlineQuickAddForm');
+    if (form) {
+        form.classList.toggle('d-none');
+    }
+}
+
+function openCsvUploadForActiveGroup() {
+    const manageModalEl = document.getElementById('manageGroupsModal');
+    if (manageModalEl) {
+        bootstrap.Modal.getInstance(manageModalEl)?.hide();
+    }
+    const importModalEl = document.getElementById('importLeadsModal');
+    if (importModalEl) {
+        const bsImportModal = bootstrap.Modal.getOrCreateInstance(importModalEl);
+        bsImportModal.show();
+
+        // Switch to CSV tab and select active group
+        const csvTabBtn = document.getElementById('csv-lead-tab');
+        if (csvTabBtn) bootstrap.Tab.getOrCreateInstance(csvTabBtn).show();
+
+        const optExisting = document.getElementById('csv_group_opt_existing');
+        if (optExisting) {
+            optExisting.checked = true;
+            toggleGroupSelectionMode('csv');
+        }
+        const selectEl = document.getElementById('csv_existing_group_id');
+        if (selectEl && currentDirectoryGroupId) {
+            selectEl.value = currentDirectoryGroupId;
+        }
+    }
+}
+
+function deleteActiveDirectoryGroup() {
+    if (!currentDirectoryGroupId) return;
+    if (confirm(`Are you sure you want to delete Group '${currentDirectoryGroupName}' and all its contacts?`)) {
+        const form = document.getElementById('deleteGroupForm');
+        const input = document.getElementById('deleteGroupIdInput');
+        if (form && input) {
+            input.value = currentDirectoryGroupId;
+            form.submit();
+        }
+    }
+}
+
+function deleteContactFromGroup(leadId, leadName) {
+    if (confirm(`Remove '${leadName}' from this Contact Group?`)) {
+        const form = document.getElementById('deleteLeadForm');
+        const leadInput = document.getElementById('deleteLeadIdInput');
+        const grpInput = document.getElementById('deleteLeadGroupIdInput');
+        if (form && leadInput) {
+            leadInput.value = leadId;
+            if (grpInput) grpInput.value = currentDirectoryGroupId || '';
+            form.submit();
+        }
+    }
+}
+
+function deleteLeadFromQueue(leadId, leadName, groupId) {
+    if (confirm(`Remove contact '${leadName}' from the group?`)) {
+        const form = document.getElementById('deleteLeadForm');
+        const leadInput = document.getElementById('deleteLeadIdInput');
+        const grpInput = document.getElementById('deleteLeadGroupIdInput');
+        if (form && leadInput) {
+            leadInput.value = leadId;
+            if (grpInput) grpInput.value = groupId || '';
+            form.submit();
+        }
+    }
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 </script>
 

@@ -63,7 +63,7 @@
         </div>
     </div>
 
-    <!-- RBI IRAC Asset Classification Breakdown Cards -->
+    <!-- ═══ RBI IRAC ASSET CLASSIFICATION BREAKDOWN CARDS ═══ -->
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
             <h5 class="mb-0 fw-bold text-dark"><i class="fas fa-shield-alt text-primary me-2"></i>RBI IRAC Asset Classification Portfolio Breakdown</h5>
@@ -71,143 +71,660 @@
         </div>
         <div class="card-body p-3">
             <div class="row g-3 text-center">
-                <div class="col">
-                    <div class="p-3 bg-light rounded border border-success">
-                        <div class="small fw-bold text-success text-uppercase">Standard</div>
-                        <div class="fs-4 fw-bold text-dark font-monospace my-1">{{ standard_count }}</div>
-                        <div class="text-muted small">0 Overdue Days</div>
-                        <span class="badge bg-success mt-1">0.25% Prov.</span>
-                    </div>
+                <div class="col-md-2 col-6">
+                    <a href="?bucket=STANDARD&branch_id={{ selected_branch_id }}&lang={{ lang }}" class="text-decoration-none">
+                        <div class="p-3 bg-light rounded border {% if bucket_filter == 'STANDARD' %}border-success border-2 shadow-sm bg-success-subtle{% else %}border-success hover-shadow{% endif %}">
+                            <div class="small fw-bold text-success text-uppercase">Standard</div>
+                            <div class="fs-4 fw-bold text-dark font-monospace my-1">{{ standard_count }}</div>
+                            <div class="text-muted small">0 Overdue Days</div>
+                            <span class="badge bg-success mt-1">0.25% Prov.</span>
+                        </div>
+                    </a>
                 </div>
-                <div class="col">
-                    <div class="p-3 bg-light rounded border border-info">
-                        <div class="small fw-bold text-info text-uppercase">SMA-0</div>
-                        <div class="fs-4 fw-bold text-dark font-monospace my-1">{{ sma0_count }}</div>
-                        <div class="text-muted small">1 - 30 Overdue</div>
-                        <span class="badge bg-info text-dark mt-1">0.25% Prov.</span>
-                    </div>
+                <div class="col-md-2 col-6">
+                    <a href="?bucket=SMA_0&branch_id={{ selected_branch_id }}&lang={{ lang }}" class="text-decoration-none">
+                        <div class="p-3 bg-light rounded border {% if bucket_filter == 'SMA_0' %}border-info border-2 shadow-sm bg-info-subtle{% else %}border-info hover-shadow{% endif %}">
+                            <div class="small fw-bold text-info text-uppercase">SMA-0</div>
+                            <div class="fs-4 fw-bold text-dark font-monospace my-1">{{ sma0_count }}</div>
+                            <div class="text-muted small">1 - 30 Overdue</div>
+                            <span class="badge bg-info text-dark mt-1">0.25% Prov.</span>
+                        </div>
+                    </a>
                 </div>
-                <div class="col">
-                    <div class="p-3 bg-light rounded border border-warning">
-                        <div class="small fw-bold text-warning text-uppercase">SMA-1</div>
-                        <div class="fs-4 fw-bold text-dark font-monospace my-1">{{ sma1_count }}</div>
-                        <div class="text-muted small">31 - 60 Overdue</div>
-                        <span class="badge bg-warning text-dark mt-1">0.25% Prov.</span>
-                    </div>
+                <div class="col-md-2 col-6">
+                    <a href="?bucket=SMA_1&branch_id={{ selected_branch_id }}&lang={{ lang }}" class="text-decoration-none">
+                        <div class="p-3 bg-light rounded border {% if bucket_filter == 'SMA_1' %}border-warning border-2 shadow-sm bg-warning-subtle{% else %}border-warning hover-shadow{% endif %}">
+                            <div class="small fw-bold text-warning text-uppercase">SMA-1</div>
+                            <div class="fs-4 fw-bold text-dark font-monospace my-1">{{ sma1_count }}</div>
+                            <div class="text-muted small">31 - 60 Overdue</div>
+                            <span class="badge bg-warning text-dark mt-1">0.25% Prov.</span>
+                        </div>
+                    </a>
                 </div>
-                <div class="col">
-                    <div class="p-3 bg-light rounded border border-orange" style="border-color: #fd7e14 !important;">
-                        <div class="small fw-bold text-uppercase" style="color: #fd7e14;">SMA-2</div>
-                        <div class="fs-4 fw-bold text-dark font-monospace my-1">{{ sma2_count }}</div>
-                        <div class="text-muted small">61 - 90 Overdue</div>
-                        <span class="badge bg-dark mt-1">0.25% Prov.</span>
-                    </div>
+                <div class="col-md-2 col-6">
+                    <a href="?bucket=SMA_2&branch_id={{ selected_branch_id }}&lang={{ lang }}" class="text-decoration-none">
+                        <div class="p-3 bg-light rounded border {% if bucket_filter == 'SMA_2' %}border-danger border-2 shadow-sm bg-danger-subtle{% else %}border-orange hover-shadow{% endif %}" style="border-color: #fd7e14 !important;">
+                            <div class="small fw-bold text-uppercase" style="color: #fd7e14;">SMA-2 (Pre-NPA)</div>
+                            <div class="fs-4 fw-bold text-dark font-monospace my-1">{{ sma2_count }}</div>
+                            <div class="text-muted small">61 - 90 Overdue</div>
+                            <span class="badge bg-dark mt-1">0.25% Prov.</span>
+                        </div>
+                    </a>
                 </div>
-                <div class="col">
-                    <div class="p-3 bg-light rounded border border-danger">
-                        <div class="small fw-bold text-danger text-uppercase">NPA Substandard</div>
-                        <div class="fs-4 fw-bold text-danger font-monospace my-1">{{ npa_count }}</div>
-                        <div class="text-muted small">&gt; 90 Overdue Days</div>
-                        <span class="badge bg-danger mt-1">10.00% Prov.</span>
-                    </div>
+                <div class="col-md-2 col-6">
+                    <a href="?bucket=NPA_SUBSTANDARD&branch_id={{ selected_branch_id }}&lang={{ lang }}" class="text-decoration-none">
+                        <div class="p-3 bg-light rounded border {% if bucket_filter == 'NPA_SUBSTANDARD' %}border-danger border-2 shadow-sm bg-danger-subtle{% else %}border-danger hover-shadow{% endif %}">
+                            <div class="small fw-bold text-danger text-uppercase">NPA Substandard</div>
+                            <div class="fs-4 fw-bold text-danger font-monospace my-1">{{ delinquency_stats.npa_count }}</div>
+                            <div class="text-muted small">91 - 180 Overdue</div>
+                            <span class="badge bg-danger mt-1">10.00% Prov.</span>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-md-2 col-6">
+                    <a href="?bucket=ALL_OVERDUE&branch_id={{ selected_branch_id }}&lang={{ lang }}" class="text-decoration-none">
+                        <div class="p-3 bg-light rounded border {% if bucket_filter == 'ALL_OVERDUE' %}border-primary border-2 shadow-sm bg-primary-subtle{% else %}border-secondary hover-shadow{% endif %}">
+                            <div class="small fw-bold text-primary text-uppercase">All Delinquent</div>
+                            <div class="fs-4 fw-bold text-primary font-monospace my-1">{{ delinquency_stats.total_overdue_loans }}</div>
+                            <div class="text-muted small">Total at Risk</div>
+                            <span class="badge bg-primary mt-1">Watchlist</span>
+                        </div>
+                    </a>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Recent EOD Batch Executions History Table -->
-    <div class="card border-0 shadow-sm">
-        <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
-            <h5 class="mb-0 fw-bold text-dark"><i class="fas fa-history text-secondary me-2"></i>EOD Batch Execution Audit History</h5>
-            <span class="text-muted small">Showing latest 20 batch runs</span>
+    <!-- ═══ INTERACTIVE DELINQUENCY & REGULATORY IRAC WATCHLIST ═══ -->
+    <div class="card border-0 shadow-sm mb-4" id="watchlistSection" style="scroll-margin-top: 80px;">
+        <div class="card-header bg-white py-3 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-danger rounded-pill p-2"><i class="fas fa-triangle-exclamation"></i></span>
+                    <div>
+                        <h5 class="mb-0 fw-bold text-dark">
+                            🛡️ Delinquency Watchlist &amp; Automated Risk Alerts Engine
+                        </h5>
+                        <small class="text-muted">
+                            Real-time overdue tracking, statutory provisioning calculation, and 1-click WhatsApp warning notices.
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controls: Branch, Filter, Language, Export -->
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <!-- Language Switcher -->
+                <div class="btn-group btn-group-sm" role="group">
+                    <a href="?bucket={{ bucket_filter }}&branch_id={{ selected_branch_id }}&lang=en&q={{ search_query }}" 
+                       class="btn btn-sm {% if not use_tamil %}btn-dark fw-bold{% else %}btn-outline-secondary{% endif %}">
+                        🇬🇧 EN
+                    </a>
+                    <a href="?bucket={{ bucket_filter }}&branch_id={{ selected_branch_id }}&lang=ta&q={{ search_query }}" 
+                       class="btn btn-sm {% if use_tamil %}btn-dark fw-bold{% else %}btn-outline-secondary{% endif %}">
+                        🇮🇳 தமிழ்
+                    </a>
+                </div>
+
+                <!-- Export CSV -->
+                <a href="{% url 'eod_export_irac_watchlist' %}?bucket={{ bucket_filter }}&branch_id={{ selected_branch_id }}&q={{ search_query }}" 
+                   class="btn btn-outline-secondary btn-sm shadow-2xs">
+                    <i class="fas fa-file-csv me-1"></i> Export Regulatory CSV
+                </a>
+
+                <!-- WhatsApp Automated Bot Status / Pair Button -->
+                {% if whatsapp_paired %}
+                <span class="badge bg-success-subtle text-success border border-success fw-bold py-2 px-2" title="Playwright Headless WhatsApp Automator is linked & ready">
+                    <i class="fas fa-robot text-success me-1"></i> Bot Linked
+                </span>
+                {% else %}
+                <button type="button" class="btn btn-warning btn-sm fw-bold shadow-sm" onclick="openPairWhatsAppDialog()" title="Scan WhatsApp QR code once to enable 100% zero-click background sending">
+                    <i class="fas fa-qrcode me-1"></i> Link WhatsApp (Scan QR)
+                </button>
+                {% endif %}
+
+                <!-- 100% Zero-Click Headless Auto Dispatch -->
+                <button type="button" id="launchZeroClickBtn" class="btn btn-dark btn-sm fw-bold shadow-sm" onclick="launchZeroClickAutomatedDispatch()">
+                    <i class="fas fa-bolt text-warning me-1"></i> ⚡ Zero-Click Auto Send
+                </button>
+
+                <!-- Batch Alert Button (Browser Tabs Mode) -->
+                <button type="button" id="launchBatchAlertBtn" class="btn btn-danger btn-sm fw-bold shadow-sm" onclick="startBatchIRACAlerts()" disabled>
+                    <i class="fab fa-whatsapp me-1"></i> Tab Dispatch (<span id="selectedAlertCount">0</span>)
+                </button>
+            </div>
         </div>
+
+        <!-- Filter Pills Bar & Search -->
+        <div class="card-body bg-light border-bottom p-2 px-3">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <ul class="nav nav-pills" style="font-size: 0.8rem;">
+                    <li class="nav-item">
+                        <a class="nav-link py-1 px-3 fw-bold {% if bucket_filter == 'ALL_OVERDUE' %}active bg-primary{% else %}text-dark{% endif %}" 
+                           href="?bucket=ALL_OVERDUE&branch_id={{ selected_branch_id }}&lang={{ lang }}">
+                            All Overdue ({{ delinquency_stats.total_overdue_loans }})
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link py-1 px-3 fw-bold {% if bucket_filter == 'SMA_0' %}active bg-info text-dark{% else %}text-dark{% endif %}" 
+                           href="?bucket=SMA_0&branch_id={{ selected_branch_id }}&lang={{ lang }}">
+                            SMA-0: 1-30d ({{ delinquency_stats.sma0_count }})
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link py-1 px-3 fw-bold {% if bucket_filter == 'SMA_1' %}active bg-warning text-dark{% else %}text-dark{% endif %}" 
+                           href="?bucket=SMA_1&branch_id={{ selected_branch_id }}&lang={{ lang }}">
+                            SMA-1: 31-60d ({{ delinquency_stats.sma1_count }})
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link py-1 px-3 fw-bold {% if bucket_filter == 'SMA_2' %}active text-white{% else %}text-dark{% endif %}" 
+                           style="{% if bucket_filter == 'SMA_2' %}background: #fd7e14;{% endif %}"
+                           href="?bucket=SMA_2&branch_id={{ selected_branch_id }}&lang={{ lang }}">
+                            SMA-2: 61-90d Pre-NPA ({{ delinquency_stats.sma2_count }})
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link py-1 px-3 fw-bold {% if bucket_filter == 'NPA' or bucket_filter == 'NPA_SUBSTANDARD' %}active bg-danger{% else %}text-dark{% endif %}" 
+                           href="?bucket=NPA&branch_id={{ selected_branch_id }}&lang={{ lang }}">
+                            NPA Recovery ({{ delinquency_stats.npa_count }})
+                        </a>
+                    </li>
+                </ul>
+
+                <!-- Live Search Box -->
+                <form method="get" class="d-flex align-items-center gap-1">
+                    <input type="hidden" name="bucket" value="{{ bucket_filter }}">
+                    <input type="hidden" name="branch_id" value="{{ selected_branch_id }}">
+                    <input type="hidden" name="lang" value="{{ lang }}">
+                    <div class="input-group input-group-sm" style="width: 220px;">
+                        <input type="text" name="q" class="form-control" placeholder="Search borrower / loan..." value="{{ search_query }}">
+                        <button type="submit" class="btn btn-outline-secondary"><i class="fas fa-search"></i></button>
+                    </div>
+                    {% if search_query %}
+                    <a href="?bucket={{ bucket_filter }}&branch_id={{ selected_branch_id }}&lang={{ lang }}" class="btn btn-outline-danger btn-sm" title="Clear search"><i class="fas fa-times"></i></a>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+
+        <!-- Watchlist Table -->
         <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
+            {% if watchlist %}
+            <div class="table-responsive" style="max-height: 460px; overflow-y: auto;">
+                <table class="table table-hover align-middle mb-0" id="watchlistTable" style="font-size: 0.82rem;">
+                    <thead class="table-light sticky-top" style="font-size: 0.74rem;">
                         <tr>
-                            <th style="width: 120px;">Date</th>
-                            <th>Branch / Scope</th>
-                            <th class="text-center" style="width: 110px;">Status</th>
-                            <th class="text-end" style="width: 120px;">Loans Processed</th>
-                            <th class="text-end" style="width: 150px;">Daily Interest (₹)</th>
-                            <th>Asset Classification Summary</th>
-                            <th>GL Voucher</th>
-                            <th class="text-center" style="width: 120px;">Execution Log</th>
+                            <th class="ps-3" style="width: 36px;">
+                                <input type="checkbox" id="selectAllWatchlist" class="form-check-input" onchange="toggleSelectAllWatchlist(this)" title="Select/Deselect All">
+                            </th>
+                            <th>Loan #</th>
+                            <th>Borrower / Phone</th>
+                            <th>Branch</th>
+                            <th class="text-end">Principal</th>
+                            <th class="text-end">Accrued Int.</th>
+                            <th class="text-end">Total Due</th>
+                            <th class="text-center">Overdue Days</th>
+                            <th>IRAC Tag</th>
+                            <th class="text-end">Statutory Prov.</th>
+                            <th>Last Alert</th>
+                            <th class="text-end pe-3" style="width: 140px;">Action</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for run in eod_runs %}
-                        <tr>
-                            <td class="fw-bold font-monospace text-primary">{{ run.execution_date|date:"d M Y" }}</td>
-                            <td>
-                                <strong>{{ run.branch.name|default:"Consolidated (All Branches)" }}</strong>
-                                <div class="text-muted small">Run at {{ run.started_at|date:"h:i A" }} {% if run.executed_by %}by {{ run.executed_by.username }}{% endif %}</div>
+                        {% for row in watchlist %}
+                        <tr id="watchlist-row-{{ forloop.counter }}">
+                            <td class="ps-3">
+                                <input type="checkbox" class="form-check-input watchlist-row-chk"
+                                       id="chk-wl-{{ forloop.counter }}"
+                                       onchange="updateWatchlistSelectedCount()"
+                                       data-loan-id="{{ row.loan_id }}"
+                                       data-loan-number="{{ row.loan_number }}"
+                                       data-name="{{ row.customer_name }}"
+                                       data-phone="{{ row.customer_phone }}"
+                                       data-bucket="{{ row.alert_bucket }}"
+                                       data-url="{{ row.whatsapp_url }}"
+                                       data-message="{{ row.alert_message|escapejs }}">
                             </td>
-                            <td class="text-center">
-                                <span class="badge {% if run.status == 'COMPLETED' %}bg-success{% elif run.status == 'IN_PROGRESS' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
-                                    {{ run.status }}
+                            <td>
+                                <a href="{% url 'loan_detail' row.loan_number %}" class="fw-bold text-primary text-decoration-none font-monospace">
+                                    {{ row.loan_number }}
+                                </a>
+                            </td>
+                            <td>
+                                <div class="fw-semibold text-dark">{{ row.customer_name }}</div>
+                                <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace" style="font-size: 0.72rem;">
+                                    <i class="fab fa-whatsapp me-1"></i>{{ row.customer_phone }}
                                 </span>
                             </td>
-                            <td class="text-end font-monospace">{{ run.total_loans_processed }}</td>
-                            <td class="text-end font-monospace fw-bold text-success">
-                                ₹{{ run.total_daily_interest_accrued|floatformat:0|intcomma }}
-                            </td>
                             <td>
-                                <div class="small">
-                                    <span class="badge bg-light text-dark border me-1">Std: {{ run.standard_count }}</span>
-                                    <span class="badge bg-light text-info border me-1">SMA: {{ run.sma0_count|add:run.sma1_count|add:run.sma2_count }}</span>
-                                    <span class="badge bg-light text-danger border">NPA: {{ run.npa_count }}</span>
-                                </div>
+                                <span class="text-muted small">{{ row.branch_name }}</span>
                             </td>
-                            <td>
-                                {% if run.gl_journal_entry %}
-                                <a href="{% url 'accounting_journal_detail' run.gl_journal_entry.pk %}" class="font-monospace fw-bold text-primary small">
-                                    #{{ run.gl_journal_entry.entry_number }}
-                                </a>
-                                {% else %}
-                                <span class="text-muted small">-</span>
-                                {% endif %}
+                            <td class="text-end font-monospace">
+                                ₹{{ row.principal_amount|floatformat:2|intcomma }}
+                            </td>
+                            <td class="text-end font-monospace text-danger">
+                                ₹{{ row.accrued_interest|floatformat:2|intcomma }}
+                            </td>
+                            <td class="text-end font-monospace fw-bold text-dark">
+                                ₹{{ row.total_due|floatformat:2|intcomma }}
                             </td>
                             <td class="text-center">
-                                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#logModal{{ run.pk }}">
-                                    <i class="fas fa-file-alt me-1"></i>View
-                                </button>
+                                <span class="badge {% if row.overdue_days > 90 %}bg-danger{% elif row.overdue_days > 60 %}bg-dark{% elif row.overdue_days > 30 %}bg-warning text-dark{% else %}bg-info text-dark{% endif %} font-monospace">
+                                    {{ row.overdue_days }}d
+                                </span>
                             </td>
-                        </tr>
-
-                        <!-- Modal: Log Details -->
-                        <div class="modal fade" id="logModal{{ run.pk }}" tabindex="-1" aria-hidden="true">
-                            <div class="modal-dialog modal-lg">
-                                <div class="modal-content">
-                                    <div class="modal-header bg-dark text-white">
-                                        <h5 class="modal-title"><i class="fas fa-terminal me-2"></i>EOD Run Log #{{ run.pk }} ({{ run.execution_date|date:"d M Y" }})</h5>
-                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                                    </div>
-                                    <div class="modal-body p-0">
-                                        <pre class="bg-dark text-success p-3 mb-0 font-monospace" style="max-height: 400px; overflow-y: auto;">{{ run.logs|default:"No console output recorded." }}</pre>
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                                    </div>
+                            <td>
+                                {% if row.irac_status == 'STANDARD' %}
+                                <span class="badge bg-success">Standard</span>
+                                {% elif row.irac_status == 'SMA_0' %}
+                                <span class="badge bg-info text-dark">SMA-0</span>
+                                {% elif row.irac_status == 'SMA_1' %}
+                                <span class="badge bg-warning text-dark">SMA-1</span>
+                                {% elif row.irac_status == 'SMA_2' %}
+                                <span class="badge text-white" style="background: #fd7e14;">SMA-2</span>
+                                {% elif row.irac_status == 'NPA_SUBSTANDARD' %}
+                                <span class="badge bg-danger">NPA Substandard</span>
+                                {% elif row.irac_status == 'NPA_DOUBTFUL' %}
+                                <span class="badge bg-danger">NPA Doubtful</span>
+                                {% elif row.irac_status == 'NPA_LOSS' %}
+                                <span class="badge bg-danger">NPA Loss / Auction</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ row.irac_status }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end font-monospace small">
+                                ₹{{ row.provisioning_amount|floatformat:2|intcomma }}
+                                <div class="text-muted" style="font-size: 0.68rem;">({{ row.provisioning_percentage }}%)</div>
+                            </td>
+                            <td>
+                                {% if row.last_alert_at %}
+                                <div class="small text-success fw-semibold"><i class="fas fa-check-double me-1"></i>{{ row.last_alert_at|date:"d-M" }}</div>
+                                <div class="text-muted" style="font-size: 0.68rem;">{{ row.last_alert_bucket }}</div>
+                                {% else %}
+                                <span class="text-muted small">None yet</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end pe-3">
+                                <div class="d-inline-flex align-items-center gap-1">
+                                    <a href="{{ row.whatsapp_url }}" target="_blank" 
+                                       class="btn btn-success btn-xs px-2 fw-semibold shadow-2xs send-alert-btn" style="font-size: 0.74rem;"
+                                       onclick="handleSingleAlertClick(event, 'watchlist-row-{{ forloop.counter }}', '{{ row.loan_id }}', '{{ row.alert_bucket }}', '{{ row.alert_message|escapejs }}')">
+                                        <i class="fab fa-whatsapp me-1"></i> Send
+                                    </a>
+                                    <button type="button" class="btn btn-outline-secondary btn-xs px-1 shadow-2xs" 
+                                            title="Preview Alert Notice Message"
+                                            onclick="previewAlertMessageModal('{{ row.loan_number|escapejs }}', '{{ row.customer_name|escapejs }}', '{{ row.alert_bucket }}', '{{ row.alert_message|escapejs }}')">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
                                 </div>
-                            </div>
-                        </div>
-                        {% empty %}
-                        <tr>
-                            <td colspan="8" class="text-center py-5 text-muted">
-                                <i class="fas fa-moon fa-3x mb-2 text-muted opacity-50"></i>
-                                <p class="mb-0">No EOD batch runs recorded yet. Click "Run EOD Batch Now" to execute today's batch.</p>
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+            {% else %}
+            <div class="text-center py-5 text-muted">
+                <i class="fas fa-shield-check fa-3x mb-2 text-success opacity-50"></i>
+                <h6 class="mb-1 text-dark fw-bold">No accounts match the selected risk criteria.</h6>
+                <p class="small mb-0 text-muted">Your loan portfolio is healthy under this filter.</p>
+            </div>
+            {% endif %}
         </div>
     </div>
 
-    <!-- Modal: Run EOD Batch Now -->
+    <!-- ═══ RECENT IRAC ALERT LOGS & RECENT EOD AUDIT TRAIL (2-COL) ═══ -->
+    <div class="row g-3 mb-4">
+        <!-- Left: Recent Alert Logs -->
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 fw-bold text-dark"><i class="fas fa-clock-rotate-left text-danger me-2"></i>Recent IRAC Risk Alerts Dispatched</h6>
+                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Audit Trail</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 320px; overflow-y: auto;">
+                        <table class="table table-hover align-middle mb-0" style="font-size: 0.78rem;">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th class="ps-3">Timestamp</th>
+                                    <th>Loan #</th>
+                                    <th>Borrower</th>
+                                    <th>Risk Bucket</th>
+                                    <th>Channel</th>
+                                    <th>Sender</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for alert in recent_alert_logs %}
+                                <tr>
+                                    <td class="ps-3 text-muted">{{ alert.created_at|date:"d M, h:i A" }}</td>
+                                    <td class="fw-bold font-monospace">{{ alert.loan.loan_number }}</td>
+                                    <td>{{ alert.customer.first_name }} {{ alert.customer.last_name }}</td>
+                                    <td>
+                                        <span class="badge {% if alert.irac_bucket == 'SMA_0' %}bg-info text-dark{% elif alert.irac_bucket == 'SMA_1' %}bg-warning text-dark{% elif alert.irac_bucket == 'SMA_2' %}bg-dark{% else %}bg-danger{% endif %}">
+                                            {{ alert.irac_bucket }}
+                                        </span>
+                                    </td>
+                                    <td><i class="fab fa-whatsapp text-success me-1"></i>WhatsApp</td>
+                                    <td class="text-muted">{{ alert.sent_by.username|default:"System" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-muted">No risk alerts dispatched yet.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Recent EOD Batch Runs -->
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 fw-bold text-dark"><i class="fas fa-history text-secondary me-2"></i>EOD Batch Accrual Execution History</h6>
+                    <span class="text-muted small">Latest {{ eod_runs|length }} runs</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 320px; overflow-y: auto;">
+                        <table class="table table-hover align-middle mb-0" style="font-size: 0.78rem;">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th class="ps-3">Date</th>
+                                    <th>Status</th>
+                                    <th class="text-end">Loans</th>
+                                    <th class="text-end">Daily Int. (₹)</th>
+                                    <th>GL Voucher</th>
+                                    <th class="text-center">Log</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for run in eod_runs %}
+                                <tr>
+                                    <td class="ps-3 fw-bold font-monospace text-primary">{{ run.execution_date|date:"d M Y" }}</td>
+                                    <td>
+                                        <span class="badge {% if run.status == 'COMPLETED' %}bg-success{% elif run.status == 'IN_PROGRESS' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                                            {{ run.status }}
+                                        </span>
+                                    </td>
+                                    <td class="text-end font-monospace">{{ run.total_loans_processed }}</td>
+                                    <td class="text-end font-monospace text-success fw-bold">₹{{ run.total_daily_interest_accrued|floatformat:0|intcomma }}</td>
+                                    <td>
+                                        {% if run.gl_journal_entry %}
+                                        <a href="{% url 'accounting_journal_detail' run.gl_journal_entry.pk %}" class="font-monospace text-primary text-decoration-none">
+                                            #{{ run.gl_journal_entry.entry_number }}
+                                        </a>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-outline-secondary btn-xs py-0 px-1" data-bs-toggle="modal" data-bs-target="#logModal{{ run.pk }}">
+                                            <i class="fas fa-file-alt"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-muted">No EOD batch runs recorded yet.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ MODAL: PREVIEW ALERT NOTICE ═══ -->
+    <div class="modal fade" id="previewAlertModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header text-white" style="background: linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%);">
+                    <h5 class="modal-title fw-bold" id="previewAlertModalTitle">
+                        <i class="fas fa-triangle-exclamation me-2"></i>Statutory Risk Alert Notice
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="small text-muted fw-bold">Borrower: <span id="previewAlertBorrower" class="text-dark"></span></span>
+                        <span id="previewAlertBucketBadge" class="badge bg-danger"></span>
+                    </div>
+                    <div class="p-3 bg-light rounded-3 border font-monospace text-dark small" style="white-space: pre-wrap; max-height: 280px; overflow-y: auto; font-size: 0.8rem; line-height: 1.4;" id="previewAlertBody">
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-success btn-sm fw-bold" id="previewAlertCopyBtn" onclick="copyAlertPreviewText()">
+                        <i class="fas fa-copy me-1"></i> Copy Text
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ MODAL: BATCH IRAC ALERTS SEQUENTIAL DISPATCHER ═══ -->
+    <div class="modal fade" id="batchAlertModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header text-white" style="background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);">
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0">
+                            <i class="fab fa-whatsapp me-2"></i>Sequential IRAC Overdue Alerts Auto-Dispatcher
+                        </h5>
+                        <small class="opacity-90">Send automated WhatsApp warning notices to delinquent borrowers</small>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" onclick="pauseAlertRunner()"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <!-- Progress Bar -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small fw-bold text-dark" id="alertRunnerProgressText">Borrower 1 of 0 (0%)</span>
+                            <span class="badge bg-danger fw-bold" id="alertRunnerStatusBadge">Ready</span>
+                        </div>
+                        <div class="progress" style="height: 10px;">
+                            <div id="alertRunnerProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-danger" role="progressbar" style="width: 0%;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Active Borrower Card -->
+                    <div class="card border-danger border-2 shadow-sm rounded-3 mb-3 bg-light">
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <span class="badge bg-danger text-white mb-1" id="alertRunnerBucketBadge">SMA-0 Notice</span>
+                                    <h5 class="fw-bold text-dark mb-0" id="alertRunnerBorrowerName">Borrower Name</h5>
+                                    <span class="text-success fw-bold font-monospace small" id="alertRunnerPhone">+91 9876543210</span>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-white text-dark border shadow-2xs font-monospace" id="alertRunnerLoanNumber">Loan #</span>
+                                </div>
+                            </div>
+
+                            <div class="p-2 rounded bg-white border font-monospace small text-dark mb-0" style="max-height: 140px; overflow-y: auto; font-size: 0.78rem; line-height: 1.4;" id="alertRunnerMessagePreview">
+                                Alert message preview...
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Runner Controls Bar -->
+                    <div class="p-3 bg-white rounded-3 border shadow-2xs">
+                        <div class="row g-2 align-items-center">
+                            <div class="col-md-5">
+                                <button type="button" class="btn btn-success fw-bold w-100 py-2 shadow-sm" onclick="alertRunnerSendCurrent()">
+                                    <i class="fab fa-whatsapp me-1"></i> 🚀 Open WhatsApp Alert
+                                </button>
+                            </div>
+                            <div class="col-md-4">
+                                <button type="button" class="btn btn-outline-danger fw-bold w-100 py-2" id="alertRunnerAutoBtn" onclick="toggleAlertAutoRun()">
+                                    <i class="fas fa-play me-1"></i> ▶️ Start Auto-Run
+                                </button>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-flex gap-1">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm flex-fill" onclick="skipAlertRunner()">
+                                        <i class="fas fa-forward me-1"></i> Skip
+                                    </button>
+                                    <button type="button" class="btn btn-outline-dark btn-sm flex-fill" onclick="pauseAlertRunner()">
+                                        <i class="fas fa-pause"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="small text-muted fw-semibold" style="font-size: 0.75rem;">Interval Delay:</span>
+                                <select id="alertPacingDelay" class="form-select form-select-sm" style="width: 80px; font-size: 0.75rem;">
+                                    <option value="5" selected>5s</option>
+                                    <option value="8">8s</option>
+                                    <option value="12">12s</option>
+                                </select>
+                            </div>
+                            <span class="small text-muted fw-semibold" id="alertCountdownText" style="font-size: 0.75rem;"></span>
+                        </div>
+                    </div>
+
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" onclick="pauseAlertRunner()">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ MODAL: ZERO-CLICK HEADLESS AUTO DISPATCH ═══ -->
+    <div class="modal fade" id="zeroClickAutoModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header text-white" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);">
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0">
+                            <i class="fas fa-bolt text-warning me-2"></i>100% Zero-Click Automated WhatsApp Dispatch
+                        </h5>
+                        <small class="text-light opacity-75">Background Playwright Engine — No manual clicks, no browser tabs opened</small>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" id="zeroClickModalCloseBtn"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-info border-0 shadow-2xs d-flex align-items-center gap-3 mb-4">
+                        <div class="fs-2 text-primary"><i class="fas fa-robot"></i></div>
+                        <div>
+                            <div class="fw-bold">Hands-Free Background Execution</div>
+                            <small class="text-muted">The Python Headless worker will connect to WhatsApp Web and send the customized legal risk notices directly to each delinquent customer with zero operator intervention.</small>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <div class="p-3 bg-light rounded-3 text-center border">
+                                <small class="text-muted text-uppercase fw-bold" style="font-size: 0.68rem;">Target Accounts</small>
+                                <div class="fs-4 fw-bold text-dark" id="zeroClickTargetCount">0</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3 bg-light rounded-3 text-center border">
+                                <small class="text-success text-uppercase fw-bold" style="font-size: 0.68rem;">Successfully Sent</small>
+                                <div class="fs-4 fw-bold text-success" id="zeroClickSuccessCount">0</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3 bg-light rounded-3 text-center border">
+                                <small class="text-danger text-uppercase fw-bold" style="font-size: 0.68rem;">Failed / Invalid</small>
+                                <div class="fs-4 fw-bold text-danger" id="zeroClickFailCount">0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="mb-3" id="zeroClickProgressContainer" style="display: none;">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small fw-bold text-dark" id="zeroClickProgressLabel">Processing dispatch queue...</span>
+                            <span class="badge bg-primary" id="zeroClickStatusPill"><i class="fas fa-spinner fa-spin me-1"></i> Running</span>
+                        </div>
+                        <div class="progress" style="height: 12px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" id="zeroClickProgressBar" style="width: 100%;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Live Log Terminal -->
+                    <div class="card bg-dark border-0 rounded-3 text-light">
+                        <div class="card-header bg-dark border-secondary py-2 d-flex justify-content-between align-items-center">
+                            <span class="small font-monospace text-secondary"><i class="fas fa-terminal me-1"></i> Dispatch Activity Log</span>
+                            <span class="badge bg-secondary font-monospace" style="font-size: 0.65rem;" id="zeroClickLogCount">0 events</span>
+                        </div>
+                        <div class="card-body font-monospace p-3 small" id="zeroClickTerminal" style="height: 180px; overflow-y: auto; font-size: 0.76rem; line-height: 1.5; color: #a5f3fc;">
+                            <div>[*] Ready to begin background automated dispatch.</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light d-flex justify-content-between">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" id="zeroClickCancelBtn">Cancel</button>
+                    <button type="button" class="btn btn-primary fw-bold px-4" id="zeroClickStartBtn" onclick="executeHeadlessBatchDispatch()">
+                        <i class="fas fa-play me-1"></i> Start 100% Zero-Click Auto Dispatch
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ MODAL: WHATSAPP QR CODE PAIRING ═══ -->
+    <div class="modal fade" id="pairWhatsAppModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title fw-bold"><i class="fab fa-whatsapp text-success me-2"></i>Link WhatsApp for Auto-Dispatch</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4 text-center">
+                    <div class="mb-3">
+                        <h6 class="fw-bold text-dark">Scan this QR Code from your Phone</h6>
+                        <p class="small text-muted mb-0">
+                            1. Open <strong>WhatsApp</strong> on your phone.<br>
+                            2. Tap <strong>Menu (⋮) / Settings</strong> &gt; <strong>Linked Devices</strong> &gt; <strong>Link a Device</strong>.<br>
+                            3. Point your camera at the QR code below:
+                        </p>
+                    </div>
+
+                    <!-- Live QR Display Box -->
+                    <div class="my-3 p-3 bg-light border rounded-3 d-flex flex-column align-items-center justify-content-center" style="min-height: 280px;" id="qrBoxContainer">
+                        <div id="qrLoadingSpinner" class="text-center py-4">
+                            <div class="spinner-border text-success mb-2" role="status"></div>
+                            <div class="small text-muted fw-bold">Fetching WhatsApp QR Code...</div>
+                        </div>
+                        <img id="modalQrImage" src="" alt="WhatsApp QR Code" class="img-fluid border rounded shadow-sm p-2 bg-white" style="display: none; width: 250px; height: 250px; object-fit: contain;">
+                    </div>
+
+                    <div id="pairStatusMessage" class="alert alert-secondary small font-monospace mb-3">
+                        <i class="fas fa-info-circle me-1"></i> Waiting for QR scan...
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-secondary btn-sm flex-fill" onclick="fetchLiveWhatsAppQR()">
+                            <i class="fas fa-sync-alt me-1"></i> Refresh QR
+                        </button>
+                        <button type="button" class="btn btn-dark btn-sm flex-fill" id="launchPairingBrowserBtn" onclick="triggerServerPairing()">
+                            <i class="fas fa-external-link-alt me-1"></i> Open Browser Window
+                        </button>
+                    </div>
+
+                    <div class="mt-3 pt-2 border-top text-start">
+                        <small class="text-muted fw-bold d-block mb-1" style="font-size: 0.72rem;">Alternative Terminal Setup:</small>
+                        <code class="d-block p-1 bg-light border rounded small text-dark" style="font-size: 0.75rem;">python manage.py setup_whatsapp_session</code>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ MODAL: RUN EOD BATCH ═══ -->
     <div class="modal fade" id="runEODModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -230,7 +747,7 @@
                             <select name="branch_id" class="form-select">
                                 <option value="">Enterprise-Wide (All Branches)</option>
                                 {% for b in all_branches %}
-                                <option value="{{ b.id }}">{{ b.name }}</option>
+                                <option value="{{ b.id }}" {% if selected_branch_id == b.id|stringformat:"s" %}selected{% endif %}>{{ b.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -246,4 +763,470 @@
         </div>
     </div>
 </div>
+
+<script>
+// ── Multi-Select Checkbox Handlers for Delinquency Watchlist ────────────────
+function updateWatchlistSelectedCount() {
+    const all = document.querySelectorAll('.watchlist-row-chk');
+    const checked = document.querySelectorAll('.watchlist-row-chk:checked');
+    const count = checked.length;
+    const total = all.length;
+
+    const countBadge = document.getElementById('selectedAlertCount');
+    if (countBadge) countBadge.innerText = count;
+
+    const launchBtn = document.getElementById('launchBatchAlertBtn');
+    if (launchBtn) {
+        launchBtn.disabled = (count === 0);
+    }
+
+    const master = document.getElementById('selectAllWatchlist');
+    if (master) {
+        master.checked = (count === total && total > 0);
+        master.indeterminate = (count > 0 && count < total);
+    }
+}
+
+function toggleSelectAllWatchlist(master) {
+    const isChecked = master.checked;
+    document.querySelectorAll('.watchlist-row-chk').forEach(chk => {
+        chk.checked = isChecked;
+    });
+    updateWatchlistSelectedCount();
+}
+
+function getCsrfToken() {
+    const cookieValue = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('csrftoken='))
+        ?.split('=')[1];
+    return cookieValue || '{{ csrf_token }}';
+}
+
+// ── Single Alert Dispatch & Real-Time Logging ──────────────────────────────
+async function handleSingleAlertClick(event, rowId, loanId, bucket, message) {
+    const row = document.getElementById(rowId);
+    if (row) {
+        row.classList.add('table-success');
+        const btn = row.querySelector('.send-alert-btn');
+        if (btn) {
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-outline-success');
+            btn.innerHTML = '<i class="fas fa-check me-1"></i> Sent';
+        }
+    }
+
+    // Background asynchronous logging
+    try {
+        await fetch("{% url 'eod_send_irac_alert' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({
+                loan_id: loanId,
+                bucket: bucket,
+                channel: 'whatsapp_web',
+                message: message
+            })
+        });
+    } catch (err) {
+        console.warn("Could not log IRAC alert:", err);
+    }
+}
+
+// ── Preview Alert Notice Modal ─────────────────────────────────────────────
+let currentPreviewAlertText = '';
+function previewAlertMessageModal(loanNumber, customerName, bucket, message) {
+    currentPreviewAlertText = message;
+    document.getElementById('previewAlertBorrower').innerText = `${customerName} (${loanNumber})`;
+    document.getElementById('previewAlertBucketBadge').innerText = bucket;
+    document.getElementById('previewAlertBody').innerText = message;
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('previewAlertModal')).show();
+}
+
+function copyAlertPreviewText() {
+    navigator.clipboard.writeText(currentPreviewAlertText).then(() => {
+        alert('Alert notice text copied to clipboard!');
+    });
+}
+
+// ── Sequential Batch Alert Auto-Dispatcher Engine ──────────────────────────
+let alertQueue = [];
+let alertIndex = 0;
+let alertIsAutoRunning = false;
+let alertCountdown = null;
+
+function startBatchIRACAlerts() {
+    alertQueue = [];
+    const checked = document.querySelectorAll('.watchlist-row-chk:checked');
+    if (checked.length === 0) {
+        alert('Please select at least one delinquent loan account to dispatch alerts.');
+        return;
+    }
+
+    checked.forEach((chk, idx) => {
+        alertQueue.push({
+            index: idx,
+            loanId: chk.getAttribute('data-loan-id'),
+            loanNumber: chk.getAttribute('data-loan-number'),
+            name: chk.getAttribute('data-name'),
+            phone: chk.getAttribute('data-phone'),
+            bucket: chk.getAttribute('data-bucket'),
+            url: chk.getAttribute('data-url'),
+            message: chk.getAttribute('data-message'),
+            rowId: chk.closest('tr').id,
+        });
+    });
+
+    alertIndex = 0;
+    alertIsAutoRunning = false;
+    pauseAlertRunner();
+    renderAlertRunnerCurrent();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('batchAlertModal')).show();
+}
+
+function renderAlertRunnerCurrent() {
+    if (alertIndex >= alertQueue.length) {
+        renderAlertRunnerFinished();
+        return;
+    }
+
+    const item = alertQueue[alertIndex];
+    const total = alertQueue.length;
+    const progress = Math.round((alertIndex / total) * 100);
+
+    document.getElementById('alertRunnerProgressText').innerText = `Borrower ${alertIndex + 1} of ${total} (${progress}%)`;
+    document.getElementById('alertRunnerProgressBar').style.width = `${progress}%`;
+    document.getElementById('alertRunnerBorrowerName').innerText = item.name;
+    document.getElementById('alertRunnerPhone').innerText = item.phone;
+    document.getElementById('alertRunnerLoanNumber').innerText = `Loan #${item.loanNumber}`;
+    document.getElementById('alertRunnerBucketBadge').innerText = `${item.bucket} Notice`;
+    document.getElementById('alertRunnerMessagePreview').innerText = item.message;
+}
+
+async function alertRunnerSendCurrent() {
+    if (alertIndex >= alertQueue.length) return;
+    const item = alertQueue[alertIndex];
+
+    if (item.url) {
+        window.open(item.url, '_blank');
+    }
+
+    // Log to backend
+    handleSingleAlertClick(null, item.rowId, item.loanId, item.bucket, item.message);
+
+    if (alertIsAutoRunning) {
+        startAlertCountdown();
+    } else {
+        alertIndex++;
+        if (alertIndex < alertQueue.length) {
+            renderAlertRunnerCurrent();
+        } else {
+            renderAlertRunnerFinished();
+        }
+    }
+}
+
+function startAlertCountdown() {
+    const delaySec = parseInt(document.getElementById('alertPacingDelay').value) || 5;
+    let left = delaySec;
+    const cdEl = document.getElementById('alertCountdownText');
+    if (cdEl) cdEl.innerHTML = `⏱️ Next alert opening in <strong class="text-danger">${left}s</strong>...`;
+
+    if (alertCountdown) clearInterval(alertCountdown);
+    alertCountdown = setInterval(() => {
+        left--;
+        if (left <= 0) {
+            clearInterval(alertCountdown);
+            if (cdEl) cdEl.innerText = '';
+            alertIndex++;
+            if (alertIndex < alertQueue.length) {
+                renderAlertRunnerCurrent();
+                alertRunnerSendCurrent();
+            } else {
+                renderAlertRunnerFinished();
+            }
+        } else {
+            if (cdEl) cdEl.innerHTML = `⏱️ Next alert opening in <strong class="text-danger">${left}s</strong>...`;
+        }
+    }, 1000);
+}
+
+function toggleAlertAutoRun() {
+    alertIsAutoRunning = !alertIsAutoRunning;
+    const btn = document.getElementById('alertRunnerAutoBtn');
+    if (alertIsAutoRunning) {
+        btn.className = 'btn btn-warning fw-bold w-100 py-2 text-dark';
+        btn.innerHTML = '<i class="fas fa-pause me-1"></i> ⏸️ Pause Auto-Run';
+        document.getElementById('alertRunnerStatusBadge').className = 'badge bg-warning text-dark fw-bold';
+        document.getElementById('alertRunnerStatusBadge').innerText = '⚡ Auto-Running';
+        alertRunnerSendCurrent();
+    } else {
+        pauseAlertRunner();
+    }
+}
+
+function pauseAlertRunner() {
+    alertIsAutoRunning = false;
+    if (alertCountdown) clearInterval(alertCountdown);
+    const btn = document.getElementById('alertRunnerAutoBtn');
+    if (btn) {
+        btn.className = 'btn btn-outline-danger fw-bold w-100 py-2';
+        btn.innerHTML = '<i class="fas fa-play me-1"></i> ▶️ Start Auto-Run';
+    }
+    const cdEl = document.getElementById('alertCountdownText');
+    if (cdEl) cdEl.innerText = '⏸️ Paused';
+    const badge = document.getElementById('alertRunnerStatusBadge');
+    if (badge) {
+        badge.className = 'badge bg-secondary fw-bold';
+        badge.innerText = 'Paused';
+    }
+}
+
+function skipAlertRunner() {
+    if (alertIndex < alertQueue.length) {
+        alertIndex++;
+        if (alertIndex < alertQueue.length) {
+            renderAlertRunnerCurrent();
+        } else {
+            renderAlertRunnerFinished();
+        }
+    }
+}
+
+function renderAlertRunnerFinished() {
+    pauseAlertRunner();
+    document.getElementById('alertRunnerProgressBar').style.width = '100%';
+    document.getElementById('alertRunnerProgressText').innerText = `All ${alertQueue.length} alerts dispatched!`;
+    document.getElementById('alertRunnerStatusBadge').className = 'badge bg-success fw-bold';
+    document.getElementById('alertRunnerStatusBadge').innerText = '✅ Dispatches Completed';
+    document.getElementById('alertRunnerBorrowerName').innerText = '🎉 All Risk Notices Dispatched';
+    document.getElementById('alertRunnerMessagePreview').innerHTML = '<strong class="text-success">All selected borrowers have received their statutory warning notices.</strong>';
+}
+
+let qrPollInterval = null;
+
+function openPairWhatsAppDialog() {
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('pairWhatsAppModal')).show();
+    fetchLiveWhatsAppQR();
+}
+
+async function fetchLiveWhatsAppQR() {
+    const spinner = document.getElementById('qrLoadingSpinner');
+    const img = document.getElementById('modalQrImage');
+    const msg = document.getElementById('pairStatusMessage');
+
+    spinner.style.display = 'block';
+    img.style.display = 'none';
+    msg.className = 'alert alert-secondary small font-monospace mb-3';
+    msg.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Requesting QR code from WhatsApp Web...';
+
+    try {
+        const resp = await fetch("{% url 'eod_get_whatsapp_qr' %}", {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        const data = await resp.json();
+
+        if (data.status === 'authenticated') {
+            spinner.style.display = 'none';
+            img.style.display = 'none';
+            msg.className = 'alert alert-success small font-monospace mb-3';
+            msg.innerHTML = '<i class="fas fa-check-circle me-1"></i> <strong>WhatsApp is already linked!</strong>';
+            setTimeout(() => { location.reload(); }, 1500);
+            return;
+        }
+
+        if (data.status === 'qr_ready' && data.qr_image) {
+            spinner.style.display = 'none';
+            img.src = data.qr_image;
+            img.style.display = 'block';
+            msg.className = 'alert alert-info small font-monospace mb-3';
+            msg.innerHTML = '<i class="fas fa-camera me-1"></i> <strong>QR Code ready!</strong> Scan now from your WhatsApp phone.';
+
+            // Start polling for scan completion
+            startQRPairingPoll();
+        } else {
+            spinner.style.display = 'none';
+            msg.className = 'alert alert-warning small font-monospace mb-3';
+            msg.innerHTML = '<i class="fas fa-info-circle me-1"></i> ' + (data.message || 'Click "Open Browser Window" below to scan directly.');
+        }
+    } catch (err) {
+        spinner.style.display = 'none';
+        msg.className = 'alert alert-danger small font-monospace mb-3';
+        msg.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> Could not load QR image: ' + err.message + '. Please use "Open Browser Window" or terminal setup.';
+    }
+}
+
+function startQRPairingPoll() {
+    if (qrPollInterval) clearInterval(qrPollInterval);
+    let attempts = 0;
+    qrPollInterval = setInterval(async () => {
+        attempts++;
+        if (attempts > 30) {
+            clearInterval(qrPollInterval);
+            return;
+        }
+        try {
+            const resp = await fetch("{% url 'eod_get_whatsapp_qr' %}", {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const data = await resp.json();
+            if (data.status === 'authenticated') {
+                clearInterval(qrPollInterval);
+                const msg = document.getElementById('pairStatusMessage');
+                msg.className = 'alert alert-success small font-monospace mb-3';
+                msg.innerHTML = '<i class="fas fa-check-circle me-1"></i> <strong>Success!</strong> WhatsApp Linked Successfully!';
+                setTimeout(() => { location.reload(); }, 2000);
+            }
+        } catch (e) {}
+    }, 3000);
+}
+
+async function triggerServerPairing() {
+    const msg = document.getElementById('pairStatusMessage');
+    const btn = document.getElementById('launchPairingBrowserBtn');
+    msg.className = 'alert alert-info small font-monospace mb-3';
+    msg.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Browser window opening on your desktop. Please scan the QR code from your phone now (waiting up to 90s)...';
+    btn.disabled = true;
+
+    try {
+        const resp = await fetch("{% url 'eod_pair_whatsapp' %}", {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCsrfToken()
+            }
+        });
+        const data = await resp.json();
+        if (data.success) {
+            msg.className = 'alert alert-success small font-monospace mb-3';
+            msg.innerHTML = '<i class="fas fa-check-circle me-1"></i> <strong>Success!</strong> WhatsApp session linked permanently.';
+            setTimeout(() => { location.reload(); }, 2000);
+        } else {
+            msg.className = 'alert alert-danger small font-monospace mb-3';
+            msg.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> ' + (data.message || 'Pairing timed out.');
+            btn.disabled = false;
+        }
+    } catch (err) {
+        msg.className = 'alert alert-danger small font-monospace mb-3';
+        msg.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> Error: ' + err.message;
+        btn.disabled = false;
+    }
+}
+
+function launchZeroClickAutomatedDispatch() {
+    const checked = document.querySelectorAll('.watchlist-row-chk:checked');
+    const all = document.querySelectorAll('.watchlist-row-chk');
+    const count = checked.length > 0 ? checked.length : all.length;
+
+    document.getElementById('zeroClickTargetCount').innerText = count;
+    document.getElementById('zeroClickSuccessCount').innerText = '0';
+    document.getElementById('zeroClickFailCount').innerText = '0';
+    document.getElementById('zeroClickTerminal').innerHTML = `<div>[*] Target queue: ${count} delinquent loan accounts selected.</div><div>[*] Click 'Start 100% Zero-Click Auto Dispatch' below to run.</div>`;
+    document.getElementById('zeroClickProgressContainer').style.display = 'none';
+    document.getElementById('zeroClickStartBtn').disabled = false;
+    document.getElementById('zeroClickCancelBtn').disabled = false;
+
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('zeroClickAutoModal')).show();
+}
+
+async function executeHeadlessBatchDispatch() {
+    const startBtn = document.getElementById('zeroClickStartBtn');
+    const cancelBtn = document.getElementById('zeroClickCancelBtn');
+    const term = document.getElementById('zeroClickTerminal');
+    const prog = document.getElementById('zeroClickProgressContainer');
+
+    startBtn.disabled = true;
+    cancelBtn.disabled = true;
+    prog.style.display = 'block';
+
+    const checked = document.querySelectorAll('.watchlist-row-chk:checked');
+    let loanIds = [];
+    if (checked.length > 0) {
+        checked.forEach(c => {
+            const id = c.getAttribute('data-loan-id');
+            if (id) loanIds.push(parseInt(id));
+        });
+    } else {
+        document.querySelectorAll('.watchlist-row-chk').forEach(c => {
+            const id = c.getAttribute('data-loan-id');
+            if (id) loanIds.push(parseInt(id));
+        });
+    }
+
+    term.innerHTML += `<div><span style="color:#38bdf8;">[+]</span> Starting Python Headless Chromium Worker for ${loanIds.length} loans...</div>`;
+    term.scrollTop = term.scrollHeight;
+
+    try {
+        const resp = await fetch("{% url 'eod_auto_dispatch_irac' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({
+                loan_ids: loanIds,
+                bucket: '{{ bucket_filter }}',
+                branch_id: '{{ selected_branch_id }}',
+                lang: '{{ lang }}'
+            })
+        });
+
+        const data = await resp.json();
+
+        if (data.status === 'unpaired') {
+            term.innerHTML += `<div><span style="color:#f87171;">[-]</span> ERROR: WhatsApp session not paired! Please link your WhatsApp first.</div>`;
+            alert('WhatsApp session is not linked yet! Please click "Link WhatsApp (Scan QR)" first.');
+            startBtn.disabled = false;
+            cancelBtn.disabled = false;
+            prog.style.display = 'none';
+            return;
+        }
+
+        if (data.status === 'success') {
+            document.getElementById('zeroClickSuccessCount').innerText = data.sent;
+            document.getElementById('zeroClickFailCount').innerText = data.failed;
+            document.getElementById('zeroClickStatusPill').className = 'badge bg-success';
+            document.getElementById('zeroClickStatusPill').innerText = 'Finished';
+
+            (data.details || []).forEach(d => {
+                if (d.status === 'SENT') {
+                    term.innerHTML += `<div><span style="color:#4ade80;">[SENT]</span> Loan #${d.loan_no} | ${d.customer} (${d.phone})</div>`;
+                } else {
+                    term.innerHTML += `<div><span style="color:#f87171;">[FAILED]</span> Loan #${d.loan_no} | ${d.customer} : ${d.error || 'Unknown error'}</div>`;
+                }
+            });
+
+            term.innerHTML += `<div><span style="color:#4ade80;">[+]</span> All automated dispatches completed! (${data.sent} sent, ${data.failed} failed)</div>`;
+            term.scrollTop = term.scrollHeight;
+
+            cancelBtn.disabled = false;
+            cancelBtn.innerText = 'Close & Refresh';
+            cancelBtn.onclick = () => { location.reload(); };
+        } else {
+            term.innerHTML += `<div><span style="color:#f87171;">[-]</span> ${data.message || 'Error occurred.'}</div>`;
+            cancelBtn.disabled = false;
+        }
+    } catch (err) {
+        term.innerHTML += `<div><span style="color:#f87171;">[-]</span> Exception: ${err.message}</div>`;
+        cancelBtn.disabled = false;
+    }
+}
+</script>
+
+<style>
+.hover-shadow:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    transform: translateY(-2px);
+}
+.shadow-2xs {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+</style>
 {% endblock %}

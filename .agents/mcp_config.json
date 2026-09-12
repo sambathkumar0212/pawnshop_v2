@@ -1,0 +1,13 @@
+﻿{
+  "mcpServers": {
+    "django-ai-boost": {
+      "command": "C:\\Users\\HP\\AppData\\Local\\Programs\\Python\\Python314\\Scripts\\django-ai-boost.exe",
+      "args": ["--settings", "pawnshop_management.settings"],
+      "env": {
+        "DJANGO_SETTINGS_MODULE": "pawnshop_management.settings",
+        "PYTHONPATH": "d:\\Hari_files\\FirstMoneyGold\\software_apps\\pawnshop_v2",
+        "PATH": "C:\\Users\\HP\\AppData\\Local\\Programs\\Python\\Python314\\Scripts;C:\\Users\\HP\\AppData\\Local\\Programs\\Python\\Python314;${PATH}"
+      }
+    }
+  }
+}

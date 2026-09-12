@@ -23,12 +23,16 @@ from transactions.services_marketing import (
     add_single_lead,
     build_broadcast_queue,
     clear_all_marketing_leads,
+    delete_marketing_group,
     delete_or_reset_template,
+    get_all_marketing_groups,
     get_all_marketing_templates,
+    get_campaign_analytics,
     get_segmented_audience,
     get_social_media_ad_copies,
     import_leads_from_csv,
     launch_pywhatkit_broadcast_async,
+    log_campaign_broadcast,
     render_campaign_message,
     save_or_overwrite_template,
 )
@@ -39,7 +43,7 @@ logger = logging.getLogger(__name__)
 class DigitalMarketingDashboardView(LoginRequiredMixin, RoleBranchAccessMixin, View):
     """
     Main Digital Marketing & Campaign Studio Dashboard.
-    Handles audience segmentation, template selection, message editing,
+    Handles audience segmentation, Contact Groups, template selection, message editing,
     live queue building, and social media copy generation.
     """
     template_name = 'transactions/digital_marketing.html'
@@ -51,6 +55,13 @@ class DigitalMarketingDashboardView(LoginRequiredMixin, RoleBranchAccessMixin, V
             selected_branch_id = str(user_branch.id)
 
         segment = request.GET.get('segment', 'all')
+        selected_group_id = request.GET.get('group', '')
+        if not selected_group_id and segment.startswith('group_'):
+            try:
+                selected_group_id = segment.replace('group_', '')
+            except Exception:
+                selected_group_id = ''
+
         template_key = request.GET.get('template', 'festival_offer')
         lang = request.GET.get('lang', 'ta' if str(getattr(request, 'LANGUAGE_CODE', '')).startswith('ta') else 'en')
         use_tamil = (lang == 'ta')
@@ -64,6 +75,15 @@ class DigitalMarketingDashboardView(LoginRequiredMixin, RoleBranchAccessMixin, V
             current_gold_rate = latest_gold_rate_obj.rate_22k if latest_gold_rate_obj else Decimal('6850.00')
         except Exception:
             current_gold_rate = Decimal('6850.00')
+
+        # Fetch Marketing Groups
+        groups = get_all_marketing_groups(branch_id=selected_branch_id or None)
+        active_group = None
+        if selected_group_id:
+            for g in groups:
+                if str(g.id) == str(selected_group_id):
+                    active_group = g
+                    break
 
         # Fetch Segment Counts for KPIs
         all_aud = get_segmented_audience('all', branch_id=selected_branch_id or None)
@@ -81,14 +101,19 @@ class DigitalMarketingDashboardView(LoginRequiredMixin, RoleBranchAccessMixin, V
             'overdue_count': len(overdue_aud),
             'high_value_count': len(high_val_aud),
             'new_prospects_count': len(new_prospects_aud),
+            'groups_count': len(groups),
         }
 
         # Dynamic marketing templates (merged with database saved/custom templates)
         all_marketing_templates = get_all_marketing_templates()
         current_template = all_marketing_templates.get(template_key) or all_marketing_templates.get('festival_offer') or next(iter(all_marketing_templates.values()), {})
 
-        # Targeted Audience according to current segment selection
-        target_audience = get_segmented_audience(segment, branch_id=selected_branch_id or None)
+        # Targeted Audience according to current segment selection or group
+        target_audience = get_segmented_audience(
+            segment_type=segment,
+            branch_id=selected_branch_id or None,
+            group_id=selected_group_id or None
+        )
         broadcast_queue = build_broadcast_queue(
             target_audience,
             template_key=template_key,
@@ -123,14 +148,23 @@ class DigitalMarketingDashboardView(LoginRequiredMixin, RoleBranchAccessMixin, V
         except Exception:
             schemes = Scheme.objects.all()[:6]
 
+        # Fetch Campaign Broadcast Analytics & History
+        campaign_analytics = get_campaign_analytics(branch_id=selected_branch_id or None, limit=50)
+
         context = {
             'segment': segment,
+            'selected_group_id': selected_group_id,
+            'selected_group': selected_group_id,
+            'selected_group_obj': active_group,
+            'active_group': active_group,
+            'groups': groups,
             'template_key': template_key,
             'lang': lang,
             'use_tamil': use_tamil,
             'selected_branch_id': selected_branch_id,
             'branches': branches,
             'kpis': kpis,
+            'campaign_analytics': campaign_analytics,
             'marketing_templates': all_marketing_templates,
             'current_template': current_template,
             'broadcast_queue': broadcast_queue,
@@ -151,6 +185,13 @@ class ExecuteBroadcastActionView(LoginRequiredMixin, RoleBranchAccessMixin, View
     def post(self, request):
         action = request.POST.get('action', 'pywhatkit_broadcast')
         segment = request.POST.get('segment', 'all')
+        group_id = request.POST.get('group', '')
+        if not group_id and segment.startswith('group_'):
+            try:
+                group_id = segment.replace('group_', '')
+            except Exception:
+                group_id = ''
+
         template_key = request.POST.get('template', 'festival_offer')
         lang = request.POST.get('lang', 'ta')
         branch_id = request.POST.get('branch', '')
@@ -158,7 +199,11 @@ class ExecuteBroadcastActionView(LoginRequiredMixin, RoleBranchAccessMixin, View
         delay_seconds = int(request.POST.get('delay_seconds', 20))
 
         use_tamil = (lang == 'ta')
-        target_audience = get_segmented_audience(segment, branch_id=branch_id or None)
+        target_audience = get_segmented_audience(
+            segment_type=segment,
+            branch_id=branch_id or None,
+            group_id=group_id or None
+        )
         broadcast_queue = build_broadcast_queue(
             target_audience,
             template_key=template_key,
@@ -166,20 +211,25 @@ class ExecuteBroadcastActionView(LoginRequiredMixin, RoleBranchAccessMixin, View
             custom_body=custom_message
         )
 
+        redirect_url = reverse('digital_marketing') + f"?segment={segment}&template={template_key}&lang={lang}&branch={branch_id}"
+        if group_id:
+            redirect_url += f"&group={group_id}"
+
         if not broadcast_queue:
-            messages.warning(request, "No valid WhatsApp contacts found in the selected audience segment.")
-            return redirect(reverse('digital_marketing') + f"?segment={segment}&template={template_key}&lang={lang}")
+            messages.warning(request, "No valid WhatsApp contacts found in the selected audience segment/group.")
+            return redirect(redirect_url)
 
         if action == 'export_csv':
             response = HttpResponse(content_type='text/csv; charset=utf-8')
             response['Content-Disposition'] = f'attachment; filename="whatsapp_broadcast_{segment}_{template_key}.csv"'
             writer = csv.writer(response)
-            writer.writerow(['Customer ID', 'Name', 'Phone Number', 'City', 'Branch', 'WhatsApp Direct URL', 'Personalized Message'])
+            writer.writerow(['Customer ID', 'Name', 'Phone Number', 'Group', 'City', 'Branch', 'WhatsApp Direct URL', 'Personalized Message'])
             for row in broadcast_queue:
                 writer.writerow([
                     row['customer_id'],
                     row['name'],
                     row['phone'],
+                    row.get('group_name', ''),
                     row['city'],
                     row['branch_name'],
                     row['whatsapp_url'],
@@ -193,31 +243,75 @@ class ExecuteBroadcastActionView(LoginRequiredMixin, RoleBranchAccessMixin, View
             campaign_image_base64 = request.POST.get('campaign_image_base64', '').strip()
 
             saved_image_path = None
-            try:
-                import base64
-                import os
-                import time
-                campaigns_dir = os.path.join(settings.BASE_DIR, 'media', 'campaigns')
-                os.makedirs(campaigns_dir, exist_ok=True)
+            # Only process image if the selected mode actually needs one
+            if send_mode != 'message_only':
+                try:
+                    import base64
+                    import os
+                    import time
+                    from io import BytesIO
+                    from PIL import Image
 
-                if campaign_image_file:
-                    ext = os.path.splitext(campaign_image_file.name)[1] or '.png'
-                    filename = f"campaign_{int(time.time())}_{request.user.id}{ext}"
-                    filepath = os.path.join(campaigns_dir, filename)
-                    with open(filepath, 'wb+') as destination:
-                        for chunk in campaign_image_file.chunks():
-                            destination.write(chunk)
-                    saved_image_path = filepath
-                elif campaign_image_base64 and 'base64,' in campaign_image_base64:
-                    _, encoded = campaign_image_base64.split('base64,', 1)
-                    file_data = base64.b64decode(encoded)
-                    filename = f"campaign_poster_{int(time.time())}_{request.user.id}.png"
-                    filepath = os.path.join(campaigns_dir, filename)
-                    with open(filepath, 'wb') as f:
-                        f.write(file_data)
-                    saved_image_path = filepath
-            except Exception as exc:
-                logger.warning("Could not save campaign image attachment: %s", exc)
+                    campaigns_dir = os.path.join(settings.BASE_DIR, 'media', 'campaigns')
+                    os.makedirs(campaigns_dir, exist_ok=True)
+
+                    if campaign_image_file:
+                        filename = f"campaign_flyer_{int(time.time())}_{request.user.id}.png"
+                        filepath = os.path.abspath(os.path.join(campaigns_dir, filename))
+                        
+                        # Convert to standard RGB/RGBA PNG via Pillow to guarantee PyWhatKit compatibility
+                        try:
+                            img = Image.open(campaign_image_file)
+                            if img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info):
+                                img = img.convert('RGBA')
+                            else:
+                                img = img.convert('RGB')
+                            img.save(filepath, format='PNG')
+                            saved_image_path = filepath
+                        except Exception:
+                            # Fallback raw write
+                            campaign_image_file.seek(0)
+                            with open(filepath, 'wb+') as destination:
+                                for chunk in campaign_image_file.chunks():
+                                    destination.write(chunk)
+                            saved_image_path = filepath
+
+                    elif campaign_image_base64:
+                        if 'base64,' in campaign_image_base64:
+                            _, encoded = campaign_image_base64.split('base64,', 1)
+                        else:
+                            encoded = campaign_image_base64
+
+                        file_data = base64.b64decode(encoded)
+                        filename = f"campaign_flyer_{int(time.time())}_{request.user.id}.png"
+                        filepath = os.path.abspath(os.path.join(campaigns_dir, filename))
+
+                        try:
+                            img = Image.open(BytesIO(file_data))
+                            if img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info):
+                                img = img.convert('RGBA')
+                            else:
+                                img = img.convert('RGB')
+                            img.save(filepath, format='PNG')
+                            saved_image_path = filepath
+                        except Exception:
+                            with open(filepath, 'wb') as f:
+                                f.write(file_data)
+                            saved_image_path = filepath
+                    else:
+                        logger.warning(
+                            "PyWhatKit blast: send_mode='%s' but NO image was received from the browser. "
+                            "Check that the campaign_image_base64 hidden field is populated before form submit.",
+                            send_mode
+                        )
+
+                    if saved_image_path and os.path.exists(saved_image_path) and os.path.getsize(saved_image_path) > 0:
+                        logger.info("Campaign flyer image saved successfully: %s (%d bytes)", saved_image_path, os.path.getsize(saved_image_path))
+                    else:
+                        saved_image_path = None
+
+                except Exception as exc:
+                    logger.warning("Could not process campaign image attachment: %s", exc)
 
             started = launch_pywhatkit_broadcast_async(
                 broadcast_queue,
@@ -233,13 +327,13 @@ class ExecuteBroadcastActionView(LoginRequiredMixin, RoleBranchAccessMixin, View
                 )
                 messages.success(
                     request,
-                    f"🚀 Automated PyWhatKit broadcast launched in background for {len(broadcast_queue)} contacts "
-                    f"({mode_desc}, {delay_seconds}s safety interval). Keep WhatsApp Web ready on your browser!"
+                    f"🚀 1-Click WhatsApp PyWhatKit Auto-Blast launched in background for {len(broadcast_queue)} contacts "
+                    f"({mode_desc}, {delay_seconds}s safe interval). Ensure WhatsApp Web is active on your browser!"
                 )
             else:
                 messages.error(request, "Failed to initiate PyWhatKit background broadcast.")
 
-        return redirect(reverse('digital_marketing') + f"?segment={segment}&template={template_key}&lang={lang}&branch={branch_id}")
+        return redirect(redirect_url)
 
 
 class GenerateAICampaignView(LoginRequiredMixin, View):
@@ -385,8 +479,8 @@ class SaveMarketingTemplateView(LoginRequiredMixin, View):
 
 class ImportMarketingLeadsView(LoginRequiredMixin, RoleBranchAccessMixin, View):
     """
-    Handles importing external prospect leads via CSV, manual single entry,
-    clearing lead lists, or downloading sample CSV template.
+    Handles importing external prospect leads into Contact Groups via CSV,
+    manual single entry, group management, clearing lists, or downloading sample CSV.
     """
     def post(self, request):
         action = request.POST.get('action', 'import_csv')
@@ -396,6 +490,72 @@ class ImportMarketingLeadsView(LoginRequiredMixin, RoleBranchAccessMixin, View):
         lang = request.POST.get('lang', 'ta')
         save_as_customer = (request.POST.get('save_as_customer') == 'on' or request.POST.get('save_as_customer') == 'true')
 
+        group_option = request.POST.get('group_option', '').strip()  # 'new', 'existing', 'unassigned'
+        existing_group_id = request.POST.get('existing_group_id', '').strip()
+        new_group_name = request.POST.get('new_group_name', '').strip()
+        group_description = request.POST.get('group_description', '').strip()
+        group_fallback = request.POST.get('group', request.GET.get('group', '')).strip()
+
+        target_group_id = None
+        target_group_name = None
+
+        if group_option == 'existing':
+            if existing_group_id:
+                try:
+                    target_group_id = int(existing_group_id)
+                except (ValueError, TypeError):
+                    target_group_id = None
+            elif group_fallback:
+                try:
+                    target_group_id = int(group_fallback)
+                except (ValueError, TypeError):
+                    target_group_id = None
+            elif segment.startswith('group_'):
+                try:
+                    target_group_id = int(segment.replace('group_', ''))
+                except (ValueError, TypeError):
+                    target_group_id = None
+        elif group_option == 'new':
+            if new_group_name:
+                target_group_name = new_group_name
+            elif existing_group_id:
+                try:
+                    target_group_id = int(existing_group_id)
+                except (ValueError, TypeError):
+                    target_group_id = None
+            elif group_fallback:
+                try:
+                    target_group_id = int(group_fallback)
+                except (ValueError, TypeError):
+                    target_group_id = None
+            elif segment.startswith('group_'):
+                try:
+                    target_group_id = int(segment.replace('group_', ''))
+                except (ValueError, TypeError):
+                    target_group_id = None
+        elif group_option == 'unassigned':
+            target_group_id = None
+            target_group_name = None
+        else:
+            # Fallback when group_option radio was not explicitly set
+            if existing_group_id:
+                try:
+                    target_group_id = int(existing_group_id)
+                except (ValueError, TypeError):
+                    pass
+            elif group_fallback:
+                try:
+                    target_group_id = int(group_fallback)
+                except (ValueError, TypeError):
+                    pass
+            elif segment.startswith('group_'):
+                try:
+                    target_group_id = int(segment.replace('group_', ''))
+                except (ValueError, TypeError):
+                    pass
+            elif new_group_name:
+                target_group_name = new_group_name
+
         if action == 'import_csv':
             csv_file = request.FILES.get('lead_csv_file')
             if not csv_file:
@@ -403,16 +563,29 @@ class ImportMarketingLeadsView(LoginRequiredMixin, RoleBranchAccessMixin, View):
                 return redirect(reverse('digital_marketing') + f"?segment={segment}&template={template_key}&lang={lang}&branch={branch_id}")
 
             try:
-                imported, skipped, errors = import_leads_from_csv(
+                imported, skipped, errors, group = import_leads_from_csv(
                     csv_file,
                     branch_id=branch_id or None,
                     user=request.user,
-                    save_as_customer=save_as_customer
+                    save_as_customer=save_as_customer,
+                    group_id=target_group_id,
+                    new_group_name=target_group_name,
+                    group_description=group_description
                 )
+                if group:
+                    total_in_grp = group.leads.count()
+                    group_tag = f" into Group '{group.name}' (Total: {total_in_grp} contacts)"
+                else:
+                    group_tag = ""
+
                 if imported > 0:
-                    messages.success(request, f"✨ Successfully imported {imported} new prospect leads! Ready to broadcast.")
+                    messages.success(request, f"✨ Successfully added {imported} contacts{group_tag}! Ready to broadcast.")
                 if skipped > 0:
                     messages.warning(request, f"⚠️ Skipped {skipped} rows due to invalid/missing phone numbers.")
+
+                target_seg = f"group_{group.id}" if group else "new_prospects"
+                group_param = f"&group={group.id}" if group else ""
+                return redirect(reverse('digital_marketing') + f"?segment={target_seg}{group_param}&template={template_key}&lang={lang}&branch={branch_id}")
             except Exception as e:
                 messages.error(request, f"Error importing CSV: {e}")
 
@@ -424,25 +597,66 @@ class ImportMarketingLeadsView(LoginRequiredMixin, RoleBranchAccessMixin, View):
 
             if not name or not phone:
                 messages.error(request, "Customer Name and Phone Number are required.")
-                return redirect(reverse('digital_marketing') + f"?segment=new_prospects&template={template_key}&lang={lang}&branch={branch_id}")
+                return redirect(reverse('digital_marketing') + f"?segment={segment}&template={template_key}&lang={lang}&branch={branch_id}")
 
             try:
-                lead = add_single_lead(
+                lead, group = add_single_lead(
                     name=name,
                     phone_raw=phone,
                     city=city,
                     notes=notes,
                     branch_id=branch_id or None,
                     user=request.user,
-                    save_as_customer=save_as_customer
+                    save_as_customer=save_as_customer,
+                    group_id=target_group_id,
+                    new_group_name=target_group_name,
+                    group_description=group_description
                 )
-                messages.success(request, f"✅ Added '{lead.name}' ({lead.phone}) to your New Prospects Broadcast Queue!")
+                if group:
+                    total_in_grp = group.leads.count()
+                    group_tag = f" to Group '{group.name}' (Total: {total_in_grp} contacts)"
+                else:
+                    group_tag = ""
+
+                messages.success(request, f"✅ Added '{lead.name}' ({lead.phone}){group_tag} to your Broadcast Queue!")
+                target_seg = f"group_{group.id}" if group else "new_prospects"
+                group_param = f"&group={group.id}" if group else ""
+                return redirect(reverse('digital_marketing') + f"?segment={target_seg}{group_param}&template={template_key}&lang={lang}&branch={branch_id}")
             except Exception as e:
-                messages.error(request, f"Could not add prospect lead: {e}")
+                messages.error(request, f"Could not add contact: {e}")
+
+        elif action == 'delete_lead':
+            lead_id = request.POST.get('lead_id')
+            grp_id = request.POST.get('group_id')
+            if lead_id:
+                try:
+                    from transactions.models import MarketingLead
+                    lead = MarketingLead.objects.get(id=lead_id)
+                    lead_name = lead.name
+                    if not grp_id and lead.group_id:
+                        grp_id = str(lead.group_id)
+                    lead.delete()
+                    messages.success(request, f"🗑️ Removed contact '{lead_name}' from the group.")
+                except Exception as e:
+                    messages.error(request, f"Could not remove contact: {e}")
+            target_seg = f"group_{grp_id}" if grp_id else "new_prospects"
+            group_param = f"&group={grp_id}" if grp_id else ""
+            return redirect(reverse('digital_marketing') + f"?segment={target_seg}{group_param}&template={template_key}&lang={lang}&branch={branch_id}")
+
+        elif action == 'delete_group':
+            del_group_id = request.POST.get('delete_group_id')
+            if del_group_id:
+                success, g_name = delete_marketing_group(del_group_id, delete_leads=True)
+                if success:
+                    messages.success(request, f"🗑️ Deleted Contact Group '{g_name}' and its contacts.")
+                else:
+                    messages.error(request, f"Could not delete group: {g_name}")
+            return redirect(reverse('digital_marketing') + f"?segment=all&template={template_key}&lang={lang}&branch={branch_id}")
 
         elif action == 'clear_leads':
-            cleared = clear_all_marketing_leads(branch_id=branch_id or None)
-            messages.info(request, f"Cleared {cleared} prospect leads from the list.")
+            group_filter_id = request.POST.get('clear_group_id') or None
+            cleared = clear_all_marketing_leads(branch_id=branch_id or None, group_id=group_filter_id)
+            messages.info(request, f"Cleared {cleared} contacts from the list.")
 
         return redirect(reverse('digital_marketing') + f"?segment=new_prospects&template={template_key}&lang={lang}&branch={branch_id}")
 
@@ -450,15 +664,157 @@ class ImportMarketingLeadsView(LoginRequiredMixin, RoleBranchAccessMixin, View):
         action = request.GET.get('action', 'download_sample')
         if action == 'download_sample':
             response = HttpResponse(content_type='text/csv; charset=utf-8')
-            response['Content-Disposition'] = 'attachment; filename="sample_prospect_leads.csv"'
+            response['Content-Disposition'] = 'attachment; filename="sample_prospect_contacts.csv"'
             writer = csv.writer(response)
             writer.writerow(['Name', 'Phone', 'City', 'Notes'])
             writer.writerow(['Harikrishnan', '9876543210', 'Theni', 'Interested in Gold Loan'])
             writer.writerow(['Murugan K', '9443322110', 'Madurai', 'Festival Mela Enquiry'])
-            writer.writerow(['Saravanan R', '9123456780', 'Bodi', 'New Prospect Lead'])
+            writer.writerow(['Saravanan R', '9123456780', 'Bodi', 'VIP Prospect'])
             writer.writerow(['Priya S', '8877665544', 'Cumbum', '0.99% Promo Lead'])
             return response
         return redirect('digital_marketing')
+
+
+class GroupContactsAPIView(LoginRequiredMixin, View):
+    """
+    AJAX endpoint: Returns all contacts in a specified MarketingGroup.
+    """
+    def get(self, request):
+        group_id = request.GET.get('group_id')
+        if not group_id:
+            return JsonResponse({'status': 'error', 'message': 'Missing group_id parameter.'}, status=400)
+
+        try:
+            from transactions.models import MarketingGroup, MarketingLead
+            group = MarketingGroup.objects.get(id=group_id)
+            leads = MarketingLead.objects.filter(group=group).order_by('-created_at')
+
+            contacts = []
+            for lead in leads:
+                contacts.append({
+                    'id': lead.id,
+                    'name': lead.name or 'Valued Customer',
+                    'phone': lead.phone or '',
+                    'norm_phone': lead.norm_phone or '',
+                    'city': lead.city or '',
+                    'notes': lead.notes or '',
+                    'source': lead.source,
+                    'created_at': lead.created_at.strftime('%d %b %Y, %I:%M %p') if lead.created_at else '',
+                })
+
+            return JsonResponse({
+                'status': 'success',
+                'group': {
+                    'id': group.id,
+                    'name': group.name,
+                    'description': group.description or '',
+                    'contact_count': len(contacts),
+                    'created_at': group.created_at.strftime('%d %b %Y') if group.created_at else '',
+                },
+                'contacts': contacts,
+            })
+        except MarketingGroup.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Group not found.'}, status=404)
+        except Exception as e:
+            logger.exception("Error in GroupContactsAPIView")
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+class LogBroadcastAPIView(LoginRequiredMixin, View):
+    """
+    AJAX endpoint: Records an individual or batch WhatsApp Web broadcast click / delivery
+    into the audit log and marks the contact as contacted.
+    """
+    def post(self, request):
+        import json
+        try:
+            if request.content_type == 'application/json':
+                data = json.loads(request.body.decode('utf-8'))
+            else:
+                data = request.POST
+
+            template_key = data.get('template_key', '')
+            campaign_name = data.get('campaign_name', 'Broadcast')
+            recipient_name = data.get('recipient_name', 'Valued Customer')
+            recipient_phone = data.get('recipient_phone', '')
+            recipient_type = data.get('recipient_type', 'customer')
+            group_id = data.get('group_id') or None
+            branch_id = data.get('branch_id') or None
+            channel = data.get('channel', 'whatsapp_web')
+            status = data.get('status', 'sent')
+            message_snippet = data.get('message_snippet', '')
+
+            log_entry = log_campaign_broadcast(
+                template_key=template_key,
+                campaign_name=campaign_name,
+                recipient_name=recipient_name,
+                recipient_phone=recipient_phone,
+                recipient_type=recipient_type,
+                group_id=group_id,
+                branch_id=branch_id,
+                channel=channel,
+                status=status,
+                message_snippet=message_snippet,
+                user=request.user
+            )
+
+            return JsonResponse({
+                'status': 'success',
+                'log_id': log_entry.id,
+                'recipient': recipient_name,
+                'sent_at': log_entry.created_at.strftime('%d %b %Y, %I:%M %p')
+            })
+        except Exception as exc:
+            logger.warning("Error logging campaign broadcast: %s", exc)
+            return JsonResponse({'status': 'error', 'message': str(exc)}, status=400)
+
+
+class ExportCampaignLogsView(LoginRequiredMixin, RoleBranchAccessMixin, View):
+    """
+    Exports full campaign broadcast history logs to a CSV report.
+    """
+    def get(self, request):
+        branch_id = request.GET.get('branch', '')
+        channel = request.GET.get('channel', '')
+        group_id = request.GET.get('group', '')
+
+        from transactions.models import MarketingCampaignLog
+        qs = MarketingCampaignLog.objects.all().select_related('group', 'branch', 'sent_by').order_by('-created_at')
+
+        if branch_id:
+            qs = qs.filter(branch_id=branch_id)
+        if channel:
+            qs = qs.filter(channel=channel)
+        if group_id:
+            qs = qs.filter(group_id=group_id)
+
+        response = HttpResponse(content_type='text/csv; charset=utf-8')
+        response['Content-Disposition'] = 'attachment; filename="marketing_campaign_broadcast_history.csv"'
+        writer = csv.writer(response)
+        writer.writerow([
+            'Log ID', 'Timestamp', 'Campaign / Template', 'Recipient Name',
+            'Phone', 'Type', 'Group', 'Branch', 'Channel', 'Status', 'Sent By', 'Message Snippet'
+        ])
+
+        for log in qs:
+            writer.writerow([
+                log.id,
+                log.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                log.campaign_name or log.template_key,
+                log.recipient_name,
+                log.recipient_phone,
+                log.recipient_type,
+                log.group.name if log.group else 'N/A',
+                log.branch.name if log.branch else 'All Branches',
+                log.get_channel_display(),
+                log.get_status_display(),
+                log.sent_by.username if log.sent_by else 'System',
+                (log.message_snippet or '').replace('\n', ' ')[:250]
+            ])
+
+        return response
+
+
 
 
 
