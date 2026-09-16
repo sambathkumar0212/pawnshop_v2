@@ -1782,6 +1782,38 @@ class LoanSendEmailView(LoginRequiredMixin, RoleBranchAccessMixin, View):
         return redirect(reverse('loan_detail', kwargs={'loan_number': loan_number}))
 
 
+def safe_whatsapp_redirect(url):
+    """
+    Safely redirects browser to WhatsApp Web even if URL exceeds Django's 2048-char DisallowedRedirect limit.
+    """
+    import json
+    from django.utils.html import escape
+    from django.http import HttpResponse
+
+    escaped_url = escape(url)
+    json_url = json.dumps(url)
+    html = f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="refresh" content="0; url={escaped_url}">
+    <title>Opening WhatsApp...</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f8fafc;">
+    <div style="text-align: center; background: white; padding: 2.5rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); max-width: 420px; border: 1px solid #e2e8f0;">
+        <div style="font-size: 2.5rem; color: #25D366; margin-bottom: 1rem;">💬</div>
+        <h3 style="margin-top: 0; color: #1e293b; font-size: 1.25rem;">Opening WhatsApp Web...</h3>
+        <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1.5rem;">Redirecting to WhatsApp chat. If it doesn't open automatically, click below:</p>
+        <a href="{escaped_url}" style="display: inline-block; background-color: #25D366; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.95rem;">Continue to WhatsApp</a>
+    </div>
+    <script>
+        window.location.replace({json_url});
+    </script>
+</body>
+</html>"""
+    return HttpResponse(html)
+
+
 class LoanSendWhatsAppView(LoginRequiredMixin, RoleBranchAccessMixin, View):
     """
     POST-only view to trigger WhatsApp notifications (via PyWhatKit or WhatsApp direct).
@@ -1797,6 +1829,7 @@ class LoanSendWhatsAppView(LoginRequiredMixin, RoleBranchAccessMixin, View):
         lang = getattr(request, 'LANGUAGE_CODE', None)
 
         try:
+            from transactions.models import LoanWhatsAppLog
             from transactions.services_whatsapp import (
                 send_due_date_reminder_whatsapp,
                 send_loan_expiry_notice_whatsapp,
@@ -1808,6 +1841,16 @@ class LoanSendWhatsAppView(LoginRequiredMixin, RoleBranchAccessMixin, View):
                     f"No phone number found for customer {loan.customer}. "
                     "Please update the customer profile with a valid phone number."
                 )
+                LoanWhatsAppLog.objects.create(
+                    loan=loan,
+                    customer=loan.customer,
+                    recipient_phone='',
+                    notification_type=whatsapp_type,
+                    status='failed',
+                    error_message='No phone number on customer profile',
+                    channel='manual',
+                    sent_by=request.user,
+                )
                 return redirect(reverse('loan_detail', kwargs={'loan_number': loan_number}))
 
             if whatsapp_type == 'demand_notice':
@@ -1816,9 +1859,39 @@ class LoanSendWhatsAppView(LoginRequiredMixin, RoleBranchAccessMixin, View):
                 )
                 if not res.get('success'):
                     messages.warning(request, f"Invalid phone number '{raw_phone}'. Could not prepare WhatsApp notification.")
+                    LoanWhatsAppLog.objects.create(
+                        loan=loan,
+                        customer=loan.customer,
+                        recipient_phone=raw_phone,
+                        notification_type='demand_notice',
+                        status='failed',
+                        error_message=f"Invalid phone number '{raw_phone}'",
+                        channel=mode,
+                        sent_by=request.user,
+                    )
                 elif mode == 'link' and res.get('link'):
-                    return redirect(res['link'])
+                    LoanWhatsAppLog.objects.create(
+                        loan=loan,
+                        customer=loan.customer,
+                        recipient_phone=res.get('phone', raw_phone),
+                        notification_type='demand_notice',
+                        status='sent',
+                        message_content=res.get('message', ''),
+                        channel='direct_link',
+                        sent_by=request.user,
+                    )
+                    return safe_whatsapp_redirect(res['link'])
                 else:
+                    LoanWhatsAppLog.objects.create(
+                        loan=loan,
+                        customer=loan.customer,
+                        recipient_phone=res.get('phone', raw_phone),
+                        notification_type='demand_notice',
+                        status='sent',
+                        message_content=res.get('message', ''),
+                        channel='pywhatkit',
+                        sent_by=request.user,
+                    )
                     messages.success(
                         request,
                         f"💬 Demand Notice WhatsApp message scheduled to {res['phone']} via PyWhatKit automation."
@@ -1829,9 +1902,39 @@ class LoanSendWhatsAppView(LoginRequiredMixin, RoleBranchAccessMixin, View):
                 )
                 if not res.get('success'):
                     messages.warning(request, f"Invalid phone number '{raw_phone}'. Could not prepare WhatsApp notification.")
+                    LoanWhatsAppLog.objects.create(
+                        loan=loan,
+                        customer=loan.customer,
+                        recipient_phone=raw_phone,
+                        notification_type=whatsapp_type,
+                        status='failed',
+                        error_message=f"Invalid phone number '{raw_phone}'",
+                        channel=mode,
+                        sent_by=request.user,
+                    )
                 elif mode == 'link' and res.get('link'):
-                    return redirect(res['link'])
+                    LoanWhatsAppLog.objects.create(
+                        loan=loan,
+                        customer=loan.customer,
+                        recipient_phone=res.get('phone', raw_phone),
+                        notification_type=whatsapp_type,
+                        status='sent',
+                        message_content=res.get('message', ''),
+                        channel='direct_link',
+                        sent_by=request.user,
+                    )
+                    return safe_whatsapp_redirect(res['link'])
                 else:
+                    LoanWhatsAppLog.objects.create(
+                        loan=loan,
+                        customer=loan.customer,
+                        recipient_phone=res.get('phone', raw_phone),
+                        notification_type=whatsapp_type,
+                        status='sent',
+                        message_content=res.get('message', ''),
+                        channel='pywhatkit',
+                        sent_by=request.user,
+                    )
                     messages.success(
                         request,
                         f"💬 Due-date reminder WhatsApp message scheduled to {res['phone']} via PyWhatKit automation."
@@ -1842,6 +1945,88 @@ class LoanSendWhatsAppView(LoginRequiredMixin, RoleBranchAccessMixin, View):
             messages.error(request, f"Failed to send WhatsApp notification: {exc}")
 
         return redirect(reverse('loan_detail', kwargs={'loan_number': loan_number}))
+
+
+class LoanTrackWhatsAppClickView(LoginRequiredMixin, RoleBranchAccessMixin, View):
+    """
+    Tracks and records WhatsApp notification clicks/dispatches into LoanWhatsAppLog,
+    then seamlessly redirects the staff browser to WhatsApp Web or returns JSON.
+    """
+    def get(self, request, loan_number):
+        return self._handle(request, loan_number, request.GET)
+
+    def post(self, request, loan_number):
+        import json
+        try:
+            data = json.loads(request.body.decode('utf-8'))
+        except Exception:
+            data = request.POST
+        return self._handle(request, loan_number, data)
+
+    def _handle(self, request, loan_number, params):
+        loan = get_object_or_404(Loan, loan_number=loan_number)
+        self.check_object_branch_access(loan, branch_attr='branch')
+
+        from transactions.models import LoanWhatsAppLog
+        from transactions.services_whatsapp import (
+            build_smart_loan_whatsapp_message,
+            send_due_date_reminder_whatsapp,
+            send_loan_expiry_notice_whatsapp,
+            get_whatsapp_link,
+            normalize_phone_number,
+        )
+
+        notification_type = params.get('type', 'reminder')
+        custom_message = params.get('custom_message', '').strip()
+        lang = params.get('lang') or getattr(request, 'LANGUAGE_CODE', 'ta')
+        should_redirect = params.get('redirect') in ('1', 'true', True)
+        is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest' or (not should_redirect and request.method == 'POST')
+
+        raw_phone = getattr(loan.customer, 'phone', '') or ''
+        norm_phone = normalize_phone_number(raw_phone)
+
+        # Build message
+        if custom_message:
+            message_text = custom_message
+        elif notification_type == 'demand_notice':
+            wa_data = send_loan_expiry_notice_whatsapp(loan, request_user=request.user, lang=lang, send_pywhatkit=False)
+            message_text = wa_data.get('message', '')
+        elif notification_type in ('custom_chat', 'direct_chat'):
+            branch_name = loan.branch.name if loan.branch else 'First Money Gold'
+            cust_name = getattr(loan.customer, 'first_name', '') or getattr(loan.customer, 'name', '') or 'Customer'
+            message_text = f"Hello {cust_name}, regarding Gold Loan #{loan.loan_number} at {branch_name}."
+        else:
+            message_text = build_smart_loan_whatsapp_message(loan=loan, notification_type=notification_type, lang=lang, request_user=request.user)
+
+        wa_url = get_whatsapp_link(norm_phone or raw_phone, message_text) if (norm_phone or raw_phone) else ''
+
+        # Create audit log
+        log_entry = LoanWhatsAppLog.objects.create(
+            loan=loan,
+            customer=loan.customer,
+            recipient_phone=norm_phone or raw_phone,
+            notification_type=notification_type,
+            status='sent' if norm_phone else 'failed',
+            error_message='' if norm_phone else f"Invalid customer phone number '{raw_phone}'",
+            message_content=message_text,
+            channel='direct_link',
+            sent_by=request.user if request.user.is_authenticated else None,
+        )
+
+        if is_ajax:
+            return JsonResponse({
+                'status': 'success' if norm_phone else 'failed',
+                'log_id': log_entry.id,
+                'whatsapp_url': wa_url,
+                'sent_at': log_entry.created_at.strftime('%d-%b-%Y %I:%M %p'),
+                'short_message': log_entry.short_message,
+            })
+
+        if wa_url:
+            return safe_whatsapp_redirect(wa_url)
+        else:
+            messages.error(request, f"Could not open WhatsApp: Invalid customer phone number '{raw_phone}'.")
+            return redirect('loan_detail', loan_number=loan_number)
 
 
 class LoanBatchWhatsAppHelperMixin:
@@ -2052,6 +2237,32 @@ class LoanBatchWhatsAppDispatchView(LoginRequiredMixin, RoleBranchAccessMixin, L
 
         if dispatch_mode == 'headless_automated':
             if not is_whatsapp_paired():
+                from transactions.models import LoanWhatsAppLog
+                for l in loans:
+                    try:
+                        c = getattr(l, 'customer', None)
+                        raw_phone = getattr(c, 'phone', '') or ''
+                        msg = build_smart_loan_whatsapp_message(
+                            loan=l,
+                            notification_type=notification_type,
+                            custom_template=custom_template,
+                            lang=lang,
+                            request_user=request.user,
+                        )
+                        LoanWhatsAppLog.objects.create(
+                            loan=l,
+                            customer=c,
+                            recipient_phone=raw_phone,
+                            notification_type=notification_type or 'automated_notice',
+                            status='failed',
+                            message_content=msg,
+                            error_message='WhatsApp session is not paired. Please link device first.',
+                            channel='automated_browser',
+                            sent_by=request.user if request.user.is_authenticated else None,
+                        )
+                    except Exception:
+                        pass
+
                 return JsonResponse({
                     'status': 'not_paired',
                     'message': 'WhatsApp session is not paired yet. Please scan QR code to pair first.',
@@ -2076,6 +2287,60 @@ class LoanBatchWhatsAppDispatchView(LoginRequiredMixin, RoleBranchAccessMixin, L
                 'message': res.get('error') or f"Successfully dispatched WhatsApp notifications to {res.get('sent', 0)} borrowers.",
             })
 
+        elif dispatch_mode == 'pywhatkit':
+            from transactions.models import LoanWhatsAppLog
+            sent_count = 0
+            failed_count = 0
+            details = []
+            for l in loans:
+                c = getattr(l, 'customer', None)
+                raw_phone = getattr(c, 'phone', '') or ''
+                norm_phone = normalize_phone_number(raw_phone)
+                msg = build_smart_loan_whatsapp_message(
+                    loan=l,
+                    notification_type=notification_type,
+                    custom_template=custom_template,
+                    lang=lang,
+                    request_user=request.user,
+                )
+                if norm_phone:
+                    send_pywhatkit_async(norm_phone, msg)
+                    LoanWhatsAppLog.objects.create(
+                        loan=l,
+                        customer=c,
+                        recipient_phone=norm_phone,
+                        notification_type=notification_type or 'pywhatkit_blast',
+                        status='sent',
+                        message_content=msg,
+                        channel='pywhatkit',
+                        sent_by=request.user if request.user.is_authenticated else None,
+                    )
+                    sent_count += 1
+                    details.append({'loan_no': l.loan_number, 'customer': str(c), 'status': 'SENT', 'phone': norm_phone})
+                else:
+                    LoanWhatsAppLog.objects.create(
+                        loan=l,
+                        customer=c,
+                        recipient_phone=raw_phone,
+                        notification_type=notification_type or 'pywhatkit_blast',
+                        status='failed',
+                        message_content=msg,
+                        error_message=f"Invalid phone number '{raw_phone}'",
+                        channel='pywhatkit',
+                        sent_by=request.user if request.user.is_authenticated else None,
+                    )
+                    failed_count += 1
+                    details.append({'loan_no': l.loan_number, 'customer': str(c), 'status': 'FAILED', 'error': 'Invalid phone'})
+
+            return JsonResponse({
+                'status': 'success',
+                'sent': sent_count,
+                'failed': failed_count,
+                'total': len(loans),
+                'details': details,
+                'message': f"PyWhatKit Auto-Blast scheduled for {len(loans)} loans in background.",
+            })
+
         # Direct Web Link / Queue Mode
         links_queue = []
         for l in loans:
@@ -2089,12 +2354,14 @@ class LoanBatchWhatsAppDispatchView(LoginRequiredMixin, RoleBranchAccessMixin, L
                 lang=lang,
                 request_user=request.user,
             )
+            track_url = reverse('loan_track_whatsapp_click', kwargs={'loan_number': l.loan_number}) + f"?type={notification_type}&redirect=1"
             wa_link = get_whatsapp_link(norm_phone, msg) if norm_phone else ''
             links_queue.append({
                 'loan_number': l.loan_number,
                 'customer_name': f"{getattr(c, 'first_name', '')} {getattr(c, 'last_name', '')}".strip(),
                 'phone': raw_phone,
-                'link': wa_link,
+                'link': track_url if norm_phone else '',
+                'direct_link': wa_link,
                 'is_valid': bool(norm_phone),
                 'message': msg,
             })
@@ -2174,29 +2441,69 @@ class LoanDetailView(LoginRequiredMixin, RoleBranchAccessMixin, DetailView):
         context['item_photos_list'] = process_item_photos_for_display(loan.item_photos)
         context['tiered_rates'] = get_loan_tiered_rates(loan)
 
-        # WhatsApp direct links for seamless 1-click staff action
+        # WhatsApp tracked dispatch links for seamless 1-click staff action & audit logging
         try:
-            from transactions.services_whatsapp import (
-                send_due_date_reminder_whatsapp,
-                send_loan_expiry_notice_whatsapp,
-                get_whatsapp_link,
-                normalize_phone_number,
-            )
-            lang = getattr(self.request, 'LANGUAGE_CODE', None)
-            wa_reminder = send_due_date_reminder_whatsapp(loan, lang=lang)
-            wa_demand = send_loan_expiry_notice_whatsapp(loan, request_user=self.request.user, lang=lang)
+            from transactions.services_whatsapp import normalize_phone_number
             cust_phone = getattr(loan.customer, 'phone', '')
             norm_phone = normalize_phone_number(cust_phone)
             
-            context['whatsapp_reminder_link'] = wa_reminder.get('link', '')
-            context['whatsapp_demand_link'] = wa_demand.get('link', '')
-            context['whatsapp_chat_link'] = get_whatsapp_link(norm_phone, f"Hello {loan.customer.first_name}, regarding Gold Loan #{loan.loan_number} at {loan.branch.name if loan.branch else 'First Money Gold'}.") if norm_phone else ''
+            track_base = reverse('loan_track_whatsapp_click', kwargs={'loan_number': loan.loan_number})
+            context['whatsapp_reminder_link'] = f"{track_base}?type=reminder&redirect=1" if norm_phone else ''
+            context['whatsapp_demand_link'] = f"{track_base}?type=demand_notice&redirect=1" if norm_phone else ''
+            context['whatsapp_chat_link'] = f"{track_base}?type=custom_chat&redirect=1" if norm_phone else ''
             context['customer_phone_normalized'] = norm_phone
         except Exception:
             context['whatsapp_reminder_link'] = ''
             context['whatsapp_demand_link'] = ''
             context['whatsapp_chat_link'] = ''
             context['customer_phone_normalized'] = ''
+
+        # Auto-sync legacy IRAC alert logs into LoanWhatsAppLog if not present
+        try:
+            from transactions.models import LoanWhatsAppLog
+            for irac in loan.irac_alert_logs.all():
+                if not loan.whatsapp_logs.filter(created_at=irac.created_at).exists():
+                    LoanWhatsAppLog.objects.create(
+                        loan=loan,
+                        customer=irac.customer,
+                        recipient_phone=getattr(irac.customer, 'phone', '') or '',
+                        notification_type=f"irac_{irac.irac_bucket.lower()}",
+                        status=irac.status.lower() if irac.status else 'sent',
+                        message_content=irac.message_sent or f"Regulatory IRAC Alert [{irac.irac_bucket}]",
+                        channel=irac.channel or 'whatsapp_web',
+                        sent_by=irac.sent_by,
+                        created_at=irac.created_at,
+                    )
+        except Exception:
+            pass
+
+        # Auto-sync Marketing Campaign / Blast logs for this customer into LoanWhatsAppLog if not present
+        try:
+            from transactions.models import MarketingCampaignLog, LoanWhatsAppLog
+            from transactions.services_whatsapp import normalize_phone_number
+            cust_phone = getattr(loan.customer, 'phone', '') or ''
+            norm_phone = normalize_phone_number(cust_phone)
+            phone_variants = [p for p in [cust_phone, norm_phone, norm_phone[-10:] if len(norm_phone) >= 10 else ''] if p]
+            if phone_variants:
+                m_logs = MarketingCampaignLog.objects.filter(recipient_phone__in=phone_variants)
+                for m in m_logs:
+                    if not loan.whatsapp_logs.filter(created_at=m.created_at).exists():
+                        LoanWhatsAppLog.objects.create(
+                            loan=loan,
+                            customer=loan.customer,
+                            recipient_phone=m.recipient_phone,
+                            notification_type='marketing_broadcast',
+                            status=m.status.lower() if m.status else 'sent',
+                            message_content=f"[{m.campaign_name}] {m.message_snippet or ''}",
+                            channel=m.channel or 'whatsapp_blast',
+                            sent_by=m.sent_by,
+                            created_at=m.created_at,
+                        )
+        except Exception:
+            pass
+
+        # WhatsApp dispatch and delivery history logs
+        context['whatsapp_logs'] = loan.whatsapp_logs.all().select_related('sent_by', 'customer').order_by('-created_at')
             
         return context
 

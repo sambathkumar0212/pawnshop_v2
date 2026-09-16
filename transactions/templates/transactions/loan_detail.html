@@ -1168,6 +1168,156 @@
         </div>
     </div>
 
+    <!-- 5. WhatsApp Notifications & Dispatch History Row -->
+    <div class="row g-3 mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center flex-wrap gap-2 py-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <h5 class="mb-0 text-success fw-bold">
+                            <i class="fab fa-whatsapp fs-5 me-1"></i>WhatsApp Notification &amp; Dispatch History
+                        </h5>
+                        <span class="badge bg-dark font-monospace">{{ whatsapp_logs|length }} Record{{ whatsapp_logs|length|pluralize }}</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <!-- Quick Send WhatsApp Dropdown -->
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-success dropdown-toggle fw-semibold shadow-sm" type="button" id="waHistoryActionDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fab fa-whatsapp me-1"></i> Send WhatsApp
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 small" aria-labelledby="waHistoryActionDropdown">
+                                <li><h6 class="dropdown-header text-uppercase text-muted" style="font-size: 0.68rem;">Dispatch Live Notification</h6></li>
+                                {% if whatsapp_reminder_link %}
+                                <li>
+                                    <a href="{{ whatsapp_reminder_link }}" target="_blank" class="dropdown-item py-2">
+                                        <i class="fas fa-bell text-warning me-2"></i> Due-Date / Interest Reminder
+                                    </a>
+                                </li>
+                                {% endif %}
+                                {% if whatsapp_demand_link %}
+                                <li>
+                                    <a href="{{ whatsapp_demand_link }}" target="_blank" class="dropdown-item py-2 text-danger">
+                                        <i class="fas fa-exclamation-triangle text-danger me-2"></i> Demand / Expiry Notice
+                                    </a>
+                                </li>
+                                {% endif %}
+                                {% if whatsapp_chat_link %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a href="{{ whatsapp_chat_link }}" target="_blank" class="dropdown-item py-2 text-success">
+                                        <i class="fab fa-whatsapp text-success me-2"></i> Open Direct Chat
+                                    </a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    {% if whatsapp_logs %}
+                    <div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
+                        <table class="table table-hover table-sm align-middle mb-0 small">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th style="width: 140px;">Date &amp; Time</th>
+                                    <th style="width: 160px;">Category</th>
+                                    <th style="width: 120px;">Recipient</th>
+                                    <th class="text-center" style="width: 90px;">Status</th>
+                                    <th>Message Short Info / Content</th>
+                                    <th style="width: 160px;">Channel / Sent By</th>
+                                    <th class="text-center" style="width: 80px;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in whatsapp_logs %}
+                                <tr class="{% if log.status == 'failed' %}table-danger-subtle{% endif %}">
+                                    <td class="font-monospace text-nowrap">
+                                        <div class="fw-semibold text-dark">{{ log.created_at|date:"d M Y" }}</div>
+                                        <div class="text-muted" style="font-size: 0.72rem;">{{ log.created_at|date:"h:i:s A" }}</div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary-subtle text-secondary-emphasis border" style="font-size: 0.72rem;">
+                                            {{ log.notification_label }}
+                                        </span>
+                                    </td>
+                                    <td class="font-monospace text-nowrap">
+                                        {% if log.recipient_phone %}
+                                        <span class="text-dark"><i class="fas fa-mobile-alt text-muted me-1"></i>{{ log.recipient_phone }}</span>
+                                        {% else %}
+                                        <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if log.status == 'sent' or log.status == 'delivered' %}
+                                        <span class="badge bg-success text-white px-2 py-1 shadow-sm">
+                                            <i class="fas fa-check-circle me-1"></i>SENT
+                                        </span>
+                                        {% elif log.status == 'failed' %}
+                                        <span class="badge bg-danger text-white px-2 py-1 shadow-sm" title="{{ log.error_message }}">
+                                            <i class="fas fa-times-circle me-1"></i>FAILED
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-warning text-dark px-2 py-1">
+                                            {{ log.status|upper }}
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if log.message_content %}
+                                        <div class="text-dark fw-medium text-truncate" style="max-width: 450px;" title="{{ log.message_content }}">
+                                            {{ log.short_message }}
+                                        </div>
+                                        {% else %}
+                                        <span class="text-muted fst-italic">Notification triggered</span>
+                                        {% endif %}
+                                        {% if log.status == 'failed' and log.error_message %}
+                                        <div class="text-danger small fw-semibold mt-1" style="font-size: 0.75rem;">
+                                            <i class="fas fa-exclamation-circle me-1"></i>Reason: {{ log.error_message }}
+                                        </div>
+                                        {% endif %}
+                                    </td>
+                                    <td class="small">
+                                        <div class="text-truncate text-muted" style="font-size: 0.75rem;">
+                                            <i class="fas fa-robot text-primary me-1"></i>{{ log.get_channel_display }}
+                                        </div>
+                                        <div class="text-secondary" style="font-size: 0.72rem;">
+                                            By: {{ log.sent_by.username|default:"Automated System" }}
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if log.message_content %}
+                                        <button type="button" class="btn btn-outline-secondary btn-xs py-0 px-2 view-wa-msg-btn"
+                                            data-bs-toggle="modal" data-bs-target="#waMessageModal"
+                                            data-title="{{ log.notification_label }} ({{ log.created_at|date:'d M Y, h:i A' }})"
+                                            data-recipient="{{ log.recipient_phone }}"
+                                            data-status="{{ log.status|upper }}"
+                                            data-status-class="{% if log.status == 'sent' %}bg-success{% else %}bg-danger{% endif %}"
+                                            data-error="{{ log.error_message|default:'' }}"
+                                            data-content="{{ log.message_content }}">
+                                            <i class="fas fa-eye me-1"></i>View
+                                        </button>
+                                        {% else %}
+                                        <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="fab fa-whatsapp text-success opacity-50 fa-2x mb-2 d-block"></i>
+                        <p class="mb-1 small fw-semibold">No WhatsApp message history recorded for this loan yet.</p>
+                        <p class="text-muted mb-0" style="font-size: 0.78rem;">
+                            WhatsApp messages sent via Filter-based Blasts, automated background dispatch, or 1-click reminders will automatically be logged here with status and short message snippets.
+                        </p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Tiered Interest Rate Structure & Closing Amount Schedule -->
 
@@ -1427,12 +1577,47 @@
         </div>
     </div>
 </div>
+
+<!-- WhatsApp Full Message View Modal -->
+<div class="modal fade" id="waMessageModal" tabindex="-1" aria-labelledby="waMessageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow border-0">
+            <div class="modal-header bg-success text-white py-2">
+                <h6 class="modal-title fw-bold" id="waMessageModalLabel">
+                    <i class="fab fa-whatsapp me-2"></i><span id="waModalTitle">WhatsApp Message Details</span>
+                </h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-3">
+                <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                    <div>
+                        <span class="text-muted small">Recipient: </span>
+                        <strong class="font-monospace text-dark" id="waModalRecipient">—</strong>
+                    </div>
+                    <div>
+                        <span id="waModalStatusBadge" class="badge bg-success">SENT</span>
+                    </div>
+                </div>
+                <div id="waModalErrorBox" class="alert alert-danger py-2 px-3 small mb-2" style="display: none;">
+                    <strong><i class="fas fa-exclamation-triangle me-1"></i>Failure Details:</strong>
+                    <span id="waModalErrorText"></span>
+                </div>
+                <label class="form-label small text-muted fw-bold mb-1">Message Body:</label>
+                <div class="bg-light p-3 rounded border font-monospace small" id="waModalContent" style="white-space: pre-wrap; word-break: break-word; max-height: 320px; overflow-y: auto; background-color: #f8fafc; font-size: 0.85rem;">
+                </div>
+            </div>
+            <div class="modal-footer py-1 bg-light">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        console.log("Loan detail page loaded, initializing photo handlers");
+        console.log("Loan detail page loaded, initializing photo & whatsapp handlers");
 
         // Handle item photo click to show in modal
         const photoThumbnails = document.querySelectorAll('.item-photo-thumbnail');
@@ -1443,6 +1628,35 @@
                 const photoUrl = this.getAttribute('data-photo-url');
                 console.log("Opening photo in modal:", photoUrl.substring(0, 30) + "...");
                 modalPhotoImg.src = photoUrl;
+            });
+        });
+
+        // Handle WhatsApp message view modal
+        document.querySelectorAll('.view-wa-msg-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const title = this.getAttribute('data-title');
+                const recipient = this.getAttribute('data-recipient') || '—';
+                const status = this.getAttribute('data-status');
+                const statusClass = this.getAttribute('data-status-class') || 'bg-success';
+                const error = this.getAttribute('data-error');
+                const content = this.getAttribute('data-content');
+
+                document.getElementById('waModalTitle').textContent = title;
+                document.getElementById('waModalRecipient').textContent = recipient;
+                
+                const statusBadge = document.getElementById('waModalStatusBadge');
+                statusBadge.textContent = status;
+                statusBadge.className = 'badge ' + statusClass;
+
+                const errorBox = document.getElementById('waModalErrorBox');
+                if (error) {
+                    document.getElementById('waModalErrorText').textContent = ' ' + error;
+                    errorBox.style.display = 'block';
+                } else {
+                    errorBox.style.display = 'none';
+                }
+
+                document.getElementById('waModalContent').textContent = content;
             });
         });
 

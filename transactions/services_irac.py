@@ -264,6 +264,22 @@ def log_irac_alert(loan, bucket, channel='whatsapp_web', status='sent', message_
         message_sent=message_text or '',
         sent_by=user if user and user.is_authenticated else None
     )
+
+    try:
+        from transactions.models import LoanWhatsAppLog
+        LoanWhatsAppLog.objects.create(
+            loan=loan,
+            customer=loan.customer,
+            recipient_phone=getattr(loan.customer, 'phone', '') or '',
+            notification_type=f"irac_{bucket.lower()}",
+            status=status.lower() if status else 'sent',
+            message_content=message_text or f"Regulatory IRAC Alert [{bucket}]",
+            channel=channel.lower() if channel else 'whatsapp_web',
+            sent_by=user if user and user.is_authenticated else None,
+        )
+    except Exception:
+        pass
+
     return log_entry
 
 

@@ -2276,6 +2276,70 @@ class IRACAlertLog(models.Model):
         return f"[{self.irac_bucket}] Alert for Loan #{self.loan.loan_number} - {self.customer} ({self.created_at.strftime('%d-%b-%Y')})"
 
 
+class LoanWhatsAppLog(models.Model):
+    """
+    Tracks complete WhatsApp notification dispatch history for a Loan,
+    recording status (sent/failed), message short info, failure error details,
+    channel, recipient phone, and dispatcher.
+    """
+    STATUS_CHOICES = (
+        ('sent', _('Sent')),
+        ('failed', _('Failed')),
+        ('delivered', _('Delivered')),
+        ('pending', _('Pending')),
+    )
+    CHANNEL_CHOICES = (
+        ('automated_browser', _('Playwright Automated Web')),
+        ('pywhatkit', _('PyWhatKit Automation')),
+        ('direct_link', _('WhatsApp Direct URL')),
+        ('eod_cron', _('EOD Scheduled Dispatch')),
+        ('manual', _('Manual Staff Dispatch')),
+    )
+
+    loan = models.ForeignKey('transactions.Loan', on_delete=models.CASCADE, related_name='whatsapp_logs')
+    customer = models.ForeignKey('accounts.Customer', on_delete=models.SET_NULL, null=True, blank=True, related_name='loan_whatsapp_logs')
+    recipient_phone = models.CharField(max_length=30, blank=True, default='')
+    notification_type = models.CharField(max_length=60, default='reminder')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='sent', db_index=True)
+    message_content = models.TextField(blank=True, default='')
+    error_message = models.TextField(blank=True, default='')
+    channel = models.CharField(max_length=30, choices=CHANNEL_CHOICES, default='automated_browser')
+    sent_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='loan_dispatched_whatsapp_logs')
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = _('Loan WhatsApp Log')
+        verbose_name_plural = _('Loan WhatsApp Logs')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"WhatsApp [{self.status.upper()}] Loan #{self.loan.loan_number} to {self.recipient_phone} ({self.created_at.strftime('%d-%b-%Y %H:%M')})"
+
+    @property
+    def short_message(self):
+        """Returns clean short snippet of the message content"""
+        if not self.message_content:
+            return ""
+        clean = " ".join(self.message_content.split())
+        if len(clean) > 85:
+            return clean[:85] + "..."
+        return clean
+
+    @property
+    def notification_label(self):
+        labels = {
+            'overdue': _('Overdue Reminder'),
+            'reminder': _('Due Date Reminder'),
+            'monthly_interest': _('Tiered Rate Monthly Interest Notice'),
+            'demand_notice': _('Statutory Demand Notice'),
+            'auction_notice': _('Gold Auction Warning'),
+            'loan_created': _('Loan Creation Welcome'),
+            'payment_receipt': _('Payment Receipt Acknowledgement'),
+            'custom': _('Custom Message'),
+        }
+        return labels.get(self.notification_type, self.notification_type.replace('_', ' ').title())
+
+
 class GoldPurchase(models.Model):
     """
     Model for Outright Used / Old Gold Purchase transactions directly from customers.

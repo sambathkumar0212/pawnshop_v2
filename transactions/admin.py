@@ -75,3 +75,13 @@ class SaleAdmin(admin.ModelAdmin):
         if not obj.sold_by:
             obj.sold_by = request.user
         super().save_model(request, obj, form, change)
+
+
+from .models import LoanWhatsAppLog
+
+@admin.register(LoanWhatsAppLog)
+class LoanWhatsAppLogAdmin(admin.ModelAdmin):
+    list_display = ('loan', 'customer', 'recipient_phone', 'notification_type', 'status', 'channel', 'sent_by', 'created_at')
+    list_filter = ('status', 'notification_type', 'channel', 'created_at')
+    search_fields = ('loan__loan_number', 'customer__first_name', 'customer__last_name', 'recipient_phone', 'message_content', 'error_message')
+    readonly_fields = ('created_at',)

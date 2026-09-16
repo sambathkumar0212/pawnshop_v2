@@ -1056,6 +1056,27 @@ def log_campaign_broadcast(
         norm = normalize_phone_number(recipient_phone)
         MarketingLead.objects.filter(norm_phone=norm).update(is_contacted=True)
 
+        # Cross-log into LoanWhatsAppLog for any matching customer loans
+        try:
+            from transactions.models import Loan, LoanWhatsAppLog
+            phone_variants = [p for p in [recipient_phone, norm, norm[-10:] if len(norm) >= 10 else ''] if p]
+            matching_loans = Loan.objects.filter(
+                customer__phone__in=phone_variants
+            ).select_related('customer')
+            for l in matching_loans:
+                LoanWhatsAppLog.objects.create(
+                    loan=l,
+                    customer=l.customer,
+                    recipient_phone=recipient_phone,
+                    notification_type='marketing_broadcast',
+                    status=status.lower() if status else 'sent',
+                    message_content=f"[{campaign_name}] {message_snippet or ''}",
+                    channel=channel or 'whatsapp_blast',
+                    sent_by=user if user and user.is_authenticated else None,
+                )
+        except Exception:
+            pass
+
     return log_entry
 
 

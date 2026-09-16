@@ -281,6 +281,8 @@ def send_batch_irac_alerts_automated(
                 phone_clean = clean_phone_number(raw_phone)
                 cust_name = getattr(customer, 'get_full_name', None)() if hasattr(customer, 'get_full_name') else f"{customer.first_name} {customer.last_name}" if customer else "N/A"
 
+                from transactions.models import LoanWhatsAppLog
+
                 if not phone_clean:
                     results["failed"] += 1
                     results["details"].append({
@@ -289,6 +291,19 @@ def send_batch_irac_alerts_automated(
                         "status": "FAILED",
                         "error": "No valid phone number in profile",
                     })
+                    try:
+                        LoanWhatsAppLog.objects.create(
+                            loan=loan,
+                            customer=customer,
+                            recipient_phone=raw_phone or '',
+                            notification_type='irac_alert',
+                            status='failed',
+                            error_message='No valid phone number in profile',
+                            channel='automated_browser',
+                            sent_by=user if user and user.is_authenticated else None,
+                        )
+                    except Exception:
+                        pass
                     continue
 
                 # Classify status & due amount
@@ -339,6 +354,20 @@ def send_batch_irac_alerts_automated(
                             sent_by=user if user and user.is_authenticated else None,
                         )
 
+                        try:
+                            LoanWhatsAppLog.objects.create(
+                                loan=loan,
+                                customer=customer,
+                                recipient_phone=phone_clean,
+                                notification_type=f"irac_{irac_bucket.lower()}",
+                                status='sent',
+                                message_content=message_text,
+                                channel='automated_browser',
+                                sent_by=user if user and user.is_authenticated else None,
+                            )
+                        except Exception:
+                            pass
+
                         results["sent"] += 1
                         results["details"].append({
                             "loan_no": loan.loan_number,
@@ -348,12 +377,27 @@ def send_batch_irac_alerts_automated(
                         })
                     else:
                         results["failed"] += 1
+                        err_msg = "Could not locate send button / invalid contact"
                         results["details"].append({
                             "loan_no": loan.loan_number,
                             "customer": cust_name,
                             "status": "FAILED",
-                            "error": "Could not locate send button / invalid contact",
+                            "error": err_msg,
                         })
+                        try:
+                            LoanWhatsAppLog.objects.create(
+                                loan=loan,
+                                customer=customer,
+                                recipient_phone=phone_clean,
+                                notification_type=f"irac_{irac_bucket.lower()}",
+                                status='failed',
+                                message_content=message_text,
+                                error_message=err_msg,
+                                channel='automated_browser',
+                                sent_by=user if user and user.is_authenticated else None,
+                            )
+                        except Exception:
+                            pass
 
                 except Exception as ex:
                     results["failed"] += 1
@@ -363,6 +407,20 @@ def send_batch_irac_alerts_automated(
                         "status": "FAILED",
                         "error": str(ex),
                     })
+                    try:
+                        LoanWhatsAppLog.objects.create(
+                            loan=loan,
+                            customer=customer,
+                            recipient_phone=phone_clean,
+                            notification_type=f"irac_{irac_bucket.lower()}",
+                            status='failed',
+                            message_content=message_text,
+                            error_message=str(ex),
+                            channel='automated_browser',
+                            sent_by=user if user and user.is_authenticated else None,
+                        )
+                    except Exception:
+                        pass
 
             context.close()
         except Exception as e:
@@ -416,6 +474,7 @@ def send_batch_loans_whatsapp_automated(
             if page.locator('canvas').is_visible() or page.locator('div[data-ref]').is_visible():
                 context.close()
                 results["error"] = "WhatsApp session is not paired yet. Please open 'Link WhatsApp' and scan the QR code first."
+                from transactions.models import LoanWhatsAppLog
                 for loan in loans:
                     c = getattr(loan, 'customer', None)
                     c_name = getattr(c, 'get_full_name', None)() if (c and hasattr(c, 'get_full_name')) else f"{getattr(c, 'first_name', '')} {getattr(c, 'last_name', '')}".strip() or "Valued Customer"
@@ -427,13 +486,37 @@ def send_batch_loans_whatsapp_automated(
                         "error": "WhatsApp session is not paired. Please link device first.",
                     })
                     results["failed"] += 1
+                    try:
+                        LoanWhatsAppLog.objects.create(
+                            loan=loan,
+                            customer=c,
+                            recipient_phone=getattr(c, 'phone', '') or '',
+                            notification_type=notification_type or 'automated_notice',
+                            status='failed',
+                            error_message="WhatsApp session is not paired. Please link device first.",
+                            channel='automated_browser',
+                            sent_by=user if (user and getattr(user, 'is_authenticated', False)) else None,
+                        )
+                    except Exception as l_err:
+                        logger.warning("Could not create LoanWhatsAppLog for unpaired session: %s", l_err)
                 return results
+
+            from transactions.models import LoanWhatsAppLog
 
             for loan in loans:
                 customer = getattr(loan, 'customer', None)
                 raw_phone = getattr(customer, 'phone', None) or getattr(customer, 'phone_number', None) or ""
                 phone_clean = clean_phone_number(raw_phone)
                 cust_name = getattr(customer, 'get_full_name', None)() if (customer and hasattr(customer, 'get_full_name')) else f"{getattr(customer, 'first_name', '')} {getattr(customer, 'last_name', '')}".strip() or "Valued Customer"
+
+                # Build notification text
+                message_text = build_smart_loan_whatsapp_message(
+                    loan=loan,
+                    notification_type=notification_type,
+                    custom_template=custom_template,
+                    lang=lang,
+                    request_user=user,
+                )
 
                 if not phone_clean or len(phone_clean) < 10:
                     results["failed"] += 1
@@ -444,16 +527,22 @@ def send_batch_loans_whatsapp_automated(
                         "status": "FAILED",
                         "error": f"Invalid or missing phone number: '{raw_phone}'",
                     })
+                    try:
+                        LoanWhatsAppLog.objects.create(
+                            loan=loan,
+                            customer=customer,
+                            recipient_phone=raw_phone or '',
+                            notification_type=notification_type or 'automated_notice',
+                            status='failed',
+                            message_content=message_text,
+                            error_message=f"Invalid or missing phone number: '{raw_phone}'",
+                            channel='automated_browser',
+                            sent_by=user if (user and getattr(user, 'is_authenticated', False)) else None,
+                        )
+                    except Exception as l_err:
+                        logger.warning("Could not log failed LoanWhatsAppLog: %s", l_err)
                     continue
 
-                # Build notification text
-                message_text = build_smart_loan_whatsapp_message(
-                    loan=loan,
-                    notification_type=notification_type,
-                    custom_template=custom_template,
-                    lang=lang,
-                    request_user=user,
-                )
                 encoded_msg = urllib.parse.quote(message_text)
                 send_url = f"https://web.whatsapp.com/send?phone={phone_clean}&text={encoded_msg}"
 
@@ -464,13 +553,29 @@ def send_batch_loans_whatsapp_automated(
                     # Check for invalid number popup
                     if page.locator("text=Phone number shared via url is invalid").is_visible() or page.locator("text=URL is invalid").is_visible():
                         results["failed"] += 1
+                        err_msg = f"Phone number +{phone_clean} is not registered on WhatsApp"
                         results["details"].append({
                             "loan_no": getattr(loan, 'loan_number', ''),
                             "customer": cust_name,
                             "phone": phone_clean,
                             "status": "FAILED",
-                            "error": f"Phone number +{phone_clean} is not registered on WhatsApp",
+                            "error": err_msg,
                         })
+                        try:
+                            LoanWhatsAppLog.objects.create(
+                                loan=loan,
+                                customer=customer,
+                                recipient_phone=phone_clean,
+                                notification_type=notification_type or 'automated_notice',
+                                status='failed',
+                                message_content=message_text,
+                                error_message=err_msg,
+                                channel='automated_browser',
+                                sent_by=user if (user and getattr(user, 'is_authenticated', False)) else None,
+                            )
+                        except Exception as l_err:
+                            logger.warning("Could not log failed LoanWhatsAppLog: %s", l_err)
+
                         try:
                             ok_btn = page.locator('button:has-text("OK"), div[role="button"]:has-text("OK")').first
                             if ok_btn.is_visible():
@@ -497,7 +602,21 @@ def send_batch_loans_whatsapp_automated(
                     if sent_success:
                         time.sleep(delay_between_seconds)
 
-                        # Record in database audit log
+                        # Record in database audit logs
+                        try:
+                            LoanWhatsAppLog.objects.create(
+                                loan=loan,
+                                customer=customer,
+                                recipient_phone=phone_clean,
+                                notification_type=notification_type or 'automated_notice',
+                                status='sent',
+                                message_content=message_text,
+                                channel='automated_browser',
+                                sent_by=user if (user and getattr(user, 'is_authenticated', False)) else None,
+                            )
+                        except Exception as log_err:
+                            logger.warning("Could not create LoanWhatsAppLog: %s", log_err)
+
                         try:
                             from transactions.services_whatsapp import _compute_days_left, _get_total_payable
                             days_left, is_overdue = _compute_days_left(loan)
@@ -534,23 +653,53 @@ def send_batch_loans_whatsapp_automated(
                         })
                     else:
                         results["failed"] += 1
+                        err_msg = "Could not locate WhatsApp send button / number unverified"
                         results["details"].append({
                             "loan_no": getattr(loan, 'loan_number', ''),
                             "customer": cust_name,
                             "phone": phone_clean,
                             "status": "FAILED",
-                            "error": "Could not locate WhatsApp send button / number unverified",
+                            "error": err_msg,
                         })
+                        try:
+                            LoanWhatsAppLog.objects.create(
+                                loan=loan,
+                                customer=customer,
+                                recipient_phone=phone_clean,
+                                notification_type=notification_type or 'automated_notice',
+                                status='failed',
+                                message_content=message_text,
+                                error_message=err_msg,
+                                channel='automated_browser',
+                                sent_by=user if (user and getattr(user, 'is_authenticated', False)) else None,
+                            )
+                        except Exception as log_err:
+                            logger.warning("Could not create LoanWhatsAppLog failed record: %s", log_err)
 
                 except Exception as ex:
                     results["failed"] += 1
+                    err_msg = str(ex)
                     results["details"].append({
                         "loan_no": getattr(loan, 'loan_number', ''),
                         "customer": cust_name,
                         "phone": phone_clean,
                         "status": "FAILED",
-                        "error": str(ex),
+                        "error": err_msg,
                     })
+                    try:
+                        LoanWhatsAppLog.objects.create(
+                            loan=loan,
+                            customer=customer,
+                            recipient_phone=phone_clean,
+                            notification_type=notification_type or 'automated_notice',
+                            status='failed',
+                            message_content=message_text,
+                            error_message=err_msg,
+                            channel='automated_browser',
+                            sent_by=user if (user and getattr(user, 'is_authenticated', False)) else None,
+                        )
+                    except Exception as log_err:
+                        logger.warning("Could not create LoanWhatsAppLog exception record: %s", log_err)
 
             context.close()
         except Exception as e:
