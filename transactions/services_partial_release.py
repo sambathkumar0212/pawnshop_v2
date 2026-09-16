@@ -27,14 +27,9 @@ def get_loan_current_interest_due(loan):
     if not loan or getattr(loan, 'status', None) != 'active':
         return Decimal('0.00')
 
-    # 1. Check accrued_interest field on model if tracked (>0, e.g. via daily EOD batch)
-    field_accrued = Decimal(str(getattr(loan, 'accrued_interest', None) or '0.00'))
-    if field_accrued > Decimal('0.00'):
-        return field_accrued.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-
-    # 2. Calculate interest since last payment date (interest-first allocation principle).
-    #    After a part payment clears interest, the next period's interest starts fresh
-    #    from the date that payment was made — NOT from the original loan issue date.
+    # Calculate interest since last payment date (interest-first allocation principle).
+    # After a part payment clears interest, the next period's interest starts fresh
+    # from the date that payment was made — NOT from the original loan issue date.
     try:
         if loan.scheme:
             current_date = timezone.now().date()

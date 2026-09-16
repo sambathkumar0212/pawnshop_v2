@@ -18,10 +18,48 @@ logger = logging.getLogger(__name__)
 
 SESSION_DIR = Path(settings.BASE_DIR) / ".whatsapp_user_data"
 
+MODERN_CHROME_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/128.0.0.0 Safari/537.36"
+)
+
 
 def get_session_dir():
     SESSION_DIR.mkdir(parents=True, exist_ok=True)
     return str(SESSION_DIR)
+
+
+def clean_stale_locks():
+    """Removes stale Chromium Singleton lock files if a previous process terminated abruptly."""
+    session_dir = Path(get_session_dir())
+    for lock_name in ["SingletonLock", "SingletonCookie", "SingletonSocket", "lockfile"]:
+        lock_file = session_dir / lock_name
+        if lock_file.exists():
+            try:
+                lock_file.unlink(missing_ok=True)
+            except Exception:
+                pass
+
+
+def get_launch_context_options(headless: bool = True) -> dict:
+    """Standardizes launch parameters for persistent Chromium context to bypass WhatsApp browser version checks."""
+    clean_stale_locks()
+    return {
+        "user_data_dir": get_session_dir(),
+        "headless": headless,
+        "user_agent": MODERN_CHROME_USER_AGENT,
+        "viewport": {"width": 1280, "height": 800},
+        "ignore_default_args": ["--enable-automation"],
+        "args": [
+            "--disable-blink-features=AutomationControlled",
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--no-first-run",
+            "--no-zygote",
+        ],
+    }
 
 
 def clean_phone_number(raw_phone: str) -> str:
@@ -37,13 +75,31 @@ def clean_phone_number(raw_phone: str) -> str:
 
 
 def is_whatsapp_paired() -> bool:
-    """Checks if a saved WhatsApp Web session exists."""
+    """Checks if a verified paired session marker exists."""
     session_path = Path(settings.BASE_DIR) / ".whatsapp_user_data"
-    if not session_path.exists():
-        return False
-    # Check if storage state / local storage directory is non-empty
-    subdirs = list(session_path.glob("*"))
-    return len(subdirs) > 3
+    marker = session_path / ".session_paired"
+    return marker.exists()
+
+
+def reset_whatsapp_session() -> bool:
+    """Wipes the .whatsapp_user_data directory and pairing flags so the user can re-link from scratch."""
+    import shutil
+    clean_stale_locks()
+    session_dir = Path(get_session_dir())
+    marker = session_dir / ".session_paired"
+    if marker.exists():
+        try:
+            marker.unlink(missing_ok=True)
+        except Exception:
+            pass
+    if session_dir.exists():
+        try:
+            shutil.rmtree(session_dir, ignore_errors=True)
+            return True
+        except Exception as e:
+            logger.warning("Could not delete session dir: %s", e)
+            return False
+    return True
 
 
 def pair_whatsapp_interactive(timeout_seconds: int = 120) -> dict:
@@ -53,17 +109,12 @@ def pair_whatsapp_interactive(timeout_seconds: int = 120) -> dict:
     """
     from playwright.sync_api import sync_playwright
 
-    user_data_dir = get_session_dir()
-    logger.info("Opening WhatsApp Web for one-time pairing in %s", user_data_dir)
+    logger.info("Opening WhatsApp Web for one-time pairing in %s", get_session_dir())
+    clean_stale_locks()
 
     with sync_playwright() as p:
         context = p.chromium.launch_persistent_context(
-            user_data_dir=user_data_dir,
-            headless=False,
-            args=[
-                "--disable-blink-features=AutomationControlled",
-                "--no-sandbox",
-            ],
+            **get_launch_context_options(headless=False)
         )
 
         page = context.pages[0] if context.pages else context.new_page()
@@ -80,14 +131,17 @@ def pair_whatsapp_interactive(timeout_seconds: int = 120) -> dict:
 
         while time.time() - start_time < timeout_seconds:
             try:
+                # Check multiple indicators of a successful WhatsApp Web login
                 if (
                     page.locator('div[contenteditable="true"][data-tab="3"]').is_visible()
                     or page.locator('div[aria-label="Chat list"]').is_visible()
                     or page.locator('span[data-icon="chat"]').is_visible()
                     or page.locator('header').is_visible()
+                    or page.locator('#pane-side').is_visible()
+                    or page.locator('div[role="textbox"]').is_visible()
                 ):
                     logged_in = True
-                    time.sleep(4)  # Allow storage to settle
+                    time.sleep(6)  # Allow storage and IndexedDB keys to settle completely
                     break
             except Exception:
                 pass
@@ -96,6 +150,11 @@ def pair_whatsapp_interactive(timeout_seconds: int = 120) -> dict:
         context.close()
 
         if logged_in:
+            marker = Path(get_session_dir()) / ".session_paired"
+            try:
+                marker.write_text("PAIRED", encoding="utf-8")
+            except Exception:
+                pass
             return {"success": True, "message": "WhatsApp session paired successfully!"}
         return {
             "success": False,
@@ -105,65 +164,14 @@ def pair_whatsapp_interactive(timeout_seconds: int = 120) -> dict:
 
 def get_whatsapp_qr_image_base64() -> dict:
     """
-    Launches browser in headless mode, opens WhatsApp Web, captures the QR code canvas as base64 image,
-    and checks if already logged in.
+    Checks session authentication status and returns pairing status.
     """
-    import base64
-    from playwright.sync_api import sync_playwright
-
-    user_data_dir = get_session_dir()
-
-    with sync_playwright() as p:
-        try:
-            context = p.chromium.launch_persistent_context(
-                user_data_dir=user_data_dir,
-                headless=True,
-                args=[
-                    "--disable-blink-features=AutomationControlled",
-                    "--no-sandbox",
-                ],
-            )
-            page = context.pages[0] if context.pages else context.new_page()
-            page.goto("https://web.whatsapp.com/", timeout=45000)
-
-            # Wait up to 15s for either login or QR canvas
-            for _ in range(15):
-                # 1. Check if already logged in
-                if (
-                    page.locator('div[contenteditable="true"][data-tab="3"]').is_visible()
-                    or page.locator('div[aria-label="Chat list"]').is_visible()
-                    or page.locator('span[data-icon="chat"]').is_visible()
-                    or page.locator('header').is_visible()
-                ):
-                    context.close()
-                    return {"status": "authenticated", "message": "WhatsApp is already linked!"}
-
-                # 2. Check for QR code canvas
-                canvas = page.locator('canvas').first
-                if canvas.is_visible():
-                    screenshot_bytes = canvas.screenshot()
-                    b64_str = base64.b64encode(screenshot_bytes).decode("utf-8")
-                    context.close()
-                    return {
-                        "status": "qr_ready",
-                        "qr_image": f"data:image/png;base64,{b64_str}",
-                        "message": "Scan this QR code from WhatsApp > Linked Devices."
-                    }
-
-                time.sleep(1)
-
-            # If canvas not found directly, take screenshot of center area
-            screenshot_bytes = page.screenshot()
-            b64_str = base64.b64encode(screenshot_bytes).decode("utf-8")
-            context.close()
-            return {
-                "status": "qr_ready",
-                "qr_image": f"data:image/png;base64,{b64_str}",
-                "message": "Scan the QR code displayed on screen."
-            }
-        except Exception as e:
-            logger.exception("Error capturing WhatsApp QR code: %s", e)
-            return {"status": "error", "message": str(e)}
+    if is_whatsapp_paired():
+        return {"status": "authenticated", "message": "WhatsApp is already linked!"}
+    return {
+        "status": "unpaired",
+        "message": "Click 'Open Live QR Pairing Window' to scan the live QR code on screen."
+    }
 
 
 
@@ -177,17 +185,10 @@ def send_whatsapp_message_headless(phone: str, message: str, headless: bool = Tr
     if not phone_clean or len(phone_clean) < 10:
         return {"success": False, "error": f"Invalid phone number: {phone}"}
 
-    user_data_dir = get_session_dir()
-
     with sync_playwright() as p:
         try:
             context = p.chromium.launch_persistent_context(
-                user_data_dir=user_data_dir,
-                headless=headless,
-                args=[
-                    "--disable-blink-features=AutomationControlled",
-                    "--no-sandbox",
-                ],
+                **get_launch_context_options(headless=headless)
             )
             page = context.pages[0] if context.pages else context.new_page()
 
@@ -248,7 +249,6 @@ def send_batch_irac_alerts_automated(
     from playwright.sync_api import sync_playwright
     import urllib.parse
 
-    user_data_dir = get_session_dir()
     results = {
         "total": len(loans),
         "sent": 0,
@@ -262,12 +262,7 @@ def send_batch_irac_alerts_automated(
     with sync_playwright() as p:
         try:
             context = p.chromium.launch_persistent_context(
-                user_data_dir=user_data_dir,
-                headless=headless,
-                args=[
-                    "--disable-blink-features=AutomationControlled",
-                    "--no-sandbox",
-                ],
+                **get_launch_context_options(headless=headless)
             )
             page = context.pages[0] if context.pages else context.new_page()
 
@@ -375,3 +370,192 @@ def send_batch_irac_alerts_automated(
             results["error"] = str(e)
 
     return results
+
+
+def send_batch_loans_whatsapp_automated(
+    loans,
+    notification_type: str = "auto",
+    custom_template: str = None,
+    user=None,
+    lang: str = None,
+    delay_between_seconds: int = 3,
+    headless: bool = True,
+) -> dict:
+    """
+    Sends automated WhatsApp notifications to a list of loans in a single persistent browser session.
+    Supports smart auto classification (overdue / reminder / demand notice), standard templates, or custom user templates.
+    """
+    from playwright.sync_api import sync_playwright
+    import urllib.parse
+    from transactions.services_whatsapp import build_smart_loan_whatsapp_message, normalize_phone_number, get_whatsapp_link
+
+    results = {
+        "total": len(loans),
+        "sent": 0,
+        "failed": 0,
+        "details": [],
+    }
+
+    if not loans:
+        return results
+
+    clean_stale_locks()
+
+    with sync_playwright() as p:
+        try:
+            context = p.chromium.launch_persistent_context(
+                **get_launch_context_options(headless=headless)
+            )
+            page = context.pages[0] if context.pages else context.new_page()
+
+            # Pre-warm WhatsApp Web
+            page.goto("https://web.whatsapp.com/", timeout=45000)
+            time.sleep(4)
+
+            # Check if WhatsApp Web is presenting QR code (unpaired session)
+            if page.locator('canvas').is_visible() or page.locator('div[data-ref]').is_visible():
+                context.close()
+                results["error"] = "WhatsApp session is not paired yet. Please open 'Link WhatsApp' and scan the QR code first."
+                for loan in loans:
+                    c = getattr(loan, 'customer', None)
+                    c_name = getattr(c, 'get_full_name', None)() if (c and hasattr(c, 'get_full_name')) else f"{getattr(c, 'first_name', '')} {getattr(c, 'last_name', '')}".strip() or "Valued Customer"
+                    results["details"].append({
+                        "loan_no": getattr(loan, 'loan_number', ''),
+                        "customer": c_name,
+                        "phone": getattr(c, 'phone', '') or '',
+                        "status": "FAILED",
+                        "error": "WhatsApp session is not paired. Please link device first.",
+                    })
+                    results["failed"] += 1
+                return results
+
+            for loan in loans:
+                customer = getattr(loan, 'customer', None)
+                raw_phone = getattr(customer, 'phone', None) or getattr(customer, 'phone_number', None) or ""
+                phone_clean = clean_phone_number(raw_phone)
+                cust_name = getattr(customer, 'get_full_name', None)() if (customer and hasattr(customer, 'get_full_name')) else f"{getattr(customer, 'first_name', '')} {getattr(customer, 'last_name', '')}".strip() or "Valued Customer"
+
+                if not phone_clean or len(phone_clean) < 10:
+                    results["failed"] += 1
+                    results["details"].append({
+                        "loan_no": getattr(loan, 'loan_number', ''),
+                        "customer": cust_name,
+                        "phone": raw_phone or "-",
+                        "status": "FAILED",
+                        "error": f"Invalid or missing phone number: '{raw_phone}'",
+                    })
+                    continue
+
+                # Build notification text
+                message_text = build_smart_loan_whatsapp_message(
+                    loan=loan,
+                    notification_type=notification_type,
+                    custom_template=custom_template,
+                    lang=lang,
+                    request_user=user,
+                )
+                encoded_msg = urllib.parse.quote(message_text)
+                send_url = f"https://web.whatsapp.com/send?phone={phone_clean}&text={encoded_msg}"
+
+                try:
+                    page.goto(send_url, timeout=35000)
+                    time.sleep(3)
+
+                    # Check for invalid number popup
+                    if page.locator("text=Phone number shared via url is invalid").is_visible() or page.locator("text=URL is invalid").is_visible():
+                        results["failed"] += 1
+                        results["details"].append({
+                            "loan_no": getattr(loan, 'loan_number', ''),
+                            "customer": cust_name,
+                            "phone": phone_clean,
+                            "status": "FAILED",
+                            "error": f"Phone number +{phone_clean} is not registered on WhatsApp",
+                        })
+                        try:
+                            ok_btn = page.locator('button:has-text("OK"), div[role="button"]:has-text("OK")').first
+                            if ok_btn.is_visible():
+                                ok_btn.click()
+                        except Exception:
+                            pass
+                        continue
+
+                    # Look for Send button or composer
+                    send_btn = page.locator('button[aria-label="Send"], span[data-icon="send"], button span[data-icon="send"], button[data-tab="11"]').first
+                    sent_success = False
+
+                    try:
+                        send_btn.wait_for(state="visible", timeout=12000)
+                        send_btn.click()
+                        sent_success = True
+                    except Exception:
+                        composer = page.locator('div[contenteditable="true"][data-tab="10"], div[contenteditable="true"][data-tab="6"], div[role="textbox"][contenteditable="true"]').first
+                        if composer.is_visible():
+                            composer.focus()
+                            composer.press("Enter")
+                            sent_success = True
+
+                    if sent_success:
+                        time.sleep(delay_between_seconds)
+
+                        # Record in database audit log
+                        try:
+                            from transactions.services_whatsapp import _compute_days_left, _get_total_payable
+                            days_left, is_overdue = _compute_days_left(loan)
+                            overdue_days = abs(days_left) if (is_overdue and days_left is not None) else 0
+                            tot_due, _ = _get_total_payable(loan)
+                            irac_bucket = 'SMA_0'
+                            if overdue_days > 90:
+                                irac_bucket = 'NPA_LOSS'
+                            elif overdue_days > 60:
+                                irac_bucket = 'SMA_2'
+                            elif overdue_days > 30:
+                                irac_bucket = 'SMA_1'
+
+                            IRACAlertLog.objects.create(
+                                loan=loan,
+                                customer=customer,
+                                irac_bucket=irac_bucket,
+                                overdue_days=overdue_days,
+                                overdue_amount=tot_due,
+                                channel="whatsapp_web",
+                                status="sent",
+                                message_sent=message_text,
+                                sent_by=user if (user and getattr(user, 'is_authenticated', False)) else None,
+                            )
+                        except Exception as log_err:
+                            logger.warning("Could not create IRACAlertLog: %s", log_err)
+
+                        results["sent"] += 1
+                        results["details"].append({
+                            "loan_no": getattr(loan, 'loan_number', ''),
+                            "customer": cust_name,
+                            "phone": phone_clean,
+                            "status": "SENT",
+                        })
+                    else:
+                        results["failed"] += 1
+                        results["details"].append({
+                            "loan_no": getattr(loan, 'loan_number', ''),
+                            "customer": cust_name,
+                            "phone": phone_clean,
+                            "status": "FAILED",
+                            "error": "Could not locate WhatsApp send button / number unverified",
+                        })
+
+                except Exception as ex:
+                    results["failed"] += 1
+                    results["details"].append({
+                        "loan_no": getattr(loan, 'loan_number', ''),
+                        "customer": cust_name,
+                        "phone": phone_clean,
+                        "status": "FAILED",
+                        "error": str(ex),
+                    })
+
+            context.close()
+        except Exception as e:
+            logger.exception("Batch loan automated WhatsApp dispatch encountered an exception: %s", e)
+            results["error"] = str(e)
+
+    return results
+

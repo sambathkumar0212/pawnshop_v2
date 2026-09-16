@@ -6,7 +6,7 @@ from schemes.models import Scheme  # Changed from content_manager.models to sche
 import uuid
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 import datetime
 import json
 from .utils import item_photo_path, loan_document_path
@@ -996,12 +996,9 @@ class Loan(models.Model):
             return principal_amount
             
         # For schemes with no_interest_period_days, check if we're still in that period
-        if self.scheme.no_interest_period_days and self.days_since_issue <= self.scheme.no_interest_period_days:
+        current_date = timezone.now().date()
+        if self.scheme.no_interest_period_days and (current_date - self.issue_date).days <= self.scheme.no_interest_period_days:
             return principal_amount
-            
-        # If accrued_interest field is tracked (>0, e.g. via daily EOD batch), use it
-        if getattr(self, 'accrued_interest', None) and self.accrued_interest > Decimal('0.00'):
-            return principal_amount + self.accrued_interest
             
         # Use monthly interest calculation instead of daily
         return principal_amount + self.monthly_interest_till_date()
@@ -1031,6 +1028,164 @@ class Loan(models.Model):
         
         return principal_amount + total_interest
     
+    @property
+    def is_tiered_rate_loan(self):
+        """Returns True if the loan's scheme has a tiered interest rate structure."""
+        if not self.scheme:
+            return False
+        if getattr(self.scheme, 'interest_rate_structure', None):
+            return len(self.scheme.interest_rate_structure) > 0
+        return False
+
+    @property
+    def monthly_interest_due_date(self):
+        """
+        Calculates the monthly interest payment due date for the current cycle.
+        Each month on the cycle day (issue_date.day or scheme.payment_due_day), interest is due.
+        If is_first_month_interest_paid is True, month 1 was prepaid at origination.
+        Payments made towards interest advance the paid cycles.
+        """
+        if not self.issue_date:
+            return None
+            
+        import datetime
+        from decimal import Decimal
+        import calendar
+
+        issue_dt = self.issue_date
+
+        # Base annual rate for disciplined tier (30-day rate)
+        if self.scheme and getattr(self.scheme, 'interest_rate_structure', None):
+            base_annual_rate = Decimal(str(self.scheme.get_interest_rate_for_days(30)))
+        elif self.scheme and getattr(self.scheme, 'interest_rate', None):
+            base_annual_rate = Decimal(str(self.scheme.interest_rate))
+        else:
+            base_annual_rate = Decimal(str(self.interest_rate or 12))
+
+        monthly_rate = base_annual_rate / Decimal('12')
+        orig_dist = self.distribution_amount if self.distribution_amount is not None \
+            else ((self.principal_amount or Decimal('0')) - Decimal(str(self.processing_fee or 0)))
+        current_principal = self.principal_amount or Decimal('0')
+        base_amount = min(orig_dist, current_principal)
+        expected_monthly_interest = (base_amount * monthly_rate) / Decimal('100') if base_amount > 0 else Decimal('1.00')
+
+        # Total interest paid through Payments
+        total_interest_paid = Decimal('0.00')
+        if self.pk:
+            try:
+                total_payments = sum([p.amount for p in self.payments.all()]) if hasattr(self, 'payments') else Decimal('0.00')
+                total_interest_paid = Decimal(str(total_payments or 0))
+            except Exception:
+                total_interest_paid = Decimal('0.00')
+
+        # Count months paid
+        months_covered = 1 if self.is_first_month_interest_paid else 0
+        if expected_monthly_interest > 0 and total_interest_paid > 0:
+            months_covered += int(total_interest_paid // expected_monthly_interest)
+
+        target_month_index = months_covered + 1
+        
+        # Calculate target calendar date by adding target_month_index months to issue_date
+        year = issue_dt.year + (issue_dt.month + target_month_index - 1) // 12
+        month = (issue_dt.month + target_month_index - 1) % 12 + 1
+        day = issue_dt.day
+        
+        # Adjust day if target month has fewer days
+        max_days = calendar.monthrange(year, month)[1]
+        day = min(day, max_days)
+        
+        return datetime.date(year, month, day)
+
+    @property
+    def is_monthly_interest_overdue(self):
+        """
+        Returns True if the loan is active, has a monthly interest due date,
+        and today has crossed that monthly pay date.
+        """
+        if self.status != 'active':
+            return False
+        due_dt = self.monthly_interest_due_date
+        if not due_dt:
+            return False
+        return timezone.now().date() > due_dt
+
+    @property
+    def monthly_interest_overdue_days(self):
+        """
+        Returns the number of days the monthly interest payment is overdue.
+        """
+        if not self.is_monthly_interest_overdue:
+            return 0
+        due_dt = self.monthly_interest_due_date
+        return max(0, (timezone.now().date() - due_dt).days)
+
+    @property
+    def current_applicable_rate(self):
+        """
+        Returns the effective annual interest rate (%) taking into account payment discipline:
+        - For tiered rate structures:
+          - If monthly interest is paid on time (not overdue): retains base/Level 1 tier rate.
+          - If monthly interest pay date was missed: escalates to the tiered rate based on elapsed days/tenure.
+        - For standard schemes: returns the standard interest rate.
+        """
+        if not self.scheme:
+            return Decimal(str(self.interest_rate or 0))
+            
+        if not self.is_tiered_rate_loan:
+            return Decimal(str(self.scheme.interest_rate or self.interest_rate or 0))
+
+        # If tiered:
+        # Check if monthly pay date was missed (overdue)
+        if self.is_monthly_interest_overdue:
+            # Rate escalates dynamically according to scheme tiered structure!
+            today = timezone.now().date()
+            if self.scheme.is_days_based:
+                days_elapsed = (today - (self.issue_date or today)).days
+                return Decimal(str(self.scheme.get_interest_rate_for_days(days_elapsed)))
+            else:
+                months_elapsed = max(1, ((today.year - self.issue_date.year) * 12 + today.month - self.issue_date.month))
+                return Decimal(str(self.scheme.get_interest_rate_for_tenure(months_elapsed)))
+        else:
+            # Customer paid on time / on track: retains Level 1 base rate (30 days / Month 1)
+            return Decimal(str(self.scheme.get_interest_rate_for_days(30)))
+
+    @property
+    def tiered_status_summary(self):
+        """
+        Returns a dictionary summarizing tiered rate status, active rate, next pay date, and discipline status.
+        """
+        if not self.is_tiered_rate_loan:
+            return None
+
+        active_rate = self.current_applicable_rate
+        base_rate = Decimal(str(self.scheme.get_interest_rate_for_days(30))) if self.scheme else Decimal('12.00')
+        is_escalated = active_rate > base_rate or self.is_monthly_interest_overdue
+        due_dt = self.monthly_interest_due_date
+        overdue_days = self.monthly_interest_overdue_days
+        
+        # Determine tier level name
+        tier_level = "Tier 1"
+        if hasattr(self.scheme, 'interest_rate_structure') and self.scheme.interest_rate_structure:
+            idx = 1
+            for k, r in self.scheme.interest_rate_structure.items():
+                if Decimal(str(r)) == active_rate:
+                    tier_level = f"Tier {idx}"
+                    break
+                idx += 1
+
+        return {
+            'is_tiered': True,
+            'tier_level': tier_level,
+            'active_rate': active_rate,
+            'base_rate': base_rate,
+            'monthly_pay_date': due_dt,
+            'is_overdue': self.is_monthly_interest_overdue,
+            'overdue_days': overdue_days,
+            'is_escalated': is_escalated,
+            'status_label': 'Pay Date Missed (Escalated)' if is_escalated else 'On Track (Base Rate)',
+            'badge_class': 'bg-danger text-white' if is_escalated else 'bg-success text-white'
+        }
+        
     def calculate_interest(self):
         """Calculate interest on loan"""
         if not self.due_date or self.status != 'active' or not self.scheme:
@@ -1053,8 +1208,9 @@ class Loan(models.Model):
         if self.scheme.no_interest_period_days and days_elapsed <= self.scheme.no_interest_period_days:
             return Decimal('0.00')
             
-        # Calculate interest based on scheme interest rate on base distribution amount
-        daily_rate = self.scheme.interest_rate / Decimal('36500')  # Convert annual rate to daily rate
+        # Calculate interest based on current applicable rate (base tier if on time, escalated if pay date missed)
+        eff_rate = self.current_applicable_rate if self.is_tiered_rate_loan else self.scheme.interest_rate
+        daily_rate = eff_rate / Decimal('36500')  # Convert annual rate to daily rate
         interest = base_dist_amount * daily_rate * Decimal(str(days_elapsed))
         
         return interest.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
@@ -1074,21 +1230,13 @@ class Loan(models.Model):
                 'annual_rate': Decimal('0.00')
             }
         
-        # Get interest rate from scheme or default
+        # Get interest rate from scheme or default with tiered pay date escalation
         if not self.scheme:
-            annual_rate = Decimal(str(self.interest_rate))
-        elif self.issue_date:
-            today = timezone.now().date()
-            if self.scheme.is_days_based:
-                days_elapsed = (today - self.issue_date).days
-                annual_rate = self.scheme.get_interest_rate_for_days(days_elapsed)
-            else:
-                months_elapsed = ((today.year - self.issue_date.year) * 12 + 
-                                today.month - self.issue_date.month)
-                # Get tiered interest rate based on tenure
-                annual_rate = self.scheme.get_interest_rate_for_tenure(months_elapsed)
+            annual_rate = Decimal(str(self.interest_rate or 0))
+        elif self.is_tiered_rate_loan:
+            annual_rate = self.current_applicable_rate
         else:
-            annual_rate = self.scheme.interest_rate
+            annual_rate = Decimal(str(self.scheme.interest_rate or 0))
         
         # Calculate monthly interest rate
         monthly_rate = annual_rate / Decimal('12')
@@ -1120,20 +1268,13 @@ class Loan(models.Model):
         if not self.distribution_amount and not self.principal_amount:
             return Decimal('0.00')
         
-        # Get interest rate from scheme or default
+        # Get interest rate from scheme or default with tiered pay date escalation
         if not self.scheme:
-            annual_rate = Decimal(str(self.interest_rate))
-        elif self.issue_date:
-            today = timezone.now().date()
-            if self.scheme.is_days_based:
-                days_elapsed = (today - self.issue_date).days
-                annual_rate = self.scheme.get_interest_rate_for_days(days_elapsed)
-            else:
-                months_elapsed = ((today.year - self.issue_date.year) * 12 + 
-                                today.month - self.issue_date.month)
-                annual_rate = self.scheme.get_interest_rate_for_tenure(months_elapsed)
+            annual_rate = Decimal(str(self.interest_rate or 0))
+        elif self.is_tiered_rate_loan:
+            annual_rate = self.current_applicable_rate
         else:
-            annual_rate = self.scheme.interest_rate
+            annual_rate = Decimal(str(self.scheme.interest_rate or 0))
             
         # Use current outstanding principal to reflect part payments
         orig_dist = self.distribution_amount if self.distribution_amount is not None \
@@ -1164,7 +1305,7 @@ class Loan(models.Model):
         if getattr(self.scheme, 'no_interest_period_days', 0) and days_elapsed <= self.scheme.no_interest_period_days:
             return Decimal('0.00')
             
-        annual_rate = self.scheme.get_interest_rate_for_days((current_date - self.issue_date).days)
+        annual_rate = self.current_applicable_rate if self.is_tiered_rate_loan else self.scheme.get_interest_rate_for_days((current_date - self.issue_date).days)
         daily_rate = annual_rate / Decimal('36500')
         interest = base_amount * daily_rate * Decimal(str(days_elapsed))
         return interest.quantize(Decimal('0.01'))

@@ -998,12 +998,22 @@ class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, Lis
         elif date_range == 'this_year':
             queryset = queryset.filter(issue_date__year=today.year)
 
-        # New filter for overdue loans
+        # New filters for overdue, due_soon, tiered, and due date +/- 5 days
         filter_type = self.request.GET.get('filter_type')
         if filter_type == 'overdue':
             queryset = queryset.filter(status='active', due_date__lt=today)
         elif filter_type == 'due_soon':
             queryset = queryset.filter(status='active', due_date__gte=today, due_date__lte=today + timezone.timedelta(days=30))
+        elif filter_type == 'tiered':
+            queryset = queryset.filter(
+                scheme__interest_rate_structure__isnull=False
+            ).exclude(scheme__interest_rate_structure={})
+        elif filter_type == 'due_plus_5':
+            queryset = queryset.filter(status='active', due_date__gte=today, due_date__lte=today + timezone.timedelta(days=5))
+        elif filter_type == 'due_minus_5':
+            queryset = queryset.filter(status='active', due_date__gte=today - timezone.timedelta(days=5), due_date__lt=today)
+        elif filter_type == 'due_window_5':
+            queryset = queryset.filter(status='active', due_date__gte=today - timezone.timedelta(days=5), due_date__lte=today + timezone.timedelta(days=5))
 
         # Sorting
         sort_by = self.request.GET.get('sort', '-issue_date')  # Default sort by newest first
@@ -1307,6 +1317,10 @@ class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, Lis
             due_today_count=Count('id', filter=Q(status='active', due_date=today)),
             overdue_count=Count('id', filter=Q(status='active', due_date__lt=today)),
             due_soon_count=Count('id', filter=Q(status='active', due_date__gte=today, due_date__lte=today + timezone.timedelta(days=30))),
+            tiered_count=Count('id', filter=Q(status='active', scheme__interest_rate_structure__isnull=False) & ~Q(scheme__interest_rate_structure={})),
+            due_plus_5_count=Count('id', filter=Q(status='active', due_date__gte=today, due_date__lte=today + timezone.timedelta(days=5))),
+            due_minus_5_count=Count('id', filter=Q(status='active', due_date__gte=today - timezone.timedelta(days=5), due_date__lt=today)),
+            due_window_5_count=Count('id', filter=Q(status='active', due_date__gte=today - timezone.timedelta(days=5), due_date__lte=today + timezone.timedelta(days=5))),
         )
 
         # Debug logging to help trace incorrect zeros in the UI
@@ -1326,6 +1340,10 @@ class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, Lis
         context['due_today_count'] = stats.get('due_today_count') or 0
         context['overdue_count'] = stats.get('overdue_count') or 0
         context['due_soon_count'] = stats.get('due_soon_count') or 0
+        context['tiered_count'] = stats.get('tiered_count') or 0
+        context['due_plus_5_count'] = stats.get('due_plus_5_count') or 0
+        context['due_minus_5_count'] = stats.get('due_minus_5_count') or 0
+        context['due_window_5_count'] = stats.get('due_window_5_count') or 0
 
         # Monetary summaries (Decimal) - coerce None to 0
         # Compute monetary summaries in Python using model properties (accurate
@@ -1824,6 +1842,270 @@ class LoanSendWhatsAppView(LoginRequiredMixin, RoleBranchAccessMixin, View):
             messages.error(request, f"Failed to send WhatsApp notification: {exc}")
 
         return redirect(reverse('loan_detail', kwargs={'loan_number': loan_number}))
+
+
+class LoanBatchWhatsAppHelperMixin:
+    """Helper methods to resolve filtered loans queryset for WhatsApp broadcasting."""
+    def get_loans_from_params(self, request, params):
+        scope = params.get('scope', 'all_filtered')
+        loan_ids = params.get('loan_ids')
+        if isinstance(loan_ids, str):
+            loan_ids = [int(x.strip()) for x in loan_ids.split(',') if x.strip().isdigit()]
+
+        if scope == 'selected' and loan_ids:
+            qs = Loan.objects.filter(id__in=loan_ids)
+            qs = self.filter_queryset_by_branches(qs, branch_field_name='branch')
+            if request.user.organization:
+                qs = qs.filter(branch__organization=request.user.organization)
+            return qs.select_related('customer', 'branch', 'scheme')
+
+        # Otherwise, resolve all loans matching the current filter parameters
+        qs = Loan.objects.all()
+        qs = self.filter_queryset_by_branches(qs, branch_field_name='branch')
+        if request.user.organization:
+            qs = qs.filter(branch__organization=request.user.organization)
+
+        # Status filter
+        status = params.get('status')
+        if status:
+            qs = qs.filter(status=status)
+
+        # Scheme filter
+        scheme_id = params.get('scheme')
+        if scheme_id:
+            qs = qs.filter(scheme_id=scheme_id)
+
+        # Search filter
+        search = params.get('search')
+        if search:
+            search = search.strip()
+            search_terms = search.split()
+            search_filter = (
+                Q(customer__first_name__icontains=search) |
+                Q(customer__last_name__icontains=search) |
+                Q(customer__phone__icontains=search) |
+                Q(loan_number__icontains=search) |
+                Q(loanitem__item__name__icontains=search)
+            )
+            if len(search_terms) > 1:
+                multi_q = Q()
+                for term in search_terms:
+                    multi_q &= (
+                        Q(customer__first_name__icontains=term) |
+                        Q(customer__last_name__icontains=term) |
+                        Q(customer__phone__icontains=term) |
+                        Q(loan_number__icontains=term) |
+                        Q(loanitem__item__name__icontains=term)
+                    )
+                search_filter = search_filter | multi_q
+            qs = qs.filter(search_filter).distinct()
+
+        # Date range filter
+        date_range = params.get('date_range')
+        today = timezone.now().date()
+        if date_range == 'today':
+            qs = qs.filter(issue_date=today)
+        elif date_range == 'this_week':
+            week_start = today - timezone.timedelta(days=today.weekday())
+            qs = qs.filter(issue_date__gte=week_start)
+        elif date_range == 'this_month':
+            qs = qs.filter(issue_date__year=today.year, issue_date__month=today.month)
+        elif date_range == 'this_year':
+            qs = qs.filter(issue_date__year=today.year)
+
+        # Filter type (overdue, due_soon, etc.)
+        filter_type = params.get('filter_type')
+        if filter_type == 'overdue':
+            qs = qs.filter(status='active', due_date__lt=today)
+        elif filter_type == 'due_soon':
+            qs = qs.filter(status='active', due_date__gte=today, due_date__lte=today + timezone.timedelta(days=30))
+        elif filter_type == 'tiered':
+            qs = qs.filter(
+                scheme__interest_rate_structure__isnull=False
+            ).exclude(scheme__interest_rate_structure={})
+        elif filter_type == 'due_plus_5':
+            qs = qs.filter(status='active', due_date__gte=today, due_date__lte=today + timezone.timedelta(days=5))
+        elif filter_type == 'due_minus_5':
+            qs = qs.filter(status='active', due_date__gte=today - timezone.timedelta(days=5), due_date__lt=today)
+        elif filter_type == 'due_window_5':
+            qs = qs.filter(status='active', due_date__gte=today - timezone.timedelta(days=5), due_date__lte=today + timezone.timedelta(days=5))
+
+        return qs.select_related('customer', 'branch', 'scheme').order_by('-due_date')
+
+
+class LoanBatchWhatsAppPreviewView(LoginRequiredMixin, RoleBranchAccessMixin, LoanBatchWhatsAppHelperMixin, View):
+    """
+    Returns live preview of recipients and sample message for bulk WhatsApp notifications.
+    """
+    def get(self, request):
+        return self._process(request, request.GET)
+
+    def post(self, request):
+        import json
+        try:
+            body = json.loads(request.body.decode('utf-8'))
+        except Exception:
+            body = request.POST
+        return self._process(request, body)
+
+    def _process(self, request, params):
+        from transactions.services_whatsapp import (
+            build_smart_loan_whatsapp_message,
+            normalize_phone_number,
+            _get_total_payable,
+            _compute_days_left,
+            get_whatsapp_link,
+        )
+        from transactions.services_whatsapp_automator import is_whatsapp_paired
+
+        notification_type = params.get('notification_type', 'auto')
+        custom_template = params.get('custom_template', '')
+        lang = params.get('lang')
+        if not lang or lang == 'auto':
+            lang = getattr(request, 'LANGUAGE_CODE', 'ta')
+
+        loans_qs = self.get_loans_from_params(request, params)
+        total_count = loans_qs.count()
+
+        # Prepare summary preview of first 50 loans
+        sample_loans = list(loans_qs[:50])
+        loans_preview = []
+        for l in sample_loans:
+            c = getattr(l, 'customer', None)
+            raw_phone = getattr(c, 'phone', '') or ''
+            norm_phone = normalize_phone_number(raw_phone)
+            days_left, is_overdue = _compute_days_left(l)
+            tot_due, _ = _get_total_payable(l)
+            loans_preview.append({
+                'id': l.id,
+                'loan_number': l.loan_number,
+                'customer_name': f"{getattr(c, 'first_name', '')} {getattr(c, 'last_name', '')}".strip() or "Customer",
+                'phone': raw_phone,
+                'is_phone_valid': bool(norm_phone),
+                'due_date': l.due_date.strftime('%d/%m/%Y') if l.due_date else 'N/A',
+                'is_overdue': is_overdue,
+                'days_left': days_left,
+                'total_due': float(tot_due),
+                'status': l.status,
+            })
+
+        # Sample rendered message
+        sample_msg = ""
+        if sample_loans:
+            sample_msg = build_smart_loan_whatsapp_message(
+                loan=sample_loans[0],
+                notification_type=notification_type,
+                custom_template=custom_template,
+                lang=lang,
+                request_user=request.user,
+            )
+
+        return JsonResponse({
+            'status': 'success',
+            'total_count': total_count,
+            'is_whatsapp_paired': is_whatsapp_paired(),
+            'sample_message': sample_msg,
+            'loans_preview': loans_preview,
+        })
+
+
+class LoanBatchWhatsAppDispatchView(LoginRequiredMixin, RoleBranchAccessMixin, LoanBatchWhatsAppHelperMixin, View):
+    """
+    Executes bulk WhatsApp dispatch across filtered loans or generates direct links queue.
+    """
+    def post(self, request):
+        import json
+        from transactions.services_whatsapp import (
+            build_smart_loan_whatsapp_message,
+            normalize_phone_number,
+            get_whatsapp_link,
+            send_pywhatkit_async,
+        )
+        from transactions.services_whatsapp_automator import (
+            send_batch_loans_whatsapp_automated,
+            is_whatsapp_paired,
+        )
+
+        try:
+            params = json.loads(request.body.decode('utf-8'))
+        except Exception:
+            params = request.POST
+
+        notification_type = params.get('notification_type', 'auto')
+        custom_template = params.get('custom_template', '')
+        lang = params.get('lang')
+        if not lang or lang == 'auto':
+            lang = getattr(request, 'LANGUAGE_CODE', 'ta')
+        dispatch_mode = params.get('dispatch_mode', 'headless_automated')  # 'headless_automated' | 'links' | 'pywhatkit'
+
+        loans_qs = self.get_loans_from_params(request, params)
+        loans = list(loans_qs)
+
+        if not loans:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'No loans found matching the selected filters/criteria.',
+                'sent': 0,
+                'failed': 0,
+                'total': 0,
+            })
+
+        if dispatch_mode == 'headless_automated':
+            if not is_whatsapp_paired():
+                return JsonResponse({
+                    'status': 'not_paired',
+                    'message': 'WhatsApp session is not paired yet. Please scan QR code to pair first.',
+                    'total': len(loans),
+                })
+
+            res = send_batch_loans_whatsapp_automated(
+                loans=loans,
+                notification_type=notification_type,
+                custom_template=custom_template,
+                user=request.user,
+                lang=lang,
+                delay_between_seconds=2,
+                headless=True,
+            )
+            return JsonResponse({
+                'status': 'success' if not res.get('error') else 'partial',
+                'sent': res.get('sent', 0),
+                'failed': res.get('failed', 0),
+                'total': res.get('total', len(loans)),
+                'details': res.get('details', []),
+                'message': res.get('error') or f"Successfully dispatched WhatsApp notifications to {res.get('sent', 0)} borrowers.",
+            })
+
+        # Direct Web Link / Queue Mode
+        links_queue = []
+        for l in loans:
+            c = getattr(l, 'customer', None)
+            raw_phone = getattr(c, 'phone', '') or ''
+            norm_phone = normalize_phone_number(raw_phone)
+            msg = build_smart_loan_whatsapp_message(
+                loan=l,
+                notification_type=notification_type,
+                custom_template=custom_template,
+                lang=lang,
+                request_user=request.user,
+            )
+            wa_link = get_whatsapp_link(norm_phone, msg) if norm_phone else ''
+            links_queue.append({
+                'loan_number': l.loan_number,
+                'customer_name': f"{getattr(c, 'first_name', '')} {getattr(c, 'last_name', '')}".strip(),
+                'phone': raw_phone,
+                'link': wa_link,
+                'is_valid': bool(norm_phone),
+                'message': msg,
+            })
+
+        return JsonResponse({
+            'status': 'links_ready',
+            'total': len(loans),
+            'queue': links_queue,
+            'message': f"Generated WhatsApp launch links for {len(loans)} loans.",
+        })
+
 
 
 class LoanDetailView(LoginRequiredMixin, RoleBranchAccessMixin, DetailView):

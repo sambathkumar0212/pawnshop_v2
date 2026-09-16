@@ -112,6 +112,20 @@
             </span>
         </div>
         <div class="d-flex align-items-center gap-2">
+            <!-- WhatsApp Blast Bulk Action Button -->
+            <button type="button" class="btn btn-success btn-sm px-3 shadow-xs d-flex align-items-center gap-1" id="openBulkWhatsAppBtn" data-bs-toggle="modal" data-bs-target="#bulkWhatsAppModal">
+                <i class="fab fa-whatsapp fs-6"></i>
+                <span class="fw-semibold">{% if LANGUAGE_CODE == 'ta' %}வாட்ஸ்அப் அறிவிப்பு{% else %}WhatsApp Blast{% endif %}</span>
+                {% if selected_filter_type == 'overdue' %}
+                    <span class="badge bg-danger rounded-pill ms-1" style="font-size: 0.72rem;">{{ overdue_count|default:0 }} Overdue</span>
+                {% elif selected_filter_type == 'due_plus_5' %}
+                    <span class="badge bg-warning text-dark rounded-pill ms-1" style="font-size: 0.72rem;">{{ due_plus_5_count|default:0 }} Due</span>
+                {% elif selected_filter_type == 'due_soon' %}
+                    <span class="badge bg-info text-dark rounded-pill ms-1" style="font-size: 0.72rem;">{{ due_soon_count|default:0 }}</span>
+                {% elif selected_status == 'active' %}
+                    <span class="badge bg-primary rounded-pill ms-1" style="font-size: 0.72rem;">{{ active_loans_count|default:0 }}</span>
+                {% endif %}
+            </button>
             <div class="dropdown">
                 <button class="btn btn-white border btn-sm dropdown-toggle shadow-xs" type="button" id="downloadDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="color: #334155;">
                     <i class="fas fa-download me-1 text-secondary"></i> {% if LANGUAGE_CODE == 'ta' %}பதிவிறக்கு{% else %}Export{% endif %}
@@ -300,24 +314,79 @@
                     </select>
                 </div>
 
-                <!-- Action & Quick Filter Buttons -->
-                <div class="col-12 col-sm-9 col-lg-3 d-flex gap-1 justify-content-end">
-                    <button type="submit" class="btn btn-primary btn-sm px-2 flex-fill">
-                        <i class="fas fa-filter me-1"></i>Filter
+                <!-- Action & Filter Submit Buttons -->
+                <div class="col-12 col-sm-6 col-lg-2 d-flex gap-1">
+                    <button type="submit" class="btn btn-primary btn-sm px-3 w-100">
+                        <i class="fas fa-filter me-1"></i>Apply Filter
                     </button>
-                    <a href="{% url 'loan_list' %}?filter_type=overdue{% if search_query %}&search={{ search_query }}{% endif %}" 
-                       class="btn btn-sm px-2 text-nowrap {% if selected_filter_type == 'overdue' %}btn-danger text-white{% else %}btn-white border text-danger{% endif %}" title="Overdue Loans" style="font-size: 0.8rem;">
-                        <i class="fas fa-exclamation-circle me-1"></i>Overdue ({{ overdue_count|default:0 }})
-                    </a>
-                    <a href="{% url 'loan_list' %}?filter_type=due_soon{% if search_query %}&search={{ search_query }}{% endif %}" 
-                       class="btn btn-sm px-2 text-nowrap {% if selected_filter_type == 'due_soon' %}btn-warning text-dark{% else %}btn-white border text-warning{% endif %}" title="Due in 30 Days" style="font-size: 0.8rem; color: #b45309 !important;">
-                        <i class="fas fa-clock me-1"></i>30 Days ({{ due_soon_count|default:0 }})
-                    </a>
                     <a href="{% url 'loan_list' %}" class="btn btn-white border btn-sm px-2 text-secondary" title="Reset Filters">
                         <i class="fas fa-times"></i>
                     </a>
                 </div>
+
+                <!-- Quick Filter Pills Row -->
+                <div class="col-12 d-flex flex-wrap gap-1 pt-1 border-top align-items-center mt-2">
+                    <span class="text-muted fw-semibold me-1" style="font-size: 0.76rem;">Quick Filters:</span>
+                    
+                    <!-- Tiered Rate Structure Loans Button -->
+                    <a href="{% url 'loan_list' %}?filter_type=tiered{% if search_query %}&search={{ search_query }}{% endif %}" 
+                       class="btn btn-sm px-2 text-nowrap {% if selected_filter_type == 'tiered' %}btn-primary text-white shadow-sm{% else %}btn-white border text-primary{% endif %}" 
+                       title="View all Tiered Interest Rate Structure loans" style="font-size: 0.78rem; font-weight: 500;">
+                        <i class="fas fa-layer-group me-1"></i>Tiered Rate Schemes ({{ tiered_count|default:0 }})
+                    </a>
+
+                    <!-- +5 Days (Due Soon) Filter -->
+                    <a href="{% url 'loan_list' %}?filter_type=due_plus_5{% if search_query %}&search={{ search_query }}{% endif %}" 
+                       class="btn btn-sm px-2 text-nowrap {% if selected_filter_type == 'due_plus_5' %}btn-warning text-dark fw-bold shadow-sm{% else %}btn-white border text-dark{% endif %}" 
+                       title="Loans due in next 5 days" style="font-size: 0.78rem;">
+                        <i class="fas fa-hourglass-half me-1 text-warning"></i>Due in +5 Days ({{ due_plus_5_count|default:0 }})
+                    </a>
+
+                    <!-- -5 Days (Overdue) Filter -->
+                    <a href="{% url 'loan_list' %}?filter_type=due_minus_5{% if search_query %}&search={{ search_query }}{% endif %}" 
+                       class="btn btn-sm px-2 text-nowrap {% if selected_filter_type == 'due_minus_5' %}btn-danger text-white shadow-sm{% else %}btn-white border text-danger{% endif %}" 
+                       title="Loans overdue within last 1 to 5 days" style="font-size: 0.78rem;">
+                        <i class="fas fa-history me-1"></i>Overdue -5 Days ({{ due_minus_5_count|default:0 }})
+                    </a>
+
+                    <!-- +/- 5 Days Window Filter -->
+                    <a href="{% url 'loan_list' %}?filter_type=due_window_5{% if search_query %}&search={{ search_query }}{% endif %}" 
+                       class="btn btn-sm px-2 text-nowrap {% if selected_filter_type == 'due_window_5' %}btn-dark text-white shadow-sm{% else %}btn-white border text-dark{% endif %}" 
+                       title="All loans with due dates within ±5 days window" style="font-size: 0.78rem;">
+                        <i class="fas fa-calendar-week me-1 text-primary"></i>Due Date ±5 Days ({{ due_window_5_count|default:0 }})
+                    </a>
+
+                    <!-- Overdue Filter -->
+                    <a href="{% url 'loan_list' %}?filter_type=overdue{% if search_query %}&search={{ search_query }}{% endif %}" 
+                       class="btn btn-sm px-2 text-nowrap {% if selected_filter_type == 'overdue' %}btn-danger text-white shadow-sm{% else %}btn-white border text-danger{% endif %}" 
+                       title="All Overdue Loans" style="font-size: 0.78rem;">
+                        <i class="fas fa-exclamation-circle me-1"></i>All Overdue ({{ overdue_count|default:0 }})
+                    </a>
+
+                    <!-- 30 Days Due Soon Filter -->
+                    <a href="{% url 'loan_list' %}?filter_type=due_soon{% if search_query %}&search={{ search_query }}{% endif %}" 
+                       class="btn btn-sm px-2 text-nowrap {% if selected_filter_type == 'due_soon' %}btn-warning text-dark shadow-sm{% else %}btn-white border text-warning{% endif %}" 
+                       title="Loans due in 30 Days" style="font-size: 0.78rem; color: #b45309 !important;">
+                        <i class="fas fa-clock me-1"></i>Due 30 Days ({{ due_soon_count|default:0 }})
+                    </a>
+                </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Floating Multi-Select Action Bar -->
+    <div id="floatingSelectionBar" class="calm-card bg-dark text-white p-2 px-3 mb-2 d-none align-items-center justify-content-between shadow rounded-3 border-0" style="animation: fadeIn 0.2s ease-in-out;">
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-success rounded-pill px-2 py-1"><i class="fas fa-check me-1"></i><span id="selectedCountNum">0</span></span>
+            <span class="small fw-semibold" id="selectedCountText">0 loans selected</span>
+        </div>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-success btn-sm px-3 shadow-xs fw-semibold" onclick="openBulkWhatsAppForSelected()">
+                <i class="fab fa-whatsapp me-1"></i> {% if LANGUAGE_CODE == 'ta' %}தேர்ந்தெடுக்கப்பட்டவர்களுக்கு வாட்ஸ்அப்{% else %}Send WhatsApp to Selected{% endif %}
+            </button>
+            <button type="button" class="btn btn-outline-light btn-sm px-2 text-white" onclick="clearLoanSelection()">
+                <i class="fas fa-times me-1"></i> {% if LANGUAGE_CODE == 'ta' %}நீக்கு{% else %}Clear{% endif %}
+            </button>
         </div>
     </div>
 
@@ -326,9 +395,12 @@
         <div class="card-body p-0">
             {% if loans %}
                 <div class="table-responsive">
-                    <table class="table-calm mb-0">
+                    <table class="table-calm mb-0" id="loansTable">
                         <thead>
                             <tr>
+                                <th style="width: 34px;" class="text-center">
+                                    <input type="checkbox" id="selectAllLoans" class="form-check-input" title="Select all on this page">
+                                </th>
                                 <th>
                                     <a href="?sort={% if current_sort == 'customer' %}-{% endif %}customer{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_range %}&date_range={{ selected_date_range }}{% endif %}" class="text-decoration-none text-secondary">
                                         Customer 
@@ -397,6 +469,10 @@
                         <tbody>
                             {% for loan in loans %}
                                 <tr>
+                                    <!-- Checkbox Column -->
+                                    <td class="text-center">
+                                        <input type="checkbox" class="form-check-input loan-select-checkbox" value="{{ loan.id }}" data-loan-num="{{ loan.loan_number }}" data-customer="{{ loan.customer.first_name }} {{ loan.customer.last_name }}" data-phone="{{ loan.customer.phone|default:'' }}">
+                                    </td>
                                     <!-- Customer Column -->
                                     <td>
                                         <div class="d-flex align-items-center">
@@ -525,8 +601,27 @@
 
                                     <!-- Monthly Interest Column -->
                                     <td>
-                                        <span class="badge bg-light text-dark border" style="font-size: 0.74rem;">{{ loan|monthly_interest_rate }}%/mo</span>
-                                        <small class="d-block text-muted" style="font-size: 0.74rem;">Rs {{ loan|monthly_interest_amount|floatformat:0 }}/mo</small>
+                                        {% if loan.tiered_status_summary %}
+                                            {% with t=loan.tiered_status_summary %}
+                                                <div class="d-flex flex-column gap-1">
+                                                    <span class="badge {% if t.is_escalated %}bg-danger text-white{% else %}bg-success text-white{% endif %}" style="font-size: 0.72rem;" title="{{ t.status_label }}">
+                                                        <i class="fas {% if t.is_escalated %}fa-exclamation-triangle{% else %}fa-check-circle{% endif %} me-1"></i>{{ t.tier_level }} ({{ t.active_rate|floatformat:1 }}% p.a.)
+                                                    </span>
+                                                    <small class="text-muted d-block" style="font-size: 0.72rem;">
+                                                        Rs {{ loan.monthly_interest.amount|floatformat:0 }}/mo
+                                                    </small>
+                                                    {% if t.monthly_pay_date %}
+                                                        <small class="{% if t.is_overdue %}text-danger fw-bold{% else %}text-secondary{% endif %}" style="font-size: 0.70rem;" title="Monthly Interest Pay Due Date">
+                                                            <i class="fas fa-calendar-day me-1"></i>Pay Due: {{ t.monthly_pay_date|date:"d M" }}
+                                                            {% if t.is_overdue %}<span class="badge bg-danger p-0 px-1 ms-1" style="font-size: 0.65rem;">+{{ t.overdue_days }}d overdue</span>{% endif %}
+                                                        </small>
+                                                    {% endif %}
+                                                </div>
+                                            {% endwith %}
+                                        {% else %}
+                                            <span class="badge bg-light text-dark border" style="font-size: 0.74rem;">{{ loan|monthly_interest_rate }}%/mo</span>
+                                            <small class="d-block text-muted" style="font-size: 0.74rem;">Rs {{ loan|monthly_interest_amount|floatformat:0 }}/mo</small>
+                                        {% endif %}
                                     </td>
 
                                     <!-- Start Date Column -->
@@ -568,6 +663,11 @@
                                                 <a href="{% url 'loan_document' loan.loan_number %}" class="btn btn-sm py-1 px-2 border-end text-secondary" title="Agreement PDF" target="_blank">
                                                     <i class="fas fa-file-pdf fa-xs"></i>
                                                 </a>
+                                                {% if loan.customer.phone %}
+                                                    <button type="button" class="btn btn-sm py-1 px-2 border-end text-success" title="Send WhatsApp to this customer" onclick="openSingleLoanWhatsApp('{{ loan.id }}', '{{ loan.loan_number }}', '{{ loan.customer.first_name }} {{ loan.customer.last_name }}', '{{ loan.customer.phone }}')">
+                                                        <i class="fab fa-whatsapp fa-xs"></i>
+                                                    </button>
+                                                {% endif %}
                                                 {% if loan.status == 'active' %}
                                                     <a href="{% url 'payment_create' loan.loan_number %}" class="btn btn-sm py-1 px-2 border-end text-success" title="Make Payment">
                                                         <i class="fas fa-dollar-sign fa-xs"></i>
@@ -851,14 +951,376 @@
     </div>
 </div>
 
+<!-- Bulk WhatsApp Modal -->
+<div class="modal fade" id="bulkWhatsAppModal" tabindex="-1" aria-labelledby="bulkWhatsAppModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow">
+            <!-- Modal Header -->
+            <div class="modal-header py-2 px-3 text-white" style="background: linear-gradient(135deg, #059669 0%, #047857 100%);">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-circle bg-white text-success p-2 d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                        <i class="fab fa-whatsapp fs-5"></i>
+                    </div>
+                    <div>
+                        <h6 class="modal-title fw-bold mb-0" id="bulkWhatsAppModalLabel">
+                            {% if LANGUAGE_CODE == 'ta' %}வாட்ஸ்அப் மொத்த அறிவிப்பு மையம்{% else %}Bulk WhatsApp Notification Hub{% endif %}
+                        </h6>
+                        <small class="text-white-50" style="font-size: 0.76rem;">
+                            {% if LANGUAGE_CODE == 'ta' %}வடிகட்டப்பட்ட அல்லது தேர்ந்தெடுக்கப்பட்ட வாடிக்கையாளர்களுக்கு அறிவிப்புகளை அனுப்பவும்{% else %}Automated & targeted messaging for filtered loan accounts{% endif %}
+                        </small>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <span id="waSessionStatusBadge" class="badge bg-white text-dark border px-2 py-1" style="font-size: 0.74rem;">
+                        <i class="fas fa-circle-notch fa-spin me-1 text-secondary"></i> Checking session...
+                    </span>
+                    <button type="button" class="btn btn-outline-light btn-sm py-1 px-2 text-white" id="btnOpenPairModal" onclick="openPairingModal()" title="Pair WhatsApp Web session">
+                        <i class="fas fa-qrcode me-1"></i> Scan QR
+                    </button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body p-3">
+                <!-- Target Filter Context Alert -->
+                <div class="alert alert-light border d-flex align-items-center justify-content-between p-2 mb-3 rounded-3" style="background-color: #f8fafc;">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fas fa-filter text-primary"></i>
+                        <div>
+                            <span class="small fw-bold text-dark">Active Filter Scope:</span>
+                            <span class="badge bg-primary text-white ms-1" id="activeFilterBadge">
+                                {% if selected_filter_type == 'overdue' %}All Overdue Loans
+                                {% elif selected_filter_type == 'due_plus_5' %}Due in +5 Days
+                                {% elif selected_filter_type == 'due_minus_5' %}Overdue -5 Days
+                                {% elif selected_filter_type == 'due_window_5' %}Due Date ±5 Days
+                                {% elif selected_filter_type == 'due_soon' %}Due in 30 Days
+                                {% elif selected_filter_type == 'tiered' %}Tiered Rate Schemes
+                                {% elif selected_status %}Status: {{ selected_status|title }}
+                                {% else %}All Filtered Loans
+                                {% endif %}
+                            </span>
+                            <span class="text-muted small ms-1" id="filterCriteriaDetails"></span>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="form-check form-check-inline mb-0">
+                            <input class="form-check-input" type="radio" name="scopeRadio" id="scopeAllFiltered" value="all_filtered" checked onchange="updatePreview()">
+                            <label class="form-check-label small fw-semibold text-dark" for="scopeAllFiltered">
+                                All Filtered (<span id="modalTotalFilterCount">{{ paginator.count|default:loans.count|default:0 }}</span>)
+                            </label>
+                        </div>
+                        <div class="form-check form-check-inline mb-0">
+                            <input class="form-check-input" type="radio" name="scopeRadio" id="scopeSelected" value="selected" onchange="updatePreview()">
+                            <label class="form-check-label small fw-semibold text-dark" for="scopeSelected">
+                                Selected Only (<span id="modalSelectedCount">0</span>)
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Grid: Options (Left) & Preview (Right) -->
+                <div class="row g-3" id="bulkWaConfigSection">
+                    <!-- Left: Configuration & Templates -->
+                    <div class="col-12 col-lg-5">
+                        <div class="calm-card p-3 h-100">
+                            <!-- Template Selection -->
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-secondary small text-uppercase mb-1" style="letter-spacing: 0.03em;">
+                                    1. Notification Type
+                                </label>
+                                <select class="form-select form-select-sm" id="waNotificationType" onchange="handleNotificationTypeChange()">
+                                    <option value="auto" selected>⚡ Smart Auto (Tiered Monthly Interest if &gt;30d, Overdue / Due Date Notice)</option>
+                                    <option value="tiered_monthly">⭐ Tiered Rate Monthly Interest Reminder (மாதாந்திர வட்டி)</option>
+                                    <option value="reminder">🔔 Due Date / Maturity Reminder</option>
+                                    <option value="demand_notice">⚖️ Final Legal Demand & Auction Notice</option>
+                                    <option value="custom">✏️ Custom Message Template</option>
+                                </select>
+                            </div>
+
+                            <!-- Language Option -->
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-secondary small text-uppercase mb-1" style="letter-spacing: 0.03em;">
+                                    2. Alert Language
+                                </label>
+                                <div class="d-flex gap-2">
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="waLang" id="langTamil" value="ta" {% if LANGUAGE_CODE == 'ta' %}checked{% endif %} onchange="updatePreview()">
+                                        <label class="form-check-label small fw-semibold" for="langTamil">🇮🇳 தமிழ் (Tamil)</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="waLang" id="langEnglish" value="en" {% if LANGUAGE_CODE != 'ta' %}checked{% endif %} onchange="updatePreview()">
+                                        <label class="form-check-label small fw-semibold" for="langEnglish">🇬🇧 English</label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Custom Template Box (Collapsed by default) -->
+                            <div id="customTemplateContainer" class="mb-3 d-none">
+                                <label class="form-label fw-bold text-secondary small text-uppercase mb-1" style="letter-spacing: 0.03em;">
+                                    Custom Template Content
+                                </label>
+                                <div class="d-flex flex-wrap gap-1 mb-2">
+                                    <span class="badge bg-light text-primary border cursor-pointer" onclick="insertTag('{customer_name}')" title="Insert customer name">{customer_name}</span>
+                                    <span class="badge bg-light text-primary border cursor-pointer" onclick="insertTag('{loan_number}')" title="Insert loan number">{loan_number}</span>
+                                    <span class="badge bg-light text-primary border cursor-pointer" onclick="insertTag('{principal}')" title="Insert principal amount">{principal}</span>
+                                    <span class="badge bg-light text-primary border cursor-pointer" onclick="insertTag('{due_date}')" title="Insert due date">{due_date}</span>
+                                    <span class="badge bg-light text-primary border cursor-pointer" onclick="insertTag('{total_due}')" title="Insert total due">{total_due}</span>
+                                    <span class="badge bg-light text-primary border cursor-pointer" onclick="insertTag('{branch_name}')" title="Insert branch name">{branch_name}</span>
+                                    <span class="badge bg-light text-primary border cursor-pointer" onclick="insertTag('{branch_phone}')" title="Insert branch phone">{branch_phone}</span>
+                                </div>
+                                <textarea class="form-control form-control-sm" id="customTemplateText" rows="4" placeholder="Dear {customer_name}, this is a reminder regarding Gold Loan #{loan_number}. Total due: {total_due}. Due date: {due_date}. Branch: {branch_name} ({branch_phone})." oninput="debouncedUpdatePreview()"></textarea>
+                            </div>
+
+                            <!-- Dispatch Mode Selection -->
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-secondary small text-uppercase mb-1" style="letter-spacing: 0.03em;">
+                                    3. Execution Mode
+                                </label>
+                                <div class="list-group list-group-flush border rounded-3 p-1">
+                                    <label class="list-group-item list-group-item-action d-flex align-items-center gap-2 p-2 border-0 rounded-2 cursor-pointer">
+                                        <input class="form-check-input flex-shrink-0" type="radio" name="dispatchMode" value="headless_automated" checked id="modeHeadless">
+                                        <div>
+                                            <div class="fw-semibold small text-dark"><i class="fas fa-robot text-success me-1"></i> 100% Automated Background Dispatch</div>
+                                            <small class="text-muted d-block" style="font-size: 0.72rem;">Dispatches headlessly via persistent WhatsApp session with delay</small>
+                                        </div>
+                                    </label>
+                                    <label class="list-group-item list-group-item-action d-flex align-items-center gap-2 p-2 border-0 rounded-2 cursor-pointer">
+                                        <input class="form-check-input flex-shrink-0" type="radio" name="dispatchMode" value="links" id="modeLinks">
+                                        <div>
+                                            <div class="fw-semibold small text-dark"><i class="fas fa-external-link-alt text-primary me-1"></i> Direct WhatsApp Web Click Queue</div>
+                                            <small class="text-muted d-block" style="font-size: 0.72rem;">Generates direct wa.me links to send one-by-one in browser</small>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Live Interactive Message Preview & Recipients Table -->
+                    <div class="col-12 col-lg-7">
+                        <div class="calm-card p-3 h-100 d-flex flex-column">
+                            <!-- Tabs: Message Preview / Recipients List -->
+                            <ul class="nav nav-pills nav-fill mb-2 p-1 bg-light rounded-3" id="previewTabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active py-1 px-3 small fw-semibold" id="tab-msg-preview-btn" data-bs-toggle="pill" data-bs-target="#tab-msg-preview" type="button" role="tab">
+                                        <i class="fab fa-whatsapp text-success me-1"></i> Live Message Preview
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link py-1 px-3 small fw-semibold" id="tab-recipients-btn" data-bs-toggle="pill" data-bs-target="#tab-recipients" type="button" role="tab">
+                                        <i class="fas fa-users text-primary me-1"></i> Target Recipients (<span id="recipientBadgeCount">0</span>)
+                                    </button>
+                                </li>
+                            </ul>
+
+                            <div class="tab-content flex-grow-1" id="previewTabContent">
+                                <!-- Message Preview Tab -->
+                                <div class="tab-pane fade show active h-100" id="tab-msg-preview" role="tabpanel">
+                                    <div class="p-3 rounded-3 border" style="background-color: #efeae2; min-height: 280px; position: relative; background-image: radial-gradient(#d1d7db 1px, transparent 1px); background-size: 16px 16px;">
+                                        <!-- WhatsApp Chat Bubble -->
+                                        <div class="p-3 rounded-3 shadow-xs bg-white text-dark" style="max-width: 92%; margin: 0 auto; border-top-left-radius: 0 !important; border: 1px solid #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+                                            <div id="msgPreviewBox" style="white-space: pre-wrap; font-size: 0.85rem; line-height: 1.5; color: #111b21;">
+                                                <div class="text-center py-4 text-muted">
+                                                    <div class="spinner-border spinner-border-sm text-success me-1"></div> Loading message preview...
+                                                </div>
+                                            </div>
+                                            <div class="text-end text-muted mt-2" style="font-size: 0.68rem;">
+                                                <i class="fas fa-check-double text-primary me-1"></i> Delivered Today
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Target Recipients Tab -->
+                                <div class="tab-pane fade h-100" id="tab-recipients" role="tabpanel">
+                                    <div class="table-responsive border rounded-3" style="max-height: 280px; overflow-y: auto;">
+                                        <table class="table table-sm table-hover mb-0" style="font-size: 0.8rem;">
+                                            <thead class="table-light sticky-top">
+                                                <tr>
+                                                    <th>Loan #</th>
+                                                    <th>Customer</th>
+                                                    <th>Phone</th>
+                                                    <th>Due Date</th>
+                                                    <th class="text-end">Due (Rs)</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="recipientsTableBody">
+                                                <tr>
+                                                    <td colspan="5" class="text-center py-3 text-muted">Loading recipients...</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Execution Progress & Live Feed (Visible during/after dispatch) -->
+                <div id="bulkWaProgressSection" class="d-none mt-2">
+                    <div class="calm-card p-3 border-success">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="fw-bold mb-0 text-success" id="progressTitle">
+                                <i class="fas fa-satellite-dish me-1 fa-spin"></i> Dispatching WhatsApp Messages...
+                            </h6>
+                            <span class="badge bg-success rounded-pill px-3 py-1" id="progressPctBadge">0%</span>
+                        </div>
+
+                        <!-- Progress Bar -->
+                        <div class="progress mb-3" style="height: 10px;">
+                            <div id="bulkWaProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style="width: 0%"></div>
+                        </div>
+
+                        <!-- Counters -->
+                        <div class="row g-2 text-center mb-3">
+                            <div class="col-4">
+                                <div class="p-2 border rounded bg-light">
+                                    <small class="text-muted d-block" style="font-size: 0.72rem;">TOTAL</small>
+                                    <span class="fw-bold fs-6 text-dark" id="statTotalCount">0</span>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="p-2 border rounded bg-light border-success">
+                                    <small class="text-success d-block" style="font-size: 0.72rem;">SENT SUCCESS</small>
+                                    <span class="fw-bold fs-6 text-success" id="statSentCount">0</span>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="p-2 border rounded bg-light border-danger">
+                                    <small class="text-danger d-block" style="font-size: 0.72rem;">FAILED</small>
+                                    <span class="fw-bold fs-6 text-danger" id="statFailedCount">0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Results List -->
+                        <div class="table-responsive border rounded-3" style="max-height: 220px; overflow-y: auto;">
+                            <table class="table table-sm mb-0" style="font-size: 0.78rem;">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>Loan #</th>
+                                        <th>Customer</th>
+                                        <th>Phone</th>
+                                        <th>Status</th>
+                                        <th>Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dispatchResultsTableBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Links Queue Container (for Direct Link Queue Mode) -->
+                <div id="linksQueueContainer" class="d-none mt-2">
+                    <div class="calm-card p-3 border-primary">
+                        <h6 class="fw-bold text-primary mb-2"><i class="fas fa-list-ol me-1"></i> WhatsApp 1-Click Launch Queue</h6>
+                        <p class="text-muted small mb-2">Click each borrower below to open WhatsApp Web and send their customized notice:</p>
+                        <div class="table-responsive border rounded-3" style="max-height: 240px; overflow-y: auto;">
+                            <table class="table table-sm table-hover mb-0" style="font-size: 0.8rem;">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>Loan #</th>
+                                        <th>Customer</th>
+                                        <th>Phone</th>
+                                        <th class="text-end">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="linksQueueTableBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer py-2 px-3 bg-light border-top">
+                <button type="button" class="btn btn-white border btn-sm text-secondary" data-bs-dismiss="modal">
+                    {% if LANGUAGE_CODE == 'ta' %}மூடு{% else %}Close{% endif %}
+                </button>
+                <button type="button" class="btn btn-outline-success btn-sm" onclick="updatePreview()">
+                    <i class="fas fa-sync-alt me-1"></i> Refresh Preview
+                </button>
+                <button type="button" class="btn btn-success btn-sm px-4 fw-bold shadow-xs" id="btnStartBulkDispatch" onclick="executeBulkDispatch()">
+                    <i class="fab fa-whatsapp me-1 fs-6"></i> {% if LANGUAGE_CODE == 'ta' %}அனைவருக்கும் அனுப்பு{% else %}Start WhatsApp Blast{% endif %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- QR Code Pairing Modal -->
+<div class="modal fade" id="whatsappPairingModal" tabindex="-1" aria-hidden="true" style="z-index: 1065;">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header py-2 px-3 text-white" style="background-color: #047857;">
+                <h6 class="modal-title small mb-0 fw-bold"><i class="fab fa-whatsapp me-2"></i> WhatsApp Web Device Pairing</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center p-3">
+                <!-- Live Status Banner -->
+                <div id="pairingStatusCard" class="alert alert-secondary py-2 px-3 mb-3 d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-2">
+                        <span id="pairingStatusIcon" class="spinner-border spinner-border-sm text-secondary"></span>
+                        <span id="pairingStatusText" class="small fw-bold">Checking WhatsApp Status...</span>
+                    </div>
+                    <button type="button" class="btn btn-outline-danger btn-xs py-0 px-2 small" id="btnResetSession" onclick="resetWhatsAppSession()" title="Disconnect and clear saved session">
+                        <i class="fas fa-trash-alt me-1"></i> Disconnect
+                    </button>
+                </div>
+
+                <div id="pairingActionContainer">
+                    <div class="p-3 bg-light rounded-3 border mb-3 text-start">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <span class="badge bg-success rounded-circle p-2" style="width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem;">1</span>
+                            <span class="small fw-bold text-dark">Open WhatsApp on your phone</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <span class="badge bg-success rounded-circle p-2" style="width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem;">2</span>
+                            <span class="small text-dark">Tap <b>Settings (or ⋮ Menu) &gt; Linked Devices &gt; Link a device</b></span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-success rounded-circle p-2" style="width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem;">3</span>
+                            <span class="small text-dark">Click the button below to open the Live Pairing Window & scan</span>
+                        </div>
+                    </div>
+
+                    <button type="button" class="btn btn-success w-100 py-2 fw-bold shadow-sm mb-2" id="btnLaunchLivePairing" onclick="launchLivePairingWindow()">
+                        <i class="fas fa-external-link-alt me-1"></i> Open Live QR Pairing Window
+                    </button>
+                    <small class="text-muted d-block mb-3" style="font-size: 0.74rem;">
+                        A visible Chromium window will open. Point your phone at the live QR code on screen to link permanently.
+                    </small>
+
+                    <div class="border-top pt-2 text-start">
+                        <small class="text-muted fw-bold d-block" style="font-size: 0.72rem;">Or pair via terminal command:</small>
+                        <code class="d-block p-1 bg-light border rounded small text-dark mt-1" style="font-size: 0.75rem;">python manage.py setup_whatsapp_session</code>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer py-1 px-2 bg-light">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="checkPairingStatus(true)">
+                    <i class="fas fa-sync-alt me-1"></i> Refresh Status
+                </button>
+                <button type="button" class="btn btn-sm btn-success px-3" data-bs-dismiss="modal">Done</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-document.getElementById('selectAllBtn').addEventListener('click', function() {
+// Column export helpers
+document.getElementById('selectAllBtn')?.addEventListener('click', function() {
     document.querySelectorAll('.column-checkbox').forEach(checkbox => {
         checkbox.checked = true;
     });
 });
 
-document.getElementById('deselectAllBtn').addEventListener('click', function() {
+document.getElementById('deselectAllBtn')?.addEventListener('click', function() {
     document.querySelectorAll('.column-checkbox').forEach(checkbox => {
         checkbox.checked = false;
     });
@@ -879,7 +1341,7 @@ document.querySelectorAll('.download-submenu-toggle').forEach(toggle => {
     });
 });
 
-document.getElementById('downloadDropdown').addEventListener('hidden.bs.dropdown', function() {
+document.getElementById('downloadDropdown')?.addEventListener('hidden.bs.dropdown', function() {
     document.querySelectorAll('.download-submenu > .dropdown-menu.show').forEach(openMenu => {
         openMenu.classList.remove('show');
     });
@@ -915,6 +1377,520 @@ if (filterForm) {
         }
     });
 }
+
+// =========================================================================
+// Multi-Select Checkbox Logic & Floating Toolbar
+// =========================================================================
+const selectAllCheckbox = document.getElementById('selectAllLoans');
+const rowCheckboxes = document.querySelectorAll('.loan-select-checkbox');
+const floatingBar = document.getElementById('floatingSelectionBar');
+const selectedCountNum = document.getElementById('selectedCountNum');
+const selectedCountText = document.getElementById('selectedCountText');
+
+function getSelectedLoanIds() {
+    const ids = [];
+    document.querySelectorAll('.loan-select-checkbox:checked').forEach(cb => {
+        ids.push(cb.value);
+    });
+    return ids;
+}
+
+function updateSelectionUI() {
+    const selected = getSelectedLoanIds();
+    const count = selected.length;
+
+    if (selectedCountNum) selectedCountNum.textContent = count;
+    if (selectedCountText) selectedCountText.textContent = `${count} loan${count !== 1 ? 's' : ''} selected`;
+    
+    const modalSelectedCount = document.getElementById('modalSelectedCount');
+    if (modalSelectedCount) modalSelectedCount.textContent = count;
+
+    if (count > 0) {
+        floatingBar?.classList.remove('d-none');
+        floatingBar?.classList.add('d-flex');
+    } else {
+        floatingBar?.classList.add('d-none');
+        floatingBar?.classList.remove('d-flex');
+    }
+
+    if (selectAllCheckbox) {
+        selectAllCheckbox.checked = (count > 0 && count === rowCheckboxes.length);
+        selectAllCheckbox.indeterminate = (count > 0 && count < rowCheckboxes.length);
+    }
+}
+
+selectAllCheckbox?.addEventListener('change', function() {
+    const checked = this.checked;
+    rowCheckboxes.forEach(cb => {
+        cb.checked = checked;
+    });
+    updateSelectionUI();
+});
+
+rowCheckboxes.forEach(cb => {
+    cb.addEventListener('change', updateSelectionUI);
+});
+
+function clearLoanSelection() {
+    rowCheckboxes.forEach(cb => {
+        cb.checked = false;
+    });
+    if (selectAllCheckbox) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+    }
+    updateSelectionUI();
+}
+
+function openBulkWhatsAppForSelected() {
+    const scopeRadioSelected = document.getElementById('scopeSelected');
+    if (scopeRadioSelected) {
+        scopeRadioSelected.checked = true;
+    }
+    const bulkModal = new bootstrap.Modal(document.getElementById('bulkWhatsAppModal'));
+    bulkModal.show();
+}
+
+function openSingleLoanWhatsApp(loanId, loanNumber, customerName, phone) {
+    clearLoanSelection();
+    const cb = document.querySelector(`.loan-select-checkbox[value="${loanId}"]`);
+    if (cb) cb.checked = true;
+    updateSelectionUI();
+
+    const scopeRadioSelected = document.getElementById('scopeSelected');
+    if (scopeRadioSelected) scopeRadioSelected.checked = true;
+
+    const bulkModal = new bootstrap.Modal(document.getElementById('bulkWhatsAppModal'));
+    bulkModal.show();
+}
+
+// =========================================================================
+// Bulk WhatsApp Modal Management & Dynamic Preview
+// =========================================================================
+let previewDebounceTimer = null;
+
+function debouncedUpdatePreview() {
+    clearTimeout(previewDebounceTimer);
+    previewDebounceTimer = setTimeout(updatePreview, 300);
+}
+
+function handleNotificationTypeChange() {
+    const val = document.getElementById('waNotificationType').value;
+    const customContainer = document.getElementById('customTemplateContainer');
+    if (val === 'custom') {
+        customContainer?.classList.remove('d-none');
+    } else {
+        customContainer?.classList.add('d-none');
+    }
+    updatePreview();
+}
+
+function insertTag(tag) {
+    const textarea = document.getElementById('customTemplateText');
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    textarea.value = text.substring(0, start) + tag + text.substring(end);
+    textarea.focus();
+    textarea.selectionStart = textarea.selectionEnd = start + tag.length;
+    updatePreview();
+}
+
+function getFilterParams() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const scope = document.querySelector('input[name="scopeRadio"]:checked')?.value || 'all_filtered';
+    const notificationType = document.getElementById('waNotificationType')?.value || 'auto';
+    const customTemplate = document.getElementById('customTemplateText')?.value || '';
+    const lang = document.querySelector('input[name="waLang"]:checked')?.value || 'ta';
+    const selectedIds = getSelectedLoanIds();
+
+    return {
+        scope: scope,
+        loan_ids: selectedIds.join(','),
+        status: urlParams.get('status') || '',
+        scheme: urlParams.get('scheme') || '',
+        date_range: urlParams.get('date_range') || '',
+        filter_type: urlParams.get('filter_type') || '',
+        search: urlParams.get('search') || '',
+        notification_type: notificationType,
+        custom_template: customTemplate,
+        lang: lang,
+    };
+}
+
+function updatePreview() {
+    const params = getFilterParams();
+    const previewBox = document.getElementById('msgPreviewBox');
+    const recipientsTableBody = document.getElementById('recipientsTableBody');
+    const recipientBadgeCount = document.getElementById('recipientBadgeCount');
+
+    if (previewBox) {
+        previewBox.innerHTML = '<div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm text-success me-1"></div> Rendering preview...</div>';
+    }
+
+    fetch("{% url 'loan_batch_whatsapp_preview' %}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}',
+        },
+        body: JSON.stringify(params)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success') {
+            // Update session status badge
+            updateSessionBadge(data.is_whatsapp_paired);
+
+            // Update recipient count
+            if (recipientBadgeCount) recipientBadgeCount.textContent = data.total_count;
+            if (params.scope === 'all_filtered') {
+                const totalFilterCount = document.getElementById('modalTotalFilterCount');
+                if (totalFilterCount) totalFilterCount.textContent = data.total_count;
+            }
+
+            // Update sample preview
+            if (previewBox) {
+                if (data.sample_message) {
+                    let formatted = data.sample_message
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/\*(.*?)\*/g, '<b>$1</b>');
+                    previewBox.innerHTML = formatted;
+                } else {
+                    previewBox.innerHTML = '<div class="text-center py-4 text-muted"><i class="fas fa-info-circle me-1"></i> No matching loans found to preview.</div>';
+                }
+            }
+
+            // Update recipients list table
+            if (recipientsTableBody) {
+                if (data.loans_preview && data.loans_preview.length > 0) {
+                    let html = '';
+                    data.loans_preview.forEach(l => {
+                        const phoneBadge = l.is_phone_valid
+                            ? `<span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25">${l.phone}</span>`
+                            : `<span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25" title="Invalid Phone">${l.phone || 'No Phone'}</span>`;
+                        
+                        const dueBadge = l.is_overdue
+                            ? `<span class="text-danger fw-semibold">${l.due_date} <small>(${Math.abs(l.days_left)}d overdue)</small></span>`
+                            : `<span class="text-dark">${l.due_date}</span>`;
+
+                        html += `
+                            <tr>
+                                <td class="fw-bold text-dark">#${l.loan_number}</td>
+                                <td>${l.customer_name}</td>
+                                <td>${phoneBadge}</td>
+                                <td>${dueBadge}</td>
+                                <td class="text-end fw-semibold">₹${Number(l.total_due).toLocaleString('en-IN', {minimumFractionDigits: 0, maximumFractionDigits: 0})}</td>
+                            </tr>
+                        `;
+                    });
+                    recipientsTableBody.innerHTML = html;
+                } else {
+                    recipientsTableBody.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted">No loans found for current filter/selection.</td></tr>';
+                }
+            }
+        }
+    })
+    .catch(err => {
+        console.error('Error fetching WhatsApp preview:', err);
+        if (previewBox) {
+            previewBox.innerHTML = '<div class="text-center py-4 text-danger"><i class="fas fa-exclamation-triangle me-1"></i> Failed to load message preview.</div>';
+        }
+    });
+}
+
+function updateSessionBadge(isPaired) {
+    const badge = document.getElementById('waSessionStatusBadge');
+    if (!badge) return;
+    if (isPaired) {
+        badge.className = 'badge bg-success bg-opacity-10 text-white border border-success border-opacity-25 px-2 py-1';
+        badge.innerHTML = '<i class="fas fa-check-circle text-white me-1"></i> WhatsApp Linked';
+    } else {
+        badge.className = 'badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-2 py-1';
+        badge.innerHTML = '<i class="fas fa-exclamation-circle text-warning me-1"></i> Session Not Paired';
+    }
+}
+
+// Initial modal hook
+document.getElementById('bulkWhatsAppModal')?.addEventListener('show.bs.modal', function() {
+    updateSelectionUI();
+    const selectedCount = getSelectedLoanIds().length;
+    if (selectedCount > 0) {
+        const scopeSelected = document.getElementById('scopeSelected');
+        if (scopeSelected) scopeSelected.checked = true;
+    } else {
+        const scopeAllFiltered = document.getElementById('scopeAllFiltered');
+        if (scopeAllFiltered) scopeAllFiltered.checked = true;
+    }
+
+    document.getElementById('bulkWaConfigSection')?.classList.remove('d-none');
+    document.getElementById('bulkWaProgressSection')?.classList.add('d-none');
+    document.getElementById('linksQueueContainer')?.classList.add('d-none');
+    document.getElementById('btnStartBulkDispatch')?.removeAttribute('disabled');
+
+    updatePreview();
+});
+
+// =========================================================================
+// Bulk Dispatch Execution
+// =========================================================================
+function executeBulkDispatch() {
+    const params = getFilterParams();
+    const dispatchMode = document.querySelector('input[name="dispatchMode"]:checked')?.value || 'headless_automated';
+    params.dispatch_mode = dispatchMode;
+
+    const btn = document.getElementById('btnStartBulkDispatch');
+    if (btn) {
+        btn.setAttribute('disabled', 'disabled');
+        btn.innerHTML = '<i class="fas fa-circle-notch fa-spin me-1"></i> Dispathing...';
+    }
+
+    // Direct Links Mode
+    if (dispatchMode === 'links') {
+        fetch("{% url 'loan_batch_whatsapp_dispatch' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+            body: JSON.stringify(params)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (btn) {
+                btn.removeAttribute('disabled');
+                btn.innerHTML = '<i class="fab fa-whatsapp me-1"></i> Regenerate Links';
+            }
+            if (data.status === 'links_ready' && data.queue) {
+                document.getElementById('bulkWaConfigSection')?.classList.add('d-none');
+                document.getElementById('linksQueueContainer')?.classList.remove('d-none');
+                const tbody = document.getElementById('linksQueueTableBody');
+                if (tbody) {
+                    let html = '';
+                    data.queue.forEach((item, idx) => {
+                        html += `
+                            <tr>
+                                <td class="fw-bold">#${item.loan_number}</td>
+                                <td>${item.customer_name}</td>
+                                <td>${item.phone}</td>
+                                <td class="text-end">
+                                    ${item.is_valid && item.link ? `
+                                        <a href="${item.link}" target="_blank" class="btn btn-sm btn-success py-0 px-2" onclick="this.classList.add('btn-secondary'); this.classList.remove('btn-success'); this.innerHTML='<i class=\\'fas fa-check\\'></i> Sent';">
+                                            <i class="fab fa-whatsapp me-1"></i> Send #${idx+1}
+                                        </a>
+                                    ` : `<span class="badge bg-danger">Invalid Phone</span>`}
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    tbody.innerHTML = html;
+                }
+            }
+        })
+        .catch(err => {
+            alert('Failed to generate WhatsApp links: ' + err);
+            if (btn) {
+                btn.removeAttribute('disabled');
+                btn.innerHTML = '<i class="fab fa-whatsapp me-1"></i> Start WhatsApp Blast';
+            }
+        });
+        return;
+    }
+
+    // Automated Dispatch Mode
+    document.getElementById('bulkWaConfigSection')?.classList.add('d-none');
+    document.getElementById('bulkWaProgressSection')?.classList.remove('d-none');
+
+    const progressBar = document.getElementById('bulkWaProgressBar');
+    const pctBadge = document.getElementById('progressPctBadge');
+    const title = document.getElementById('progressTitle');
+    const statTotal = document.getElementById('statTotalCount');
+    const statSent = document.getElementById('statSentCount');
+    const statFailed = document.getElementById('statFailedCount');
+    const resultsTbody = document.getElementById('dispatchResultsTableBody');
+
+    if (progressBar) progressBar.style.width = '30%';
+    if (pctBadge) pctBadge.textContent = 'Processing...';
+
+    fetch("{% url 'loan_batch_whatsapp_dispatch' %}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}',
+        },
+        body: JSON.stringify(params)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (btn) {
+            btn.removeAttribute('disabled');
+            btn.innerHTML = '<i class="fas fa-redo me-1"></i> Run Again';
+        }
+
+        if (data.status === 'not_paired') {
+            if (title) title.innerHTML = '<i class="fas fa-exclamation-circle text-warning me-1"></i> WhatsApp Session Not Paired!';
+            if (progressBar) {
+                progressBar.style.width = '100%';
+                progressBar.className = 'progress-bar bg-warning';
+            }
+            if (pctBadge) pctBadge.textContent = 'Not Paired';
+            if (resultsTbody) {
+                resultsTbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-warning">
+                            <p class="mb-2"><b>WhatsApp session is not paired yet.</b> Please pair your session to enable automated dispatch.</p>
+                            <button type="button" class="btn btn-sm btn-success" onclick="openPairingModal()">
+                                <i class="fas fa-qrcode me-1"></i> Open Pairing Window Now
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }
+            return;
+        }
+
+        // Display results
+        if (progressBar) {
+            progressBar.style.width = '100%';
+            progressBar.className = 'progress-bar bg-success';
+        }
+        if (pctBadge) pctBadge.textContent = '100% Complete';
+        if (title) title.innerHTML = '<i class="fas fa-check-circle text-success me-1"></i> WhatsApp Blast Complete!';
+
+        if (statTotal) statTotal.textContent = data.total || 0;
+        if (statSent) statSent.textContent = data.sent || 0;
+        if (statFailed) statFailed.textContent = data.failed || 0;
+
+        if (resultsTbody && data.details) {
+            let html = '';
+            data.details.forEach(item => {
+                const statusBadge = item.status === 'SENT'
+                    ? '<span class="badge bg-success"><i class="fas fa-check me-1"></i>SENT</span>'
+                    : '<span class="badge bg-danger"><i class="fas fa-times me-1"></i>FAILED</span>';
+
+                html += `
+                    <tr>
+                        <td class="fw-bold">#${item.loan_no}</td>
+                        <td>${item.customer}</td>
+                        <td>${item.phone || '-'}</td>
+                        <td>${statusBadge}</td>
+                        <td class="text-muted small">${item.error || 'Message delivered successfully'}</td>
+                    </tr>
+                `;
+            });
+            resultsTbody.innerHTML = html;
+        }
+    })
+    .catch(err => {
+        console.error('Dispatch error:', err);
+        if (title) title.innerHTML = '<i class="fas fa-exclamation-triangle text-danger me-1"></i> Dispatch Failed';
+        if (btn) {
+            btn.removeAttribute('disabled');
+            btn.innerHTML = '<i class="fab fa-whatsapp me-1"></i> Start WhatsApp Blast';
+        }
+        if (resultsTbody) {
+            resultsTbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-3">Error: ${err}</td></tr>`;
+        }
+    });
+}
+
+// =========================================================================
+// WhatsApp Live Pairing Window Modal
+// =========================================================================
+function openPairingModal() {
+    const qrModal = new bootstrap.Modal(document.getElementById('whatsappPairingModal'));
+    qrModal.show();
+    checkPairingStatus(false);
+}
+
+function checkPairingStatus(showAlert=false) {
+    const statusCard = document.getElementById('pairingStatusCard');
+    const statusIcon = document.getElementById('pairingStatusIcon');
+    const statusText = document.getElementById('pairingStatusText');
+    const resetBtn = document.getElementById('btnResetSession');
+
+    fetch("{% url 'eod_get_whatsapp_qr' %}")
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'authenticated') {
+            if (statusCard) statusCard.className = 'alert alert-success py-2 px-3 mb-3 d-flex align-items-center justify-content-between';
+            if (statusIcon) statusIcon.className = 'fas fa-check-circle text-success';
+            if (statusText) statusText.innerHTML = '<span class="text-success">WhatsApp Connected & Active</span>';
+            if (resetBtn) resetBtn.classList.remove('d-none');
+            updateSessionBadge(true);
+            if (showAlert) alert('WhatsApp session is already linked & active!');
+        } else {
+            if (statusCard) statusCard.className = 'alert alert-warning py-2 px-3 mb-3 d-flex align-items-center justify-content-between';
+            if (statusIcon) statusIcon.className = 'fas fa-exclamation-triangle text-warning';
+            if (statusText) statusText.innerHTML = '<span class="text-warning">Session Not Paired (Scan QR below)</span>';
+            if (resetBtn) resetBtn.classList.add('d-none');
+            updateSessionBadge(false);
+            if (showAlert) alert('WhatsApp is not paired yet. Click "Open Live QR Pairing Window" to pair.');
+        }
+    })
+    .catch(err => {
+        console.error('Status check error:', err);
+    });
+}
+
+function launchLivePairingWindow() {
+    const btn = document.getElementById('btnLaunchLivePairing');
+    if (btn) {
+        btn.setAttribute('disabled', 'disabled');
+        btn.innerHTML = '<i class="fas fa-circle-notch fa-spin me-1"></i> Window Open on Screen... Please Scan QR';
+    }
+
+    fetch("{% url 'eod_pair_whatsapp' %}", {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (btn) {
+            btn.removeAttribute('disabled');
+            btn.innerHTML = '<i class="fas fa-external-link-alt me-1"></i> Open Live QR Pairing Window';
+        }
+        if (data.success) {
+            checkPairingStatus(false);
+            alert('WhatsApp paired successfully! You can now run automated WhatsApp Blasts.');
+        } else {
+            alert(data.message || 'Pairing timed out. Please try again.');
+        }
+    })
+    .catch(err => {
+        if (btn) {
+            btn.removeAttribute('disabled');
+            btn.innerHTML = '<i class="fas fa-external-link-alt me-1"></i> Open Live QR Pairing Window';
+        }
+        alert('Pairing process error: ' + err);
+    });
+}
+
+function resetWhatsAppSession() {
+    if (!confirm('Are you sure you want to disconnect WhatsApp session? You will need to scan QR code again.')) {
+        return;
+    }
+    fetch("{% url 'eod_reset_whatsapp' %}", {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        checkPairingStatus(false);
+        alert('WhatsApp session disconnected successfully.');
+    })
+    .catch(err => {
+        alert('Could not reset session: ' + err);
+    });
+}
 </script>
 
 {% endblock %}
+

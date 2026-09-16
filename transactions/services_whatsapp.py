@@ -136,10 +136,10 @@ def _detect_tamil(loan, lang=None):
 
 
 def _compute_days_left(loan):
-    """Returns (days_left: int or None, is_overdue: bool)."""
+    """Returns (days_left: int or None, is_overdue: bool) based on loan.due_date."""
     try:
         today = timezone.now().date()
-        ref = getattr(loan, 'grace_period_end', None) or getattr(loan, 'due_date', None)
+        ref = getattr(loan, 'due_date', None)
         if not ref:
             return None, False
         delta = (ref - today).days
@@ -333,6 +333,99 @@ def build_demand_notice_whatsapp(loan, request_user=None, use_tamil=False):
         )
 
 
+def build_tiered_monthly_interest_reminder_whatsapp(loan, use_tamil=False):
+    """
+    Builds WhatsApp text message for Tiered Rate Scheme loans reminding the borrower
+    to pay their monthly interest on time to retain the lowest interest rate tier.
+    """
+    customer_name = _customer_name(loan)
+    b_info = _get_branch_info(loan)
+    b_display = b_info['branch_name'] or b_info['org_name']
+
+    # Monthly payment details
+    monthly_info = getattr(loan, 'monthly_interest', {}) or {}
+    monthly_amount = Decimal(str(monthly_info.get('amount', 0) or 0))
+    monthly_rate_pct = Decimal(str(monthly_info.get('rate', 0) or 0))
+    annual_rate_pct = Decimal(str(getattr(loan, 'current_applicable_rate', 0) or 0))
+
+    monthly_due_dt = getattr(loan, 'monthly_interest_due_date', None)
+    monthly_due_str = monthly_due_dt.strftime('%d/%m/%Y') if monthly_due_dt else 'N/A'
+
+    is_m_overdue = getattr(loan, 'is_monthly_interest_overdue', False)
+    m_overdue_days = getattr(loan, 'monthly_interest_overdue_days', 0)
+
+    today = timezone.now().date()
+    days_to_pay = (monthly_due_dt - today).days if monthly_due_dt else 0
+
+    principal = Decimal(str(getattr(loan, 'principal_amount', 0) or 0))
+    tot_due, tot_interest = _get_total_payable(loan)
+
+    if use_tamil:
+        if is_m_overdue and m_overdue_days > 0:
+            return (
+                f"⚠️ *மாதாந்திர வட்டி நிலுவை அறிவிப்பு - {b_info['org_name']}*\n\n"
+                f"அன்புள்ள *{customer_name}*,\n"
+                f"தங்கக் கடன் *#{loan.loan_number}* -க்கான மாதாந்திர வட்டி செலுத்தும் தேதி (*{monthly_due_str}*) கடந்து *{m_overdue_days} நாட்கள்* ஆகிவிட்டன.\n\n"
+                f"📊 *கட்டண விவரங்கள்:*\n"
+                f"• *கடன் எண்:* #{loan.loan_number}\n"
+                f"• *மாதாந்திர வட்டி கட்ட வேண்டிய தேதி:* {monthly_due_str}\n"
+                f"• *மாதாந்திர வட்டி தொகை:* *₹{monthly_amount:,.2f}*\n"
+                f"• *மொத்த வட்டி நிலுவை:* ₹{tot_interest:,.2f}\n"
+                f"• *தற்போதைய வட்டி விகிதம்:* மாதத்திற்கு {monthly_rate_pct:.2f}%\n\n"
+                f"⚠️ *கவனத்திற்கு:* வட்டி விகிதம் அடுத்த நிலைக்கு உயர்வதை தவிர்க்க உடனடியாக மாதாந்திர வட்டியை செலுத்துமாறு கேட்டுக்கொள்கிறோம்.\n\n"
+                f"கிளை: {b_display}"
+                + (f" | 📞 {b_info['branch_phone']}" if b_info['branch_phone'] else "")
+            )
+        else:
+            days_str = f"({days_to_pay} நாள் உள்ளது)" if days_to_pay >= 0 else ""
+            return (
+                f"🔔 *மாதாந்திர வட்டி நினைவூட்டல் - {b_info['org_name']}*\n\n"
+                f"அன்புள்ள *{customer_name}*,\n"
+                f"உங்கள் தங்கக் கடன் *#{loan.loan_number}* -க்கான குறைந்த வட்டி விகித பலனைத் தொடர்ந்து பெற மாதாந்திர வட்டியை குறித்த நேரத்தில் செலுத்துமாறு நினைவூட்டுகிறோம்.\n\n"
+                f"📊 *மாதாந்திர கட்டண விவரங்கள்:*\n"
+                f"• *கடன் எண்:* #{loan.loan_number}\n"
+                f"• *மாதாந்திர வட்டி செலுத்த வேண்டிய தேதி:* {monthly_due_str} {days_str}\n"
+                f"• *மாதாந்திர வட்டி தொகை:* *₹{monthly_amount:,.2f}*\n"
+                f"• *தற்போதைய வட்டி விகிதம்:* மாதத்திற்கு {monthly_rate_pct:.2f}% ({annual_rate_pct:.1f}% ஆண்டு)\n"
+                f"• *நிலுவை அசல்:* ₹{principal:,.2f}\n\n"
+                f"⭐ *குறைந்த வட்டி பலனை பெற:* வட்டி விகிதம் உயர்வதைத் தவிர்க்க *{monthly_due_str}* தேதிக்குள் மாதாந்திர வட்டியை செலுத்துமாறு கேட்டுக்கொள்கிறோம்.\n\n"
+                f"கிளை: {b_display}"
+                + (f" | 📞 {b_info['branch_phone']}" if b_info['branch_phone'] else "")
+            )
+    else:
+        if is_m_overdue and m_overdue_days > 0:
+            return (
+                f"⚠️ *Monthly Interest Overdue - Rate Escalation Alert - {b_info['org_name']}*\n\n"
+                f"Dear *{customer_name}*,\n"
+                f"Your monthly interest payment for Gold Loan *#{loan.loan_number}* was due on *{monthly_due_str}* and is now *{m_overdue_days} day(s) overdue*.\n\n"
+                f"📊 *Payment Details:*\n"
+                f"• *Loan Number:* #{loan.loan_number}\n"
+                f"• *Monthly Interest Due Date:* {monthly_due_str}\n"
+                f"• *Monthly Interest Amount:* *₹{monthly_amount:,.2f}*\n"
+                f"• *Total Interest Till Date:* ₹{tot_interest:,.2f}\n"
+                f"• *Current Applicable Rate:* {monthly_rate_pct:.2f}% monthly ({annual_rate_pct:.1f}% p.a.)\n\n"
+                f"⚠️ *Action Required:* Please visit the branch or clear your monthly interest immediately to protect your tier benefits and prevent interest rate escalation.\n\n"
+                f"Branch: {b_display}"
+                + (f" | 📞 {b_info['branch_phone']}" if b_info['branch_phone'] else "")
+            )
+        else:
+            days_str = f"({days_to_pay} day{'s' if days_to_pay != 1 else ''} remaining)" if days_to_pay >= 0 else ""
+            return (
+                f"🔔 *Monthly Interest Payment Reminder - {b_info['org_name']}*\n\n"
+                f"Dear *{customer_name}*,\n"
+                f"This is a friendly reminder to pay your monthly interest for Gold Loan *#{loan.loan_number}* on or before the due date to retain your lowest Tier-1 interest rate.\n\n"
+                f"📊 *Monthly Payment Details:*\n"
+                f"• *Loan Number:* #{loan.loan_number}\n"
+                f"• *Monthly Interest Due Date:* {monthly_due_str} {days_str}\n"
+                f"• *Monthly Interest Amount:* *₹{monthly_amount:,.2f}*\n"
+                f"• *Current Interest Rate:* {monthly_rate_pct:.2f}% monthly ({annual_rate_pct:.1f}% p.a.)\n"
+                f"• *Principal Outstanding:* ₹{principal:,.2f}\n\n"
+                f"⭐ *Save on Interest:* Pay on or before *{monthly_due_str}* to maintain your lowest interest rate tier and avoid rate escalation.\n\n"
+                f"Branch: {b_display}"
+                + (f" | 📞 {b_info['branch_phone']}" if b_info['branch_phone'] else "")
+            )
+
+
 # ---------------------------------------------------------------------------
 # PyWhatKit Execution Helper (Background Thread)
 # ---------------------------------------------------------------------------
@@ -449,3 +542,99 @@ def send_loan_expiry_notice_whatsapp(loan, request_user=None, lang=None, send_py
         'pywhatkit_started': pywhatkit_started,
         'use_tamil': use_tamil,
     }
+
+
+def render_custom_loan_whatsapp_message(template_str, loan, lang=None):
+    """
+    Interpolates standard loan placeholders into a custom user-defined template string.
+    Supported placeholders:
+      {customer_name}, {first_name}, {loan_number}, {principal},
+      {interest_due}, {total_due}, {due_date}, {days_overdue},
+      {branch_name}, {branch_phone}, {org_name}
+    """
+    if not template_str:
+        return ""
+
+    customer = getattr(loan, 'customer', None)
+    customer_name = _customer_name(loan)
+    first_name = getattr(customer, 'first_name', '') or customer_name
+    loan_number = getattr(loan, 'loan_number', '') or ''
+    principal_val = getattr(loan, 'principal_amount', 0) or 0
+    total_due_val, interest_due_val = _get_total_payable(loan)
+    due_date_str = loan.due_date.strftime('%d/%m/%Y') if getattr(loan, 'due_date', None) else 'N/A'
+
+    days_left, is_overdue = _compute_days_left(loan)
+    overdue_days_str = str(abs(days_left)) if is_overdue and days_left is not None else '0'
+
+    b_info = _get_branch_info(loan)
+    branch_name = b_info['branch_name'] or b_info['org_name']
+    branch_phone = b_info['branch_phone']
+    org_name = b_info['org_name']
+
+    replacements = {
+        '{customer_name}': customer_name,
+        '{first_name}': first_name,
+        '{loan_number}': str(loan_number),
+        '{principal}': f"₹{principal_val:,.2f}",
+        '{interest_due}': f"₹{interest_due_val:,.2f}",
+        '{total_due}': f"₹{total_due_val:,.2f}",
+        '{total_payable}': f"₹{total_due_val:,.2f}",
+        '{due_date}': due_date_str,
+        '{days_overdue}': overdue_days_str,
+        '{branch_name}': branch_name,
+        '{branch_phone}': branch_phone or '',
+        '{org_name}': org_name,
+    }
+
+    result = template_str
+    for key, val in replacements.items():
+        result = result.replace(key, str(val))
+    return result
+
+
+def build_smart_loan_whatsapp_message(loan, notification_type='auto', custom_template=None, lang=None, request_user=None):
+    """
+    Builds the appropriate WhatsApp notification text for a loan given the notification_type:
+      - 'auto': smart auto detection. For tiered rate schemes with maturity > 30 days, sends monthly interest reminder.
+      - 'reminder': standard due date / maturity reminder
+      - 'tiered_monthly': monthly interest payment on-time reminder for tiered rate schemes
+      - 'demand_notice': legal demand / auction warning notice
+      - 'custom': interpolates variables into custom_template
+    """
+    use_tamil = _detect_tamil(loan, lang)
+
+    if notification_type == 'custom' and custom_template:
+        return render_custom_loan_whatsapp_message(custom_template, loan, lang=lang)
+
+    if notification_type == 'demand_notice':
+        return build_demand_notice_whatsapp(loan, request_user=request_user, use_tamil=use_tamil)
+
+    if notification_type == 'tiered_monthly':
+        return build_tiered_monthly_interest_reminder_whatsapp(loan, use_tamil=use_tamil)
+
+    if notification_type == 'reminder':
+        # If loan is a tiered rate scheme with final due date > 30 days, send tiered monthly interest reminder
+        if getattr(loan, 'is_tiered_rate_loan', False):
+            maturity_days, _ = _compute_days_left(loan)
+            if maturity_days is None or maturity_days > 30:
+                return build_tiered_monthly_interest_reminder_whatsapp(loan, use_tamil=use_tamil)
+        return build_due_date_reminder_whatsapp(loan, use_tamil=use_tamil)
+
+    # -------------------------------------------------------------------------
+    # Smart Auto Detection Flow
+    # -------------------------------------------------------------------------
+    maturity_days, is_overdue = _compute_days_left(loan)
+
+    # 1. Heavily overdue loan maturity (>60 days overdue) -> Legal Demand & Auction Notice
+    if is_overdue and maturity_days is not None and abs(maturity_days) > 60:
+        return build_demand_notice_whatsapp(loan, request_user=request_user, use_tamil=use_tamil)
+
+    # 2. Tiered Rate Scheme Loan with final maturity > 30 days away:
+    #    Send monthly interest payment reminder to protect low Tier-1 interest rate!
+    if getattr(loan, 'is_tiered_rate_loan', False):
+        if maturity_days is None or maturity_days > 30:
+            return build_tiered_monthly_interest_reminder_whatsapp(loan, use_tamil=use_tamil)
+
+    # 3. Standard due date or upcoming maturity within 30 days
+    return build_due_date_reminder_whatsapp(loan, days_left=maturity_days, use_tamil=use_tamil)
+

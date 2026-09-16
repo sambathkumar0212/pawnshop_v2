@@ -23,6 +23,7 @@ from .services_whatsapp_automator import (
     is_whatsapp_paired,
     pair_whatsapp_interactive,
     get_whatsapp_qr_image_base64,
+    reset_whatsapp_session,
     send_batch_irac_alerts_automated,
     send_whatsapp_message_headless
 )
@@ -265,6 +266,18 @@ class GetWhatsAppQRView(LoginRequiredMixin, View):
             return JsonResponse(res)
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+class ResetWhatsAppSessionView(LoginRequiredMixin, View):
+    """
+    Resets/disconnects the WhatsApp session by wiping .whatsapp_user_data directory.
+    """
+    def post(self, request):
+        try:
+            res = reset_whatsapp_session()
+            return JsonResponse({'success': res, 'message': 'WhatsApp session disconnected & reset.'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)}, status=500)
 
 
 class AutoDispatchIRACAlertsView(LoginRequiredMixin, View):

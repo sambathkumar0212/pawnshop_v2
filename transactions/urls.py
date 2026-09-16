@@ -9,6 +9,8 @@ urlpatterns = [
     # Loans
     path('loans/', views.LoanListView.as_view(), name='loan_list'),
     path('loans/add/', views.LoanCreateView.as_view(), name='loan_create'),
+    path('loans/whatsapp/preview/', views.LoanBatchWhatsAppPreviewView.as_view(), name='loan_batch_whatsapp_preview'),
+    path('loans/whatsapp/dispatch/', views.LoanBatchWhatsAppDispatchView.as_view(), name='loan_batch_whatsapp_dispatch'),
     path('loans/<str:loan_number>/', views.LoanDetailView.as_view(), name='loan_detail'),
     path('loans/<str:loan_number>/edit/', views.LoanUpdateView.as_view(), name='loan_update'),
     path('loans/<str:loan_number>/update-gold-status/', views.UpdateGoldStatusView.as_view(), name='update_gold_status'),
@@ -40,6 +42,7 @@ urlpatterns = [
     path('eod-console/irac-alert/', views_eod.SendIRACAlertActionView.as_view(), name='eod_send_irac_alert'),
     path('eod-console/irac-export/', views_eod.ExportIRACWatchlistCSVView.as_view(), name='eod_export_irac_watchlist'),
     path('eod-console/pair-whatsapp/', views_eod.PairWhatsAppSessionView.as_view(), name='eod_pair_whatsapp'),
+    path('eod-console/reset-whatsapp/', views_eod.ResetWhatsAppSessionView.as_view(), name='eod_reset_whatsapp'),
     path('eod-console/get-whatsapp-qr/', views_eod.GetWhatsAppQRView.as_view(), name='eod_get_whatsapp_qr'),
     path('eod-console/auto-dispatch-irac/', views_eod.AutoDispatchIRACAlertsView.as_view(), name='eod_auto_dispatch_irac'),
     

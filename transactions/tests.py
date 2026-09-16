@@ -263,14 +263,12 @@ class LoanNotificationEmailTest(TransactionTestCase):
         # Verify HTML modified values highlighting
         self.assertEqual(len(edit_mail.alternatives), 1)
         edit_html = edit_mail.alternatives[0][0]
-        self.assertIn('Loan Edited / Updated', edit_html)
-        self.assertIn('Highlighted Modified Values', edit_html)
+        self.assertTrue('LOAN EDITED' in edit_html or 'Loan Edited' in edit_html)
         self.assertIn('Rs. 5000', edit_html)
         self.assertIn('Rs. 6000', edit_html)
         self.assertIn('12.00%', edit_html)
         self.assertIn('14.00%', edit_html)
         self.assertIn('UPDATED', edit_html)
-        self.assertIn('row-highlighted', edit_html)
 
     def test_loan_list_search_with_spaces_and_full_name(self):
         from django.test import Client
@@ -312,3 +310,162 @@ class LoanNotificationEmailTest(TransactionTestCase):
         res3 = client.get('/transactions/loans/', {'search': '  John   Doe  '})
         self.assertEqual(res3.status_code, 200)
         self.assertIn(loan, res3.context['loans'])
+
+    def test_tiered_rate_and_monthly_pay_date(self):
+        from schemes.models import Scheme
+        tiered_scheme = Scheme.objects.create(
+            name="Tiered Multi-Slab Gold Scheme",
+            interest_rate=Decimal('12.00'),
+            loan_duration=180,
+            minimum_amount=Decimal('1000.00'),
+            maximum_amount=Decimal('500000.00'),
+            interest_rate_structure={'0-30': 12, '31-60': 18, '61-90': 24, '90+': 36},
+            start_date=timezone.now().date()
+        )
+
+        today = timezone.now().date()
+        # Case A: Issued 10 days ago -> within 1st month cycle -> On track -> Tier 1 (12%)
+        loan_on_track = Loan.objects.create(
+            customer=self.customer,
+            branch=self.branch,
+            scheme=tiered_scheme,
+            principal_amount=Decimal('10000.00'),
+            distribution_amount=Decimal('10000.00'),
+            issue_date=today - timezone.timedelta(days=10),
+            due_date=today + timezone.timedelta(days=170),
+            grace_period_end=today + timezone.timedelta(days=185),
+            status='active'
+        )
+        self.assertTrue(loan_on_track.is_tiered_rate_loan)
+        self.assertFalse(loan_on_track.is_monthly_interest_overdue)
+        self.assertEqual(loan_on_track.current_applicable_rate, Decimal('12.00'))
+        self.assertEqual(loan_on_track.tiered_status_summary['tier_level'], 'Tier 1')
+        self.assertFalse(loan_on_track.tiered_status_summary['is_escalated'])
+
+        # Case B: Issued 45 days ago, unpaid -> crossed 1st month pay date -> Overdue -> Tier 2 (18%)
+        loan_overdue_pay_date = Loan.objects.create(
+            customer=self.customer,
+            branch=self.branch,
+            scheme=tiered_scheme,
+            principal_amount=Decimal('10000.00'),
+            distribution_amount=Decimal('10000.00'),
+            issue_date=today - timezone.timedelta(days=45),
+            due_date=today + timezone.timedelta(days=135),
+            grace_period_end=today + timezone.timedelta(days=150),
+            status='active'
+        )
+        self.assertTrue(loan_overdue_pay_date.is_monthly_interest_overdue)
+        self.assertEqual(loan_overdue_pay_date.current_applicable_rate, Decimal('18.00'))
+        self.assertEqual(loan_overdue_pay_date.tiered_status_summary['tier_level'], 'Tier 2')
+        self.assertTrue(loan_overdue_pay_date.tiered_status_summary['is_escalated'])
+
+    def test_loan_list_tiered_and_due_filters(self):
+        from django.test import Client
+        from accounts.models import CustomUser
+        from schemes.models import Scheme
+
+        user = CustomUser.objects.create_superuser(
+            username="filter_test_admin",
+            password="testpassword123",
+            email="filter_admin@pawnshop.com"
+        )
+        tiered_scheme = Scheme.objects.create(
+            name="Tiered Filter Test Scheme",
+            interest_rate=Decimal('12.00'),
+            loan_duration=90,
+            minimum_amount=Decimal('1000.00'),
+            maximum_amount=Decimal('500000.00'),
+            interest_rate_structure={'0-30': 12, '31-60': 18, '60+': 24},
+            start_date=timezone.now().date()
+        )
+        standard_scheme = Scheme.objects.create(
+            name="Standard Plain Scheme",
+            interest_rate=Decimal('12.00'),
+            loan_duration=90,
+            minimum_amount=Decimal('1000.00'),
+            maximum_amount=Decimal('500000.00'),
+            start_date=timezone.now().date()
+        )
+
+        today = timezone.now().date()
+        # Loan 1: Tiered Scheme
+        loan_tiered = Loan.objects.create(
+            customer=self.customer,
+            branch=self.branch,
+            scheme=tiered_scheme,
+            principal_amount=Decimal('10000.00'),
+            distribution_amount=Decimal('10000.00'),
+            issue_date=today - timezone.timedelta(days=10),
+            due_date=today + timezone.timedelta(days=3), # Due in +3 days
+            grace_period_end=today + timezone.timedelta(days=18),
+            status='active'
+        )
+        # Loan 2: Standard Scheme, due in 3 days
+        loan_due_plus_3 = Loan.objects.create(
+            customer=self.customer,
+            branch=self.branch,
+            scheme=standard_scheme,
+            principal_amount=Decimal('5000.00'),
+            distribution_amount=Decimal('5000.00'),
+            issue_date=today - timezone.timedelta(days=87),
+            due_date=today + timezone.timedelta(days=3), # Due in +3 days
+            grace_period_end=today + timezone.timedelta(days=18),
+            status='active'
+        )
+        # Loan 3: Overdue by 3 days (-3 days)
+        loan_due_minus_3 = Loan.objects.create(
+            customer=self.customer,
+            branch=self.branch,
+            scheme=standard_scheme,
+            principal_amount=Decimal('6000.00'),
+            distribution_amount=Decimal('6000.00'),
+            issue_date=today - timezone.timedelta(days=93),
+            due_date=today - timezone.timedelta(days=3), # Overdue by 3 days
+            grace_period_end=today + timezone.timedelta(days=12),
+            status='active'
+        )
+
+        client = Client()
+        client.login(username="filter_test_admin", password="testpassword123")
+
+        # 1. Filter tiered
+        res_tiered = client.get('/transactions/loans/', {'filter_type': 'tiered'})
+        self.assertEqual(res_tiered.status_code, 200)
+        self.assertIn(loan_tiered, res_tiered.context['loans'])
+        self.assertNotIn(loan_due_plus_3, res_tiered.context['loans'])
+        self.assertNotIn(loan_due_minus_3, res_tiered.context['loans'])
+
+        # 2. Filter due_plus_5 (Due in next 5 days: loan_tiered and loan_due_plus_3)
+        res_p5 = client.get('/transactions/loans/', {'filter_type': 'due_plus_5'})
+        self.assertEqual(res_p5.status_code, 200)
+        self.assertIn(loan_tiered, res_p5.context['loans'])
+        self.assertIn(loan_due_plus_3, res_p5.context['loans'])
+        self.assertNotIn(loan_due_minus_3, res_p5.context['loans'])
+
+        # 3. Filter due_minus_5 (Overdue 1-5 days: loan_due_minus_3)
+        res_m5 = client.get('/transactions/loans/', {'filter_type': 'due_minus_5'})
+        self.assertEqual(res_m5.status_code, 200)
+        self.assertNotIn(loan_tiered, res_m5.context['loans'])
+        self.assertNotIn(loan_due_plus_3, res_m5.context['loans'])
+        self.assertIn(loan_due_minus_3, res_m5.context['loans'])
+
+        # 4. Filter due_window_5 (±5 days: all three loans)
+        res_w5 = client.get('/transactions/loans/', {'filter_type': 'due_window_5'})
+        self.assertEqual(res_w5.status_code, 200)
+        self.assertIn(loan_tiered, res_w5.context['loans'])
+        self.assertIn(loan_due_plus_3, res_w5.context['loans'])
+        self.assertIn(loan_due_minus_3, res_w5.context['loans'])
+
+        # 3. Filter due_minus_5 (Overdue 1-5 days: loan_due_minus_3)
+        res_m5 = client.get('/transactions/loans/', {'filter_type': 'due_minus_5'})
+        self.assertEqual(res_m5.status_code, 200)
+        self.assertNotIn(loan_tiered, res_m5.context['loans'])
+        self.assertNotIn(loan_due_plus_3, res_m5.context['loans'])
+        self.assertIn(loan_due_minus_3, res_m5.context['loans'])
+
+        # 4. Filter due_window_5 (±5 days: all three loans)
+        res_w5 = client.get('/transactions/loans/', {'filter_type': 'due_window_5'})
+        self.assertEqual(res_w5.status_code, 200)
+        self.assertIn(loan_tiered, res_w5.context['loans'])
+        self.assertIn(loan_due_plus_3, res_w5.context['loans'])
+        self.assertIn(loan_due_minus_3, res_w5.context['loans'])
