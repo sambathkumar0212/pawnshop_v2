@@ -1,0 +1,1260 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}24/7 Autopilot Automation Console - Pawnshop Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header & Master Status Banner -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0 bg-dark text-white rounded-3 overflow-hidden position-relative" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);">
+                <div class="card-body p-4">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                        <div>
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <span class="badge {% if config.is_enabled %}bg-success text-white{% else %}bg-secondary text-light{% endif %} px-3 py-2 fs-6 rounded-pill shadow-sm">
+                                    <i class="fas fa-robot me-1 {% if config.is_enabled %}fa-spin{% endif %}"></i>
+                                    {% if config.is_enabled %}AUTOPILOT RUNNING (24/7 ONLINE){% else %}AUTOPILOT PAUSED (OFF){% endif %}
+                                </span>
+                                {% if is_wa_paired %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 small rounded-pill">
+                                    <i class="fab fa-whatsapp me-1"></i> WhatsApp Paired
+                                </span>
+                                {% else %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1 small rounded-pill">
+                                    <i class="fas fa-exclamation-triangle me-1"></i> WhatsApp Unpaired
+                                </span>
+                                {% endif %}
+                            </div>
+                            <h2 class="fw-bold mb-1 text-white">
+                                <i class="fas fa-satellite text-info me-2"></i>24/7 Autopilot Control Center
+                            </h2>
+                            <p class="text-secondary mb-0 small" style="color: #94a3b8 !important;">
+                                Autonomous scheduling for WhatsApp collections, live LTV risk surveillance, customer retention, and owner executive digests.
+                            </p>
+                        </div>
+
+                        <!-- Top Action Controls -->
+                        <div class="d-flex flex-wrap align-items-center gap-2">
+                            <!-- Master Switch Form -->
+                            <div class="form-check form-switch form-switch-lg p-0 me-3 d-flex align-items-center gap-2 bg-black bg-opacity-25 px-3 py-2 rounded-pill border border-secondary border-opacity-25">
+                                <input class="form-check-input ms-0" type="checkbox" role="switch" id="masterAutopilotSwitch" {% if config.is_enabled %}checked{% endif %} style="width: 2.8rem; height: 1.5rem; cursor: pointer;">
+                                <label class="form-check-label fw-bold text-white small" for="masterAutopilotSwitch" id="masterSwitchLabel">
+                                    {% if config.is_enabled %}ENGINE ON{% else %}ENGINE OFF{% endif %}
+                                </label>
+                            </div>
+
+                            <button type="button" class="btn btn-outline-light btn-sm fw-semibold shadow-sm" onclick="triggerPillarAction('all', false)" id="btnRunFullCycle">
+                                <i class="fas fa-play me-1 text-success"></i> Run Full Cycle Now
+                            </button>
+                            <a href="{% url 'autopilot_export_logs' %}" class="btn btn-outline-info btn-sm fw-semibold shadow-sm">
+                                <i class="fas fa-file-csv me-1"></i> Export Audit Logs
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Metric Counters Row -->
+                    <div class="row g-3 mt-3 pt-3 border-top border-secondary border-opacity-25">
+                        <div class="col-6 col-md-3">
+                            <div class="p-3 rounded-3" style="background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.12);">
+                                <small class="d-block fw-bold text-uppercase mb-1" style="font-size: 0.72rem; color: #94a3b8; letter-spacing: 0.05em;">TODAY'S AUTOPILOT ACTIONS</small>
+                                <span class="fs-4 fw-bold font-monospace" style="color: #38bdf8;">{{ today_actions_count }}</span>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="p-3 rounded-3" style="background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.12);">
+                                <small class="d-block fw-bold text-uppercase mb-1" style="font-size: 0.72rem; color: #94a3b8; letter-spacing: 0.05em;">WHATSAPP MESSAGES SENT TODAY</small>
+                                <span class="fs-4 fw-bold font-monospace" style="color: #4ade80;">{{ today_wa_sent_count }}</span>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="p-3 rounded-3" style="background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.12);">
+                                <small class="d-block fw-bold text-uppercase mb-1" style="font-size: 0.72rem; color: #94a3b8; letter-spacing: 0.05em;">SAFE COMMUNICATION WINDOW</small>
+                                <span class="fs-5 fw-bold font-monospace" style="color: #fbbf24;">{{ config.safe_window_start|time:"h:i A" }} - {{ config.safe_window_end|time:"h:i A" }}</span>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="p-3 rounded-3" style="background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.12);">
+                                <small class="d-block fw-bold text-uppercase mb-1" style="font-size: 0.72rem; color: #94a3b8; letter-spacing: 0.05em;">LAST ENGINE RUN</small>
+                                <span class="fs-6 fw-bold font-monospace text-white">{{ config.last_run_at|date:"d-M H:i"|default:"Pending initial run" }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Configuration & Activity Tabs -->
+    <form id="autopilotConfigForm" method="post" action="{% url 'autopilot_save_config' %}">
+        {% csrf_token %}
+        <div class="row g-4 mb-4">
+            <!-- Left Column: Pillar 2 & Pillar 3 Settings -->
+            <div class="col-lg-6">
+                <!-- Pillar 2 Card -->
+                <div class="card shadow-sm border-0 mb-4 h-100">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center py-3 border-bottom">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-success rounded-circle p-2" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">2</span>
+                            <h5 class="mb-0 fw-bold text-dark">
+                                <i class="fab fa-whatsapp text-success me-1"></i> WhatsApp Collections &amp; Notices
+                            </h5>
+                        </div>
+                        <button type="button" class="btn btn-outline-success btn-xs py-1 px-2 fw-semibold" onclick="triggerPillarAction('pillar_2', false)">
+                            <i class="fas fa-play me-1"></i> Test Run
+                        </button>
+                    </div>
+                    <div class="card-body p-3">
+                        <p class="text-muted small mb-3">
+                            Automatically dispatches personalized, bilingual WhatsApp reminders and legal warnings to borrowers based on due-date milestones and RBI IRAC classifications.
+                        </p>
+
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" name="enable_due_date_reminders" id="enable_due_date_reminders" {% if config.enable_due_date_reminders %}checked{% endif %}>
+                            <label class="form-check-label fw-bold text-dark small" for="enable_due_date_reminders">
+                                Due-Date Proximity Reminders
+                            </label>
+                            <small class="text-muted d-block">Sends reminders before loan maturity.</small>
+                        </div>
+
+                        <div class="mb-3 ps-4">
+                            <label class="form-label small fw-semibold text-muted mb-1">Reminder Intervals (Days before Due Date):</label>
+                            <input type="text" name="due_reminder_days" class="form-control form-control-sm font-monospace" value="{{ config.due_reminder_days }}" placeholder="7,3,1">
+                            <small class="text-muted" style="font-size: 0.72rem;">Comma-separated days, e.g., <code>7,3,1</code> sends at 7 days, 3 days, and 1 day remaining.</small>
+                        </div>
+
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" name="enable_monthly_interest_reminders" id="enable_monthly_interest_reminders" {% if config.enable_monthly_interest_reminders %}checked{% endif %}>
+                            <label class="form-check-label fw-bold text-dark small" for="enable_monthly_interest_reminders">
+                                Monthly Interest Reminders (Tiered Rate Loans)
+                            </label>
+                            <small class="text-muted d-block">Alerts tiered borrowers to pay monthly interest on time to retain lowest tier rates.</small>
+                        </div>
+
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" name="enable_irac_delinquency_alerts" id="enable_irac_delinquency_alerts" {% if config.enable_irac_delinquency_alerts %}checked{% endif %}>
+                            <label class="form-check-label fw-bold text-dark small" for="enable_irac_delinquency_alerts">
+                                RBI IRAC Delinquency Notices (SMA-0 / SMA-1 / SMA-2)
+                            </label>
+                            <small class="text-muted d-block">Sends progressive warnings as loans become 1-30, 31-60, or 61-90 days overdue.</small>
+                        </div>
+
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" name="enable_expiry_auction_notices" id="enable_expiry_auction_notices" {% if config.enable_expiry_auction_notices %}checked{% endif %}>
+                            <label class="form-check-label fw-bold text-danger small" for="enable_expiry_auction_notices">
+                                Demand &amp; Legal Auction Notices (NPA / 90+ Days)
+                            </label>
+                            <small class="text-muted d-block">Issues final statutory demand notices before pledged gold is scheduled for public auction.</small>
+                        </div>
+
+                        <div class="row g-2 pt-2 border-top">
+                            <div class="col-6">
+                                <label class="form-label small fw-bold text-secondary mb-1">Preferred Dispatch Hour:</label>
+                                <input type="time" name="whatsapp_dispatch_time" class="form-control form-control-sm font-monospace" value="{{ config.whatsapp_dispatch_time|time:'H:i' }}">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-bold text-secondary mb-1">Dispatch Mode:</label>
+                                <select name="dispatch_channel" class="form-select form-select-sm">
+                                    <option value="headless_automated" {% if config.dispatch_channel == 'headless_automated' %}selected{% endif %}>Automated Headless Web</option>
+                                    <option value="pywhatkit" {% if config.dispatch_channel == 'pywhatkit' %}selected{% endif %}>PyWhatKit Background</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Pillar 3, 4, 5 & Safety -->
+            <div class="col-lg-6">
+                <!-- Pillar 3: LTV Risk Surveillance Card -->
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center py-2 border-bottom">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-warning text-dark rounded-circle p-2" style="width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;">3</span>
+                            <h6 class="mb-0 fw-bold text-dark"><i class="fas fa-shield-alt text-warning me-1"></i> Gold Price &amp; LTV Risk Surveillance</h6>
+                        </div>
+                        <button type="button" class="btn btn-outline-warning text-dark btn-xs py-1 px-2 fw-semibold" onclick="triggerPillarAction('pillar_3', false)">
+                            <i class="fas fa-play me-1"></i> Scan Now
+                        </button>
+                    </div>
+                    <div class="card-body p-3">
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" name="enable_ltv_surveillance" id="enable_ltv_surveillance" {% if config.enable_ltv_surveillance %}checked{% endif %}>
+                            <label class="form-check-label fw-bold text-dark small" for="enable_ltv_surveillance">
+                                Enable Daily Collateral LTV Surveillance
+                            </label>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label small text-muted mb-1">Warning Threshold (%):</label>
+                                <div class="input-group input-group-sm">
+                                    <input type="number" step="0.5" name="ltv_warning_threshold" class="form-control font-monospace" value="{{ config.ltv_warning_threshold }}">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small text-danger fw-bold mb-1">Critical Margin Call (%):</label>
+                                <div class="input-group input-group-sm">
+                                    <input type="number" step="0.5" name="ltv_critical_threshold" class="form-control font-monospace text-danger fw-bold" value="{{ config.ltv_critical_threshold }}">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pillar 4: Retention Marketing Card -->
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center py-2 border-bottom">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-info text-white rounded-circle p-2" style="width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;">4</span>
+                            <h6 class="mb-0 fw-bold text-dark"><i class="fas fa-bullhorn text-info me-1"></i> Customer Retention &amp; Re-Pledge Promos</h6>
+                        </div>
+                        <div class="d-flex gap-1">
+                            <button type="button" class="btn btn-outline-secondary btn-xs py-1 px-2 fw-semibold" onclick="triggerPillarAction('pillar_4', true)" title="Scan and list eligible closed loan customers">
+                                <i class="fas fa-search me-1"></i> Scan
+                            </button>
+                            <button type="button" class="btn btn-info text-white btn-xs py-1 px-2 fw-semibold" onclick="triggerPillarAction('pillar_4', false)" title="Auto-blast re-pledge promo offers via WhatsApp">
+                                <i class="fas fa-paper-plane me-1"></i> Auto-Blast Now
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body p-3">
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" name="enable_repledge_retention" id="enable_repledge_retention" {% if config.enable_repledge_retention %}checked{% endif %}>
+                            <label class="form-check-label fw-bold text-dark small" for="enable_repledge_retention">
+                                Auto Re-Pledge Promos for Closed Loans
+                            </label>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label small text-muted mb-1">Closure Cooldown (Days):</label>
+                                <input type="number" name="repledge_cooldown_days" class="form-control form-control-sm font-monospace" value="{{ config.repledge_cooldown_days }}">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small text-muted mb-1">Dispatch Time:</label>
+                                <input type="time" name="marketing_dispatch_time" class="form-control form-control-sm font-monospace" value="{{ config.marketing_dispatch_time|time:'H:i' }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pillar 5: Multi-Manager Executive Daily Digest Card -->
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center py-2 border-bottom">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-primary text-white rounded-circle p-2" style="width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;">5</span>
+                            <h6 class="mb-0 fw-bold text-dark"><i class="fas fa-user-tie text-primary me-1"></i> Executive Daily Digest (Admins &amp; Managers)</h6>
+                        </div>
+                        <button type="button" class="btn btn-outline-primary btn-xs py-1 px-2 fw-semibold" onclick="triggerPillarAction('pillar_5', false)">
+                            <i class="fas fa-paper-plane me-1"></i> Send Digest Now
+                        </button>
+                    </div>
+                    <div class="card-body p-3">
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" name="enable_owner_digest" id="enable_owner_digest" {% if config.enable_owner_digest %}checked{% endif %}>
+                            <label class="form-check-label fw-bold text-dark small" for="enable_owner_digest">
+                                Dispatch Nightly Performance Report via WhatsApp &amp; Email
+                            </label>
+                        </div>
+                        <p class="text-muted small mb-3">
+                            <i class="fas fa-info-circle text-info me-1"></i> Automatically routes daily summaries to all <strong>Admins</strong>, <strong>Branch Managers</strong>, and <strong>Regional Managers</strong> using contact coordinates directly from their user profiles.
+                        </p>
+
+                        <!-- Missing Profile Contacts Warning Box -->
+                        {% if stakeholder_data.warnings %}
+                        <div class="alert alert-warning border-warning p-2 rounded-2 mb-3 small shadow-sm">
+                            <div class="fw-bold text-dark mb-1">
+                                <i class="fas fa-exclamation-triangle text-warning me-1"></i> Profile Contact Action Required ({{ stakeholder_data.missing_contacts_count }} items):
+                            </div>
+                            <ul class="mb-0 ps-3">
+                                {% for warn in stakeholder_data.warnings %}
+                                <li class="text-dark">{{ warn }}</li>
+                                {% endfor %}
+                            </ul>
+                            <div class="mt-2 text-end">
+                                <a href="{% url 'user_list' %}" class="btn btn-warning btn-xs fw-bold text-dark py-0 px-2" style="font-size: 0.72rem;">
+                                    <i class="fas fa-user-edit me-1"></i> Update User Profiles Now
+                                </a>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Stakeholder Roster Table -->
+                        <div class="border rounded-2 overflow-hidden mb-3">
+                            <div class="bg-light p-2 border-bottom d-flex justify-content-between align-items-center">
+                                <span class="fw-bold small text-dark"><i class="fas fa-users-cog text-secondary me-1"></i> Detected Manager Profiles</span>
+                                <span class="badge bg-secondary small">{{ stakeholder_data.stakeholders|length }} Recipients</span>
+                            </div>
+                            <div class="table-responsive" style="max-height: 180px; overflow-y: auto;">
+                                <table class="table table-sm table-striped mb-0 small" style="font-size: 0.78rem;">
+                                    <thead class="table-light sticky-top">
+                                        <tr>
+                                            <th>Recipient / Role</th>
+                                            <th>WhatsApp Phone</th>
+                                            <th>Email Address</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for s in stakeholder_data.stakeholders %}
+                                        <tr>
+                                            <td>
+                                                <div class="fw-bold text-dark">{{ s.name }}</div>
+                                                <div class="text-muted" style="font-size: 0.7rem;">{{ s.role_title }}</div>
+                                            </td>
+                                            <td>
+                                                {% if s.phone %}
+                                                <span class="text-success fw-bold font-monospace"><i class="fab fa-whatsapp me-1"></i>+{{ s.phone }}</span>
+                                                {% else %}
+                                                <a href="{% url 'user_update' pk=s.user_id %}" class="badge bg-danger-subtle text-danger border border-danger-subtle text-decoration-none" title="Click to add phone in profile">
+                                                    <i class="fas fa-exclamation-circle me-1"></i>Phone Missing
+                                                </a>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if s.email %}
+                                                <span class="text-primary font-monospace"><i class="fas fa-envelope me-1"></i>{{ s.email }}</span>
+                                                {% else %}
+                                                <a href="{% url 'user_update' pk=s.user_id %}" class="badge bg-danger-subtle text-danger border border-danger-subtle text-decoration-none" title="Click to add email in profile">
+                                                    <i class="fas fa-exclamation-circle me-1"></i>Email Missing
+                                                </a>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="3" class="text-center text-muted py-2">No managers or admins found.</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Optional Override Settings -->
+                        <div class="row g-2">
+                            <div class="col-7">
+                                <label class="form-label small text-muted mb-1">Additional Owner Phone (Optional):</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text"><i class="fab fa-whatsapp text-success"></i></span>
+                                    <input type="text" name="owner_phone" class="form-control font-monospace" value="{{ config.owner_phone }}" placeholder="919876543210">
+                                </div>
+                            </div>
+                            <div class="col-5">
+                                <label class="form-label small text-muted mb-1">Nightly Digest Time:</label>
+                                <input type="time" name="digest_time" class="form-control form-control-sm font-monospace" value="{{ config.digest_time|time:'H:i' }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Save All Configuration CTA -->
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-success fw-bold py-2 shadow-sm" id="btnSaveAutopilotConfig">
+                        <i class="fas fa-save me-1"></i> Save All Autopilot Settings
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <!-- Activity Audit Log & Execution Feed -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center py-3">
+                    <div>
+                        <h5 class="mb-0 fw-bold text-dark">
+                            <i class="fas fa-history text-primary me-2"></i>Autopilot Activity &amp; Audit Trail
+                        </h5>
+                        <small class="text-muted">Real-time log of 24/7 automated operations across all pillars</small>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="location.reload()">
+                            <i class="fas fa-sync-alt me-1"></i> Refresh Feed
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-hover table-sm align-middle mb-0 small">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th style="width: 150px;">Timestamp</th>
+                                    <th style="width: 180px;">Pillar</th>
+                                    <th style="width: 220px;">Action</th>
+                                    <th class="text-center" style="width: 100px;">Status</th>
+                                    <th class="text-center" style="width: 100px;">Targets</th>
+                                    <th>Execution Summary</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in recent_logs %}
+                                <tr>
+                                    <td class="font-monospace text-nowrap">
+                                        <div class="fw-semibold text-dark">{{ log.created_at|date:"d-M-Y" }}</div>
+                                        <div class="text-muted" style="font-size: 0.72rem;">{{ log.created_at|date:"h:i:s A" }}</div>
+                                    </td>
+                                    <td>
+                                        <span class="badge {% if log.pillar == 'pillar_2' %}bg-success{% elif log.pillar == 'pillar_3' %}bg-warning text-dark{% elif log.pillar == 'pillar_4' %}bg-info text-dark{% elif log.pillar == 'pillar_5' %}bg-primary{% else %}bg-secondary{% endif %}">
+                                            {{ log.get_pillar_display }}
+                                        </span>
+                                    </td>
+                                    <td class="fw-semibold text-dark">{{ log.action_name }}</td>
+                                    <td class="text-center">
+                                        {% if log.status == 'success' %}
+                                        <span class="badge bg-success"><i class="fas fa-check me-1"></i>SUCCESS</span>
+                                        {% elif log.status == 'partial' %}
+                                        <span class="badge bg-warning text-dark"><i class="fas fa-exclamation me-1"></i>PARTIAL</span>
+                                        {% elif log.status == 'skipped' %}
+                                        <span class="badge bg-secondary">SKIPPED</span>
+                                        {% else %}
+                                        <span class="badge bg-danger" title="{{ log.error_details }}"><i class="fas fa-times me-1"></i>FAILED</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center font-monospace">
+                                        <span class="text-success fw-bold">{{ log.success_count }}</span> / <span class="text-muted">{{ log.target_count }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="text-dark">{{ log.summary }}</div>
+                                        {% if log.error_details %}
+                                        <div class="text-danger small mt-1 font-monospace" style="font-size: 0.72rem;">
+                                            <i class="fas fa-exclamation-circle me-1"></i>{{ log.error_details }}
+                                        </div>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-muted">
+                                        <i class="fas fa-robot fa-2x mb-2 text-secondary opacity-50"></i>
+                                        <p class="mb-0">No Autopilot operations logged yet. Click "Run Full Cycle Now" to test execution.</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Instant Trigger Result Modal -->
+<div class="modal fade" id="autopilotResultModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header bg-dark text-white py-3" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-info text-dark rounded-circle p-2" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">🤖</span>
+                    <h5 class="modal-title fw-bold text-white mb-0" id="autopilotModalTitle">Autopilot Action Console</h5>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 bg-light" id="autopilotResultContent">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary me-2" style="width: 3rem; height: 3rem;"></div>
+                    <h6 class="fw-bold text-dark mt-3">Executing Autopilot Scan...</h6>
+                    <p class="text-muted small mb-0">Evaluating portfolio metrics, risk thresholds, and live dispatches.</p>
+                </div>
+            </div>
+            <div class="modal-footer py-2 bg-white border-top d-flex justify-content-between">
+                <div id="autopilotModalFooterInfo" class="small text-muted"></div>
+                <button type="button" class="btn btn-secondary btn-sm px-4 fw-bold" data-bs-dismiss="modal">Close Console</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Master Switch AJAX Toggle
+    document.getElementById('masterAutopilotSwitch')?.addEventListener('change', function() {
+        const isChecked = this.checked;
+        const label = document.getElementById('masterSwitchLabel');
+        if (label) label.textContent = isChecked ? 'ENGINE ON' : 'ENGINE OFF';
+
+        fetch("{% url 'autopilot_save_config' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ is_enabled: isChecked })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                console.log("Autopilot state toggled:", isChecked);
+                location.reload();
+            } else {
+                alert("Could not toggle Autopilot: " + data.message);
+            }
+        })
+        .catch(err => alert("Network error toggling Autopilot: " + err));
+    });
+
+    // Global variable to hold active LTV scan loans for client-side search & filtering
+    let currentLtvLoans = [];
+    let currentLtvFilter = 'all';
+
+    // On-Demand Pillar Action Trigger
+    function triggerPillarAction(pillarName, isDryRun) {
+        const modalEl = document.getElementById('autopilotResultModal');
+        const modal = new bootstrap.Modal(modalEl);
+        const container = document.getElementById('autopilotResultContent');
+        const titleEl = document.getElementById('autopilotModalTitle');
+        const footerInfo = document.getElementById('autopilotModalFooterInfo');
+
+        titleEl.innerHTML = `<i class="fas fa-satellite text-info me-2"></i>Autopilot: ${pillarName.replace('_', ' ').toUpperCase()} ${isDryRun ? '(Dry-Run Simulation)' : '(Live Execution)'}`;
+        if (footerInfo) footerInfo.innerHTML = '';
+
+        container.innerHTML = `
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;"></div>
+                <h5 class="fw-bold text-dark">Processing Autopilot ${pillarName.toUpperCase()}...</h5>
+                <p class="text-muted small mb-0">Scanning database records, calculating dynamic risk formulas, and checking safe windows.</p>
+            </div>
+        `;
+        modal.show();
+
+        fetch("{% url 'autopilot_trigger' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ pillar: pillarName, dry_run: isDryRun })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const resData = data.result || {};
+                
+                if (pillarName === 'pillar_3' || pillarName === '3' || pillarName === 'ltv') {
+                    renderPillar3Dashboard(resData, container);
+                } else if (pillarName === 'pillar_4' || pillarName === '4') {
+                    renderPillar4Dashboard(resData, container);
+                } else if (pillarName === 'pillar_5' || pillarName === '5') {
+                    renderPillar5Dashboard(resData, container);
+                } else if (pillarName === 'pillar_2' || pillarName === '2') {
+                    renderPillar2Dashboard(resData, container);
+                } else {
+                    renderGenericDashboard(resData, container);
+                }
+            } else {
+                container.innerHTML = `
+                    <div class="alert alert-danger py-3 px-4 rounded-3 shadow-sm">
+                        <h6 class="fw-bold mb-1"><i class="fas fa-exclamation-triangle me-2"></i>Execution Failed</h6>
+                        <p class="mb-0 small">${data.message}</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(err => {
+            container.innerHTML = `<div class="alert alert-danger py-3">Error executing action: ${err}</div>`;
+        });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // RENDERER: Pillar 3 (LTV Risk Surveillance & Margin Call Action Center)
+    // ═══════════════════════════════════════════════════════════════════════════════
+    function renderPillar3Dashboard(data, container) {
+        const critLoans = data.critical_loans || [];
+        const warnLoans = data.warning_loans || [];
+        currentLtvLoans = [...critLoans, ...warnLoans];
+        currentLtvFilter = 'all';
+
+        const critCount = data.critical_count || critLoans.length;
+        const warnCount = data.warning_count || warnLoans.length;
+        const safeCount = data.safe_count || 0;
+        const totalScanned = data.scanned || (critCount + warnCount + safeCount);
+
+        container.innerHTML = `
+            <!-- Top Summary Metric Cards -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+                        <small class="text-uppercase fw-bold text-muted" style="font-size: 0.7rem;">TOTAL LOANS SCANNED</small>
+                        <div class="d-flex justify-content-between align-items-center mt-1">
+                            <span class="fs-4 fw-bold font-monospace text-dark">${totalScanned}</span>
+                            <span class="badge bg-secondary p-2"><i class="fas fa-layer-group"></i></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-0 shadow-sm rounded-3 p-3 text-white cursor-pointer" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); cursor: pointer;" onclick="filterLtvTable('critical')">
+                        <small class="text-uppercase fw-bold text-white-50" style="font-size: 0.7rem;">🚨 CRITICAL MARGIN CALLS (>85%)</small>
+                        <div class="d-flex justify-content-between align-items-center mt-1">
+                            <span class="fs-4 fw-bold font-monospace">${critCount}</span>
+                            <span class="badge bg-white text-danger p-2 fw-bold">ACTION REQUIRED</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-0 shadow-sm rounded-3 p-3 cursor-pointer" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 1px solid #fcd34d !important; cursor: pointer;" onclick="filterLtvTable('warning')">
+                        <small class="text-uppercase fw-bold text-amber-800" style="font-size: 0.7rem; color: #92400e;">⚠️ WARNING BREACHES (>75%)</small>
+                        <div class="d-flex justify-content-between align-items-center mt-1">
+                            <span class="fs-4 fw-bold font-monospace text-dark">${warnCount}</span>
+                            <span class="badge bg-warning text-dark p-2 fw-bold">WATCHLIST</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+                        <small class="text-uppercase fw-bold text-muted" style="font-size: 0.7rem;">✅ SAFE / HEALTHY LOANS</small>
+                        <div class="d-flex justify-content-between align-items-center mt-1">
+                            <span class="fs-4 fw-bold font-monospace text-success">${safeCount}</span>
+                            <span class="badge bg-success-subtle text-success p-2"><i class="fas fa-shield-alt"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action & Filter Bar -->
+            <div class="card border-0 shadow-sm rounded-3 mb-3 bg-white p-3">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <span class="fw-bold text-dark small me-1">Filter View:</span>
+                        <button type="button" class="btn btn-sm btn-dark rounded-pill px-3 active" id="btnFilterAll" onclick="filterLtvTable('all')">
+                            All Breaches (${currentLtvLoans.length})
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3" id="btnFilterCritical" onclick="filterLtvTable('critical')">
+                            🚨 Critical (>85%) (${critCount})
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-warning text-dark rounded-pill px-3" id="btnFilterWarning" onclick="filterLtvTable('warning')">
+                            ⚠️ Warning (>75%) (${warnCount})
+                        </button>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="input-group input-group-sm" style="width: 260px;">
+                            <span class="input-group-text bg-light"><i class="fas fa-search text-muted"></i></span>
+                            <input type="text" class="form-control" id="ltvSearchInput" placeholder="Search loan #, customer, phone..." onkeyup="searchLtvTable()">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Interactive Risk Data Table -->
+            <div class="card border-0 shadow-sm rounded-3 overflow-hidden bg-white">
+                <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+                    <table class="table table-hover align-middle mb-0 small" id="ltvRiskTable">
+                        <thead class="table-dark sticky-top" style="background: #0f172a;">
+                            <tr>
+                                <th style="width: 140px;">Loan Number</th>
+                                <th style="width: 180px;">Customer &amp; Phone</th>
+                                <th style="width: 140px;" class="text-end">Collateral Value</th>
+                                <th style="width: 140px;" class="text-end">Total Outstanding</th>
+                                <th style="width: 160px;">Current LTV %</th>
+                                <th style="width: 140px;" class="text-end">Margin Shortfall</th>
+                                <th class="text-center" style="width: 180px;">Action / Margin Call</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ltvTableBody">
+                            ${buildLtvTableRows(currentLtvLoans)}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
+    // Builds table rows for LTV surveillance
+    function buildLtvTableRows(loans) {
+        if (!loans || loans.length === 0) {
+            return `<tr><td colspan="7" class="text-center py-4 text-muted"><i class="fas fa-check-circle text-success me-1"></i> No loan accounts match the selected criteria.</td></tr>`;
+        }
+
+        return loans.map(l => {
+            const isCrit = l.status === 'critical' || l.ltv >= 85.0;
+            const badgeClass = isCrit ? 'bg-danger text-white' : 'bg-warning text-dark';
+            const progressColor = isCrit ? '#ef4444' : '#f59e0b';
+            const progressWidth = Math.min(100, Math.max(10, l.ltv));
+            const safePhone = l.customer_phone ? l.customer_phone.replace(/[^0-9]/g, '') : '';
+            const encMsg = encodeURIComponent(l.margin_msg || '');
+
+            return `
+                <tr class="ltv-row" data-status="${isCrit ? 'critical' : 'warning'}" data-search="${(l.loan_number + ' ' + l.customer_name + ' ' + l.customer_phone).toLowerCase()}">
+                    <td>
+                        <a href="/transactions/loans/${l.loan_id}/" target="_blank" class="fw-bold text-decoration-none text-primary font-monospace">
+                            ${l.loan_number} <i class="fas fa-external-link-alt ms-1" style="font-size: 0.65rem;"></i>
+                        </a>
+                        <div class="text-muted" style="font-size: 0.7rem;">${l.branch || 'Main Branch'}</div>
+                    </td>
+                    <td>
+                        <div class="fw-bold text-dark">${l.customer_name || 'Customer'}</div>
+                        <div class="font-monospace text-muted" style="font-size: 0.72rem;">
+                            ${l.customer_phone ? `<i class="fas fa-phone-alt me-1 text-secondary"></i>+${l.customer_phone}` : '<span class="text-danger">No Phone</span>'}
+                        </div>
+                    </td>
+                    <td class="text-end font-monospace fw-semibold text-secondary">
+                        ₹${Number(l.collateral_val || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                    </td>
+                    <td class="text-end font-monospace fw-bold text-dark">
+                        ₹${Number(l.total_due || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                    </td>
+                    <td>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="badge ${badgeClass} fw-bold font-monospace" style="font-size: 0.75rem;">${l.ltv.toFixed(2)}%</span>
+                            <small class="fw-semibold text-uppercase" style="font-size: 0.65rem; color: ${progressColor};">${isCrit ? 'CRITICAL' : 'WARNING'}</small>
+                        </div>
+                        <div class="progress" style="height: 6px; background-color: #e2e8f0;">
+                            <div class="progress-bar" role="progressbar" style="width: ${progressWidth}%; background-color: ${progressColor};" aria-valuenow="${l.ltv}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </td>
+                    <td class="text-end font-monospace fw-bold ${l.shortfall > 0 ? 'text-danger' : 'text-success'}">
+                        ₹${Number(l.shortfall || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                    </td>
+                    <td class="text-center">
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-danger btn-xs py-1 px-2 fw-semibold" id="btnMargin_${l.loan_id}" onclick='sendSingleMarginCall(${l.loan_id}, ${JSON.stringify(l.margin_msg || "")})'>
+                                <i class="fab fa-whatsapp me-1"></i> Send Alert
+                            </button>
+                            ${safePhone ? `
+                            <a href="https://wa.me/${safePhone}?text=${encMsg}" target="_blank" class="btn btn-outline-success btn-xs py-1 px-2" title="Open in WhatsApp Web">
+                                <i class="fas fa-external-link-alt"></i>
+                            </a>` : ''}
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    // Client-side Filter for LTV Table
+    function filterLtvTable(filterType) {
+        currentLtvFilter = filterType;
+        document.getElementById('btnFilterAll')?.classList.toggle('btn-dark', filterType === 'all');
+        document.getElementById('btnFilterAll')?.classList.toggle('btn-outline-dark', filterType !== 'all');
+        document.getElementById('btnFilterCritical')?.classList.toggle('btn-danger', filterType === 'critical');
+        document.getElementById('btnFilterCritical')?.classList.toggle('btn-outline-danger', filterType !== 'critical');
+        document.getElementById('btnFilterWarning')?.classList.toggle('btn-warning', filterType === 'warning');
+        document.getElementById('btnFilterWarning')?.classList.toggle('btn-outline-warning', filterType !== 'warning');
+
+        let filtered = currentLtvLoans;
+        if (filterType === 'critical') {
+            filtered = currentLtvLoans.filter(l => l.status === 'critical' || l.ltv >= 85.0);
+        } else if (filterType === 'warning') {
+            filtered = currentLtvLoans.filter(l => l.status === 'warning' && l.ltv < 85.0);
+        }
+
+        const query = (document.getElementById('ltvSearchInput')?.value || '').toLowerCase().trim();
+        if (query) {
+            filtered = filtered.filter(l => (l.loan_number + ' ' + l.customer_name + ' ' + l.customer_phone).toLowerCase().includes(query));
+        }
+
+        const tbody = document.getElementById('ltvTableBody');
+        if (tbody) tbody.innerHTML = buildLtvTableRows(filtered);
+    }
+
+    // Client-side Search for LTV Table
+    function searchLtvTable() {
+        filterLtvTable(currentLtvFilter);
+    }
+
+    // 1-Click WhatsApp Margin Call Dispatch Action
+    function sendSingleMarginCall(loanId, messageText) {
+        const btn = document.getElementById(`btnMargin_${loanId}`);
+        if (!btn) return;
+
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status"></span> Sending...`;
+
+        fetch("{% url 'autopilot_trigger' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                pillar: 'pillar_3_single_margin_call',
+                loan_id: loanId,
+                message: messageText
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                btn.className = 'btn btn-success btn-xs py-1 px-2 fw-semibold';
+                btn.innerHTML = `<i class="fas fa-check me-1"></i> Sent ✓`;
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+                alert("Could not dispatch WhatsApp alert: " + data.message);
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+            alert("Network error: " + err);
+        });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // RENDERER: Pillar 4 (Retention Marketing Dashboard with Custom Message & Select All)
+    // ═══════════════════════════════════════════════════════════════════════════════
+    let currentPromoCandidates = [];
+    const DEFAULT_PROMO_TEMPLATE = `✨ *சிறப்பு தங்கக்கடன் சலுகை - {branch_name}* ✨\n\nஅன்புள்ள *{customer_name}* அவர்களுக்கு,\nதாங்கள் எங்களின் நம்பகமான வாடிக்கையாளர்! தங்களின் அவசர பணத் தேவைகளுக்கு உடனடி தங்கக்கடன் மிகக் குறைந்த வட்டியில் (0.99% முதல்) உடனே பெறலாம்.\n\n💎 அதிகபட்ச கடன் தொகை\n⚡ 5 நிமிடங்களில் உடனடி பட்டுவாடா\n🔒 அதிநவீன பாதுகாப்பு பெட்டகம்\n\nஇன்றே எங்களின் கிளைக்கு வருகை தரவும்: *{branch_name}*.\nநன்றி! First Money Gold.`;
+
+    function renderPillar4Dashboard(data, container) {
+        currentPromoCandidates = data.customers || [];
+        const count = data.target_count !== undefined ? data.target_count : currentPromoCandidates.length;
+        const sentCount = data.sent !== undefined ? data.sent : 0;
+        const failedCount = data.failed !== undefined ? data.failed : 0;
+
+        container.innerHTML = `
+            <!-- Top Metric Cards -->
+            <div class="row g-3 mb-3">
+                <div class="col-md-3">
+                    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+                        <small class="text-uppercase fw-bold text-muted" style="font-size: 0.7rem;">ELIGIBLE CANDIDATES</small>
+                        <div class="d-flex justify-content-between align-items-center mt-1">
+                            <span class="fs-4 fw-bold font-monospace text-info">${count}</span>
+                            <span class="badge bg-info-subtle text-info p-2"><i class="fas fa-users"></i></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+                        <small class="text-uppercase fw-bold text-muted" style="font-size: 0.7rem;">SELECTED TO RECEIVE</small>
+                        <div class="d-flex justify-content-between align-items-center mt-1">
+                            <span class="fs-4 fw-bold font-monospace text-primary" id="metricSelectedCount">${currentPromoCandidates.length}</span>
+                            <span class="badge bg-primary-subtle text-primary p-2"><i class="fas fa-check-square"></i></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+                        <small class="text-uppercase fw-bold text-muted" style="font-size: 0.7rem;">DISPATCHED IN RUN</small>
+                        <div class="d-flex justify-content-between align-items-center mt-1">
+                            <span class="fs-4 fw-bold font-monospace text-success">${sentCount}</span>
+                            <span class="badge bg-success-subtle text-success p-2"><i class="fas fa-paper-plane"></i></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+                        <small class="text-uppercase fw-bold text-muted" style="font-size: 0.7rem;">WHATSAPP ENGINE</small>
+                        <div class="d-flex justify-content-between align-items-center mt-1">
+                            <span class="fs-6 fw-bold text-dark">Playwright Headless</span>
+                            <span class="badge bg-success text-white p-1 px-2" style="font-size: 0.65rem;">SESSION READY</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Custom Message Template Editor -->
+            <div class="card border border-info-subtle rounded-3 p-3 bg-light mb-3 shadow-sm">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <label class="fw-bold text-dark small mb-0">
+                            <i class="fas fa-pen-nib text-info me-1"></i> Customize WhatsApp Promo Message:
+                        </label>
+                        <span class="badge bg-info-subtle text-info small">Dynamic Placeholders</span>
+                    </div>
+                    <div class="d-flex flex-wrap gap-1">
+                        <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2 fw-semibold" onclick="insertPromoTemplateVar('{customer_name}')" title="Insert customer name placeholder">
+                            + {customer_name}
+                        </button>
+                        <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2 fw-semibold" onclick="insertPromoTemplateVar('{branch_name}')" title="Insert branch name placeholder">
+                            + {branch_name}
+                        </button>
+                        <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2 fw-semibold" onclick="insertPromoTemplateVar('{loan_number}')" title="Insert loan reference placeholder">
+                            + {loan_number}
+                        </button>
+                        <button type="button" class="btn btn-xs btn-outline-danger py-0 px-2 fw-semibold" onclick="resetPromoTemplate()" title="Reset to default Tamil promotion message">
+                            <i class="fas fa-undo me-1"></i> Reset Default
+                        </button>
+                    </div>
+                </div>
+                <textarea class="form-control font-monospace small bg-white text-dark mb-2" id="customPromoTextarea" rows="6" placeholder="Type your custom promotional WhatsApp message here..." oninput="onCustomPromoTemplateChange()">${DEFAULT_PROMO_TEMPLATE}</textarea>
+                <div class="d-flex justify-content-between align-items-center text-muted small" style="font-size: 0.72rem;">
+                    <span><i class="fas fa-info-circle text-info me-1"></i> Personalization tags <code>{customer_name}</code>, <code>{branch_name}</code>, and <code>{loan_number}</code> are automatically resolved per recipient.</span>
+                    <span id="promoCharCount">Chars: ${DEFAULT_PROMO_TEMPLATE.length}</span>
+                </div>
+            </div>
+
+            <!-- Action, Selection & Search Bar -->
+            <div class="card border-0 shadow-sm rounded-3 mb-3 bg-white p-3">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-outline-primary btn-xs py-1 px-2 fw-bold" onclick="toggleSelectAllPromo(true)">
+                                <i class="fas fa-check-square me-1"></i> Select All
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-xs py-1 px-2 fw-semibold" onclick="toggleSelectAllPromo(false)">
+                                <i class="fas fa-square me-1"></i> Deselect All
+                            </button>
+                        </div>
+                        <span class="badge bg-primary px-3 py-2 rounded-pill fw-bold" id="promoSelectionBadge">
+                            <i class="fas fa-users-check me-1"></i> <span id="badgeSelectedCount">${currentPromoCandidates.length}</span> / ${currentPromoCandidates.length} Selected
+                        </span>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="input-group input-group-sm" style="width: 220px;">
+                            <span class="input-group-text bg-light"><i class="fas fa-search text-muted"></i></span>
+                            <input type="text" class="form-control" id="promoSearchInput" placeholder="Filter candidates..." onkeyup="searchPromoTable()">
+                        </div>
+
+                        ${currentPromoCandidates.length > 0 ? `
+                        <button type="button" class="btn btn-info text-white btn-sm px-3 fw-bold" id="btnAutoBlastSelected" onclick="sendSelectedPromosBatch()">
+                            <i class="fas fa-paper-plane me-1"></i> Auto-Blast Selected (<span id="btnSelectedCount">${currentPromoCandidates.length}</span>)
+                        </button>` : ''}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Candidate List Table with Select All Checkboxes -->
+            ${currentPromoCandidates.length > 0 ? `
+            <div class="card border-0 shadow-sm rounded-3 overflow-hidden bg-white mb-3">
+                <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
+                    <table class="table table-hover align-middle mb-0 small" id="promoCandidatesTable">
+                        <thead class="table-dark sticky-top" style="background: #0f172a;">
+                            <tr>
+                                <th style="width: 45px;" class="text-center">
+                                    <input type="checkbox" class="form-check-input" id="selectAllPromoCheck" onchange="toggleSelectAllPromo(this.checked)" checked title="Select / Deselect All">
+                                </th>
+                                <th>Customer Name</th>
+                                <th>WhatsApp Phone</th>
+                                <th>Branch</th>
+                                <th>Closed Loan Reference</th>
+                                <th>Closure Date</th>
+                                <th class="text-center" style="width: 170px;">1-Click Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="promoTableBody">
+                            ${buildPromoTableRows(currentPromoCandidates)}
+                        </tbody>
+                    </table>
+                </div>
+            </div>` : `
+            <div class="alert alert-secondary py-4 text-center rounded-3 mb-3">
+                <i class="fas fa-check-circle text-success fs-3 mb-2 d-block"></i>
+                <h6 class="fw-bold text-dark">No Pending Retention Candidates</h6>
+                <p class="text-muted small mb-0">All closed-loan customers have either already received their retention offer within 30 days or have currently active gold loans.</p>
+            </div>`}
+        `;
+    }
+
+    function buildPromoTableRows(candidates) {
+        const customTpl = document.getElementById('customPromoTextarea')?.value || DEFAULT_PROMO_TEMPLATE;
+
+        return candidates.map(c => {
+            const safePhone = (c.phone || '').replace(/[^0-9]/g, '');
+            const loanId = c.loan_id || c.id;
+
+            // Formatted personalized message for this customer
+            const personalizedMsg = customTpl
+                .replace(/{customer_name}|{name}/g, c.name)
+                .replace(/{branch_name}|{branch}/g, c.branch || 'First Money Gold')
+                .replace(/{loan_number}/g, c.loan_number || '');
+
+            const encMsg = encodeURIComponent(personalizedMsg);
+
+            return `
+                <tr class="promo-row" data-search="${(c.name + ' ' + c.phone + ' ' + c.loan_number + ' ' + (c.branch || '')).toLowerCase()}" id="rowPromo_${loanId}">
+                    <td class="text-center">
+                        <input type="checkbox" class="form-check-input promo-candidate-check" value="${loanId}" data-customer="${c.name}" data-phone="${c.phone}" data-branch="${c.branch || ''}" data-loan-num="${c.loan_number}" onchange="updatePromoSelectionCount()" checked>
+                    </td>
+                    <td class="fw-bold text-dark">
+                        ${c.name}
+                    </td>
+                    <td class="font-monospace text-success fw-bold">
+                        <i class="fab fa-whatsapp me-1"></i>+${c.phone}
+                    </td>
+                    <td class="text-muted">
+                        ${c.branch || 'Main Branch'}
+                    </td>
+                    <td class="font-monospace text-primary fw-semibold">
+                        <a href="/transactions/loans/${loanId}/" target="_blank" class="text-decoration-none font-monospace">
+                            ${c.loan_number} <i class="fas fa-external-link-alt ms-1" style="font-size: 0.65rem;"></i>
+                        </a>
+                    </td>
+                    <td class="text-muted font-monospace">
+                        ${c.closed_date || '-'}
+                    </td>
+                    <td class="text-center">
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-info text-white btn-xs py-1 px-2 fw-semibold" id="btnPromo_${loanId}" onclick='sendSingleCustomPromo(${loanId}, ${JSON.stringify(c.name)}, ${JSON.stringify(c.phone)}, ${JSON.stringify(c.branch || "First Money Gold")}, ${JSON.stringify(c.loan_number)})'>
+                                <i class="fas fa-paper-plane me-1"></i> Send Promo
+                            </button>
+                            ${safePhone ? `
+                            <a href="https://wa.me/${safePhone}?text=${encMsg}" target="_blank" id="waLink_${loanId}" class="btn btn-outline-success btn-xs py-1 px-2" title="Open Personalized Offer in WhatsApp Web">
+                                <i class="fab fa-whatsapp"></i>
+                            </a>` : ''}
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    // Toggle Select All / Deselect All
+    function toggleSelectAllPromo(isChecked) {
+        const masterCheck = document.getElementById('selectAllPromoCheck');
+        if (masterCheck) masterCheck.checked = isChecked;
+
+        const checkboxes = document.querySelectorAll('.promo-candidate-check');
+        checkboxes.forEach(cb => {
+            // Only toggle visible rows if filtered
+            const row = cb.closest('tr');
+            if (!row || row.style.display !== 'none') {
+                cb.checked = isChecked;
+            }
+        });
+        updatePromoSelectionCount();
+    }
+
+    // Update dynamic selection counters across badges and buttons
+    function updatePromoSelectionCount() {
+        const allChecks = document.querySelectorAll('.promo-candidate-check');
+        const checkedBoxes = document.querySelectorAll('.promo-candidate-check:checked');
+        const total = allChecks.length;
+        const selected = checkedBoxes.length;
+
+        const masterCheck = document.getElementById('selectAllPromoCheck');
+        if (masterCheck) {
+            masterCheck.checked = selected === total && total > 0;
+            masterCheck.indeterminate = selected > 0 && selected < total;
+        }
+
+        const metricEl = document.getElementById('metricSelectedCount');
+        if (metricEl) metricEl.textContent = selected;
+
+        const badgeEl = document.getElementById('badgeSelectedCount');
+        if (badgeEl) badgeEl.textContent = selected;
+
+        const btnCountEl = document.getElementById('btnSelectedCount');
+        if (btnCountEl) btnCountEl.textContent = selected;
+
+        const btnAutoBlast = document.getElementById('btnAutoBlastSelected');
+        if (btnAutoBlast) {
+            btnAutoBlast.disabled = selected === 0;
+            btnAutoBlast.classList.toggle('opacity-50', selected === 0);
+        }
+    }
+
+    // Insert variable placeholder at current cursor position
+    function insertPromoTemplateVar(varText) {
+        const textarea = document.getElementById('customPromoTextarea');
+        if (!textarea) return;
+
+        const start = textarea.selectionStart || 0;
+        const end = textarea.selectionEnd || 0;
+        const text = textarea.value;
+
+        textarea.value = text.substring(0, start) + varText + text.substring(end);
+        textarea.focus();
+        textarea.selectionStart = textarea.selectionEnd = start + varText.length;
+        onCustomPromoTemplateChange();
+    }
+
+    // Reset template to default Tamil promo
+    function resetPromoTemplate() {
+        const textarea = document.getElementById('customPromoTextarea');
+        if (textarea) {
+            textarea.value = DEFAULT_PROMO_TEMPLATE;
+            onCustomPromoTemplateChange();
+        }
+    }
+
+    // Live update of wa.me links when template changes
+    function onCustomPromoTemplateChange() {
+        const textarea = document.getElementById('customPromoTextarea');
+        if (!textarea) return;
+
+        const tpl = textarea.value;
+        const charCountEl = document.getElementById('promoCharCount');
+        if (charCountEl) charCountEl.textContent = `Chars: ${tpl.length}`;
+
+        // Update direct wa.me link URLs for all candidate rows
+        currentPromoCandidates.forEach(c => {
+            const loanId = c.loan_id || c.id;
+            const waLink = document.getElementById(`waLink_${loanId}`);
+            if (waLink) {
+                const safePhone = (c.phone || '').replace(/[^0-9]/g, '');
+                const personalizedMsg = tpl
+                    .replace(/{customer_name}|{name}/g, c.name)
+                    .replace(/{branch_name}|{branch}/g, c.branch || 'First Money Gold')
+                    .replace(/{loan_number}/g, c.loan_number || '');
+                waLink.href = `https://wa.me/${safePhone}?text=${encodeURIComponent(personalizedMsg)}`;
+            }
+        });
+    }
+
+    function searchPromoTable() {
+        const query = (document.getElementById('promoSearchInput')?.value || '').toLowerCase().trim();
+        const rows = document.querySelectorAll('#promoTableBody tr.promo-row');
+        rows.forEach(r => {
+            const searchData = r.getAttribute('data-search') || '';
+            r.style.display = searchData.includes(query) ? '' : 'none';
+        });
+        updatePromoSelectionCount();
+    }
+
+    // 1-Click Single Customer Custom Promo Dispatch Action
+    function sendSingleCustomPromo(loanId, custName, phone, branch, loanNum) {
+        const btn = document.getElementById(`btnPromo_${loanId}`);
+        if (!btn) return;
+
+        const textarea = document.getElementById('customPromoTextarea');
+        const customTpl = textarea ? textarea.value : DEFAULT_PROMO_TEMPLATE;
+
+        const personalizedMsg = customTpl
+            .replace(/{customer_name}|{name}/g, custName)
+            .replace(/{branch_name}|{branch}/g, branch || 'First Money Gold')
+            .replace(/{loan_number}/g, loanNum || '');
+
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status"></span> Sending...`;
+
+        fetch("{% url 'autopilot_trigger' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                pillar: 'pillar_4_single_promo',
+                loan_id: loanId,
+                name: custName,
+                phone: phone,
+                message: personalizedMsg
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                btn.className = 'btn btn-success btn-xs py-1 px-2 fw-semibold';
+                btn.innerHTML = `<i class="fas fa-check me-1"></i> Sent ✓`;
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+                alert("Could not dispatch WhatsApp promo: " + data.message);
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+            alert("Network error: " + err);
+        });
+    }
+
+    // Batch Dispatch Selected Candidates with Custom Template
+    function sendSelectedPromosBatch() {
+        const checkedBoxes = document.querySelectorAll('.promo-candidate-check:checked');
+        const selectedIds = Array.from(checkedBoxes).map(cb => cb.value);
+
+        if (selectedIds.length === 0) {
+            alert("Please select at least one candidate customer to send promo.");
+            return;
+        }
+
+        const textarea = document.getElementById('customPromoTextarea');
+        const customTpl = textarea ? textarea.value : DEFAULT_PROMO_TEMPLATE;
+
+        if (!confirm(`Are you sure you want to dispatch customized promotional WhatsApp offers to ${selectedIds.length} selected customer(s)?`)) {
+            return;
+        }
+
+        const btn = document.getElementById('btnAutoBlastSelected');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status"></span> Dispatching (${selectedIds.length})...`;
+        }
+
+        fetch("{% url 'autopilot_trigger' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                pillar: 'pillar_4',
+                dry_run: false,
+                custom_template: customTpl,
+                selected_loan_ids: selectedIds
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                renderPillar4Dashboard(data.result || {}, document.getElementById('autopilotResultContent'));
+            } else {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = `<i class="fas fa-paper-plane me-1"></i> Auto-Blast Selected (${selectedIds.length})`;
+                }
+                alert("Execution error: " + (data.message || 'Failed to dispatch batch promo.'));
+            }
+        })
+        .catch(err => {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fas fa-paper-plane me-1"></i> Auto-Blast Selected (${selectedIds.length})`;
+            }
+            alert("Network error: " + err);
+        });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // RENDERER: Pillar 5 (Executive Daily Digest Snapshot)
+    // ═══════════════════════════════════════════════════════════════════════════════
+    function renderPillar5Dashboard(data, container) {
+        const stakeholders = data.stakeholders || [];
+        const warnings = data.warnings || [];
+
+        container.innerHTML = `
+            <div class="card border-0 shadow-sm rounded-3 p-4 bg-white mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h5 class="fw-bold text-dark mb-1"><i class="fas fa-user-tie text-primary me-2"></i>Executive Daily Digest Dispatch Summary</h5>
+                        <p class="text-muted small mb-0">Delivered via WhatsApp &amp; Email to all Admins, Branch Managers, and Regional Managers.</p>
+                    </div>
+                    <span class="badge bg-primary fs-6 px-3 py-2 rounded-pill">${stakeholders.length} Stakeholders</span>
+                </div>
+
+                ${warnings.length > 0 ? `
+                <div class="alert alert-warning py-2 px-3 small mb-3">
+                    <div class="fw-bold mb-1"><i class="fas fa-exclamation-triangle me-1"></i> Profile Contact Warnings:</div>
+                    <ul class="mb-0 ps-3">
+                        ${warnings.map(w => `<li>${w}</li>`).join('')}
+                    </ul>
+                </div>` : ''}
+
+                <div class="bg-dark text-white p-3 rounded-3 font-monospace small mb-3" style="white-space: pre-wrap;">
+${data.message || ''}
+                </div>
+            </div>
+        `;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // RENDERER: Generic / Full Cycle
+    // ═══════════════════════════════════════════════════════════════════════════════
+    function renderGenericDashboard(data, container) {
+        container.innerHTML = `
+            <div class="alert alert-success py-2 px-3 mb-3">
+                <i class="fas fa-check-circle me-1"></i> <strong>Execution Complete!</strong>
+            </div>
+            <div class="bg-light p-3 rounded border font-monospace small" style="white-space: pre-wrap; max-height: 380px; overflow-y: auto;">
+${JSON.stringify(data, null, 2)}
+            </div>
+        `;
+    }
+</script>
+{% endblock %}

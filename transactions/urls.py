@@ -4,8 +4,15 @@ from . import views_eod
 from . import views_partial_release
 from . import views_marketing
 from . import views_gold_purchase
+from . import views_autopilot
 
 urlpatterns = [
+    # 24/7 Autopilot Automation Console & Control Hub
+    path('autopilot/', views_autopilot.AutopilotConsoleView.as_view(), name='autopilot_console'),
+    path('autopilot/save-config/', views_autopilot.AutopilotSaveConfigView.as_view(), name='autopilot_save_config'),
+    path('autopilot/trigger/', views_autopilot.AutopilotTriggerActionView.as_view(), name='autopilot_trigger'),
+    path('autopilot/logs/export/', views_autopilot.AutopilotLogsExportView.as_view(), name='autopilot_export_logs'),
+
     # Loans
     path('loans/', views.LoanListView.as_view(), name='loan_list'),
     path('loans/add/', views.LoanCreateView.as_view(), name='loan_create'),

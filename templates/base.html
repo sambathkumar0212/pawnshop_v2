@@ -425,6 +425,11 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a href="{% url 'autopilot_console' %}" class="nav-link {% block autopilot_active %}{% endblock %}">
+                            <i class="fas fa-satellite" style="color:#06b6d4;"></i> {% trans "24/7 Autopilot Hub" %}
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a href="{% url 'eod_console' %}" class="nav-link {% block eod_active %}{% endblock %}">
                             <i class="fas fa-moon" style="color:#818cf8;"></i> {% trans "EOD Operations" %}
                         </a>

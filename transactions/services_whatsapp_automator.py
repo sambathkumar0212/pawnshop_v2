@@ -180,12 +180,15 @@ def send_whatsapp_message_headless(phone: str, message: str, headless: bool = Tr
     Dispatches a single message headlessly using the persistent session.
     """
     from playwright.sync_api import sync_playwright
+    import urllib.parse
 
     phone_clean = clean_phone_number(phone)
     if not phone_clean or len(phone_clean) < 10:
         return {"success": False, "error": f"Invalid phone number: {phone}"}
 
+    clean_stale_locks()
     with sync_playwright() as p:
+        context = None
         try:
             context = p.chromium.launch_persistent_context(
                 **get_launch_context_options(headless=headless)
@@ -193,46 +196,293 @@ def send_whatsapp_message_headless(phone: str, message: str, headless: bool = Tr
             page = context.pages[0] if context.pages else context.new_page()
 
             # Encode message into WhatsApp Web send URL
-            import urllib.parse
             encoded_msg = urllib.parse.quote(message)
             send_url = f"https://web.whatsapp.com/send?phone={phone_clean}&text={encoded_msg}"
 
             page.goto(send_url, timeout=45000)
+            time.sleep(4)  # Initial wait for chat to initialize
 
-            # Wait for either the chat composer or invalid number dialog
-            time.sleep(4)  # Initial wait for chat to load
+            # Check if invalid number dialog popped up
+            if page.locator("text=Phone number shared via url is invalid").is_visible() or page.locator("text=URL is invalid").is_visible():
+                return {"success": False, "error": f"Phone number +{phone_clean} is not registered on WhatsApp"}
 
             # Look for the Send button or composer
-            send_btn = page.locator('button[aria-label="Send"], span[data-icon="send"], button span[data-icon="send"]').first
+            send_btn = page.locator('button[aria-label="Send"], button[aria-label="Send message"], span[data-icon="send"], span[data-icon="send-light"], button span[data-icon="send"], button[data-tab="11"]').first
 
             # Wait up to 15 seconds for composer or send button
             try:
                 send_btn.wait_for(state="visible", timeout=15000)
                 send_btn.click()
                 time.sleep(2)  # Wait for message dispatch animation
-                context.close()
                 return {"success": True, "phone": phone_clean}
             except Exception:
                 # If send button not found, try pressing Enter in the composer
-                composer = page.locator('div[contenteditable="true"][data-tab="10"]').first
+                composer = page.locator('footer div[contenteditable="true"], div[role="textbox"][contenteditable="true"], div[contenteditable="true"][data-tab="10"], div[contenteditable="true"][data-tab="6"]').first
                 if composer.is_visible():
                     composer.focus()
                     composer.press("Enter")
                     time.sleep(2)
-                    context.close()
                     return {"success": True, "phone": phone_clean}
 
-                # Check if invalid number dialog popped up
+                # Secondary check if invalid number dialog appeared late
                 if page.locator("text=Phone number shared via url is invalid").is_visible():
-                    context.close()
-                    return {"success": False, "error": f"Phone number {phone_clean} is not registered on WhatsApp"}
+                    return {"success": False, "error": f"Phone number +{phone_clean} is not registered on WhatsApp"}
 
-                context.close()
                 return {"success": False, "error": "Timed out waiting for WhatsApp composer/send button"}
 
         except Exception as e:
             logger.exception("Error in headless WhatsApp dispatch: %s", e)
             return {"success": False, "error": str(e)}
+        finally:
+            if context:
+                try:
+                    context.close()
+                except Exception:
+                    pass
+            clean_stale_locks()
+
+
+def send_batch_retention_promos_automated(
+    promo_items: list,
+    delay_between_seconds: int = 3,
+    headless: bool = True,
+    user = None
+) -> dict:
+    """
+    Dispatches customer retention & re-pledge promo offers in a single persistent browser session.
+    Reuses browser context across all messages for maximum performance and reliability.
+    """
+    from playwright.sync_api import sync_playwright
+    import urllib.parse
+    from transactions.models import LoanWhatsAppLog, MarketingCampaignLog
+
+    results = {
+        "total": len(promo_items),
+        "sent": 0,
+        "failed": 0,
+        "details": [],
+    }
+
+    if not promo_items:
+        return results
+
+    if not is_whatsapp_paired():
+        results["error"] = "WhatsApp Web session is not paired. Please pair WhatsApp Web from Digital Marketing/Loans page first."
+        for item in promo_items:
+            results["failed"] += 1
+            results["details"].append({
+                "customer": item.get('name', 'Customer'),
+                "phone": item.get('phone', ''),
+                "status": "FAILED",
+                "error": "WhatsApp session not paired"
+            })
+        return results
+
+    clean_stale_locks()
+    with sync_playwright() as p:
+        context = None
+        try:
+            context = p.chromium.launch_persistent_context(
+                **get_launch_context_options(headless=headless)
+            )
+            page = context.pages[0] if context.pages else context.new_page()
+
+            # Pre-warm WhatsApp Web
+            page.goto("https://web.whatsapp.com/", timeout=45000)
+            time.sleep(5)
+
+            for item in promo_items:
+                loan = item.get('loan')
+                cust = item.get('customer')
+                cust_name = item.get('name') or (getattr(cust, 'first_name', '') if cust else 'Valued Customer')
+                raw_phone = item.get('phone') or ''
+                phone_clean = clean_phone_number(raw_phone)
+                promo_text = item.get('message', '')
+
+                if not phone_clean or len(phone_clean) < 10:
+                    results["failed"] += 1
+                    err_msg = f"Invalid phone number: '{raw_phone}'"
+                    results["details"].append({
+                        "loan_no": getattr(loan, 'loan_number', ''),
+                        "customer": cust_name,
+                        "phone": raw_phone,
+                        "status": "FAILED",
+                        "error": err_msg,
+                    })
+                    try:
+                        MarketingCampaignLog.objects.create(
+                            template_key='repledge_retention',
+                            campaign_name='Autopilot Re-Pledge Retention',
+                            recipient_name=cust_name,
+                            recipient_phone=raw_phone,
+                            recipient_type='customer',
+                            channel='whatsapp_blast',
+                            status='failed',
+                            message_snippet=promo_text[:300],
+                            sent_by=user if (user and getattr(user, 'is_authenticated', False)) else None
+                        )
+                    except Exception:
+                        pass
+                    continue
+
+                encoded_msg = urllib.parse.quote(promo_text)
+                send_url = f"https://web.whatsapp.com/send?phone={phone_clean}&text={encoded_msg}"
+
+                try:
+                    page.goto(send_url, timeout=35000)
+                    time.sleep(3)
+
+                    # Check for invalid number popup
+                    if page.locator("text=Phone number shared via url is invalid").is_visible() or page.locator("text=URL is invalid").is_visible():
+                        results["failed"] += 1
+                        err_msg = f"Phone number +{phone_clean} is not registered on WhatsApp"
+                        results["details"].append({
+                            "loan_no": getattr(loan, 'loan_number', ''),
+                            "customer": cust_name,
+                            "phone": phone_clean,
+                            "status": "FAILED",
+                            "error": err_msg,
+                        })
+                        try:
+                            MarketingCampaignLog.objects.create(
+                                template_key='repledge_retention',
+                                campaign_name='Autopilot Re-Pledge Retention',
+                                recipient_name=cust_name,
+                                recipient_phone=phone_clean,
+                                recipient_type='customer',
+                                channel='whatsapp_blast',
+                                status='failed',
+                                message_snippet=promo_text[:300],
+                                sent_by=user if (user and getattr(user, 'is_authenticated', False)) else None
+                            )
+                        except Exception:
+                            pass
+
+                        try:
+                            ok_btn = page.locator('button:has-text("OK"), div[role="button"]:has-text("OK")').first
+                            if ok_btn.is_visible():
+                                ok_btn.click()
+                        except Exception:
+                            pass
+                        continue
+
+                    # Look for Send button or composer
+                    send_btn = page.locator('button[aria-label="Send"], button[aria-label="Send message"], span[data-icon="send"], span[data-icon="send-light"], button span[data-icon="send"], button[data-tab="11"]').first
+                    sent_success = False
+
+                    try:
+                        send_btn.wait_for(state="visible", timeout=12000)
+                        send_btn.click()
+                        sent_success = True
+                    except Exception:
+                        composer = page.locator('footer div[contenteditable="true"], div[role="textbox"][contenteditable="true"], div[contenteditable="true"][data-tab="10"], div[contenteditable="true"][data-tab="6"]').first
+                        if composer.is_visible():
+                            composer.focus()
+                            composer.press("Enter")
+                            sent_success = True
+
+                    if sent_success:
+                        time.sleep(delay_between_seconds)
+
+                        # Record in database logs
+                        try:
+                            MarketingCampaignLog.objects.create(
+                                template_key='repledge_retention',
+                                campaign_name='Autopilot Re-Pledge Retention',
+                                recipient_name=cust_name,
+                                recipient_phone=phone_clean,
+                                recipient_type='customer',
+                                channel='whatsapp_blast',
+                                status='sent',
+                                message_snippet=promo_text[:300],
+                                sent_by=user if (user and getattr(user, 'is_authenticated', False)) else None
+                            )
+                        except Exception as log_err:
+                            logger.warning("Could not create MarketingCampaignLog: %s", log_err)
+
+                        try:
+                            LoanWhatsAppLog.objects.create(
+                                loan=loan,
+                                customer=cust,
+                                recipient_phone=phone_clean,
+                                notification_type='marketing_broadcast',
+                                status='sent',
+                                message_content=promo_text,
+                                channel='automated_browser',
+                                sent_by=user if (user and getattr(user, 'is_authenticated', False)) else None
+                            )
+                        except Exception as log_err:
+                            logger.warning("Could not create LoanWhatsAppLog: %s", log_err)
+
+                        results["sent"] += 1
+                        results["details"].append({
+                            "loan_no": getattr(loan, 'loan_number', ''),
+                            "customer": cust_name,
+                            "phone": phone_clean,
+                            "status": "SENT",
+                        })
+                    else:
+                        results["failed"] += 1
+                        err_msg = "Could not locate WhatsApp send button / timeout"
+                        results["details"].append({
+                            "loan_no": getattr(loan, 'loan_number', ''),
+                            "customer": cust_name,
+                            "phone": phone_clean,
+                            "status": "FAILED",
+                            "error": err_msg,
+                        })
+                        try:
+                            MarketingCampaignLog.objects.create(
+                                template_key='repledge_retention',
+                                campaign_name='Autopilot Re-Pledge Retention',
+                                recipient_name=cust_name,
+                                recipient_phone=phone_clean,
+                                recipient_type='customer',
+                                channel='whatsapp_blast',
+                                status='failed',
+                                message_snippet=promo_text[:300],
+                                sent_by=user if (user and getattr(user, 'is_authenticated', False)) else None
+                            )
+                        except Exception:
+                            pass
+
+                except Exception as ex:
+                    results["failed"] += 1
+                    err_msg = str(ex)
+                    results["details"].append({
+                        "loan_no": getattr(loan, 'loan_number', ''),
+                        "customer": cust_name,
+                        "phone": phone_clean,
+                        "status": "FAILED",
+                        "error": err_msg,
+                    })
+                    try:
+                        MarketingCampaignLog.objects.create(
+                            template_key='repledge_retention',
+                            campaign_name='Autopilot Re-Pledge Retention',
+                            recipient_name=cust_name,
+                            recipient_phone=phone_clean,
+                            recipient_type='customer',
+                            channel='whatsapp_blast',
+                            status='failed',
+                            message_snippet=promo_text[:300],
+                            sent_by=user if (user and getattr(user, 'is_authenticated', False)) else None
+                        )
+                    except Exception:
+                        pass
+
+        except Exception as e:
+            logger.exception("Batch retention promo automated WhatsApp dispatch encountered an exception: %s", e)
+            results["error"] = str(e)
+        finally:
+            if context:
+                try:
+                    context.close()
+                except Exception:
+                    pass
+            clean_stale_locks()
+
+    return results
 
 
 def send_batch_irac_alerts_automated(

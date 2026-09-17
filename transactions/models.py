@@ -2468,3 +2468,109 @@ class GoldPurchaseItem(models.Model):
         return f"{self.item_name} ({self.purity_karat} - {self.gross_weight}g)"
 
 
+class AutopilotConfig(models.Model):
+    """
+    Centralized Configuration & State for the 24/7 Autopilot Automation System.
+    Stores toggles and parameters for Pillars 2, 3, 4, and 5 (Excludes Pillar 1).
+    """
+    # Master switch
+    is_enabled = models.BooleanField(default=False, verbose_name=_('Autopilot Master Switch'), help_text=_('Enable 24/7 automated background execution.'))
+
+    # Pillar 2: Automated WhatsApp Collections & Delinquency Dispatch
+    enable_due_date_reminders = models.BooleanField(default=True, verbose_name=_('Due-Date Reminders'))
+    due_reminder_days = models.CharField(max_length=50, default='7,3,1', help_text=_('Comma-separated days before due date (e.g. 7,3,1)'))
+    enable_monthly_interest_reminders = models.BooleanField(default=True, verbose_name=_('Monthly Interest Reminders (Tiered Loans)'))
+    enable_irac_delinquency_alerts = models.BooleanField(default=True, verbose_name=_('RBI IRAC Delinquency Warnings (SMA-0/1/2)'))
+    enable_expiry_auction_notices = models.BooleanField(default=True, verbose_name=_('Demand & Auction Notices (NPA / 90+ Days)'))
+    whatsapp_dispatch_time = models.TimeField(default='10:00:00', verbose_name=_('Daily WhatsApp Dispatch Time'))
+    dispatch_channel = models.CharField(
+        max_length=30,
+        choices=(('headless_automated', _('Automated Headless Web')), ('pywhatkit', _('PyWhatKit Automation'))),
+        default='headless_automated'
+    )
+
+    # Pillar 3: Automated Gold Price & LTV Risk Surveillance
+    enable_ltv_surveillance = models.BooleanField(default=True, verbose_name=_('LTV Risk Surveillance'))
+    ltv_warning_threshold = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('75.00'), verbose_name=_('LTV Warning Threshold (%)'))
+    ltv_critical_threshold = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('85.00'), verbose_name=_('LTV Critical Margin Call Threshold (%)'))
+    ltv_check_time = models.TimeField(default='11:00:00', verbose_name=_('Daily LTV Check Time'))
+
+    # Pillar 4: Automated Customer Retention & Marketing
+    enable_repledge_retention = models.BooleanField(default=True, verbose_name=_('Closed Loan Re-Pledge Promos'))
+    repledge_cooldown_days = models.IntegerField(default=30, verbose_name=_('Closed Loan Cooldown (Days)'))
+    enable_birthday_greetings = models.BooleanField(default=False, verbose_name=_('Birthday / Festival Greetings'))
+    marketing_dispatch_time = models.TimeField(default='15:00:00', verbose_name=_('Marketing Dispatch Time'))
+
+    # Pillar 5: Automated Executive Daily Digest to Owner
+    enable_owner_digest = models.BooleanField(default=True, verbose_name=_('Owner Nightly WhatsApp Digest'))
+    owner_phone = models.CharField(max_length=25, blank=True, default='', verbose_name=_('Owner WhatsApp Phone (with Country Code)'))
+    owner_email = models.EmailField(blank=True, default='', verbose_name=_('Owner Email (Optional)'))
+    digest_time = models.TimeField(default='20:30:00', verbose_name=_('Nightly Digest Time'))
+
+    # Safety & Compliance Guardrails (TRAI Safe Windows & Anti-Spam)
+    safe_window_start = models.TimeField(default='09:00:00', verbose_name=_('Safe Window Start (TRAI)'))
+    safe_window_end = models.TimeField(default='19:30:00', verbose_name=_('Safe Window End (TRAI)'))
+    max_daily_messages = models.IntegerField(default=150, verbose_name=_('Max WhatsApp Messages / Day'))
+    min_days_between_reminders = models.IntegerField(default=5, verbose_name=_('Anti-Spam Cooldown (Days per Loan)'))
+
+    # Health State & Circuit Breakers
+    last_run_at = models.DateTimeField(null=True, blank=True)
+    last_status = models.CharField(max_length=20, default='idle')
+    last_log_summary = models.TextField(blank=True, default='')
+    consecutive_failures = models.IntegerField(default=0)
+    is_paused_by_circuit_breaker = models.BooleanField(default=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _('Autopilot Configuration')
+        verbose_name_plural = _('Autopilot Configurations')
+
+    def __str__(self):
+        status_str = "ACTIVE (ON)" if self.is_enabled else "PAUSED (OFF)"
+        return f"Autopilot Engine [{status_str}]"
+
+    @classmethod
+    def get_solo(cls):
+        obj, _ = cls.objects.get_or_create(id=1)
+        return obj
+
+
+class AutopilotLog(models.Model):
+    """
+    Execution & Activity Audit Log for all Autopilot Operations.
+    """
+    PILLAR_CHOICES = (
+        ('pillar_2', _('Pillar 2: WhatsApp Collections & Reminders')),
+        ('pillar_3', _('Pillar 3: LTV Risk Surveillance')),
+        ('pillar_4', _('Pillar 4: Retention & Marketing')),
+        ('pillar_5', _('Pillar 5: Owner Daily Digest')),
+        ('system', _('System / Engine Lifecycle')),
+    )
+    STATUS_CHOICES = (
+        ('success', _('Success')),
+        ('partial', _('Partial Success')),
+        ('failed', _('Failed')),
+        ('skipped', _('Skipped / Out of Safe Window')),
+    )
+
+    pillar = models.CharField(max_length=30, choices=PILLAR_CHOICES, db_index=True)
+    action_name = models.CharField(max_length=100)
+    target_count = models.IntegerField(default=0)
+    success_count = models.IntegerField(default=0)
+    failed_count = models.IntegerField(default=0)
+    summary = models.TextField(blank=True, default='')
+    error_details = models.TextField(blank=True, default='')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='success')
+    executed_by = models.CharField(max_length=50, default='Autopilot Daemon')
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = _('Autopilot Activity Log')
+        verbose_name_plural = _('Autopilot Activity Logs')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"[{self.get_pillar_display()}] {self.action_name} - {self.status.upper()} ({self.created_at.strftime('%d-%b %H:%M')})"
+
+
+

@@ -77,7 +77,7 @@ class SaleAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
 
-from .models import LoanWhatsAppLog
+from .models import LoanWhatsAppLog, AutopilotConfig, AutopilotLog
 
 @admin.register(LoanWhatsAppLog)
 class LoanWhatsAppLogAdmin(admin.ModelAdmin):
@@ -85,3 +85,18 @@ class LoanWhatsAppLogAdmin(admin.ModelAdmin):
     list_filter = ('status', 'notification_type', 'channel', 'created_at')
     search_fields = ('loan__loan_number', 'customer__first_name', 'customer__last_name', 'recipient_phone', 'message_content', 'error_message')
     readonly_fields = ('created_at',)
+
+
+@admin.register(AutopilotConfig)
+class AutopilotConfigAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'is_enabled', 'enable_due_date_reminders', 'enable_ltv_surveillance', 'enable_repledge_retention', 'enable_owner_digest', 'last_status', 'last_run_at')
+    readonly_fields = ('last_run_at', 'last_status', 'last_log_summary', 'consecutive_failures', 'updated_at')
+
+
+@admin.register(AutopilotLog)
+class AutopilotLogAdmin(admin.ModelAdmin):
+    list_display = ('created_at', 'pillar', 'action_name', 'target_count', 'success_count', 'failed_count', 'status')
+    list_filter = ('pillar', 'status', 'created_at')
+    search_fields = ('action_name', 'summary', 'error_details')
+    readonly_fields = ('created_at',)
+
