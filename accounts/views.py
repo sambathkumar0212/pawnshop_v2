@@ -670,7 +670,7 @@ class CustomerListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin,
     download_headers = ['Roll Number', 'First Name', 'Last Name', 'Phone', 'Email', 'Address', 'City', 'State', 'ZIP Code', 'ID Type', 'ID Number', 'Branch', 'Created At']
 
     def get_queryset(self):
-        queryset = Customer.objects.select_related('branch', 'branch__organization').prefetch_related('loans')
+        queryset = Customer.objects.select_related('branch', 'branch__organization').prefetch_related('loans', 'gold_purchases')
         user = self.request.user
         
         # Apply branch/region access rules
@@ -679,6 +679,16 @@ class CustomerListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin,
         if user.organization:
             queryset = queryset.filter(branch__organization=user.organization)
         
+        # Tab / Type segmentation
+        # 'loan' / 'loan_customers' -> Customers who have taken gold loans
+        # 'used_gold' / 'used_gold_customers' -> Customers who sold old/used gold to the pawnshop
+        # 'all' -> All registered customers
+        customer_type = self.request.GET.get('type') or self.request.GET.get('tab') or 'all'
+        if customer_type in ['loan', 'loan_customers', 'loans']:
+            queryset = queryset.filter(loans__isnull=False).distinct()
+        elif customer_type in ['used_gold', 'used_gold_customers', 'gold_sale', 'gold_purchase']:
+            queryset = queryset.filter(gold_purchases__isnull=False).distinct()
+
         # Search functionality
         search = self.request.GET.get('search')
         if search:
@@ -688,8 +698,10 @@ class CustomerListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin,
                 Q(email__icontains=search) |
                 Q(phone__icontains=search) |
                 Q(id_number__icontains=search) |
-                Q(branch__name__icontains=search)
-            )
+                Q(branch__name__icontains=search) |
+                Q(loans__loan_number__icontains=search) |
+                Q(gold_purchases__purchase_number__icontains=search)
+            ).distinct()
         
         # Filter functionality
         filter_type = self.request.GET.get('filter')
@@ -703,6 +715,16 @@ class CustomerListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin,
                 thirty_days_ago = timezone.now().date() - timedelta(days=30)
                 queryset = queryset.filter(created_at__date__gte=thirty_days_ago)
         
+        # Annotate aggregate customer values for fast sorting and table rendering
+        from django.db.models import Count, Sum
+        queryset = queryset.annotate(
+            annotated_loans_count=Count('loans', distinct=True),
+            annotated_active_loans_count=Count('loans', filter=Q(loans__status='active'), distinct=True),
+            annotated_gold_purchases_count=Count('gold_purchases', distinct=True),
+            annotated_gold_purchased_weight=Sum('gold_purchases__total_net_weight'),
+            annotated_gold_purchased_amount=Sum('gold_purchases__net_payable_amount'),
+        )
+
         # Sorting
         sort_by = self.request.GET.get('sort', '-created_at')  # Default sort by newest first
         valid_sort_fields = {
@@ -718,6 +740,12 @@ class CustomerListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin,
             '-created_at': '-created_at',
             'branch': 'branch__name',
             '-branch': '-branch__name',
+            'loans': '-annotated_loans_count',
+            '-loans': 'annotated_loans_count',
+            'gold_weight': '-annotated_gold_purchased_weight',
+            '-gold_weight': 'annotated_gold_purchased_weight',
+            'gold_payout': '-annotated_gold_purchased_amount',
+            '-gold_payout': 'annotated_gold_purchased_amount',
         }
         
         if sort_by in valid_sort_fields:
@@ -1042,31 +1070,47 @@ class CustomerListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin,
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        customer_type = self.request.GET.get('type') or self.request.GET.get('tab') or 'all'
+        context['current_tab'] = customer_type
         context['search_query'] = self.request.GET.get('search', '')
-        context['filter'] = self.request.GET.get('filter', '')  # Changed from selected_filter to filter
+        context['filter'] = self.request.GET.get('filter', '')
         context['current_sort'] = self.request.GET.get('sort', '-created_at')
         
         # Calculate customer statistics
         user = self.request.user
         base_queryset = Customer.objects.all()
-        
-        # Apply same organization and branch filtering as in get_queryset
+        base_queryset = self.filter_queryset_by_branches(base_queryset, branch_field_name='branch')
         if user.organization:
             base_queryset = base_queryset.filter(branch__organization=user.organization)
-        elif user.branch:
-            base_queryset = base_queryset.filter(branch=user.branch)
         
+        from transactions.models import GoldPurchase
+        gold_purchase_qs = GoldPurchase.objects.all()
+        gold_purchase_qs = self.filter_queryset_by_branches(gold_purchase_qs, branch_field_name='branch')
+        if user.organization:
+            gold_purchase_qs = gold_purchase_qs.filter(branch__organization=user.organization)
+
         # Calculate statistics
         context['total_customers'] = base_queryset.count()
-        context['customers_with_active_loans'] = base_queryset.filter(loans__status='active').distinct().count()
-        context['active_customers'] = context['customers_with_active_loans']  # Added for template compatibility
-        context['customers_with_loans'] = context['customers_with_active_loans']  # Added for template compatibility
+        context['loan_customers_count'] = base_queryset.filter(loans__isnull=False).distinct().count()
+        context['active_loan_customers_count'] = base_queryset.filter(loans__status='active').distinct().count()
+        context['customers_with_loans'] = context['loan_customers_count']
+        context['active_customers'] = context['active_loan_customers_count']
         
+        context['used_gold_customers_count'] = base_queryset.filter(gold_purchases__isnull=False).distinct().count()
+        context['both_type_customers_count'] = base_queryset.filter(loans__isnull=False, gold_purchases__isnull=False).distinct().count()
+
+        used_gold_stats = gold_purchase_qs.filter(status='completed').aggregate(
+            total_payout=Sum('net_payable_amount'),
+            total_weight=Sum('total_net_weight')
+        )
+        context['total_used_gold_payout'] = used_gold_stats['total_payout'] or Decimal('0.00')
+        context['total_used_gold_grams'] = used_gold_stats['total_weight'] or Decimal('0.000')
+
         # Recent customers (last 30 days)
         from datetime import timedelta
         thirty_days_ago = timezone.now().date() - timedelta(days=30)
         context['recent_customers'] = base_queryset.filter(created_at__date__gte=thirty_days_ago).count()
-        context['new_customers'] = context['recent_customers']  # Added for template compatibility
+        context['new_customers'] = context['recent_customers']
         
         return context
 
@@ -1219,6 +1263,13 @@ class CustomerDetailView(LoginRequiredMixin, RoleBranchAccessMixin, PermissionRe
         context['items'] = Item.objects.filter(
             customer=customer
         ).select_related('branch')
+
+        # Add Old / Used Gold purchase history (customer sold gold to shop)
+        from transactions.models import GoldPurchase
+        context['gold_purchases'] = GoldPurchase.objects.filter(
+            customer=customer
+        ).select_related('branch', 'purchased_by').order_by('-purchase_date', '-id')
+
         # Compute expiry/auction notices: loans that are overdue and past grace period
         from django.utils import timezone
         today = timezone.now().date()

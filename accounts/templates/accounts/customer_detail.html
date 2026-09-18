@@ -101,6 +101,9 @@
             <a href="{% url 'customer_update' customer.id %}" class="btn btn-white border btn-sm text-primary">
                 <i class="fas fa-edit me-1"></i>Edit Profile
             </a>
+            <a href="{% url 'gold_purchase_create' %}?customer_id={{ customer.id }}" class="btn btn-warning text-dark fw-bold btn-sm px-2 shadow-xs" title="Buy old/used gold from customer">
+                <i class="fas fa-coins me-1"></i>+ Gold Purchase
+            </a>
             <a href="{% url 'loan_create' %}?customer_id={{ customer.id }}" class="btn btn-primary btn-sm px-3 shadow-xs">
                 <i class="fas fa-plus-circle me-1"></i>New Loan
             </a>
@@ -180,13 +183,18 @@
                         <div class="fw-bold text-dark" style="font-size: 0.85rem;">
                             <i class="fas fa-id-card text-info me-1"></i>{{ customer.id_type|default:"ID" }}: {{ customer.id_number|default:"N/A" }}
                         </div>
-                        <div class="mt-1">
-                            <span class="badge bg-light text-dark border me-1" style="font-size: 0.72rem;">
+                        <div class="mt-1 d-flex flex-wrap gap-1">
+                            <span class="badge bg-light text-dark border" style="font-size: 0.72rem;">
                                 {{ active_loans.count|default:0 }} Active Loan{{ active_loans.count|pluralize }}
                             </span>
                             <span class="badge bg-light text-secondary border" style="font-size: 0.72rem;">
                                 {{ loans.count|default:0 }} Total Loan{{ loans.count|pluralize }}
                             </span>
+                            {% if gold_purchases %}
+                                <span class="badge bg-warning-subtle text-amber-900 border" style="background-color: #fef3c7; color: #92400e; font-size: 0.72rem;">
+                                    <i class="fas fa-coins me-1"></i>{{ gold_purchases.count }} Used Gold Sale{{ gold_purchases.count|pluralize }}
+                                </span>
+                            {% endif %}
                         </div>
                     </div>
                     
@@ -378,6 +386,106 @@
                     <div class="p-3 text-center text-muted">
                         <i class="fas fa-history mb-1" style="font-size: 1.5rem; opacity: 0.4;"></i>
                         <div class="small">No loan history on record.</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Used / Old Gold Purchases Section (Customer Sold Gold to Pawnshop) -->
+    <div class="row g-2 mt-1">
+        <div class="col-12">
+            <div class="customer-dossier-card">
+                <div class="p-2 px-3 border-bottom d-flex justify-content-between align-items-center bg-light rounded-top">
+                    <div class="d-flex align-items-center gap-2">
+                        <h6 class="mb-0 fw-bold" style="font-size: 0.85rem; color: #0f172a;">
+                            <i class="fas fa-coins text-warning me-2"></i>Used Gold Sales to Pawnshop ({{ gold_purchases.count|default:0 }})
+                        </h6>
+                        {% if gold_purchases %}
+                            <span class="badge bg-warning-subtle text-amber-900 border" style="background-color: #fef3c7; color: #92400e; font-size: 0.72rem;">
+                                Outright Purchase History
+                            </span>
+                        {% endif %}
+                    </div>
+                    <a href="{% url 'gold_purchase_create' %}?customer_id={{ customer.id }}" class="btn btn-warning btn-sm text-dark fw-bold py-0 px-2 shadow-xs" style="font-size: 0.75rem;">
+                        <i class="fas fa-plus me-1"></i>New Gold Purchase
+                    </a>
+                </div>
+                <div class="p-0">
+                    {% if gold_purchases %}
+                    <div class="table-responsive">
+                        <table class="table-calm-sm mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Purchase Voucher #</th>
+                                    <th>Purchase Date</th>
+                                    <th>Branch &amp; Staff</th>
+                                    <th>Items Sold</th>
+                                    <th class="text-end">Total Net Wt. (g)</th>
+                                    <th class="text-end">Payment Mode</th>
+                                    <th class="text-end">Payout Amount</th>
+                                    <th class="text-center">Status</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for gp in gold_purchases %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'gold_purchase_detail' gp.pk %}" class="fw-semibold text-decoration-none font-monospace text-primary">
+                                            {{ gp.purchase_number }}
+                                        </a>
+                                    </td>
+                                    <td style="font-size: 0.82rem;">
+                                        <span class="text-dark">{{ gp.purchase_date|date:"d M Y" }}</span>
+                                    </td>
+                                    <td>
+                                        <div style="font-size: 0.8rem;" class="fw-semibold text-dark">{{ gp.branch.name|default:"Main Branch" }}</div>
+                                        <small class="text-muted" style="font-size: 0.72rem;">By: {{ gp.purchased_by.get_full_name|default:gp.purchased_by.username|default:"Staff" }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border">
+                                            {{ gp.items.count|default:1 }} Gold Item(s)
+                                        </span>
+                                    </td>
+                                    <td class="text-end font-monospace fw-bold text-dark">
+                                        {{ gp.total_net_weight|floatformat:3 }} g
+                                    </td>
+                                    <td class="text-end" style="font-size: 0.8rem;">
+                                        <span class="badge bg-light text-secondary border text-uppercase">{{ gp.payment_method|default:"Cash" }}</span>
+                                    </td>
+                                    <td class="text-end font-monospace fw-bold text-success" style="font-size: 0.88rem;">
+                                        ₹{{ gp.net_payable_amount|floatformat:0 }}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if gp.status == 'completed' %}
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle py-1 px-2" style="font-size: 0.72rem;">Completed</span>
+                                        {% elif gp.status == 'cancelled' %}
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle py-1 px-2" style="font-size: 0.72rem;">Cancelled</span>
+                                        {% else %}
+                                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle py-1 px-2" style="font-size: 0.72rem;">{{ gp.status|title }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="btn-group btn-group-sm border rounded bg-white shadow-xs">
+                                            <a href="{% url 'gold_purchase_detail' gp.pk %}" class="btn btn-sm py-1 px-2 border-end text-secondary" title="View Purchase Details">
+                                                <i class="fas fa-eye fa-xs"></i>
+                                            </a>
+                                            <a href="{% url 'gold_purchase_receipt' gp.pk %}" target="_blank" class="btn btn-sm py-1 px-2 text-danger" title="Download Official Receipt (PDF)">
+                                                <i class="fas fa-file-pdf fa-xs"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="p-3 text-center text-muted">
+                        <i class="fas fa-coins mb-1" style="font-size: 1.5rem; opacity: 0.4;"></i>
+                        <div class="small">No used gold sale records for this customer yet.</div>
                     </div>
                     {% endif %}
                 </div>
