@@ -77,12 +77,15 @@ urlpatterns = [
     # Digital Marketing & WhatsApp Broadcast Campaign Hub
     path('marketing/', views_marketing.DigitalMarketingDashboardView.as_view(), name='digital_marketing'),
     path('marketing/broadcast/', views_marketing.ExecuteBroadcastActionView.as_view(), name='marketing_broadcast_execute'),
+    path('marketing/broadcast/status/', views_marketing.MarketingBroadcastStatusView.as_view(), name='marketing_broadcast_status'),
+    path('marketing/broadcast/control/', views_marketing.MarketingBroadcastControlView.as_view(), name='marketing_broadcast_control'),
     path('marketing/log-broadcast/', views_marketing.LogBroadcastAPIView.as_view(), name='marketing_log_broadcast'),
     path('marketing/logs/export/', views_marketing.ExportCampaignLogsView.as_view(), name='marketing_export_logs'),
     path('marketing/generate-ai/', views_marketing.GenerateAICampaignView.as_view(), name='marketing_generate_ai'),
     path('marketing/templates/save/', views_marketing.SaveMarketingTemplateView.as_view(), name='marketing_save_template'),
     path('marketing/leads/import/', views_marketing.ImportMarketingLeadsView.as_view(), name='marketing_import_leads'),
     path('marketing/groups/contacts/', views_marketing.GroupContactsAPIView.as_view(), name='marketing_group_contacts_api'),
+    path('marketing/whatsapp/reset-status/', views_marketing.ResetWhatsAppStatusAPIView.as_view(), name='marketing_reset_whatsapp_status'),
 
     # Utilities
     path('number_to_words/<str:number>/', views.number_to_words, name='number_to_words'),

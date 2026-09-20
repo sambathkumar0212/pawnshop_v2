@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 def normalize_phone_number(raw_phone, default_country_code='+91'):
     """
     Normalizes phone number to E.164-like format (e.g., '+919876543210').
-    Returns None if phone cannot be normalized to a valid mobile number.
+    Returns None if phone cannot be normalized to a valid mobile number or is all zeroes/invalid.
     """
     if not raw_phone:
         return None
@@ -35,26 +35,39 @@ def normalize_phone_number(raw_phone, default_country_code='+91'):
     if not cleaned:
         return None
 
-    # If starts with +, ensure digits follow
+    digits_only = re.sub(r'\D', '', cleaned)
+    if len(digits_only) < 10 or len(set(digits_only)) <= 1:
+        # Rejects all zeroes (e.g. 0000000000) or single repeated digits
+        return None
+
+    # If starts with +, ensure valid digits follow
     if cleaned.startswith('+'):
         digits = re.sub(r'\D', '', cleaned[1:])
-        return f"+{digits}" if len(digits) >= 10 else None
+        if len(digits) >= 10:
+            if len(digits) == 12 and digits.startswith('91') and digits[2] not in '6789':
+                return None
+            return f"+{digits}"
+        return None
 
     # Remove leading zero if present for 10-digit national format
     if cleaned.startswith('0') and len(cleaned) == 11:
         cleaned = cleaned[1:]
 
-    # 10-digit Indian number
+    # 10-digit Indian mobile number (must start with 6, 7, 8, 9)
     if len(cleaned) == 10 and cleaned.isdigit():
-        return f"{default_country_code}{cleaned}"
+        if cleaned[0] in '6789':
+            return f"{default_country_code}{cleaned}"
+        return None
 
     # 12-digit Indian number starting with 91
     if len(cleaned) == 12 and cleaned.startswith('91') and cleaned.isdigit():
-        return f"+{cleaned}"
+        if cleaned[2] in '6789':
+            return f"+{cleaned}"
+        return None
 
-    # General digits fallback
+    # General digits fallback (10 to 15 digits)
     digits = re.sub(r'\D', '', cleaned)
-    if len(digits) >= 10:
+    if 10 <= len(digits) <= 15 and len(set(digits)) > 1:
         return f"+{digits}"
 
     return None

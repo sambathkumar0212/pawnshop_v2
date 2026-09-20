@@ -260,9 +260,20 @@
                                     </td>
                                     <td class="px-3">
                                         {% if customer.phone %}
-                                            <div class="font-monospace text-success fw-semibold" style="font-size: 0.85rem;">
-                                                <i class="fab fa-whatsapp text-success me-1"></i>+{{ customer.phone|mobile_format }}
-                                            </div>
+                                            {% if customer.is_valid_whatsapp != False %}
+                                                <div class="font-monospace text-success fw-semibold" style="font-size: 0.85rem;">
+                                                    <i class="fab fa-whatsapp text-success me-1"></i>+{{ customer.phone|mobile_format }}
+                                                </div>
+                                            {% else %}
+                                                <div class="d-inline-flex flex-column gap-1 align-items-start">
+                                                    <span class="font-monospace text-danger fw-semibold" style="font-size: 0.85rem;">
+                                                        <i class="fas fa-phone-slash text-danger me-1"></i>+{{ customer.phone|mobile_format }}
+                                                    </span>
+                                                    <span class="badge bg-danger text-white shadow-2xs" style="font-size: 0.65rem; font-weight: 600;" title="{{ customer.whatsapp_status_msg|default:'Not on WhatsApp' }}">
+                                                        <i class="fas fa-exclamation-triangle me-1"></i>{{ customer.whatsapp_status_msg|default:"Not on WhatsApp" }}
+                                                    </span>
+                                                </div>
+                                            {% endif %}
                                         {% endif %}
                                         <div class="text-muted small" style="font-size: 0.75rem;">
                                             <i class="fas fa-map-marker-alt text-secondary me-1"></i>{{ customer.city|default:customer.state|default:"Tamil Nadu" }}

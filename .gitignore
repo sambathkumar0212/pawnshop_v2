@@ -49,6 +49,7 @@ ENV/
 .LSOverride
 Thumbs.db
 .env.development
+scratch/
 
 # Flutter / Dart
 **/.dart_tool/

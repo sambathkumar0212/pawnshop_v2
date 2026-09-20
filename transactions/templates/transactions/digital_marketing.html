@@ -60,14 +60,34 @@
                 </button>
             </form>
 
+            <!-- WhatsApp QR & Account Connection Pill -->
+            <button type="button" class="btn btn-sm shadow-sm px-2.5 fw-semibold d-inline-flex align-items-center gap-1.5 {% if whatsapp_session.is_paired %}btn-outline-success bg-success-subtle text-success border-success-subtle{% else %}btn-outline-warning bg-warning-subtle text-warning-emphasis border-warning-subtle{% endif %}" style="font-size: 0.8rem;" onclick="openDigitalMarketingQRPairModal()" title="WhatsApp Connection & QR Scan Hub">
+                <i class="fab fa-whatsapp fs-6 {% if whatsapp_session.is_paired %}text-success{% else %}text-warning{% endif %}"></i>
+                <span id="topBarWhatsAppPhone">
+                    {% if whatsapp_session.is_paired %}
+                    {{ whatsapp_session.phone }}
+                    {% else %}
+                    Pair WhatsApp QR
+                    {% endif %}
+                </span>
+                <span class="badge {% if whatsapp_session.is_paired %}bg-success text-white{% else %}bg-warning text-dark{% endif %} font-monospace py-0.5 px-1.5" style="font-size: 0.65rem;" id="topBarWhatsAppBadge">
+                    {% if whatsapp_session.is_paired %}CONNECTED{% else %}NOT PAIRED{% endif %}
+                </span>
+            </button>
+
             <!-- Import / Add Leads CTA -->
             <button type="button" class="btn text-white btn-sm shadow-sm px-2 fw-semibold" style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important; border: none; font-size: 0.8rem;" data-bs-toggle="modal" data-bs-target="#importLeadsModal">
                 <i class="fas fa-user-plus me-1"></i> Add Leads
             </button>
 
-            <!-- Auto-Blast PyWhatKit -->
-            <button type="button" class="btn btn-success btn-sm shadow-sm px-2 fw-semibold" style="font-size: 0.8rem;" data-bs-toggle="modal" data-bs-target="#pywhatkitModal">
-                <i class="fab fa-whatsapp me-1"></i> Auto-Blast
+            <!-- 1-Click Automated WhatsApp Auto-Blast -->
+            <button type="button" class="btn btn-success btn-sm shadow-sm px-2 fw-semibold" style="font-size: 0.8rem;" onclick="openAutomatedBlastModal()">
+                <i class="fab fa-whatsapp me-1"></i> 🚀 1-Click Auto-Blast
+            </button>
+
+            <!-- Live Monitor UI Button -->
+            <button type="button" class="btn btn-primary btn-sm shadow-sm px-2 fw-semibold" style="font-size: 0.8rem;" onclick="openLiveMonitorModal()" title="Open Live WhatsApp Campaign Monitor & Logs">
+                <i class="fas fa-desktop me-1"></i> Live Monitor
             </button>
         </div>
     </div>
@@ -326,7 +346,7 @@
                                         </button>
                                     </div>
                                 </div>
-                                <textarea id="campaignMessageInput" class="form-control font-monospace" rows="6" style="font-size: 0.82rem; line-height: 1.4; resize: vertical;">{{ sample_preview_text }}</textarea>
+                                <textarea id="campaignMessageInput" class="form-control font-monospace" rows="6" style="font-size: 0.82rem; line-height: 1.4; resize: vertical;">{{ raw_template_body }}</textarea>
                             </div>
 
                             <div class="d-flex justify-content-between align-items-center">
@@ -619,10 +639,10 @@
                     </a>
 
                     {% if broadcast_queue %}
-                    <!-- Primary CTA: 1-Click WhatsApp PyWhatKit Auto-Blast -->
+                    <!-- Primary CTA: 1-Click WhatsApp Automated Blast -->
                     <button type="button" class="btn btn-success btn-sm fw-bold shadow-sm px-3" style="font-size: 0.82rem;"
-                            data-bs-toggle="modal" data-bs-target="#pywhatkitModal"
-                            title="Launch 1-Click WhatsApp PyWhatKit Auto-Blast to all contacts">
+                            onclick="openAutomatedBlastModal()"
+                            title="Launch 1-Click WhatsApp Automated Blast to all contacts">
                         <i class="fab fa-whatsapp me-1"></i> 🚀 1-Click Auto-Blast
                     </button>
                     {% endif %}
@@ -686,10 +706,10 @@
         <!-- Batch Selection Toolbar (Visible when contacts available) -->
         {% if broadcast_queue %}
         <div id="batchSelectionBar" class="d-flex flex-wrap justify-content-between align-items-center bg-primary-subtle border-bottom px-3 py-1 text-primary small">
-            <div class="d-flex align-items-center gap-2">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
                 <span class="fw-bold" style="font-size: 0.78rem;">
                     <i class="fas fa-check-square me-1"></i>Selected: 
-                    <span id="selectedQueueCount" class="badge bg-primary text-white">0</span> / {{ total_queue_count }} Contacts
+                    <span id="selectedQueueCount" class="badge bg-primary text-white">0</span> / {{ valid_whatsapp_count|default:total_queue_count }} WhatsApp Ready
                 </span>
                 <button type="button" class="btn btn-link btn-xs p-0 text-primary text-decoration-none fw-semibold" onclick="selectAllQueueRows(true)">
                     Select All
@@ -698,10 +718,21 @@
                 <button type="button" class="btn btn-link btn-xs p-0 text-secondary text-decoration-none" onclick="selectAllQueueRows(false)">
                     Deselect All
                 </button>
+                {% if invalid_whatsapp_count > 0 %}
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle py-1 px-2 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem;">
+                    <i class="fas fa-exclamation-triangle me-1"></i>{{ invalid_whatsapp_count }} Not on WhatsApp (Auto-Skipped)
+                    <button type="button" class="btn btn-warning btn-xs py-0 px-2 fw-bold text-dark ms-1 shadow-2xs" style="font-size: 0.68rem;" onclick="resetAllWhatsAppFlags()" title="Clear all past non-WhatsApp flags and allow rechecking all numbers">
+                        <i class="fas fa-sync-alt me-1"></i>Recheck All
+                    </button>
+                </span>
+                {% endif %}
             </div>
             <div class="d-flex align-items-center gap-1">
-                <button type="button" id="launchBatchPlayerBtn" class="btn btn-primary btn-xs py-1 px-3 fw-bold shadow-sm" disabled onclick="openBatchPlayerModal()">
-                    <i class="fas fa-play me-1"></i> ▶️ Launch Auto-Player (<span id="batchPlayerCount">0</span>)
+                <button type="button" class="btn btn-outline-secondary btn-xs py-1 px-2 fw-semibold" onclick="resetAllWhatsAppFlags()" title="Reset verification flags and re-evaluate all contact numbers">
+                    <i class="fas fa-redo me-1"></i> Recheck WhatsApp Numbers
+                </button>
+                <button type="button" id="launchBatchPlayerBtn" class="btn btn-primary btn-xs py-1 px-3 fw-bold shadow-sm" onclick="openAutomatedBlastModal()">
+                    <i class="fas fa-robot me-1"></i> 🚀 Automated Blast (<span id="batchPlayerCount">{{ valid_whatsapp_count|default:total_queue_count }}</span>)
                 </button>
             </div>
         </div>
@@ -715,7 +746,7 @@
                     <thead class="table-light sticky-top" style="font-size: 0.75rem;">
                         <tr>
                             <th class="ps-3" style="width: 36px;">
-                                <input type="checkbox" id="selectAllQueueCheckboxes" class="form-check-input" onchange="toggleSelectAllQueue(this)" title="Select/Deselect All">
+                                <input type="checkbox" id="selectAllQueueCheckboxes" class="form-check-input" onchange="toggleSelectAllQueue(this)" title="Select/Deselect All WhatsApp-Ready Contacts">
                             </th>
                             <th style="width: 36px;">#</th>
                             <th>Contact / Prospect</th>
@@ -723,21 +754,27 @@
                             <th>Phone (WhatsApp)</th>
                             <th>Branch</th>
                             <th>Personalized Message Snippet</th>
-                            <th class="text-end pe-3" style="width: 140px;">Action</th>
+                            <th class="text-end pe-3" style="width: 155px;">Action</th>
                         </tr>
                     </thead>
                     <tbody style="font-size: 0.82rem;">
                         {% for item in broadcast_queue %}
                         <tr id="queue-row-{{ forloop.counter }}" 
+                            class="{% if not item.is_valid_whatsapp %}bg-light opacity-75{% endif %}"
                             data-name="{{ item.name }}" 
                             data-phone="{{ item.phone }}" 
+                            data-raw-phone="{{ item.raw_phone }}"
+                            data-is-valid="{% if item.is_valid_whatsapp %}1{% else %}0{% endif %}"
                             data-branch="{{ item.branch_name|default:'Main Branch' }}" 
                             data-branch-phone="{{ item.branch_phone|default:'9876543210' }}">
                             <td class="ps-3">
+                                {% if item.is_valid_whatsapp %}
                                 <input type="checkbox" class="form-check-input queue-row-chk" 
                                        id="chk-row-{{ forloop.counter }}"
                                        onchange="updateSelectedQueueCount()"
                                        data-idx="{{ forloop.counter }}"
+                                       data-customer-id="{{ item.customer_id|default:'' }}"
+                                       data-lead-id="{{ item.lead_id|default:'' }}"
                                        data-name="{{ item.name }}"
                                        data-phone="{{ item.phone }}"
                                        data-url="{{ item.whatsapp_url }}"
@@ -747,6 +784,12 @@
                                        data-group-name="{{ item.group_name|default:'' }}"
                                        data-branch-id="{{ item.branch_id|default:'' }}"
                                        data-branch-name="{{ item.branch_name|default:'' }}">
+                                {% else %}
+                                <input type="checkbox" class="form-check-input queue-row-chk" 
+                                       disabled
+                                       title="Cannot select: {{ item.whatsapp_status_msg|default:'Contact is not on WhatsApp' }}"
+                                       style="cursor: not-allowed; opacity: 0.35;">
+                                {% endif %}
                             </td>
                             <td class="text-muted fw-bold">{{ forloop.counter }}</td>
                             <td>
@@ -764,9 +807,20 @@
                                 {% endif %}
                             </td>
                             <td>
+                                {% if item.is_valid_whatsapp %}
                                 <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace" style="font-size: 0.75rem;">
                                     <i class="fab fa-whatsapp me-1"></i>{{ item.phone }}
                                 </span>
+                                {% else %}
+                                <div class="d-inline-flex flex-column gap-1 align-items-start">
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle font-monospace" style="font-size: 0.75rem;">
+                                        <i class="fas fa-phone-slash me-1"></i>{{ item.phone|default:item.raw_phone|default:"No Phone" }}
+                                    </span>
+                                    <span class="badge bg-danger text-white shadow-2xs" style="font-size: 0.65rem; font-weight: 600; letter-spacing: 0.2px;" title="{{ item.whatsapp_status_msg }}">
+                                        <i class="fas fa-exclamation-triangle me-1"></i>{{ item.whatsapp_status_msg|default:"Not on WhatsApp" }}
+                                    </span>
+                                </div>
+                                {% endif %}
                             </td>
                             <td>
                                 <span class="text-muted small">{{ item.branch_name|default:"Main" }}</span>
@@ -778,11 +832,20 @@
                             </td>
                             <td class="text-end pe-3">
                                 <div class="d-inline-flex align-items-center gap-1">
+                                    {% if item.is_valid_whatsapp %}
                                     <a href="{{ item.whatsapp_url }}" target="_blank" 
                                        class="btn btn-success btn-xs px-2 shadow-2xs fw-semibold wa-send-btn" style="font-size: 0.75rem;"
                                        onclick="handleQueueRowSendClick(event, 'queue-row-{{ forloop.counter }}', this, '{{ item.name|escapejs }}', '{{ item.phone }}', '{{ item.is_external_lead|yesno:'lead,customer' }}', '{{ item.group_id|default:'' }}', '{{ item.branch_id|default:'' }}', '{{ item.message|escapejs }}')">
                                         <i class="fab fa-whatsapp me-1"></i> Send
                                     </a>
+                                    {% else %}
+                                    <button type="button" class="btn btn-secondary btn-xs px-1 shadow-2xs opacity-75" disabled title="{{ item.whatsapp_status_msg|default:'Not on WhatsApp' }}" style="font-size: 0.72rem;">
+                                        <i class="fas fa-ban"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-warning btn-xs px-1 shadow-2xs fw-semibold" title="Clear non-WhatsApp flag and re-enable this number" style="font-size: 0.72rem;" onclick="recheckContactWhatsAppStatus('{{ item.phone|default:item.raw_phone }}', '{{ item.name|escapejs }}', 'queue-row-{{ forloop.counter }}')">
+                                        <i class="fas fa-sync-alt me-1"></i>Recheck
+                                    </button>
+                                    {% endif %}
                                     <button type="button" class="btn btn-outline-secondary btn-xs px-1 shadow-2xs" title="Copy Attached Flyer" onclick="copyCurrentFlyerBlob()">
                                         <i class="fas fa-image"></i>
                                     </button>
@@ -1611,128 +1674,180 @@
         <input type="hidden" name="branch" value="{{ selected_branch_id }}">
     </form>
 
-    <!-- ═══ 1-CLICK WHATSAPP PYWHATKIT & AUTO-BLAST MODAL ═══ -->
+    <!-- ═══ 1-CLICK WHATSAPP AUTOMATED PLAYWRIGHT BLAST MODAL ═══ -->
     <div class="modal fade" id="pywhatkitModal" tabindex="-1" aria-labelledby="pywhatkitModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content border-0 shadow-lg">
                 <div class="modal-header text-white" style="background: linear-gradient(135deg, #16a34a 0%, #0d9488 100%) !important;">
                     <div>
                         <h5 class="modal-title fw-bold mb-0" id="pywhatkitModalLabel">
-                            <i class="fab fa-whatsapp me-2"></i>WhatsApp Marketing Campaign Auto-Blast
+                            <i class="fab fa-whatsapp me-2"></i>🚀 1-Click WhatsApp Automated Auto-Blast
                         </h5>
-                        <small class="opacity-90">Choose your preferred automated dispatch method</small>
+                        <small class="opacity-90">100% Automated Background Dispatch (Playwright Persistent Engine) • 0 Manual Steps</small>
                     </div>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-4">
 
-                    <!-- Target Audience summary box -->
-                    <div class="p-3 mb-3 rounded-3 border" style="background: #f0fdf4; border-color: #86efac !important;">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <span class="small fw-bold text-muted text-uppercase">Target Audience / Group:</span>
-                            <span class="badge bg-success fw-bold px-2 py-1 fs-6">{{ total_queue_count }} Contacts</span>
+                    <!-- Target Audience Summary Box -->
+                    <div class="p-3 mb-3 rounded-3 border d-flex flex-wrap justify-content-between align-items-center gap-2" style="background: #f0fdf4; border-color: #86efac !important;">
+                        <div>
+                            <span class="small fw-bold text-muted text-uppercase d-block" style="font-size: 0.72rem;">Target Audience / Selection:</span>
+                            <div class="fw-bold text-success fs-5" id="modalAudienceHeading">
+                                {% if active_group %}
+                                <i class="fas fa-users-rectangle me-1 text-purple"></i>Group: <span class="text-purple">{{ active_group.name }}</span>
+                                {% elif selected_group_obj %}
+                                <i class="fas fa-users-rectangle me-1 text-purple"></i>Group: <span class="text-purple">{{ selected_group_obj.name }}</span>
+                                {% elif segment == 'new_prospects' %}
+                                <i class="fas fa-user-plus me-1 text-success"></i>All New Prospects (Unassigned &amp; Groups)
+                                {% elif segment == 'active_borrowers' %}
+                                <i class="fas fa-users me-1 text-primary"></i>Active Borrowers
+                                {% elif segment == 'overdue_customers' %}
+                                <i class="fas fa-exclamation-circle me-1 text-danger"></i>Overdue Borrowers
+                                {% elif segment == 'closed_good_history' %}
+                                <i class="fas fa-star me-1 text-warning"></i>Closed - Good History
+                                {% else %}
+                                <i class="fas fa-address-book me-1 text-primary"></i>{{ segment|title }}
+                                {% endif %}
+                            </div>
+                            <small class="text-muted" id="modalAudienceSubtext">All {{ total_queue_count }} contacts in current list</small>
                         </div>
-                        <div class="fw-bold text-success fs-5">
-                            {% if active_group %}
-                            <i class="fas fa-users-rectangle me-1 text-purple"></i>Group: <span class="text-purple">{{ active_group.name }}</span> <span class="badge bg-purple ms-1" style="font-size: 0.72rem;">Only This Group</span>
-                            {% elif selected_group_obj %}
-                            <i class="fas fa-users-rectangle me-1 text-purple"></i>Group: <span class="text-purple">{{ selected_group_obj.name }}</span> <span class="badge bg-purple ms-1" style="font-size: 0.72rem;">Only This Group</span>
-                            {% elif segment == 'new_prospects' %}
-                            <i class="fas fa-user-plus me-1 text-success"></i>All New Prospects (Unassigned &amp; Groups)
-                            {% elif segment == 'active_borrowers' %}
-                            <i class="fas fa-users me-1 text-primary"></i>Active Borrowers
-                            {% elif segment == 'overdue_customers' %}
-                            <i class="fas fa-exclamation-circle me-1 text-danger"></i>Overdue Borrowers
-                            {% elif segment == 'closed_good_history' %}
-                            <i class="fas fa-star me-1 text-warning"></i>Closed - Good History
-                            {% else %}
-                            <i class="fas fa-address-book me-1 text-primary"></i>{{ segment|title }}
-                            {% endif %}
+                        <div class="text-end">
+                            <span class="badge bg-success fw-bold px-3 py-2 fs-6 shadow-sm" id="modalTargetBadge">
+                                <i class="fas fa-users me-1"></i>{{ total_queue_count }} Targeted Contacts
+                            </span>
                         </div>
                     </div>
 
-                    <div class="row g-3">
-                        <!-- Option 1: In-Browser Interactive Auto-Blaster (Recommended) -->
-                        <div class="col-md-6">
-                            <div class="card h-100 border-2 border-success shadow-sm rounded-3 bg-white">
-                                <div class="card-header bg-success text-white py-2 d-flex justify-content-between align-items-center">
-                                    <span class="fw-bold"><i class="fas fa-bolt me-1"></i> Option 1: In-Browser Auto-Blaster</span>
-                                    <span class="badge bg-warning text-dark font-monospace" style="font-size: 0.65rem;">RECOMMENDED</span>
-                                </div>
-                                <div class="card-body p-3 d-flex flex-column justify-content-between">
-                                    <div>
-                                        <p class="small text-muted mb-2">
-                                            Runs directly inside your browser tab with <strong>zero background setup</strong>.
-                                        </p>
-                                        <ul class="small text-dark ps-3 mb-3" style="font-size: 0.78rem;">
-                                            <li>✨ <strong>Auto-copies flyer</strong> to your clipboard instantly.</li>
-                                            <li>🚀 Opens WhatsApp Web chat with customer with personalized text.</li>
-                                            <li>⏱️ <strong>Auto-Run Mode:</strong> automatically advances contact-by-contact with safety timer.</li>
-                                            <li>📊 Live progress bar &amp; interactive checklist.</li>
-                                        </ul>
+                    <!-- Dispatch Configuration Form -->
+                    <form id="automatedBlastForm" onsubmit="launchPlaywrightAutomatedBlast(event)">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="automated_blast">
+                        <input type="hidden" name="segment" value="{{ segment }}">
+                        <input type="hidden" name="group" value="{{ selected_group }}">
+                        <input type="hidden" name="template" value="{{ template_key }}">
+                        <input type="hidden" name="lang" value="{{ lang }}">
+                        <input type="hidden" name="branch" value="{{ selected_branch_id }}">
+                        <input type="hidden" name="custom_message" id="automatedCustomMessageInput" value="">
+                        <input type="hidden" name="campaign_image_base64" id="automatedImageBase64Input" value="">
+                        <input type="hidden" name="send_mode" id="automatedSendModeInput" value="message_and_image">
+                        <input type="hidden" name="delay_seconds" id="automatedDelaySecondsInput" value="5">
+                        <input type="hidden" name="selected_phones" id="automatedSelectedPhonesInput" value="">
+                        <input type="hidden" name="selected_contacts_json" id="automatedSelectedContactsJsonInput" value="">
+
+                        <div class="row g-3 mb-3">
+                            <!-- Left: Mode & Flyer Attachment Preview -->
+                            <div class="col-md-6">
+                                <div class="p-3 bg-light rounded-3 border h-100">
+                                    <label class="form-label fw-bold text-dark small mb-2"><i class="fas fa-paper-plane text-primary me-1"></i>1. Campaign Send Format</label>
+                                    
+                                    <div class="btn-group w-100 mb-3" role="group">
+                                        <input type="radio" class="btn-check" name="modal_broadcast_send_mode" id="modal_mode_msg_and_img" value="message_and_image" checked onchange="syncModalSendMode(this.value)">
+                                        <label class="btn btn-outline-success btn-sm fw-semibold py-1 px-2" style="font-size: 0.76rem;" for="modal_mode_msg_and_img">
+                                            🖼️+💬 Flyer + Text
+                                        </label>
+
+                                        <input type="radio" class="btn-check" name="modal_broadcast_send_mode" id="modal_mode_img_only" value="image_only" onchange="syncModalSendMode(this.value)">
+                                        <label class="btn btn-outline-primary btn-sm fw-semibold py-1 px-2" style="font-size: 0.76rem;" for="modal_mode_img_only">
+                                            🖼️ Image Only
+                                        </label>
+
+                                        <input type="radio" class="btn-check" name="modal_broadcast_send_mode" id="modal_mode_msg_only" value="message_only" onchange="syncModalSendMode(this.value)">
+                                        <label class="btn btn-outline-secondary btn-sm fw-semibold py-1 px-2" style="font-size: 0.76rem;" for="modal_mode_msg_only">
+                                            💬 Text Only
+                                        </label>
                                     </div>
-                                    <button type="button" class="btn btn-success fw-bold w-100 py-2 shadow-sm" onclick="startInBrowserAutoBlast()">
-                                        <i class="fas fa-play me-1"></i> 🚀 Launch In-Browser Auto-Blaster
-                                    </button>
+
+                                    <!-- Flyer Preview in Modal -->
+                                    <div id="modalFlyerContainer" class="text-center p-2 bg-white rounded border">
+                                        <img id="modalAttachedThumb" src="" alt="Flyer" class="rounded shadow-2xs mx-auto mb-1" style="max-height: 140px; max-width: 100%; object-fit: contain; display: none;">
+                                        <div id="modalFlyerEmptyState" class="text-muted small py-2">
+                                            <i class="fas fa-image fa-2x mb-1 text-secondary opacity-50 d-block"></i>
+                                            Studio Poster will be automatically attached!
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- Option 2: Python Background Robot -->
-                        <div class="col-md-6">
-                            <div class="card h-100 border border-secondary-subtle shadow-sm rounded-3 bg-light">
-                                <div class="card-header bg-dark text-white py-2">
-                                    <span class="fw-bold"><i class="fas fa-robot me-1"></i> Option 2: Desktop Python Robot</span>
-                                </div>
-                                <div class="card-body p-3 d-flex flex-column justify-content-between">
+                            <!-- Right: Speed & Live Sample Preview -->
+                            <div class="col-md-6">
+                                <div class="p-3 bg-light rounded-3 border h-100 d-flex flex-column justify-content-between">
                                     <div>
-                                        <p class="small text-muted mb-2">
-                                            Uses Python automation (<kbd class="bg-secondary text-white">pyautogui</kbd>) on your desktop machine.
-                                        </p>
-                                        <ul class="small text-dark ps-3 mb-3" style="font-size: 0.78rem;">
-                                            <li>Requires Chrome/Edge to remain active &amp; visible on screen.</li>
-                                            <li>WhatsApp Web must already be logged in.</li>
-                                            <li>Simulates clipboard paste &amp; tab closing in background thread.</li>
-                                        </ul>
-                                    </div>
-                                    <form method="post" action="{% url 'marketing_broadcast_execute' %}" enctype="multipart/form-data" id="pywhatkitForm" onsubmit="syncPywhatkitFormBeforeSubmit()">
-                                        {% csrf_token %}
-                                        <input type="hidden" name="action" value="pywhatkit_broadcast">
-                                        <input type="hidden" name="segment" value="{{ segment }}">
-                                        <input type="hidden" name="group" value="{{ selected_group }}">
-                                        <input type="hidden" name="template" value="{{ template_key }}">
-                                        <input type="hidden" name="lang" value="{{ lang }}">
-                                        <input type="hidden" name="branch" value="{{ selected_branch_id }}">
-                                        <input type="hidden" name="custom_message" id="pywhatkitCustomMessageInput" value="">
-                                        <input type="hidden" name="campaign_image_base64" id="pywhatkitImageBase64Input" value="">
-                                        <input type="hidden" name="send_mode" id="pywhatkitSendModeInput" value="message_and_image">
-                                        <input type="hidden" name="delay_seconds" id="pywhatkitDelaySecondsInput" value="8">
-                                        <!-- Speed / Safety Delay Selector -->
-                                        <div class="mb-2 p-2 rounded border bg-white">
+                                        <!-- Speed Selector -->
+                                        <div class="mb-3">
                                             <div class="d-flex justify-content-between align-items-center mb-1">
-                                                <span class="small fw-bold text-dark" style="font-size:0.77rem;"><i class="fas fa-bolt text-warning me-1"></i>Blast Speed (gap between contacts)</span>
-                                                <span class="badge bg-success-subtle text-success border border-success-subtle" id="pywhatkitSpeedBadge" style="font-size:0.68rem;">Fast</span>
+                                                <label class="form-label fw-bold text-dark small mb-0"><i class="fas fa-bolt text-warning me-1"></i>2. Delivery Interval</label>
+                                                <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace" id="automatedSpeedBadge" style="font-size:0.68rem;">Fast (5s gap)</span>
                                             </div>
                                             <div class="btn-group w-100" role="group">
-                                                <input type="radio" class="btn-check" name="pywhatkit_speed" id="speed_fast" value="8" checked onchange="setPywhatkitSpeed(this)">
-                                                <label class="btn btn-outline-success btn-sm fw-bold" for="speed_fast" style="font-size:0.74rem;">⚡ Fast<br><small class="fw-normal opacity-75">8s gap</small></label>
+                                                <input type="radio" class="btn-check" name="auto_speed" id="speed_fast" value="5" checked onchange="setAutomatedSpeed(this)">
+                                                <label class="btn btn-outline-success btn-sm fw-bold py-1" for="speed_fast" style="font-size:0.74rem;">⚡ Fast<br><small class="fw-normal opacity-75">5s gap</small></label>
 
-                                                <input type="radio" class="btn-check" name="pywhatkit_speed" id="speed_normal" value="12" onchange="setPywhatkitSpeed(this)">
-                                                <label class="btn btn-outline-primary btn-sm fw-bold" for="speed_normal" style="font-size:0.74rem;">🚀 Normal<br><small class="fw-normal opacity-75">12s gap</small></label>
+                                                <input type="radio" class="btn-check" name="auto_speed" id="speed_normal" value="8" onchange="setAutomatedSpeed(this)">
+                                                <label class="btn btn-outline-primary btn-sm fw-bold py-1" for="speed_normal" style="font-size:0.74rem;">🚀 Normal<br><small class="fw-normal opacity-75">8s gap</small></label>
 
-                                                <input type="radio" class="btn-check" name="pywhatkit_speed" id="speed_safe" value="20" onchange="setPywhatkitSpeed(this)">
-                                                <label class="btn btn-outline-secondary btn-sm fw-bold" for="speed_safe" style="font-size:0.74rem;">🛡️ Safe<br><small class="fw-normal opacity-75">20s gap</small></label>
+                                                <input type="radio" class="btn-check" name="auto_speed" id="speed_safe" value="15" onchange="setAutomatedSpeed(this)">
+                                                <label class="btn btn-outline-secondary btn-sm fw-bold py-1" for="speed_safe" style="font-size:0.74rem;">🛡️ Safe<br><small class="fw-normal opacity-75">15s gap</small></label>
                                             </div>
-                                            <div class="mt-1 text-muted" style="font-size:0.68rem;"><i class="fas fa-info-circle me-1"></i>Fast = more contacts/hour. Safe = lower ban risk from WhatsApp.</div>
                                         </div>
-                                        <button type="submit" class="btn btn-outline-dark fw-bold w-100 py-2" onclick="return confirm('Launch Python Desktop Background Robot for {{ total_queue_count }} contacts? Keep your WhatsApp Web browser window open!');">
-                                            <i class="fab fa-python me-1"></i> 🤖 Start Desktop Robot
-                                        </button>
-                                    </form>
+
+                                        <!-- Personalized Text Snippet Preview -->
+                                        <div>
+                                            <label class="form-label fw-bold text-dark small mb-1"><i class="fas fa-comment-dots text-info me-1"></i>3. Message Sample:</label>
+                                            <div class="p-2 rounded bg-white border font-monospace small text-dark" style="max-height: 90px; overflow-y: auto; font-size: 0.74rem; line-height: 1.3;" id="modalMessageSnippetPreview">
+                                                {{ sample_preview_text }}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-2 text-muted" style="font-size:0.7rem;">
+                                        <i class="fas fa-check-circle text-success me-1"></i><strong>Zero Manual Steps:</strong> Browser runs headlessly, sends text and attaches flyers automatically.
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
+
+                        <!-- WhatsApp Pairing / Connected Phone Banner -->
+                        <div id="modalWhatsAppStatusContainer">
+                            {% if whatsapp_session.is_paired %}
+                            <div class="alert alert-success py-2.5 px-3 small mb-3 d-flex flex-wrap align-items-center justify-content-between gap-2 rounded-3 border border-success-subtle shadow-2xs" style="font-size: 0.8rem; background-color: #f0fdf4;">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="fab fa-whatsapp text-success fs-5"></i>
+                                    <div>
+                                        <strong class="text-success d-block">WhatsApp Connected: <span class="font-monospace text-dark">{{ whatsapp_session.phone }}</span></strong>
+                                        <span class="text-muted" style="font-size: 0.73rem;"><i class="fas fa-check-circle text-success me-1"></i>Paired via QR Scan • Ready for automated background dispatch</span>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-success py-1 px-2.5 fw-bold shadow-2xs" onclick="openDigitalMarketingQRPairModal()" style="font-size: 0.75rem;">
+                                    <i class="fas fa-qrcode me-1"></i> Change / Scan QR
+                                </button>
+                            </div>
+                            {% else %}
+                            <div class="alert alert-warning py-2.5 px-3 small mb-3 d-flex flex-wrap align-items-center justify-content-between gap-2 rounded-3 border border-warning-subtle shadow-2xs" style="font-size: 0.8rem; background-color: #fffbeb;">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="fas fa-exclamation-triangle text-warning fs-5"></i>
+                                    <div>
+                                        <strong class="text-warning-emphasis d-block">No WhatsApp Account Connected</strong>
+                                        <span class="text-muted" style="font-size: 0.73rem;">Scan QR code once to link your phone for 1-Click auto-broadcasting.</span>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-dark py-1 px-3 fw-bold shadow-2xs" onclick="openDigitalMarketingQRPairModal()" style="font-size: 0.75rem;">
+                                    <i class="fas fa-qrcode me-1"></i> Scan QR to Connect
+                                </button>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Main Big Primary Button -->
+                        <button type="submit" class="btn btn-success fw-bold w-100 py-3 shadow fs-6" id="btnLaunchAutomatedBlast" {% if not is_whatsapp_paired %}disabled{% endif %}>
+                            <i class="fas fa-paper-plane me-2"></i> 🚀 Launch 100% Automated Background Blast ({{ total_queue_count }} Contacts)
+                        </button>
+
+                        <!-- Shortcut to Live Monitor -->
+                        <button type="button" class="btn btn-outline-primary btn-sm w-100 py-2 mt-2 fw-semibold" onclick="openLiveMonitorModal()">
+                            <i class="fas fa-desktop me-1"></i> View Live Delivery Monitor &amp; Unfinished Progress
+                        </button>
+                    </form>
 
                 </div>
                 <div class="modal-footer bg-light">
@@ -1742,128 +1857,217 @@
         </div>
     </div>
 
-    <!-- ═══ IN-BROWSER INTERACTIVE AUTO-BLASTER MODAL ═══ -->
-    <div class="modal fade" id="inBrowserAutoBlastModal" tabindex="-1" aria-labelledby="inBrowserAutoBlastModalLabel" aria-hidden="true" data-bs-backdrop="static">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content border-0 shadow-lg">
+    <!-- ═══ DIGITAL MARKETING WHATSAPP QR PAIRING MODAL ═══ -->
+    <div class="modal fade" id="digitalMarketingQRPairingModal" tabindex="-1" aria-labelledby="digitalMarketingQRPairingModalLabel" aria-hidden="true" style="z-index: 1065;">
+        <div class="modal-dialog modal-dialog-centered modal-md">
+            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
                 <div class="modal-header text-white" style="background: linear-gradient(135deg, #16a34a 0%, #0d9488 100%) !important;">
-                    <div>
-                        <h5 class="modal-title fw-bold mb-0" id="inBrowserAutoBlastModalLabel">
-                            <i class="fab fa-whatsapp me-2"></i>WhatsApp In-Browser Auto-Blaster
-                        </h5>
-                        <small class="opacity-90">Fast, interactive step-through campaign dispatcher</small>
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fab fa-whatsapp fs-4"></i>
+                        <div>
+                            <h5 class="modal-title fw-bold mb-0" id="digitalMarketingQRPairingModalLabel">WhatsApp Account &amp; QR Scan Hub</h5>
+                            <small class="opacity-90">Link or switch WhatsApp account for automated message broadcasts</small>
+                        </div>
                     </div>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" onclick="runnerPause()"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-
+                
                 <div class="modal-body p-4">
-                    
-                    <!-- Progress Bar & Counter -->
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <span class="small fw-bold text-dark" id="runnerProgressText">Contact 1 of 0 (0%)</span>
-                            <span class="badge bg-success fw-bold" id="runnerStatusBadge">Ready</span>
+                    <!-- Live Account Connection Card -->
+                    <div class="p-3 mb-3 rounded-3 border d-flex align-items-center justify-content-between" id="dmPairingStatusCard" style="background: {% if whatsapp_session.is_paired %}#f0fdf4; border-color: #86efac !important;{% else %}#fffbeb; border-color: #fde68a !important;{% endif %}">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="rounded-circle {% if whatsapp_session.is_paired %}bg-success{% else %}bg-warning{% endif %} text-white d-flex align-items-center justify-content-center shadow-sm" style="width: 44px; height: 44px; flex-shrink: 0;" id="dmPairingIconWrap">
+                                <i class="fas {% if whatsapp_session.is_paired %}fa-check{% else %}fa-exclamation{% endif %} fa-lg" id="dmPairingIcon"></i>
+                            </div>
+                            <div class="overflow-hidden">
+                                <span class="small text-uppercase text-muted fw-bold d-block" style="font-size: 0.7rem;">WhatsApp Account Status:</span>
+                                <h6 class="mb-0 fw-bold {% if whatsapp_session.is_paired %}text-success{% else %}text-warning-emphasis{% endif %} font-monospace text-truncate" id="dmPairingPhoneText">
+                                    {{ whatsapp_session.phone|default:"No WhatsApp account paired" }}
+                                </h6>
+                                <small class="text-muted" id="dmPairingSubtext">
+                                    {% if whatsapp_session.is_paired %}Account Active &amp; Ready for Automated Blasts{% else %}No phone connected. Scan QR below.{% endif %}
+                                </small>
+                            </div>
                         </div>
-                        <div class="progress" style="height: 10px;">
-                            <div id="runnerProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style="width: 0%;"></div>
-                        </div>
-                    </div>
-
-                    <!-- Active Contact Card -->
-                    <div class="card border-primary border-2 shadow-sm rounded-3 mb-3 bg-light">
-                        <div class="card-body p-3">
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <div>
-                                    <span class="badge bg-primary text-white mb-1" id="runnerContactBadge">#1 Current Recipient</span>
-                                    <h5 class="fw-bold text-dark mb-0" id="runnerContactName">Customer Name</h5>
-                                    <span class="text-success fw-bold font-monospace small" id="runnerContactPhone"><i class="fab fa-whatsapp me-1"></i>+91 9876543210</span>
-                                </div>
-                                <div class="text-end">
-                                    <span class="badge bg-white text-dark border shadow-2xs" id="runnerContactBranch">Branch: Main</span>
-                                    <div id="runnerFlyerStatusBox" class="mt-1 small text-success fw-semibold">
-                                        <i class="fas fa-image me-1"></i>Flyer Ready to Paste
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Message Content Box -->
-                            <div class="p-2 rounded bg-white border font-monospace small text-dark mb-2" style="max-height: 130px; overflow-y: auto; font-size: 0.78rem; line-height: 1.4;" id="runnerMessagePreview">
-                                Message text will appear here...
-                            </div>
-
-                            <div class="alert alert-info py-1 px-2 small mb-0 d-flex align-items-center gap-2" style="font-size: 0.74rem;">
-                                <i class="fas fa-info-circle text-primary"></i>
-                                <span>When chat opens, press <kbd class="bg-dark text-white px-1 rounded">Ctrl + V</kbd> to paste the flyer, then hit <strong>Enter</strong> to send!</span>
-                            </div>
+                        <div class="d-flex flex-column gap-1 ms-2">
+                            <button type="button" class="btn btn-outline-danger btn-xs py-1 px-2 fw-semibold {% if not whatsapp_session.is_paired %}d-none{% endif %}" id="btnDmResetSession" onclick="resetDigitalMarketingWASession()" title="Disconnect session">
+                                <i class="fas fa-power-off me-1"></i> Disconnect
+                            </button>
+                            <button type="button" class="btn btn-outline-success btn-xs py-1 px-2 fw-semibold {% if not whatsapp_session.is_paired %}d-none{% endif %}" id="btnDmRescanSession" onclick="startInlineQRPairing(true)" title="Switch WhatsApp Account">
+                                <i class="fas fa-sync-alt me-1"></i> Switch
+                            </button>
                         </div>
                     </div>
 
-                    <!-- Runner Controls Bar -->
-                    <div class="p-3 bg-white rounded-3 border shadow-2xs mb-3">
-                        <div class="row g-2 align-items-center">
-                            
-                            <div class="col-md-5">
-                                <button type="button" class="btn btn-success fw-bold w-100 py-2 shadow-sm" id="runnerSendBtn" onclick="runnerSendCurrent()">
-                                    <i class="fab fa-whatsapp me-1"></i> 🚀 Open Chat &amp; Copy Flyer
-                                </button>
-                            </div>
-
-                            <div class="col-md-4">
-                                <button type="button" class="btn btn-outline-primary fw-bold w-100 py-2" id="runnerAutoRunBtn" onclick="runnerToggleAutoRun()">
-                                    <i class="fas fa-play me-1"></i> ▶️ Start Auto-Run
-                                </button>
-                            </div>
-
-                            <div class="col-md-3">
-                                <div class="d-flex gap-1">
-                                    <button type="button" class="btn btn-outline-secondary btn-sm flex-fill" title="Skip this contact" onclick="runnerSkip()">
-                                        <i class="fas fa-forward me-1"></i> Skip
-                                    </button>
-                                    <button type="button" class="btn btn-outline-dark btn-sm flex-fill" title="Pause auto-run" onclick="runnerPause()">
-                                        <i class="fas fa-pause"></i>
-                                    </button>
-                                </div>
-                            </div>
-
+                    <!-- Live In-Modal QR Code Container -->
+                    <div id="dmQRCanvasContainer" class="p-3 mb-3 rounded-3 border bg-white text-center shadow-2xs">
+                        <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom">
+                            <span class="fw-bold text-dark small"><i class="fas fa-qrcode text-success me-1"></i> Live WhatsApp Web QR Code</span>
+                            <span id="dmQRStatusBadge" class="badge bg-secondary-subtle text-secondary font-monospace" style="font-size: 0.7rem;">Connecting...</span>
                         </div>
 
-                        <!-- Auto-run delay settings & status -->
-                        <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
-                            <div class="d-flex align-items-center gap-2">
-                                <span class="small text-muted fw-semibold" style="font-size: 0.75rem;">Pacing Delay:</span>
-                                <select id="runnerPacingDelaySelect" class="form-select form-select-sm" style="width: 80px; font-size: 0.75rem;" onchange="updateRunnerPacingDelay(this.value)">
-                                    <option value="5" selected>5s</option>
-                                    <option value="8">8s</option>
-                                    <option value="12">12s</option>
-                                    <option value="20">20s</option>
-                                </select>
+                        <!-- Spinner while initializing / loading QR -->
+                        <div id="dmQRLoader" class="py-4 text-center">
+                            <div class="spinner-border text-success mb-3" style="width: 2.75rem; height: 2.75rem;" role="status">
+                                <span class="visually-hidden">Loading QR...</span>
                             </div>
-                            <span class="small text-muted fw-semibold" id="runnerTimerCountdownText" style="font-size: 0.75rem;"></span>
+                            <h6 class="fw-semibold text-secondary mb-1" id="dmQRLoaderTitle" style="font-size: 0.9rem;">Connecting to WhatsApp Web Engine...</h6>
+                            <p class="small text-muted mb-0" id="dmQRLoaderSub" style="font-size: 0.78rem;">Generating live QR code directly inside this window.</p>
+                        </div>
+
+                        <!-- Rendered Base64 Live QR Image -->
+                        <div id="dmQRImageWrap" class="d-none my-2 text-center">
+                            <div class="d-inline-block p-2 bg-white rounded-3 border shadow-sm position-relative">
+                                <img id="dmLiveQRImg" src="" alt="WhatsApp QR Code" class="img-fluid rounded" style="max-width: 240px; height: auto; display: block;" />
+                            </div>
+                            <p class="small text-muted mt-2 mb-0" style="font-size: 0.78rem;">
+                                <i class="fas fa-camera text-primary me-1"></i> Point your WhatsApp camera at this screen to scan
+                            </p>
+                        </div>
+
+                        <!-- Paired State Banner (shown inside QR container when authenticated) -->
+                        <div id="dmQRPairedBanner" class="d-none py-4 text-center">
+                            <div class="rounded-circle bg-success-subtle text-success d-inline-flex align-items-center justify-content-center mb-2 shadow-2xs" style="width: 54px; height: 54px;">
+                                <i class="fas fa-check-circle fa-2x"></i>
+                            </div>
+                            <h6 class="fw-bold text-success mb-1" style="font-size: 0.95rem;">WhatsApp Connected Successfully!</h6>
+                            <p class="small text-muted mb-3" id="dmQRPairedPhoneMsg" style="font-size: 0.8rem;">Account is verified &amp; ready to send automated broadcasts.</p>
+                            <button type="button" class="btn btn-sm btn-outline-success px-3 fw-bold" onclick="startInlineQRPairing(true)">
+                                <i class="fas fa-qrcode me-1"></i> Link Different Phone
+                            </button>
+                        </div>
+
+                        <!-- QR Error / Timeout State -->
+                        <div id="dmQRErrorBanner" class="d-none py-3 text-center">
+                            <div class="text-danger mb-2">
+                                <i class="fas fa-exclamation-triangle fa-2x"></i>
+                            </div>
+                            <h6 class="fw-bold text-danger mb-1" id="dmQRErrorTitle" style="font-size: 0.9rem;">QR Code Expired</h6>
+                            <p class="small text-muted mb-3" id="dmQRErrorMsg" style="font-size: 0.78rem;">QR code was not scanned in time or session closed.</p>
+                            <button type="button" class="btn btn-sm btn-success px-3 fw-bold" onclick="startInlineQRPairing(true)">
+                                <i class="fas fa-redo me-1"></i> Generate New QR Code
+                            </button>
+                        </div>
+
+                        <!-- Bottom Controls -->
+                        <div class="mt-3 pt-2 border-top d-flex align-items-center justify-content-between">
+                            <button type="button" class="btn btn-sm btn-light text-secondary border py-1 px-2.5" id="btnDmReloadQR" onclick="startInlineQRPairing(true)" style="font-size: 0.75rem;">
+                                <i class="fas fa-sync-alt me-1"></i> Reload QR
+                            </button>
+                            <span class="small text-muted" style="font-size: 0.72rem;">
+                                <i class="fas fa-shield-alt text-success me-1"></i>Live encrypted session
+                            </span>
                         </div>
                     </div>
 
-                    <!-- Queue Checklist / Live Log -->
-                    <div class="border rounded-3 p-2 bg-light">
-                        <div class="d-flex justify-content-between align-items-center mb-1 px-1">
-                            <span class="small fw-bold text-dark" style="font-size: 0.75rem;"><i class="fas fa-list-check me-1 text-primary"></i>Broadcast Queue Dispatch Log:</span>
-                            <span class="small text-muted" id="runnerCompletedCount" style="font-size: 0.72rem;">0 sent / 0 total</span>
-                        </div>
-                        <div style="max-height: 160px; overflow-y: auto;" id="runnerQueueLogContainer">
-                            <!-- Items populated dynamically via JS -->
-                        </div>
+                    <!-- Step-by-Step Instructions -->
+                    <div class="card bg-light border-0 rounded-3 p-3 mb-2">
+                        <h6 class="fw-bold text-dark mb-2" style="font-size: 0.85rem;"><i class="fas fa-list-ol text-primary me-1"></i> How to Connect / Switch Account:</h6>
+                        <ol class="mb-0 ps-3 small text-secondary" style="font-size: 0.8rem; line-height: 1.6;">
+                            <li>Open <strong>WhatsApp</strong> on your phone.</li>
+                            <li>Tap <strong>Settings (or Menu ⋮) &rarr; Linked Devices &rarr; Link a Device</strong>.</li>
+                            <li>Point your phone camera at the QR code displayed above.</li>
+                            <li>Your phone connects automatically and saves persistently!</li>
+                        </ol>
                     </div>
 
+                    <div class="text-center mt-2">
+                        <small class="text-muted" style="font-size: 0.72rem;">
+                            <i class="fas fa-shield-alt text-success me-1"></i>Session credentials and paired tokens are saved securely on server.
+                        </small>
+                    </div>
                 </div>
 
-                <div class="modal-footer bg-light">
-                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" onclick="runnerPause()">Close &amp; Exit</button>
-                    <button type="button" class="btn btn-primary btn-sm fw-bold" onclick="runnerRestart()">
-                        <i class="fas fa-redo me-1"></i> Restart Queue
-                    </button>
+                <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- ═══ AUTOMATED BACKGROUND BLAST LIVE PROGRESS MODAL ═══ -->
+    <div class="modal fade" id="automatedProgressModal" tabindex="-1" aria-labelledby="automatedProgressModalLabel" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header text-white" style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%) !important;">
+                    <div class="d-flex align-items-center gap-2">
+                        <div>
+                            <h5 class="modal-title fw-bold mb-0" id="automatedProgressModalLabel">
+                                <i class="fas fa-robot me-2"></i>Automated WhatsApp Campaign Live Monitor
+                            </h5>
+                            <small class="opacity-90">Executing campaign in background via persistent session</small>
+                        </div>
+                        <span id="autoCampaignStatusBadge" class="badge bg-light text-secondary fw-bold px-2.5 py-1 ms-2 font-monospace border shadow-2xs" style="font-size:0.75rem;">
+                            <i class="fas fa-bed me-1"></i>IDLE / READY
+                        </span>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body p-4">
+                    <!-- Progress Bar & Metrics -->
+                    <div class="card bg-light border-0 rounded-3 p-3 mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                                <span class="fw-bold text-dark fs-6" id="autoStatusContactText">No Active Campaign Running</span>
+                                <div class="text-muted small" id="autoStatusPhoneText">Select contacts and launch 1-Click Auto-Blast to start</div>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge bg-secondary fs-6 px-3 py-1 font-monospace" id="autoStatusPercentBadge">0%</span>
+                            </div>
+                        </div>
+                        <div class="progress mb-2" style="height: 12px;">
+                            <div id="autoProgressBar" class="progress-bar bg-secondary" role="progressbar" style="width: 0%;"></div>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center small font-monospace">
+                            <span class="text-success fw-bold"><i class="fas fa-check-circle me-1"></i>Delivered: <span id="autoStatSent">0</span></span>
+                            <span class="text-danger fw-bold"><i class="fas fa-times-circle me-1"></i>Failed / Skipped: <span id="autoStatFailed">0</span></span>
+                            <span class="text-warning-emphasis fw-bold"><i class="fas fa-hourglass-half me-1"></i>Remaining: <span id="autoStatRemaining">0</span></span>
+                            <span class="text-muted fw-bold"><i class="fas fa-users me-1"></i>Total: <span id="autoStatTotal">0</span></span>
+                        </div>
+                    </div>
+
+                    <!-- Live Control Actions: Pause / Resume / Stop / Resume Remaining / Start Fresh -->
+                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 p-2.5 rounded-3 border bg-white shadow-2xs gap-2">
+                        <div class="d-flex align-items-center gap-2" id="autoBroadcastActionBtnGroup">
+                            <span class="small fw-bold text-muted text-uppercase" style="font-size: 0.72rem;"><i class="fas fa-sliders me-1"></i>Actions:</span>
+                            <button type="button" class="btn btn-outline-warning btn-sm fw-bold px-3 py-1 shadow-2xs d-none" id="btnAutoBroadcastPause" onclick="toggleAutoBroadcastPause()">
+                                <i class="fas fa-pause me-1"></i> Pause Broadcast
+                            </button>
+                            <button type="button" class="btn btn-outline-danger btn-sm fw-bold px-3 py-1 shadow-2xs d-none" id="btnAutoBroadcastStop" onclick="stopAutoBroadcast()">
+                                <i class="fas fa-stop me-1"></i> Stop Campaign
+                            </button>
+                            <button type="button" class="btn btn-success btn-sm fw-bold px-3 py-1 shadow-2xs d-none" id="btnAutoBroadcastResumeRemaining" onclick="resumeUnfinishedAutoBlast()">
+                                <i class="fas fa-play me-1"></i> Resume Remaining (<span id="autoResumeRemainingCount">0</span>)
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm fw-bold px-2.5 py-1 shadow-2xs" id="btnAutoBroadcastStartFresh" onclick="openFreshCampaignConfigModal()">
+                                <i class="fas fa-plus-circle me-1"></i> Start Fresh Campaign
+                            </button>
+                        </div>
+                        <div id="autoControlStatusHint" class="small text-muted font-monospace" style="font-size:0.75rem;">
+                            <i class="fas fa-circle text-secondary me-1"></i> Idle
+                        </div>
+                    </div>
+
+                    <!-- Live Dispatch Log Feed with Failure Scenarios -->
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="fw-bold text-dark mb-0" style="font-size: 0.85rem;"><i class="fas fa-stream text-primary me-1"></i>Live Delivery Feed &amp; Failure Diagnostics</h6>
+                        <small class="text-muted" style="font-size: 0.72rem;">Showing auto dispatch logs</small>
+                    </div>
+                    <div class="border rounded-3 p-2 bg-white font-monospace small" id="autoLiveLogFeed" style="max-height: 240px; overflow-y: auto; font-size: 0.78rem;">
+                        <div class="text-muted text-center py-3"><i class="fas fa-info-circle me-1"></i> No active campaign running.</div>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light d-flex justify-content-between">
+                    <span class="text-muted small" id="autoCampaignFooterNote"><i class="fas fa-info-circle text-secondary me-1"></i>You can safely close this monitor anytime.</span>
+                    <button type="button" class="btn btn-primary btn-sm px-4 fw-bold" data-bs-dismiss="modal">Close Monitor</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
 
     <!-- ═══ WHATSAPP IMAGE ATTACHMENT GUIDE MODAL ═══ -->
     <div class="modal fade" id="imageDispatchGuideModal" tabindex="-1" aria-labelledby="imageDispatchGuideModalLabel" aria-hidden="true">
@@ -1961,6 +2165,7 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow-lg">
                 <form id="saveTemplateForm" onsubmit="handleSaveTemplateSubmit(event)">
+                    {% csrf_token %}
                     <div class="modal-header text-white" style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important;">
                         <h5 class="modal-title fw-bold" id="saveTemplateModalLabel">
                             <i class="fas fa-save me-2"></i>Save Campaign Template
@@ -2129,13 +2334,29 @@ function updateLiveMobilePreview(rawTemplate, source = 'preset') {
 
     if (!previewDiv || !rawTemplate) return;
 
-    // Replace sample customer variables
-    let sampleReplaced = rawTemplate
-        .replace(/{customer_name}/g, 'ஹரிஹரன்')
-        .replace(/{branch_name}/g, 'Main Branch')
-        .replace(/{branch_phone}/g, '9876543210')
-        .replace(/{organization_name}/g, organizationName)
-        .replace(/{gold_rate}/g, currentGoldRateStr);
+    // Sample data for preview mockup
+    const sampleName = "{% if use_tamil %}ஹரிஹரன்{% else %}Ramesh Kumar{% endif %}";
+    const sampleFirstName = "{% if use_tamil %}ஹரிஹரன்{% else %}Ramesh{% endif %}";
+    const sampleCity = "Theni";
+    const sampleBranch = "Main Branch";
+    const samplePhone = "9876543210";
+    const sampleCustPhone = "+91 98765 43210";
+
+    // Replace all dynamic smart variables
+    let sampleReplaced = String(rawTemplate);
+    const varReplacements = [
+        [new RegExp('\\{+\\s*(customer_name|name|client_name|recipient_name|customer)\\s*\\}+|\\[\\s*(customer_name|name|client_name|recipient_name|customer)\\s*\\]', 'gi'), sampleName],
+        [new RegExp('\\{+\\s*first_name\\s*\\}+|\\[\\s*first_name\\s*\\]', 'gi'), sampleFirstName],
+        [new RegExp('\\{+\\s*(city|location)\\s*\\}+|\\[\\s*(city|location)\\s*\\]', 'gi'), sampleCity],
+        [new RegExp('\\{+\\s*(branch_name|branch)\\s*\\}+|\\[\\s*(branch_name|branch)\\s*\\]', 'gi'), sampleBranch],
+        [new RegExp('\\{+\\s*(branch_phone|contact_phone)\\s*\\}+|\\[\\s*(branch_phone|contact_phone)\\s*\\]', 'gi'), samplePhone],
+        [new RegExp('\\{+\\s*(customer_phone|phone)\\s*\\}+|\\[\\s*(customer_phone|phone)\\s*\\]', 'gi'), sampleCustPhone],
+        [new RegExp('\\{+\\s*(organization_name|company_name|shop_name)\\s*\\}+|\\[\\s*(organization_name|company_name|shop_name)\\s*\\]', 'gi'), organizationName],
+        [new RegExp('\\{+\\s*(gold_rate|gold_price)\\s*\\}+|\\[\\s*(gold_rate|gold_price)\\s*\\]', 'gi'), currentGoldRateStr]
+    ];
+    varReplacements.forEach(([rgx, val]) => {
+        sampleReplaced = sampleReplaced.replace(rgx, val);
+    });
 
     // Format with WhatsApp markdown HTML
     previewDiv.innerHTML = formatWhatsAppToHtml(sampleReplaced);
@@ -3283,6 +3504,8 @@ function openSaveTemplateModal(mode = 'new', source = 'ai') {
     if (mode === 'overwrite') {
         const radioOverwrite = document.getElementById('save_mode_overwrite');
         if (radioOverwrite) radioOverwrite.checked = true;
+        const targetSelect = document.getElementById('modal_overwrite_target_key');
+        if (targetSelect) targetSelect.value = '{{ template_key }}';
     } else {
         const radioNew = document.getElementById('save_mode_new');
         if (radioNew) radioNew.checked = true;
@@ -3320,45 +3543,75 @@ function toggleSaveModalFields() {
     }
 }
 
+function getMarketingCsrfToken() {
+    const input = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (input && input.value) return input.value;
+    const match = document.cookie.match(/csrftoken=([^;]+)/);
+    return match ? match[1] : '{{ csrf_token }}';
+}
+
 async function handleSaveTemplateSubmit(e) {
     e.preventDefault();
     const submitBtn = document.getElementById('saveTemplateSubmitBtn');
     const originalBtnHtml = submitBtn ? submitBtn.innerHTML : 'Save';
-    if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving...';
-    }
 
     const isOverwriteRadio = document.getElementById('save_mode_overwrite');
     const isOverwrite = isOverwriteRadio ? isOverwriteRadio.checked : false;
     const action = isOverwrite ? 'overwrite_existing' : 'save_as_new';
     const targetKey = isOverwrite 
-        ? document.getElementById('modal_overwrite_target_key').value 
+        ? (document.getElementById('modal_overwrite_target_key')?.value || '{{ template_key }}') 
         : '';
     
+    const titleEn = (document.getElementById('modal_template_title_en')?.value || '').trim();
+    const titleTa = (document.getElementById('modal_template_title_ta')?.value || '').trim();
+    const category = (document.getElementById('modal_template_category')?.value || 'Custom').trim();
+    const badge = (document.getElementById('modal_template_badge')?.value || 'Custom').trim();
+    const messageBody = (document.getElementById('modal_template_body')?.value || '').trim();
+
+    if (!messageBody) {
+        alert('Please enter template message content before saving.');
+        return;
+    }
+
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving...';
+    }
+
     const payload = {
         action: action,
         template_key: targetKey,
-        title_en: document.getElementById('modal_template_title_en').value,
-        title_ta: document.getElementById('modal_template_title_ta').value,
-        category: document.getElementById('modal_template_category').value,
-        badge: document.getElementById('modal_template_badge').value,
-        message_body: document.getElementById('modal_template_body').value,
+        title_en: titleEn || 'Custom Template',
+        title_ta: titleTa || titleEn || 'தனிப்பயன் டெம்ப்ளேட்',
+        category: category,
+        badge: badge,
+        message_body: messageBody,
         lang: '{{ lang|default:"ta" }}',
     };
 
     try {
+        const csrfToken = getMarketingCsrfToken();
         const res = await fetch("{% url 'marketing_save_template' %}", {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}',
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
             },
             body: JSON.stringify(payload)
         });
 
-        const data = await res.json();
-        if (data.status === 'success') {
+        let data;
+        try {
+            data = await res.json();
+        } catch (jsonErr) {
+            const rawText = await res.text();
+            console.error("Non-JSON server response:", rawText);
+            alert(`Server returned an error (${res.status}). Please refresh and try again.`);
+            return;
+        }
+
+        if (res.ok && data.status === 'success') {
             alert(data.message || 'Template saved successfully!');
             const modalEl = document.getElementById('saveTemplateModal');
             if (modalEl) {
@@ -3372,11 +3625,11 @@ async function handleSaveTemplateSubmit(e) {
             const branch = '{{ selected_branch_id }}';
             window.location.href = `?segment=${segment}&template=${data.template_key}&lang=${lang}&branch=${branch}`;
         } else {
-            alert('Error saving template: ' + (data.message || 'Unknown error'));
+            alert('Error saving template: ' + (data.message || 'Unknown error occurred.'));
         }
     } catch (err) {
-        console.error(err);
-        alert('Network error while saving template.');
+        console.error("Save template error:", err);
+        alert('Network error while saving template: ' + (err.message || err));
     } finally {
         if (submitBtn) {
             submitBtn.disabled = false;
@@ -3395,11 +3648,13 @@ async function resetOrDeleteTemplate(key, actionType, event) {
     if (!confirm(confirmMsg)) return;
 
     try {
+        const csrfToken = getMarketingCsrfToken();
         const res = await fetch("{% url 'marketing_save_template' %}", {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}',
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
             },
             body: JSON.stringify({
                 action: 'reset_default',
@@ -3407,16 +3662,23 @@ async function resetOrDeleteTemplate(key, actionType, event) {
             })
         });
 
-        const data = await res.json();
-        if (data.status === 'success') {
+        let data;
+        try {
+            data = await res.json();
+        } catch (jsonErr) {
+            alert(`Server error (${res.status}). Please try again.`);
+            return;
+        }
+
+        if (res.ok && data.status === 'success') {
             alert(data.message || 'Template reset successfully!');
             window.location.reload();
         } else {
             alert('Error: ' + (data.message || 'Could not reset template.'));
         }
     } catch (err) {
-        console.error(err);
-        alert('Network error while resetting template.');
+        console.error("Reset template error:", err);
+        alert('Network error while resetting template: ' + (err.message || err));
     }
 }
 </script>
@@ -3691,8 +3953,407 @@ function setPywhatkitSpeed(radio) {
     }
 }
 
-function openPywhatkitAutoBlast() {
-    // Ensure canvas poster is auto-attached if nothing has been attached yet
+function syncModalSendMode(val) {
+    currentCampaignSendMode = val;
+    const autoSendModeInput = document.getElementById('automatedSendModeInput');
+    if (autoSendModeInput) autoSendModeInput.value = val;
+
+    // Sync radio on queue toolbar as well
+    if (val === 'message_and_image') {
+        const r = document.getElementById('mode_msg_and_img');
+        if (r) r.checked = true;
+    } else if (val === 'image_only') {
+        const r = document.getElementById('mode_img_only');
+        if (r) r.checked = true;
+    } else if (val === 'message_only') {
+        const r = document.getElementById('mode_msg_only');
+        if (r) r.checked = true;
+    }
+
+    // Toggle thumbnail visibility in modal
+    const flyerThumb = document.getElementById('modalAttachedThumb');
+    const emptyState = document.getElementById('modalFlyerEmptyState');
+    if (val === 'message_only') {
+        if (flyerThumb) flyerThumb.style.display = 'none';
+        if (emptyState) {
+            emptyState.style.display = 'block';
+            emptyState.innerHTML = '<span class="text-muted small"><i class="fas fa-comment-dots me-1 text-secondary"></i>Text-Only Mode: No flyer will be attached.</span>';
+        }
+    } else {
+        if (currentCampaignAttachedImageBase64 && flyerThumb) {
+            flyerThumb.src = currentCampaignAttachedImageBase64;
+            flyerThumb.style.display = 'block';
+            if (emptyState) emptyState.style.display = 'none';
+        } else if (emptyState) {
+            emptyState.style.display = 'block';
+            emptyState.innerHTML = '<i class="fas fa-image fa-2x mb-1 text-secondary opacity-50 d-block"></i>Studio Poster will be automatically attached!';
+        }
+    }
+}
+
+// ============================================================================
+// 📱 DIGITAL MARKETING WHATSAPP QR PAIRING & CONNECTION HUB
+// ============================================================================
+
+let dmQRPollTimer = null;
+
+function openDigitalMarketingQRPairModal() {
+    const modalEl = document.getElementById('digitalMarketingQRPairingModal');
+    if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        // Check current session state; if not paired, auto-start inline QR generation
+        checkDMPairingStatus(false, true);
+    }
+}
+
+// Clean up poller when modal is closed
+document.addEventListener('DOMContentLoaded', () => {
+    const modalEl = document.getElementById('digitalMarketingQRPairingModal');
+    if (modalEl) {
+        modalEl.addEventListener('hidden.bs.modal', () => {
+            if (dmQRPollTimer) {
+                clearInterval(dmQRPollTimer);
+                dmQRPollTimer = null;
+            }
+        });
+    }
+});
+
+async function checkDMPairingStatus(showAlert = false, autoStartQR = false) {
+    const phoneEl = document.getElementById('dmPairingPhoneText');
+    const subtextEl = document.getElementById('dmPairingSubtext');
+    const cardEl = document.getElementById('dmPairingStatusCard');
+    const iconWrap = document.getElementById('dmPairingIconWrap');
+    const iconEl = document.getElementById('dmPairingIcon');
+    const resetBtn = document.getElementById('btnDmResetSession');
+    const rescanBtn = document.getElementById('btnDmRescanSession');
+    const topPhone = document.getElementById('topBarWhatsAppPhone');
+    const topBadge = document.getElementById('topBarWhatsAppBadge');
+    const btnLaunchBlast = document.getElementById('btnLaunchAutomatedBlast');
+    const modalStatusContainer = document.getElementById('modalWhatsAppStatusContainer');
+
+    const loader = document.getElementById('dmQRLoader');
+    const imgWrap = document.getElementById('dmQRImageWrap');
+    const pairedBanner = document.getElementById('dmQRPairedBanner');
+    const errorBanner = document.getElementById('dmQRErrorBanner');
+    const statusBadge = document.getElementById('dmQRStatusBadge');
+    const pairedPhoneMsg = document.getElementById('dmQRPairedPhoneMsg');
+
+    try {
+        const res = await fetch("{% url 'eod_get_whatsapp_qr' %}");
+        const data = await res.json();
+        const isPaired = data.status === 'authenticated' || data.is_paired;
+        const displayPhone = data.phone || (isPaired ? 'Connected WhatsApp Account' : 'No account paired');
+
+        if (isPaired) {
+            if (phoneEl) {
+                phoneEl.innerText = displayPhone;
+                phoneEl.className = 'mb-0 fw-bold text-success font-monospace text-truncate';
+            }
+            if (subtextEl) subtextEl.innerText = 'Account Active & Ready for Automated Blasts';
+            if (cardEl) cardEl.style = 'background: #f0fdf4; border-color: #86efac !important;';
+            if (iconWrap) iconWrap.className = 'rounded-circle bg-success text-white d-flex align-items-center justify-content-center shadow-sm';
+            if (iconEl) iconEl.className = 'fas fa-check fa-lg';
+            if (resetBtn) resetBtn.classList.remove('d-none');
+            if (rescanBtn) rescanBtn.classList.remove('d-none');
+            
+            if (topPhone) topPhone.innerText = displayPhone;
+            if (topBadge) {
+                topBadge.className = 'badge bg-success text-white font-monospace py-0.5 px-1.5';
+                topBadge.innerText = 'CONNECTED';
+            }
+            if (btnLaunchBlast) btnLaunchBlast.disabled = false;
+
+            // Update modal inline QR area to show paired status banner
+            if (loader) loader.classList.add('d-none');
+            if (imgWrap) imgWrap.classList.add('d-none');
+            if (errorBanner) errorBanner.classList.add('d-none');
+            if (pairedBanner) pairedBanner.classList.remove('d-none');
+            if (pairedPhoneMsg) pairedPhoneMsg.innerText = `Connected: ${displayPhone}. Account is active & ready for broadcasts.`;
+            if (statusBadge) {
+                statusBadge.className = 'badge bg-success text-white font-monospace';
+                statusBadge.innerText = 'CONNECTED';
+            }
+
+            if (modalStatusContainer) {
+                modalStatusContainer.innerHTML = `
+                <div class="alert alert-success py-2.5 px-3 small mb-3 d-flex flex-wrap align-items-center justify-content-between gap-2 rounded-3 border border-success-subtle shadow-2xs" style="font-size: 0.8rem; background-color: #f0fdf4;">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fab fa-whatsapp text-success fs-5"></i>
+                        <div>
+                            <strong class="text-success d-block">WhatsApp Connected: <span class="font-monospace text-dark">${displayPhone}</span></strong>
+                            <span class="text-muted" style="font-size: 0.73rem;"><i class="fas fa-check-circle text-success me-1"></i>Paired via QR Scan • Ready for automated background dispatch</span>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-success py-1 px-2.5 fw-bold shadow-2xs" onclick="openDigitalMarketingQRPairModal()" style="font-size: 0.75rem;">
+                        <i class="fas fa-qrcode me-1"></i> Change / Scan QR
+                    </button>
+                </div>`;
+            }
+
+            if (showAlert) alert(`WhatsApp session active!\nConnected Phone: ${displayPhone}`);
+        } else {
+            if (phoneEl) {
+                phoneEl.innerText = 'No WhatsApp account paired';
+                phoneEl.className = 'mb-0 fw-bold text-warning-emphasis font-monospace text-truncate';
+            }
+            if (subtextEl) subtextEl.innerText = 'No phone connected. Scan QR below to link device.';
+            if (cardEl) cardEl.style = 'background: #fffbeb; border-color: #fde68a !important;';
+            if (iconWrap) iconWrap.className = 'rounded-circle bg-warning text-white d-flex align-items-center justify-content-center shadow-sm';
+            if (iconEl) iconEl.className = 'fas fa-exclamation fa-lg';
+            if (resetBtn) resetBtn.classList.add('d-none');
+            if (rescanBtn) rescanBtn.classList.add('d-none');
+
+            if (topPhone) topPhone.innerText = 'Pair WhatsApp QR';
+            if (topBadge) {
+                topBadge.className = 'badge bg-warning text-dark font-monospace py-0.5 px-1.5';
+                topBadge.innerText = 'NOT PAIRED';
+            }
+            if (btnLaunchBlast) btnLaunchBlast.disabled = true;
+
+            if (modalStatusContainer) {
+                modalStatusContainer.innerHTML = `
+                <div class="alert alert-warning py-2.5 px-3 small mb-3 d-flex flex-wrap align-items-center justify-content-between gap-2 rounded-3 border border-warning-subtle shadow-2xs" style="font-size: 0.8rem; background-color: #fffbeb;">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fas fa-exclamation-triangle text-warning fs-5"></i>
+                        <div>
+                            <strong class="text-warning-emphasis d-block">No WhatsApp Account Connected</strong>
+                            <span class="text-muted" style="font-size: 0.73rem;">Scan QR code once to link your phone for 1-Click auto-broadcasting.</span>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-dark py-1 px-3 fw-bold shadow-2xs" onclick="openDigitalMarketingQRPairModal()" style="font-size: 0.75rem;">
+                        <i class="fas fa-qrcode me-1"></i> Scan QR to Connect
+                    </button>
+                </div>`;
+            }
+
+            if (autoStartQR) {
+                startInlineQRPairing(false);
+            }
+
+            if (showAlert) alert('WhatsApp session is not paired. Please scan the QR code to link your phone.');
+        }
+    } catch(e) {
+        console.error("Error checking WhatsApp session pairing status:", e);
+    }
+}
+
+async function startInlineQRPairing(forceRelink = false) {
+    if (dmQRPollTimer) {
+        clearInterval(dmQRPollTimer);
+        dmQRPollTimer = null;
+    }
+
+    const loader = document.getElementById('dmQRLoader');
+    const imgWrap = document.getElementById('dmQRImageWrap');
+    const pairedBanner = document.getElementById('dmQRPairedBanner');
+    const errorBanner = document.getElementById('dmQRErrorBanner');
+    const statusBadge = document.getElementById('dmQRStatusBadge');
+    const loaderTitle = document.getElementById('dmQRLoaderTitle');
+    const reloadBtn = document.getElementById('btnDmReloadQR');
+
+    if (loader) loader.classList.remove('d-none');
+    if (imgWrap) imgWrap.classList.add('d-none');
+    if (pairedBanner) pairedBanner.classList.add('d-none');
+    if (errorBanner) errorBanner.classList.add('d-none');
+    if (loaderTitle) loaderTitle.innerText = 'Connecting to WhatsApp Web Engine...';
+    if (reloadBtn) reloadBtn.disabled = true;
+    if (statusBadge) {
+        statusBadge.className = 'badge bg-warning-subtle text-warning-emphasis font-monospace';
+        statusBadge.innerHTML = '<span class="spinner-border spinner-border-sm me-1" style="width: 0.7rem; height: 0.7rem;"></span> Generating QR...';
+    }
+
+    try {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '';
+        await fetch("{% url 'eod_pair_whatsapp' %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+    } catch (e) {
+        console.warn("Notice starting QR pairing worker:", e);
+    }
+
+    if (reloadBtn) reloadBtn.disabled = false;
+
+    // Start fast polling loop (every 1.3s) to fetch the live canvas screenshot
+    pollInlineQRStatus();
+    dmQRPollTimer = setInterval(pollInlineQRStatus, 1300);
+}
+
+async function pollInlineQRStatus() {
+    const loader = document.getElementById('dmQRLoader');
+    const imgWrap = document.getElementById('dmQRImageWrap');
+    const liveImg = document.getElementById('dmLiveQRImg');
+    const pairedBanner = document.getElementById('dmQRPairedBanner');
+    const errorBanner = document.getElementById('dmQRErrorBanner');
+    const statusBadge = document.getElementById('dmQRStatusBadge');
+    const loaderTitle = document.getElementById('dmQRLoaderTitle');
+    const errorTitle = document.getElementById('dmQRErrorTitle');
+    const errorMsg = document.getElementById('dmQRErrorMsg');
+
+    try {
+        const res = await fetch("{% url 'eod_get_whatsapp_qr' %}");
+        const data = await res.json();
+
+        if (data.status === 'authenticated' || data.is_paired) {
+            if (dmQRPollTimer) {
+                clearInterval(dmQRPollTimer);
+                dmQRPollTimer = null;
+            }
+            await checkDMPairingStatus(false, false);
+            return;
+        }
+
+        if (data.status === 'qr_ready' && data.qr_image_base64) {
+            if (loader) loader.classList.add('d-none');
+            if (errorBanner) errorBanner.classList.add('d-none');
+            if (pairedBanner) pairedBanner.classList.add('d-none');
+            if (imgWrap) imgWrap.classList.remove('d-none');
+            if (liveImg) {
+                if (liveImg.src !== data.qr_image_base64) {
+                    liveImg.src = data.qr_image_base64;
+                }
+            }
+            if (statusBadge) {
+                statusBadge.className = 'badge bg-success-subtle text-success font-monospace fw-bold';
+                statusBadge.innerHTML = '<i class="fas fa-qrcode me-1"></i> Scan with Phone';
+            }
+            return;
+        }
+
+        if (data.status === 'starting' || data.status === 'idle') {
+            if (loader) loader.classList.remove('d-none');
+            if (imgWrap) imgWrap.classList.add('d-none');
+            if (errorBanner) errorBanner.classList.add('d-none');
+            if (pairedBanner) pairedBanner.classList.add('d-none');
+            if (loaderTitle) loaderTitle.innerText = data.message || 'Connecting to WhatsApp Web Engine...';
+            if (statusBadge) {
+                statusBadge.className = 'badge bg-info-subtle text-info-emphasis font-monospace';
+                statusBadge.innerHTML = '<span class="spinner-border spinner-border-sm me-1" style="width: 0.7rem; height: 0.7rem;"></span> Loading...';
+            }
+            return;
+        }
+
+        if (data.status === 'timeout' || data.status === 'error') {
+            if (dmQRPollTimer) {
+                clearInterval(dmQRPollTimer);
+                dmQRPollTimer = null;
+            }
+            if (loader) loader.classList.add('d-none');
+            if (imgWrap) imgWrap.classList.add('d-none');
+            if (pairedBanner) pairedBanner.classList.add('d-none');
+            if (errorBanner) errorBanner.classList.remove('d-none');
+            if (errorTitle) errorTitle.innerText = data.status === 'timeout' ? 'QR Code Expired' : 'Pairing Error';
+            if (errorMsg) errorMsg.innerText = data.message || 'QR code expired or closed. Click Generate New QR Code.';
+            if (statusBadge) {
+                statusBadge.className = 'badge bg-danger-subtle text-danger font-monospace';
+                statusBadge.innerText = 'EXPIRED';
+            }
+            return;
+        }
+    } catch (e) {
+        console.error("Error polling live QR status:", e);
+    }
+}
+
+async function resetDigitalMarketingWASession() {
+    if (!confirm("Are you sure you want to DISCONNECT and remove the linked WhatsApp account?\nYou will need to scan QR again before sending automated broadcasts.")) {
+        return;
+    }
+
+    if (dmQRPollTimer) {
+        clearInterval(dmQRPollTimer);
+        dmQRPollTimer = null;
+    }
+
+    try {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '';
+        const res = await fetch("{% url 'eod_reset_whatsapp' %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        const data = await res.json();
+        if (data.success) {
+            await checkDMPairingStatus(false, false);
+            // Automatically launch new QR code scanner inside modal
+            startInlineQRPairing(true);
+        } else {
+            alert(data.message || 'Could not reset session.');
+        }
+    } catch(e) {
+        console.error("Reset error:", e);
+        alert('Error disconnecting session: ' + e.message);
+    }
+}
+
+async function openLiveMonitorModal() {
+    const pwModal = document.getElementById('pywhatkitModal');
+    if (pwModal && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        const inst = bootstrap.Modal.getInstance(pwModal);
+        if (inst) inst.hide();
+    }
+    const progModalEl = document.getElementById('automatedProgressModal');
+    if (progModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        bootstrap.Modal.getOrCreateInstance(progModalEl).show();
+    }
+    try {
+        const res = await fetch("{% url 'marketing_broadcast_status' %}");
+        const status = await res.json();
+        updateLiveMonitorUIFromStatus(status);
+        if (status.is_running || status.status === 'running' || status.status === 'paused') {
+            startAutoBroadcastStatusPolling();
+        }
+    } catch (e) {
+        console.warn("Could not load broadcast status:", e);
+    }
+}
+
+async function openAutomatedBlastModal() {
+    try {
+        const res = await fetch("{% url 'marketing_broadcast_status' %}");
+        const status = await res.json();
+        const isRunning = Boolean(status.is_running || status.status === 'running' || status.status === 'paused');
+        const remainingCount = (typeof status.remaining === 'number') ? status.remaining : (status.remaining_queue ? status.remaining_queue.length : 0);
+        const isUnfinished = Boolean(
+            (status.status === 'stopped' || status.status === 'error' || (!isRunning && status.status !== 'completed' && status.status !== 'idle')) &&
+            (remainingCount > 0)
+        );
+
+        if (isRunning || isUnfinished) {
+            const progModalEl = document.getElementById('automatedProgressModal');
+            if (progModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                bootstrap.Modal.getOrCreateInstance(progModalEl).show();
+                updateLiveMonitorUIFromStatus(status);
+                if (isRunning) {
+                    startAutoBroadcastStatusPolling();
+                }
+                return;
+            }
+        }
+    } catch (e) {
+        console.warn("Could not check broadcast status before opening modal:", e);
+    }
+
+    openFreshCampaignConfigModal();
+}
+
+function openFreshCampaignConfigModal() {
+    // 1. Hide progress modal if open
+    const progModalEl = document.getElementById('automatedProgressModal');
+    if (progModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        const inst = bootstrap.Modal.getInstance(progModalEl);
+        if (inst) inst.hide();
+    }
+
+    // Check & sync latest WhatsApp pairing state
+    checkDMPairingStatus(false);
+    // 1. Ensure canvas poster is auto-attached if nothing has been attached yet
     if (!currentCampaignAttachedImageBase64) {
         const canvas = document.getElementById('posterCanvas');
         if (canvas) {
@@ -3701,19 +4362,648 @@ function openPywhatkitAutoBlast() {
             } catch(e) {}
         }
     }
-    // Sync the latest image and send_mode into the form hidden inputs
+    // 2. Sync flyer thumbnail in modal
     const modalThumb = document.getElementById('modalAttachedThumb');
-    if (modalThumb && currentCampaignAttachedImageBase64) {
+    const modalEmpty = document.getElementById('modalFlyerEmptyState');
+    if (modalThumb && currentCampaignAttachedImageBase64 && currentCampaignSendMode !== 'message_only') {
         modalThumb.src = currentCampaignAttachedImageBase64;
         modalThumb.style.display = 'block';
+        if (modalEmpty) modalEmpty.style.display = 'none';
     }
-    const modalBase64Input = document.getElementById('pywhatkitImageBase64Input');
-    if (modalBase64Input) modalBase64Input.value = currentCampaignAttachedImageBase64 || '';
-    const modalSendMode = document.getElementById('pywhatkitSendModeInput');
-    if (modalSendMode) modalSendMode.value = currentCampaignSendMode || 'message_and_image';
+
+    // 3. Sync custom message text
+    const campaignMsgEl = document.getElementById('campaignMessageInput');
+    const autoMsgInput = document.getElementById('automatedCustomMessageInput');
+    const modalMsgSnippet = document.getElementById('modalMessageSnippetPreview');
+    if (campaignMsgEl) {
+        const msg = campaignMsgEl.value || '';
+        if (autoMsgInput) autoMsgInput.value = msg;
+        if (modalMsgSnippet && msg) modalMsgSnippet.innerText = msg;
+    }
+
+    // 4. Sync send mode
+    const autoModeInput = document.getElementById('automatedSendModeInput');
+    if (autoModeInput) autoModeInput.value = currentCampaignSendMode || 'message_and_image';
+
+    // 5. Detect and sync selected rows in the table
+    const checkedBoxes = Array.from(document.querySelectorAll('.queue-row-chk:not([disabled]):checked'));
+    const validCount = {{ valid_whatsapp_count|default:total_queue_count }};
+    const totalCount = {{ total_queue_count|default:0 }};
+    const targetBadge = document.getElementById('modalTargetBadge');
+    const audienceSubtext = document.getElementById('modalAudienceSubtext');
+    const btnLaunch = document.getElementById('btnLaunchAutomatedBlast');
+    const phonesInput = document.getElementById('automatedSelectedPhonesInput');
+    const contactsJsonInput = document.getElementById('automatedSelectedContactsJsonInput');
+
+    if (checkedBoxes.length > 0) {
+        // User selected a specific subset of rows!
+        const selectedPhones = checkedBoxes.map(chk => chk.getAttribute('data-phone')).filter(Boolean);
+        const selectedContacts = checkedBoxes.map(chk => ({
+            name: chk.getAttribute('data-name'),
+            phone: chk.getAttribute('data-phone'),
+            customer_id: chk.getAttribute('data-customer-id'),
+            lead_id: chk.getAttribute('data-lead-id')
+        }));
+
+        if (phonesInput) phonesInput.value = selectedPhones.join(',');
+        if (contactsJsonInput) contactsJsonInput.value = JSON.stringify(selectedContacts);
+
+        if (targetBadge) {
+            targetBadge.className = 'badge bg-primary fw-bold px-3 py-2 fs-6 shadow-sm';
+            targetBadge.innerHTML = `<i class="fas fa-check-square me-1"></i>${checkedBoxes.length} Selected Contact${checkedBoxes.length > 1 ? 's' : ''}`;
+        }
+        if (audienceSubtext) {
+            audienceSubtext.innerHTML = `<span class="text-primary fw-bold"><i class="fas fa-filter me-1"></i>Selected ${checkedBoxes.length} of ${validCount} WhatsApp-ready contacts</span>`;
+        }
+        if (btnLaunch) {
+            btnLaunch.innerHTML = `<i class="fas fa-paper-plane me-2"></i> 🚀 Launch 100% Automated Background Blast (${checkedBoxes.length} Selected Contact${checkedBoxes.length > 1 ? 's' : ''})`;
+        }
+    } else {
+        // No specific rows checked -> target full valid queue
+        if (phonesInput) phonesInput.value = '';
+        if (contactsJsonInput) contactsJsonInput.value = '';
+
+        if (targetBadge) {
+            targetBadge.className = 'badge bg-success fw-bold px-3 py-2 fs-6 shadow-sm';
+            targetBadge.innerHTML = `<i class="fas fa-users me-1"></i>${validCount} WhatsApp Ready Contacts`;
+        }
+        if (audienceSubtext) {
+            audienceSubtext.innerText = `All ${validCount} WhatsApp-ready contacts (invalid numbers auto-skipped)`;
+        }
+        if (btnLaunch) {
+            btnLaunch.innerHTML = `<i class="fas fa-paper-plane me-2"></i> 🚀 Launch 100% Automated Background Blast (${validCount} Contacts)`;
+        }
+    }
+
     const modalEl = document.getElementById('pywhatkitModal');
     if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
         bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
+}
+
+function openPywhatkitAutoBlast() {
+    openAutomatedBlastModal();
+}
+
+function openBatchPlayerModal() {
+    openAutomatedBlastModal();
+}
+
+function startInBrowserAutoBlast() {
+    openAutomatedBlastModal();
+}
+
+// ── Automated Background Engine (Playwright) Controller ─────────────────────
+function setAutomatedSpeed(radio) {
+    const val = parseInt(radio.value) || 5;
+    const delayInput = document.getElementById('automatedDelaySecondsInput');
+    if (delayInput) delayInput.value = val;
+
+    const badge = document.getElementById('automatedSpeedBadge');
+    if (badge) {
+        if (val <= 5) {
+            badge.className = 'badge bg-success-subtle text-success border border-success-subtle';
+            badge.textContent = `Fast (${val}s)`;
+        } else if (val <= 8) {
+            badge.className = 'badge bg-primary-subtle text-primary border border-primary-subtle';
+            badge.textContent = `Normal (${val}s)`;
+        } else {
+            badge.className = 'badge bg-secondary-subtle text-secondary border border-secondary-subtle';
+            badge.textContent = `Safe (${val}s)`;
+        }
+    }
+}
+
+let autoStatusPoller = null;
+let isBroadcastPausedLocally = false;
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+async function launchPlaywrightAutomatedBlast(event) {
+    if (event) event.preventDefault();
+
+    // 1. Ensure canvas poster is attached if nothing uploaded and in image mode
+    if (!currentCampaignAttachedImageBase64) {
+        const canvas = document.getElementById('posterCanvas');
+        if (canvas) {
+            try {
+                currentCampaignAttachedImageBase64 = canvas.toDataURL('image/png');
+            } catch(e) {}
+        }
+    }
+
+    const campaignMsgEl = document.getElementById('campaignMessageInput');
+    const customMessage = campaignMsgEl ? campaignMsgEl.value : '';
+    const speedRadio = document.querySelector('input[name="auto_speed"]:checked');
+    const delaySeconds = speedRadio ? parseInt(speedRadio.value) || 5 : 5;
+    
+    // 2. Hide PyWhatKit selection modal
+    const pwModal = document.getElementById('pywhatkitModal');
+    if (pwModal && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        const inst = bootstrap.Modal.getInstance(pwModal);
+        if (inst) inst.hide();
+    }
+
+    // 3. Open Live Monitor Modal
+    const progModalEl = document.getElementById('automatedProgressModal');
+    if (progModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        bootstrap.Modal.getOrCreateInstance(progModalEl).show();
+    }
+
+    // Reset progress UI & controls
+    isBroadcastPausedLocally = false;
+    const contactText = document.getElementById('autoStatusContactText');
+    const phoneText = document.getElementById('autoStatusPhoneText');
+    const percentBadge = document.getElementById('autoStatusPercentBadge');
+    const statusBadge = document.getElementById('autoCampaignStatusBadge');
+    const progressBar = document.getElementById('autoProgressBar');
+    const statSent = document.getElementById('autoStatSent');
+    const statFailed = document.getElementById('autoStatFailed');
+    const statRemaining = document.getElementById('autoStatRemaining');
+    const statTotal = document.getElementById('autoStatTotal');
+    const logFeed = document.getElementById('autoLiveLogFeed');
+    const btnPause = document.getElementById('btnAutoBroadcastPause');
+    const btnStop = document.getElementById('btnAutoBroadcastStop');
+    const btnResumeRemaining = document.getElementById('btnAutoBroadcastResumeRemaining');
+    const btnStartFresh = document.getElementById('btnAutoBroadcastStartFresh');
+    const controlHint = document.getElementById('autoControlStatusHint');
+
+    if (btnPause) {
+        btnPause.classList.remove('d-none');
+        btnPause.disabled = false;
+        btnPause.className = 'btn btn-outline-warning btn-sm fw-bold px-3 py-1 shadow-2xs';
+        btnPause.innerHTML = '<i class="fas fa-pause me-1"></i> Pause Broadcast';
+    }
+    if (btnStop) {
+        btnStop.classList.remove('d-none');
+        btnStop.disabled = false;
+        btnStop.className = 'btn btn-outline-danger btn-sm fw-bold px-3 py-1 shadow-2xs';
+    }
+    if (btnResumeRemaining) btnResumeRemaining.classList.add('d-none');
+    if (btnStartFresh) btnStartFresh.classList.add('d-none');
+
+    if (statusBadge) {
+        statusBadge.className = 'badge bg-white text-primary fw-bold px-2.5 py-1 ms-2 font-monospace shadow-2xs';
+        statusBadge.innerHTML = '<i class="fas fa-play me-1"></i>RUNNING';
+    }
+    if (controlHint) {
+        controlHint.innerHTML = '<i class="fas fa-circle text-success me-1 fa-fade"></i> Active';
+    }
+
+    if (contactText) contactText.innerText = 'Starting automated background worker...';
+    if (phoneText) phoneText.innerText = 'Initializing Playwright persistent context';
+    if (percentBadge) percentBadge.innerText = '0%';
+    if (progressBar) {
+        progressBar.style.width = '0%';
+        progressBar.className = 'progress-bar progress-bar-striped progress-bar-animated bg-primary';
+    }
+    if (statSent) statSent.innerText = '0';
+    if (statFailed) statFailed.innerText = '0';
+    if (statRemaining) statRemaining.innerText = '...';
+    if (statTotal) statTotal.innerText = '...';
+    if (logFeed) logFeed.innerHTML = '<div class="text-muted text-center py-3"><i class="fas fa-spinner fa-spin me-1"></i> Starting background WhatsApp engine...</div>';
+
+    // 4. Send POST request to start background broadcast
+    const form = document.getElementById('automatedBlastForm');
+    const formData = new FormData(form);
+    formData.set('custom_message', customMessage);
+    formData.set('campaign_image_base64', currentCampaignAttachedImageBase64 || '');
+    formData.set('send_mode', currentCampaignSendMode || 'message_and_image');
+    formData.set('delay_seconds', delaySeconds);
+
+    try {
+        const response = await fetch("{% url 'marketing_broadcast_execute' %}", {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+
+        const data = await response.json();
+        if (data.status !== 'success' && !data.success) {
+            const errMsg = data.message || data.error || 'Failed to start campaign';
+            if (statusBadge) {
+                statusBadge.className = 'badge bg-danger text-white fw-bold px-2.5 py-1 ms-2 font-monospace shadow-2xs';
+                statusBadge.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>ERROR';
+            }
+            if (controlHint) {
+                controlHint.innerHTML = '<i class="fas fa-exclamation-circle text-danger me-1"></i> Not Started';
+            }
+            if (btnPause) btnPause.classList.add('d-none');
+            if (btnStop) btnStop.classList.add('d-none');
+            if (btnStartFresh) btnStartFresh.classList.remove('d-none');
+            if (contactText) contactText.innerText = 'Campaign Did Not Start';
+            if (phoneText) phoneText.innerText = errMsg;
+            if (logFeed) logFeed.innerHTML = `<div class="text-danger py-2 px-2 rounded bg-danger-subtle border border-danger-subtle"><i class="fas fa-exclamation-triangle me-1"></i> <strong>Error:</strong> ${escapeHtml(errMsg)}</div>`;
+            return;
+        }
+
+        if (statTotal && data.total) {
+            statTotal.innerText = data.total;
+        }
+        if (statRemaining && data.total) {
+            statRemaining.innerText = data.total;
+        }
+
+        // Start polling status
+        startAutoBroadcastStatusPolling();
+    } catch (err) {
+        console.error("Error launching automated blast:", err);
+        if (contactText) contactText.innerText = 'Network error launching campaign';
+        if (phoneText) phoneText.innerText = err.message;
+    }
+}
+
+function updateLiveMonitorUIFromStatus(status) {
+    if (!status) return;
+
+    // Update UI metrics
+    const total = status.total || 0;
+    const sent = status.sent || 0;
+    const failed = status.failed || 0;
+    const processed = sent + failed;
+    const remaining = (typeof status.remaining === 'number') ? status.remaining : Math.max(0, total - processed);
+    const pct = (typeof status.percent === 'number') ? status.percent : (total > 0 ? Math.round((processed / total) * 100) : 0);
+
+    const progressBar = document.getElementById('autoProgressBar');
+    const percentBadge = document.getElementById('autoStatusPercentBadge');
+    const statusBadge = document.getElementById('autoCampaignStatusBadge');
+    const statSent = document.getElementById('autoStatSent');
+    const statFailed = document.getElementById('autoStatFailed');
+    const statRemaining = document.getElementById('autoStatRemaining');
+    const statTotal = document.getElementById('autoStatTotal');
+    const contactText = document.getElementById('autoStatusContactText');
+    const phoneText = document.getElementById('autoStatusPhoneText');
+    const btnPause = document.getElementById('btnAutoBroadcastPause');
+    const btnStop = document.getElementById('btnAutoBroadcastStop');
+    const btnResumeRemaining = document.getElementById('btnAutoBroadcastResumeRemaining');
+    const autoResumeRemainingCount = document.getElementById('autoResumeRemainingCount');
+    const btnStartFresh = document.getElementById('btnAutoBroadcastStartFresh');
+    const controlHint = document.getElementById('autoControlStatusHint');
+
+    if (progressBar) progressBar.style.width = `${pct}%`;
+    if (percentBadge) percentBadge.innerText = `${pct}%`;
+    if (statSent) statSent.innerText = sent;
+    if (statFailed) statFailed.innerText = failed;
+    if (statRemaining) statRemaining.innerText = remaining;
+    if (statTotal) statTotal.innerText = total;
+
+    const isRunning = Boolean(status.is_running || status.status === 'running' || status.status === 'paused');
+    const isPaused = Boolean(status.status === 'paused' || status.is_paused);
+    const isUnfinished = Boolean(
+        (status.status === 'stopped' || status.status === 'error' || (!isRunning && status.status !== 'completed' && status.status !== 'idle')) &&
+        (remaining > 0 || (status.remaining_queue && status.remaining_queue.length > 0))
+    );
+
+    if (isRunning) {
+        if (btnPause) {
+            btnPause.classList.remove('d-none');
+            btnPause.disabled = false;
+        }
+        if (btnStop) {
+            btnStop.classList.remove('d-none');
+            btnStop.disabled = false;
+        }
+        if (btnResumeRemaining) btnResumeRemaining.classList.add('d-none');
+        if (btnStartFresh) btnStartFresh.classList.add('d-none');
+
+        if (isPaused) {
+            isBroadcastPausedLocally = true;
+            if (statusBadge) {
+                statusBadge.className = 'badge bg-warning text-dark fw-bold px-2.5 py-1 ms-2 font-monospace shadow-2xs';
+                statusBadge.innerHTML = '<i class="fas fa-pause me-1"></i>PAUSED';
+            }
+            if (btnPause) {
+                btnPause.className = 'btn btn-success btn-sm fw-bold px-3 py-1 shadow-2xs';
+                btnPause.innerHTML = '<i class="fas fa-play me-1"></i> Resume Broadcast';
+            }
+            if (controlHint) {
+                controlHint.innerHTML = '<i class="fas fa-pause-circle text-warning me-1"></i> Campaign Paused';
+            }
+            if (contactText) {
+                contactText.innerText = status.current_contact || 'Campaign is Paused';
+            }
+            if (progressBar) progressBar.className = 'progress-bar bg-warning';
+        } else {
+            isBroadcastPausedLocally = false;
+            if (statusBadge) {
+                statusBadge.className = 'badge bg-white text-primary fw-bold px-2.5 py-1 ms-2 font-monospace shadow-2xs';
+                statusBadge.innerHTML = '<i class="fas fa-play me-1"></i>RUNNING';
+            }
+            if (btnPause) {
+                btnPause.className = 'btn btn-outline-warning btn-sm fw-bold px-3 py-1 shadow-2xs';
+                btnPause.innerHTML = '<i class="fas fa-pause me-1"></i> Pause Broadcast';
+            }
+            if (controlHint) {
+                controlHint.innerHTML = '<i class="fas fa-circle text-success me-1 fa-fade"></i> Active';
+            }
+            if (contactText) {
+                contactText.innerText = status.current_contact ? `Sending to ${status.current_contact}` : 'Sending broadcast in background...';
+            }
+            if (progressBar) progressBar.className = 'progress-bar progress-bar-striped progress-bar-animated bg-primary';
+        }
+
+        if (phoneText) {
+            phoneText.innerText = `Phone: ${status.current_phone || ''} (${processed}/${total})`;
+        }
+    } else if (isUnfinished) {
+        // Stopped or errored out with unfinished contacts remaining
+        if (btnPause) btnPause.classList.add('d-none');
+        if (btnStop) btnStop.classList.add('d-none');
+        if (btnResumeRemaining) {
+            btnResumeRemaining.classList.remove('d-none');
+            btnResumeRemaining.disabled = false;
+            btnResumeRemaining.innerHTML = `<i class="fas fa-play me-1"></i> Resume Remaining (<span id="autoResumeRemainingCount">${remaining}</span>)`;
+        }
+        if (autoResumeRemainingCount) autoResumeRemainingCount.innerText = remaining;
+        if (btnStartFresh) btnStartFresh.classList.remove('d-none');
+
+        if (statusBadge) {
+            statusBadge.className = 'badge bg-warning text-dark fw-bold px-2.5 py-1 ms-2 font-monospace shadow-2xs';
+            statusBadge.innerHTML = `<i class="fas fa-pause-circle me-1"></i>UNFINISHED (${remaining} REMAINING)`;
+        }
+        if (contactText) {
+            contactText.innerText = `Campaign Halted / Unfinished (${remaining} contacts remaining)`;
+        }
+        if (phoneText) {
+            phoneText.innerText = `Delivered ${sent}, ${failed} failed/skipped (${processed}/${total} processed, ${remaining} remaining)`;
+        }
+        if (progressBar) progressBar.className = 'progress-bar bg-warning';
+        if (controlHint) {
+            controlHint.innerHTML = `<i class="fas fa-hourglass-half text-warning me-1"></i> Unfinished (${remaining} remaining)`;
+        }
+    } else if (status.status === 'completed') {
+        if (btnPause) btnPause.classList.add('d-none');
+        if (btnStop) btnStop.classList.add('d-none');
+        if (btnResumeRemaining) btnResumeRemaining.classList.add('d-none');
+        if (btnStartFresh) btnStartFresh.classList.remove('d-none');
+
+        if (statusBadge) {
+            statusBadge.className = 'badge bg-success text-white fw-bold px-2.5 py-1 ms-2 font-monospace shadow-2xs';
+            statusBadge.innerHTML = '<i class="fas fa-check-circle me-1"></i>COMPLETED';
+        }
+        if (contactText) contactText.innerText = '🎉 Campaign Finished Successfully!';
+        if (phoneText) phoneText.innerText = `Total ${sent} delivered, ${failed} failed/skipped`;
+        if (progressBar) progressBar.className = 'progress-bar bg-success';
+        if (controlHint) controlHint.innerHTML = '<i class="fas fa-check-double text-success me-1"></i> Finished';
+    } else if (status.status === 'error') {
+        if (btnPause) btnPause.classList.add('d-none');
+        if (btnStop) btnStop.classList.add('d-none');
+        if (btnResumeRemaining) btnResumeRemaining.classList.add('d-none');
+        if (btnStartFresh) btnStartFresh.classList.remove('d-none');
+
+        if (statusBadge) {
+            statusBadge.className = 'badge bg-danger text-white fw-bold px-2.5 py-1 ms-2 font-monospace shadow-2xs';
+            statusBadge.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>ERROR';
+        }
+        if (contactText) contactText.innerText = 'Campaign Stopped on Error';
+        if (phoneText) phoneText.innerText = status.error || 'Encountered an issue during execution';
+        if (progressBar) progressBar.className = 'progress-bar bg-danger';
+        if (controlHint) controlHint.innerHTML = '<i class="fas fa-exclamation-circle text-danger me-1"></i> Error';
+    } else {
+        // Idle / Ready state - no campaign currently active
+        if (btnPause) btnPause.classList.add('d-none');
+        if (btnStop) btnStop.classList.add('d-none');
+        if (btnResumeRemaining) btnResumeRemaining.classList.add('d-none');
+        if (btnStartFresh) btnStartFresh.classList.remove('d-none');
+
+        if (statusBadge) {
+            statusBadge.className = 'badge bg-light text-secondary fw-bold px-2.5 py-1 ms-2 font-monospace border shadow-2xs';
+            statusBadge.innerHTML = '<i class="fas fa-bed me-1"></i>IDLE / READY';
+        }
+        if (contactText) contactText.innerText = 'No Active Campaign Running';
+        if (phoneText) phoneText.innerText = 'Select contacts and launch 1-Click Auto-Blast to start';
+        if (progressBar) {
+            progressBar.style.width = '0%';
+            progressBar.className = 'progress-bar bg-secondary';
+        }
+        if (controlHint) controlHint.innerHTML = '<i class="fas fa-circle text-secondary me-1"></i> Idle';
+    }
+
+    // Update live delivery log feed with rich reason diagnostics
+    const logItems = status.logs || status.details || [];
+    const logContainer = document.getElementById('autoLiveLogFeed');
+    if (logContainer) {
+        if (logItems && logItems.length > 0) {
+            logContainer.innerHTML = logItems.slice(-35).map(l => {
+                const st = (l.status || '').toUpperCase();
+                const safeName = escapeHtml(l.name || 'Recipient');
+                const safePhone = escapeHtml(l.phone || '');
+                const safeError = escapeHtml(l.error || '');
+
+                if (st === 'SENT') {
+                    return `
+                    <div class="py-1 px-2 mb-1 rounded bg-success-subtle border border-success-subtle d-flex align-items-center justify-content-between">
+                        <div>
+                            <i class="fas fa-check-circle text-success me-1.5"></i>
+                            <strong class="text-dark">${safeName}</strong>
+                            <span class="text-muted ms-1 small">(+${safePhone})</span>
+                        </div>
+                        <span class="badge bg-success font-monospace px-2 py-0.5" style="font-size:0.68rem;">DELIVERED</span>
+                    </div>`;
+                } else if (st === 'SKIPPED') {
+                    return `
+                    <div class="py-1 px-2 mb-1 rounded bg-warning-subtle border border-warning-subtle">
+                        <div class="d-flex align-items-center justify-content-between mb-0.5">
+                            <div>
+                                <i class="fas fa-exclamation-triangle text-warning-emphasis me-1.5"></i>
+                                <strong class="text-dark">${safeName}</strong>
+                                <span class="text-muted ms-1 small">(+${safePhone})</span>
+                            </div>
+                            <span class="badge bg-warning text-dark font-monospace px-2 py-0.5" style="font-size:0.68rem;">SKIPPED</span>
+                        </div>
+                        <div class="text-dark-emphasis small font-monospace" style="font-size: 0.72rem;">
+                            <i class="fas fa-info-circle text-warning me-1"></i><strong>Reason:</strong> ${safeError || 'Skipped invalid / non-WhatsApp contact'}
+                        </div>
+                    </div>`;
+                } else {
+                    return `
+                    <div class="py-1 px-2 mb-1 rounded bg-danger-subtle border border-danger-subtle">
+                        <div class="d-flex align-items-center justify-content-between mb-0.5">
+                            <div>
+                                <i class="fas fa-times-circle text-danger me-1.5"></i>
+                                <strong class="text-dark">${safeName}</strong>
+                                <span class="text-muted ms-1 small">(+${safePhone})</span>
+                            </div>
+                            <span class="badge bg-danger font-monospace px-2 py-0.5" style="font-size:0.68rem;">FAILED</span>
+                        </div>
+                        <div class="text-danger small font-monospace" style="font-size: 0.72rem;">
+                            <i class="fas fa-exclamation-circle me-1"></i><strong>Reason:</strong> ${safeError || 'Delivery failed or timed out'}
+                        </div>
+                    </div>`;
+                }
+            }).join('');
+            logContainer.scrollTop = logContainer.scrollHeight;
+        } else {
+            logContainer.innerHTML = '<div class="text-muted text-center py-3"><i class="fas fa-info-circle me-1"></i> No broadcast logs yet.</div>';
+        }
+    }
+}
+
+function startAutoBroadcastStatusPolling() {
+    if (autoStatusPoller) clearInterval(autoStatusPoller);
+
+    autoStatusPoller = setInterval(async () => {
+        try {
+            const res = await fetch("{% url 'marketing_broadcast_status' %}");
+            const status = await res.json();
+            updateLiveMonitorUIFromStatus(status);
+
+            // Stop polling if broadcast reached a terminal non-running state
+            if (status.status === 'completed' || status.status === 'stopped' || status.status === 'error' || (status.status === 'idle' && !status.is_running)) {
+                clearInterval(autoStatusPoller);
+                autoStatusPoller = null;
+            }
+        } catch (e) {
+            console.error("Status poll error:", e);
+        }
+    }, 1200);
+}
+
+async function resumeUnfinishedAutoBlast() {
+    const resumeBtn = document.getElementById('btnAutoBroadcastResumeRemaining');
+    if (resumeBtn) {
+        resumeBtn.disabled = true;
+        resumeBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Resuming...';
+    }
+
+    try {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '';
+        const res = await fetch("{% url 'marketing_broadcast_control' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ action: 'resume_remaining' })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            const btnPause = document.getElementById('btnAutoBroadcastPause');
+            const btnStop = document.getElementById('btnAutoBroadcastStop');
+            const btnStartFresh = document.getElementById('btnAutoBroadcastStartFresh');
+            if (btnPause) {
+                btnPause.classList.remove('d-none');
+                btnPause.disabled = false;
+                btnPause.className = 'btn btn-outline-warning btn-sm fw-bold px-3 py-1 shadow-2xs';
+                btnPause.innerHTML = '<i class="fas fa-pause me-1"></i> Pause Broadcast';
+            }
+            if (btnStop) {
+                btnStop.classList.remove('d-none');
+                btnStop.disabled = false;
+            }
+            if (resumeBtn) resumeBtn.classList.add('d-none');
+            if (btnStartFresh) btnStartFresh.classList.add('d-none');
+
+            startAutoBroadcastStatusPolling();
+        } else {
+            alert(data.message || 'Failed to resume unfinished broadcast.');
+            if (resumeBtn) {
+                resumeBtn.disabled = false;
+                resumeBtn.innerHTML = '<i class="fas fa-play me-1"></i> Resume Remaining';
+            }
+        }
+    } catch (e) {
+        console.error("Resume error:", e);
+        alert('Network error communicating with broadcast controller.');
+        if (resumeBtn) {
+            resumeBtn.disabled = false;
+            resumeBtn.innerHTML = '<i class="fas fa-play me-1"></i> Resume Remaining';
+        }
+    }
+}
+
+async function toggleAutoBroadcastPause() {
+    const pauseBtn = document.getElementById('btnAutoBroadcastPause');
+    const newAction = isBroadcastPausedLocally ? 'resume' : 'pause';
+    
+    if (pauseBtn) pauseBtn.disabled = true;
+    
+    try {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '';
+        const res = await fetch("{% url 'marketing_broadcast_control' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ action: newAction })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            isBroadcastPausedLocally = (newAction === 'pause');
+            if (isBroadcastPausedLocally) {
+                if (pauseBtn) {
+                    pauseBtn.className = 'btn btn-success btn-sm fw-bold px-3 py-1 shadow-2xs';
+                    pauseBtn.innerHTML = '<i class="fas fa-play me-1"></i> Resume Broadcast';
+                }
+            } else {
+                if (pauseBtn) {
+                    pauseBtn.className = 'btn btn-outline-warning btn-sm fw-bold px-3 py-1 shadow-2xs';
+                    pauseBtn.innerHTML = '<i class="fas fa-pause me-1"></i> Pause Broadcast';
+                }
+            }
+        } else {
+            alert(data.message || 'Failed to update broadcast status');
+        }
+    } catch (e) {
+        console.error("Control error:", e);
+        alert('Network error communicating with broadcast controller.');
+    } finally {
+        if (pauseBtn) pauseBtn.disabled = false;
+    }
+}
+
+async function stopAutoBroadcast() {
+    if (!confirm("Are you sure you want to STOP the automated WhatsApp campaign?\nAny remaining unsent contacts will not be messaged.")) {
+        return;
+    }
+    const stopBtn = document.getElementById('btnAutoBroadcastStop');
+    const pauseBtn = document.getElementById('btnAutoBroadcastPause');
+    if (stopBtn) stopBtn.disabled = true;
+    if (pauseBtn) pauseBtn.disabled = true;
+
+    try {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '';
+        const res = await fetch("{% url 'marketing_broadcast_control' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ action: 'stop' })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            const contactText = document.getElementById('autoStatusContactText');
+            if (contactText) contactText.innerText = '🛑 Stopping campaign...';
+            const logContainer = document.getElementById('autoLiveLogFeed');
+            if (logContainer) {
+                logContainer.innerHTML += '<div class="py-1 px-2 rounded bg-danger-subtle text-danger fw-bold my-1 border border-danger-subtle"><i class="fas fa-stop-circle me-1"></i> Broadcast halt requested by user.</div>';
+                logContainer.scrollTop = logContainer.scrollHeight;
+            }
+        } else {
+            alert(data.message || 'Failed to stop broadcast');
+            if (stopBtn) stopBtn.disabled = false;
+            if (pauseBtn) pauseBtn.disabled = false;
+        }
+    } catch (e) {
+        console.error("Stop error:", e);
+        alert('Network error stopping broadcast.');
+        if (stopBtn) stopBtn.disabled = false;
+        if (pauseBtn) pauseBtn.disabled = false;
     }
 }
 
@@ -3731,10 +5021,10 @@ let runnerPacingDelay = 5; // seconds
 // ── Multi-Select Checkbox Handlers ─────────────────────────────────────────
 
 function updateSelectedQueueCount() {
-    const allRowCheckboxes = document.querySelectorAll('.queue-row-chk');
-    const checkedCheckboxes = document.querySelectorAll('.queue-row-chk:checked');
+    const allValidCheckboxes = document.querySelectorAll('.queue-row-chk:not([disabled])');
+    const checkedCheckboxes = document.querySelectorAll('.queue-row-chk:not([disabled]):checked');
     const count = checkedCheckboxes.length;
-    const total = allRowCheckboxes.length;
+    const total = allValidCheckboxes.length;
 
     const countBadge = document.getElementById('selectedQueueCount');
     if (countBadge) countBadge.innerText = count;
@@ -3744,7 +5034,7 @@ function updateSelectedQueueCount() {
 
     const launchBtn = document.getElementById('launchBatchPlayerBtn');
     if (launchBtn) {
-        launchBtn.disabled = false;
+        launchBtn.disabled = (total === 0);
     }
 
     const masterCheckbox = document.getElementById('selectAllQueueCheckboxes');
@@ -3760,8 +5050,8 @@ function toggleSelectAllQueue(masterCheckbox) {
 }
 
 function selectAllQueueRows(checked) {
-    const allRowCheckboxes = document.querySelectorAll('.queue-row-chk');
-    allRowCheckboxes.forEach(chk => {
+    const allValidCheckboxes = document.querySelectorAll('.queue-row-chk:not([disabled])');
+    allValidCheckboxes.forEach(chk => {
         chk.checked = checked;
     });
     updateSelectedQueueCount();
@@ -3773,10 +5063,10 @@ function openBatchPlayerModal() {
 
 function initRunnerQueue() {
     runnerQueue = [];
-    const checkedBoxes = document.querySelectorAll('.queue-row-chk:checked');
+    const checkedBoxes = document.querySelectorAll('.queue-row-chk:not([disabled]):checked');
     const rows = (checkedBoxes.length > 0)
         ? Array.from(checkedBoxes).map(chk => chk.closest('tr'))
-        : Array.from(document.querySelectorAll('#broadcastTable tbody tr'));
+        : Array.from(document.querySelectorAll('#broadcastTable tbody tr[data-is-valid="1"]'));
 
     rows.forEach((r, idx) => {
         if (!r) return;
@@ -4371,20 +5661,42 @@ function renderDirectoryContactsTable(contacts) {
             ? '<span class="badge bg-light text-dark border">CSV Import</span>'
             : '<span class="badge bg-light text-primary border">Manual Entry</span>';
 
+        let phoneHtml = '';
+        if (c.is_valid_whatsapp !== false && phone) {
+            phoneHtml = `
+                <a href="https://wa.me/${phone}" target="_blank" class="badge bg-success-subtle text-success border border-success-subtle font-monospace text-decoration-none">
+                    <i class="fab fa-whatsapp me-1"></i>+${escapeHtml(phone)}
+                </a>
+            `;
+        } else {
+            const statusMsg = c.whatsapp_status_msg || 'Not on WhatsApp';
+            phoneHtml = `
+                <div class="d-inline-flex flex-column gap-1 align-items-start">
+                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle font-monospace" style="font-size: 0.75rem;">
+                        <i class="fas fa-phone-slash me-1"></i>+${escapeHtml(phone || c.phone || 'No Phone')}
+                    </span>
+                    <span class="badge bg-danger text-white shadow-2xs" style="font-size: 0.65rem; font-weight: 600;" title="${escapeHtml(statusMsg)}">
+                        <i class="fas fa-exclamation-triangle me-1"></i>${escapeHtml(statusMsg)}
+                    </span>
+                </div>
+            `;
+        }
+
         rowsHtml += `
-            <tr>
+            <tr class="${c.is_valid_whatsapp === false ? 'bg-light opacity-75' : ''}">
                 <td class="ps-3 text-muted fw-semibold">${idx + 1}</td>
                 <td><strong class="text-dark">${escapeHtml(c.name)}</strong></td>
-                <td>
-                    <a href="https://wa.me/${phone}" target="_blank" class="badge bg-success-subtle text-success border border-success-subtle font-monospace text-decoration-none">
-                        <i class="fab fa-whatsapp me-1"></i>+${phone}
-                    </a>
-                </td>
+                <td>${phoneHtml}</td>
                 <td class="text-muted">${escapeHtml(c.city || '—')}</td>
                 <td>${srcBadge}</td>
                 <td class="text-muted small">${c.created_at || '—'}</td>
                 <td class="text-end pe-3">
-                    <button type="button" class="btn btn-outline-danger btn-xs px-1" title="Remove contact from this group" onclick="deleteContactFromGroup('${c.id}', '${escapeHtml(c.name)}')">
+                    ${c.is_valid_whatsapp === false ? `
+                        <button type="button" class="btn btn-outline-warning btn-xs px-1 me-1 shadow-2xs" title="Recheck / Clear non-WhatsApp flag" onclick="recheckContactWhatsAppStatus('${phone}', '${escapeHtml(c.name)}', null, true)">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    ` : ''}
+                    <button type="button" class="btn btn-outline-danger btn-xs px-1 shadow-2xs" title="Remove contact from this group" onclick="deleteContactFromGroup('${c.id}', '${escapeHtml(c.name)}')">
                         <i class="fas fa-trash-alt"></i>
                     </button>
                 </td>
@@ -4493,6 +5805,119 @@ function deleteLeadFromQueue(leadId, leadName, groupId) {
             form.submit();
         }
     }
+}
+
+function resetAllWhatsAppFlags() {
+    if (!confirm('Recheck / Reset all non-WhatsApp flags?\nThis will clear past invalid number warnings and allow all contacts to be tested and selected for broadcasts again.')) {
+        return;
+    }
+
+    fetch('/transactions/marketing/whatsapp/reset-status/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken') || ''
+        },
+        body: JSON.stringify({ clear_all: true })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success') {
+            if (typeof showToast === 'function') {
+                showToast('WhatsApp Status Reset', data.message || 'All verification flags cleared. Reloading queue...', 'success');
+            } else {
+                alert(data.message || 'All verification flags reset.');
+            }
+            setTimeout(() => {
+                window.location.reload();
+            }, 600);
+        } else {
+            alert('Error resetting status: ' + (data.message || 'Unknown error'));
+        }
+    })
+    .catch(err => {
+        alert('Network error resetting status: ' + err);
+    });
+}
+
+function recheckContactWhatsAppStatus(phone, name, rowId, isDirectoryModal) {
+    if (!phone) return;
+    const cleanDigits = (phone || '').replace(/\D/g, '');
+
+    fetch('/transactions/marketing/whatsapp/reset-status/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken') || ''
+        },
+        body: JSON.stringify({ phone: phone })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success') {
+            if (isDirectoryModal && currentDirectoryGroupId) {
+                // Refresh group contacts
+                loadGroupContacts(currentDirectoryGroupId, currentDirectoryGroupName);
+            } else if (rowId) {
+                const row = document.getElementById(rowId);
+                if (row) {
+                    row.classList.remove('bg-light', 'opacity-75');
+                    row.setAttribute('data-is-valid', '1');
+
+                    // Checkbox
+                    const chk = row.querySelector('.queue-row-chk');
+                    if (chk) {
+                        chk.disabled = false;
+                        chk.removeAttribute('title');
+                        chk.style.cursor = 'pointer';
+                        chk.style.opacity = '1';
+                        chk.checked = true;
+                    }
+
+                    // Phone column
+                    const phoneTd = row.children[4];
+                    if (phoneTd) {
+                        phoneTd.innerHTML = `
+                            <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace" style="font-size: 0.75rem;">
+                                <i class="fab fa-whatsapp me-1"></i>${escapeHtml(data.norm_phone || phone)}
+                            </span>
+                        `;
+                    }
+
+                    // Action column
+                    const actionTd = row.children[7];
+                    if (actionTd) {
+                        const waUrl = `https://wa.me/${cleanDigits}?text=${encodeURIComponent(row.dataset.message || '')}`;
+                        actionTd.innerHTML = `
+                            <div class="d-inline-flex align-items-center gap-1">
+                                <a href="${waUrl}" target="_blank" 
+                                   class="btn btn-success btn-xs px-2 shadow-2xs fw-semibold wa-send-btn" style="font-size: 0.75rem;"
+                                   onclick="handleQueueRowSendClick(event, '${rowId}', this, '${escapeHtml(name)}', '${phone}', 'customer', '', '', '')">
+                                    <i class="fab fa-whatsapp me-1"></i> Send
+                                </a>
+                                <button type="button" class="btn btn-outline-secondary btn-xs px-1 shadow-2xs" title="Copy Attached Flyer" onclick="copyCurrentFlyerBlob()">
+                                    <i class="fas fa-image"></i>
+                                </button>
+                            </div>
+                        `;
+                    }
+
+                    updateSelectedQueueCount();
+                }
+            } else {
+                window.location.reload();
+            }
+
+            if (typeof showToast === 'function') {
+                showToast('Status Reset', `+${phone} is now WhatsApp Ready!`, 'success');
+            }
+        } else {
+            alert('Error: ' + (data.message || 'Could not reset status'));
+        }
+    })
+    .catch(err => {
+        alert('Network error: ' + err);
+    });
 }
 
 function escapeHtml(str) {

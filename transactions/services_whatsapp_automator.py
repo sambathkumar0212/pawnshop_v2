@@ -4,9 +4,13 @@ Persists browser profile in `.whatsapp_user_data/` so QR code is scanned once.
 """
 
 import os
+os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
 import re
 import time
 import logging
+import threading
+import json
+import base64
 from pathlib import Path
 from django.conf import settings
 from django.utils import timezone
@@ -74,11 +78,116 @@ def clean_phone_number(raw_phone: str) -> str:
     return digits
 
 
+def format_display_phone(raw_phone: str) -> str:
+    """Format a 10 or 12 digit phone number nicely for human presentation (+91 XXXXX XXXXX)."""
+    if not raw_phone:
+        return ""
+    digits = re.sub(r"[^\d]", "", str(raw_phone))
+    if len(digits) == 12 and digits.startswith("91"):
+        return f"+91 {digits[2:7]} {digits[7:]}"
+    elif len(digits) == 10:
+        return f"+91 {digits[:5]} {digits[5:]}"
+    elif len(digits) > 10:
+        return f"+{digits}"
+    return raw_phone
+
+
+def extract_connected_whatsapp_phone() -> str | None:
+    """
+    Inspects the local persistent Chromium LevelDB / storage to extract
+    the active WhatsApp account's JID/Phone number without opening a browser.
+    """
+    import os
+    session_dir = Path(get_session_dir())
+    if not session_dir.exists():
+        return None
+    for root, dirs, files in os.walk(session_dir):
+        for f in sorted(files, reverse=True):
+            if f.endswith(('.ldb', '.log')):
+                try:
+                    filepath = os.path.join(root, f)
+                    with open(filepath, 'rb') as fp:
+                        content = fp.read().decode('latin1', errors='ignore')
+                    m = re.search(r'last-wid(?:-md)?[^"]*"(\d{10,15})[:@]', content)
+                    if m:
+                        return m.group(1)
+                except Exception:
+                    pass
+    return None
+
+
 def is_whatsapp_paired() -> bool:
     """Checks if a verified paired session marker exists."""
     session_path = Path(settings.BASE_DIR) / ".whatsapp_user_data"
     marker = session_path / ".session_paired"
     return marker.exists()
+
+
+def get_whatsapp_session_info() -> dict:
+    """
+    Returns detailed pairing status, formatted connected phone number, and metadata.
+    """
+    import json
+    session_path = Path(settings.BASE_DIR) / ".whatsapp_user_data"
+    marker = session_path / ".session_paired"
+    
+    if not marker.exists():
+        return {
+            "is_paired": False,
+            "status": "unpaired",
+            "phone": None,
+            "raw_phone": None,
+            "display_name": None,
+            "paired_at": None,
+            "message": "No WhatsApp account connected. Please scan QR code to pair."
+        }
+    
+    phone = None
+    raw_phone = None
+    display_name = None
+    paired_at = None
+
+    try:
+        content = marker.read_text(encoding="utf-8").strip()
+        if content.startswith("{") and content.endswith("}"):
+            data = json.loads(content)
+            phone = data.get("phone")
+            raw_phone = data.get("raw_phone")
+            display_name = data.get("display_name")
+            paired_at = data.get("paired_at")
+    except Exception:
+        pass
+
+    # If phone was not yet recorded in marker, try auto-extracting from session storage
+    if not phone or not raw_phone:
+        extracted = extract_connected_whatsapp_phone()
+        if extracted:
+            raw_phone = extracted
+            phone = format_display_phone(extracted)
+            # Update marker with structured JSON
+            try:
+                marker_data = {
+                    "paired": True,
+                    "phone": phone,
+                    "raw_phone": raw_phone,
+                    "display_name": display_name or "",
+                    "paired_at": paired_at or time.strftime('%Y-%m-%d %H:%M:%S'),
+                }
+                marker.write_text(json.dumps(marker_data, indent=2), encoding="utf-8")
+            except Exception:
+                pass
+
+    display_phone = phone or "Connected WhatsApp Account"
+
+    return {
+        "is_paired": True,
+        "status": "authenticated",
+        "phone": display_phone,
+        "raw_phone": raw_phone,
+        "display_name": display_name,
+        "paired_at": paired_at,
+        "message": f"Connected to WhatsApp ({display_phone})"
+    }
 
 
 def reset_whatsapp_session() -> bool:
@@ -102,76 +211,254 @@ def reset_whatsapp_session() -> bool:
     return True
 
 
-def pair_whatsapp_interactive(timeout_seconds: int = 120) -> dict:
+# Global thread-safe Live QR Pairing State
+LIVE_PAIRING_LOCK = threading.Lock()
+LIVE_PAIRING_STATE = {
+    'is_active': False,
+    'status': 'idle',  # 'idle', 'starting', 'qr_ready', 'authenticated', 'timeout', 'error'
+    'qr_image_base64': None,
+    'phone': None,
+    'raw_phone': None,
+    'message': 'No pairing in progress',
+    'cancel_requested': False,
+    'started_at': 0,
+}
+
+
+def get_live_qr_pairing_status() -> dict:
+    """Returns the current state of headless live QR code streaming & pairing."""
+    with LIVE_PAIRING_LOCK:
+        session_info = get_whatsapp_session_info()
+        state = dict(LIVE_PAIRING_STATE)
+        state['is_paired'] = session_info['is_paired']
+        if session_info['is_paired']:
+            state['phone'] = session_info['phone']
+            state['raw_phone'] = session_info.get('raw_phone')
+            state['display_name'] = session_info.get('display_name')
+            state['status'] = 'authenticated'
+            state['message'] = session_info['message']
+        return state
+
+
+def cancel_headless_qr_pairing():
+    """Requests cancellation of active background QR pairing worker."""
+    with LIVE_PAIRING_LOCK:
+        LIVE_PAIRING_STATE['cancel_requested'] = True
+        LIVE_PAIRING_STATE['is_active'] = False
+        LIVE_PAIRING_STATE['status'] = 'idle'
+        LIVE_PAIRING_STATE['qr_image_base64'] = None
+
+
+def _run_headless_qr_pairing_worker(force_relink: bool = False, timeout_seconds: int = 120):
     """
-    Launches a visible Chromium window for the user to scan the WhatsApp Web QR code once.
-    Saves the user data directory persistently for all future background runs.
+    Background worker thread that runs Playwright headlessly, captures the live QR code screenshot,
+    and streams it via base64 directly to the web modal.
     """
+    import json
+    import base64
+    from django.db import close_old_connections
+    close_old_connections()
     from playwright.sync_api import sync_playwright
 
-    logger.info("Opening WhatsApp Web for one-time pairing in %s", get_session_dir())
+    with LIVE_PAIRING_LOCK:
+        LIVE_PAIRING_STATE['is_active'] = True
+        LIVE_PAIRING_STATE['status'] = 'starting'
+        LIVE_PAIRING_STATE['qr_image_base64'] = None
+        LIVE_PAIRING_STATE['message'] = 'Initializing WhatsApp Web engine...'
+        LIVE_PAIRING_STATE['cancel_requested'] = False
+        LIVE_PAIRING_STATE['started_at'] = time.time()
+
     clean_stale_locks()
+    context = None
 
-    with sync_playwright() as p:
-        context = p.chromium.launch_persistent_context(
-            **get_launch_context_options(headless=False)
-        )
+    try:
+        with sync_playwright() as p:
+            context = p.chromium.launch_persistent_context(
+                **get_launch_context_options(headless=True)
+            )
+            page = context.pages[0] if context.pages else context.new_page()
+            
+            with LIVE_PAIRING_LOCK:
+                LIVE_PAIRING_STATE['message'] = 'Connecting to WhatsApp Web...'
 
-        page = context.pages[0] if context.pages else context.new_page()
-        page.goto("https://web.whatsapp.com/", timeout=60000)
-
-        # Bring window to front
-        try:
-            page.bring_to_front()
-        except Exception:
-            pass
-
-        logged_in = False
-        start_time = time.time()
-
-        while time.time() - start_time < timeout_seconds:
             try:
-                # Check multiple indicators of a successful WhatsApp Web login
-                if (
-                    page.locator('div[contenteditable="true"][data-tab="3"]').is_visible()
-                    or page.locator('div[aria-label="Chat list"]').is_visible()
-                    or page.locator('span[data-icon="chat"]').is_visible()
-                    or page.locator('header').is_visible()
-                    or page.locator('#pane-side').is_visible()
-                    or page.locator('div[role="textbox"]').is_visible()
-                ):
-                    logged_in = True
-                    time.sleep(6)  # Allow storage and IndexedDB keys to settle completely
-                    break
+                page.goto("https://web.whatsapp.com/", timeout=50000)
+            except Exception as nav_err:
+                logger.warning("WhatsApp Web navigation notice: %s", nav_err)
+
+            start_time = time.time()
+            qr_captured = False
+
+            while time.time() - start_time < timeout_seconds:
+                with LIVE_PAIRING_LOCK:
+                    if LIVE_PAIRING_STATE.get('cancel_requested'):
+                        logger.info("QR pairing worker cancelled by user.")
+                        break
+
+                # 1. Check if user is already logged in or completed scan
+                try:
+                    is_logged_in = (
+                        page.locator('div[contenteditable="true"][data-tab="3"]').is_visible()
+                        or page.locator('div[aria-label="Chat list"]').is_visible()
+                        or page.locator('span[data-icon="chat"]').is_visible()
+                        or page.locator('header').is_visible()
+                        or page.locator('#pane-side').is_visible()
+                        or page.locator('div[role="textbox"]').is_visible()
+                    )
+                except Exception:
+                    is_logged_in = False
+
+                if is_logged_in:
+                    time.sleep(4)  # Let local storage keys settle
+                    raw_phone_extracted = ""
+                    display_name = ""
+                    try:
+                        eval_data = page.evaluate("""() => {
+                            let res = { phone: '', name: '' };
+                            try {
+                                for (let i = 0; i < localStorage.length; i++) {
+                                    let k = localStorage.key(i) || '';
+                                    let v = localStorage.getItem(k) || '';
+                                    if (k.includes('last-wid') || k.includes('user-id') || k.includes('me-jid')) {
+                                        let m = v.match(/(\\d{10,15})/);
+                                        if (m && !res.phone) {
+                                            res.phone = m[1];
+                                        }
+                                    }
+                                    if (k.includes('pushname') && !res.name) {
+                                        res.name = v.replace(/["']/g, '').trim();
+                                    }
+                                }
+                            } catch(e) {}
+                            return res;
+                        }""")
+                        if isinstance(eval_data, dict):
+                            raw_phone_extracted = eval_data.get('phone', '')
+                            display_name = eval_data.get('name', '')
+                    except Exception:
+                        pass
+
+                    if not raw_phone_extracted:
+                        raw_phone_extracted = extract_connected_whatsapp_phone() or ""
+
+                    formatted_phone = format_display_phone(raw_phone_extracted) if raw_phone_extracted else ""
+                    marker = Path(get_session_dir()) / ".session_paired"
+                    try:
+                        marker_data = {
+                            "paired": True,
+                            "phone": formatted_phone or "Connected WhatsApp Device",
+                            "raw_phone": raw_phone_extracted,
+                            "display_name": display_name,
+                            "paired_at": time.strftime('%Y-%m-%d %H:%M:%S'),
+                        }
+                        marker.write_text(json.dumps(marker_data, indent=2), encoding="utf-8")
+                    except Exception:
+                        try:
+                            marker.write_text("PAIRED", encoding="utf-8")
+                        except Exception:
+                            pass
+
+                    with LIVE_PAIRING_LOCK:
+                        LIVE_PAIRING_STATE['is_active'] = False
+                        LIVE_PAIRING_STATE['status'] = 'authenticated'
+                        LIVE_PAIRING_STATE['qr_image_base64'] = None
+                        LIVE_PAIRING_STATE['phone'] = formatted_phone or "Connected WhatsApp Device"
+                        LIVE_PAIRING_STATE['raw_phone'] = raw_phone_extracted
+                        LIVE_PAIRING_STATE['display_name'] = display_name
+                        LIVE_PAIRING_STATE['message'] = f"WhatsApp paired successfully! Connected: {formatted_phone or 'Active Device'}"
+                    
+                    logger.info("✅ Headless WhatsApp QR pairing completed! Connected: %s", formatted_phone)
+                    return
+
+                # 2. Check for QR code canvas/element
+                try:
+                    qr_loc = page.locator('canvas, div[data-testid="qrcode"], div[data-ref]').first
+                    if qr_loc.is_visible():
+                        # Take screenshot of the QR code canvas
+                        time.sleep(0.5)
+                        qr_bytes = qr_loc.screenshot()
+                        qr_b64 = "data:image/png;base64," + base64.b64encode(qr_bytes).decode('utf-8')
+                        with LIVE_PAIRING_LOCK:
+                            LIVE_PAIRING_STATE['status'] = 'qr_ready'
+                            LIVE_PAIRING_STATE['qr_image_base64'] = qr_b64
+                            LIVE_PAIRING_STATE['message'] = 'Scan this QR code with WhatsApp on your phone'
+                        qr_captured = True
+                except Exception:
+                    pass
+
+                # 3. Check if QR code expired and needs reload click
+                try:
+                    reload_btn = page.locator('button:has-text("Click to reload QR code"), div[data-testid="qrcode"] button, span[role="button"]:has(span[data-icon="refresh"])').first
+                    if reload_btn.is_visible():
+                        reload_btn.click()
+                        time.sleep(1.5)
+                except Exception:
+                    pass
+
+                time.sleep(1.5)
+
+            # If loop finished without login
+            with LIVE_PAIRING_LOCK:
+                LIVE_PAIRING_STATE['is_active'] = False
+                if LIVE_PAIRING_STATE['status'] != 'authenticated':
+                    LIVE_PAIRING_STATE['status'] = 'timeout'
+                    LIVE_PAIRING_STATE['qr_image_base64'] = None
+                    LIVE_PAIRING_STATE['message'] = 'QR code pairing timed out. Please click Retry to generate a new QR code.'
+
+    except Exception as fatal_err:
+        logger.error("Error in headless QR pairing worker: %s", fatal_err)
+        with LIVE_PAIRING_LOCK:
+            LIVE_PAIRING_STATE['is_active'] = False
+            LIVE_PAIRING_STATE['status'] = 'error'
+            LIVE_PAIRING_STATE['qr_image_base64'] = None
+            LIVE_PAIRING_STATE['message'] = str(fatal_err)
+    finally:
+        if context:
+            try:
+                context.close()
             except Exception:
                 pass
-            time.sleep(1)
+        clean_stale_locks()
 
-        context.close()
 
-        if logged_in:
-            marker = Path(get_session_dir()) / ".session_paired"
-            try:
-                marker.write_text("PAIRED", encoding="utf-8")
-            except Exception:
-                pass
-            return {"success": True, "message": "WhatsApp session paired successfully!"}
-        return {
-            "success": False,
-            "message": f"Pairing timed out after {timeout_seconds} seconds. Please scan the QR code before timeout.",
-        }
+def start_headless_qr_pairing_thread(force_relink: bool = False) -> dict:
+    """
+    Spawns or resumes the background headless QR code streaming and pairing worker.
+    """
+    with LIVE_PAIRING_LOCK:
+        if LIVE_PAIRING_STATE.get('is_active'):
+            return get_live_qr_pairing_status()
+
+    t = threading.Thread(
+        target=_run_headless_qr_pairing_worker,
+        args=(force_relink,),
+        daemon=True,
+        name="whatsapp-headless-qr-pairing-worker"
+    )
+    t.start()
+    return get_live_qr_pairing_status()
+
+
+def pair_whatsapp_interactive(timeout_seconds: int = 120) -> dict:
+    """
+    Starts headless live QR pairing.
+    (Backwards compatible with pair_whatsapp_interactive endpoint).
+    """
+    start_headless_qr_pairing_thread(force_relink=True)
+    return {
+        "success": True,
+        "message": "Headless QR code generator started. Live QR is streaming directly to your screen modal.",
+        "status": "starting",
+    }
 
 
 def get_whatsapp_qr_image_base64() -> dict:
     """
-    Checks session authentication status and returns pairing status.
+    Returns live QR code image stream or connected session details.
     """
-    if is_whatsapp_paired():
-        return {"status": "authenticated", "message": "WhatsApp is already linked!"}
-    return {
-        "status": "unpaired",
-        "message": "Click 'Open Live QR Pairing Window' to scan the live QR code on screen."
-    }
+    return get_live_qr_pairing_status()
+
+
 
 
 
@@ -571,22 +858,52 @@ def send_batch_irac_alerts_automated(
 
                 try:
                     page.goto(send_url, timeout=35000)
-                    time.sleep(3)
+                    time.sleep(2)
 
-                    # Click send button
-                    send_btn = page.locator('button[aria-label="Send"], span[data-icon="send"], button span[data-icon="send"]').first
+                    # Check for invalid number popup
+                    invalid_modal = page.locator('div[data-animate-modal-popup="true"], div[role="dialog"], div[data-testid="popup-contents"]').filter(
+                        has_text=re.compile(r'invalid|phone number shared via url', re.I)
+                    ).first
+                    if not invalid_modal.count() or not invalid_modal.is_visible():
+                        invalid_modal = page.locator('text="Phone number shared via url is invalid", text="The phone number shared via url is invalid", text="URL is invalid", text="Phone number is invalid"').first
+
+                    if invalid_modal.is_visible():
+                        ok_btn = page.locator('div[data-animate-modal-popup="true"] button, div[role="dialog"] button, div[data-testid="popup-contents"] button, div[role="button"]:has-text("OK"), button:has-text("OK")').first
+                        if ok_btn.is_visible():
+                            try:
+                                ok_btn.click()
+                                time.sleep(1)
+                            except Exception:
+                                pass
+                        results["failed"] += 1
+                        results["details"].append({
+                            "loan_no": loan.loan_number,
+                            "customer": cust_name,
+                            "phone": phone_clean,
+                            "status": "SKIPPED",
+                            "error": f"Not on WhatsApp: Phone +{phone_clean} is not registered on WhatsApp",
+                        })
+                        continue
+
+                    # Look for send button or composer
                     sent_success = False
-
-                    try:
-                        send_btn.wait_for(state="visible", timeout=12000)
-                        send_btn.click()
-                        sent_success = True
-                    except Exception:
-                        composer = page.locator('div[contenteditable="true"][data-tab="10"]').first
-                        if composer.is_visible():
-                            composer.focus()
-                            composer.press("Enter")
+                    send_btn = page.locator('button[aria-label="Send"], button[aria-label="Send message"], span[data-icon="send"], span[data-icon="send-light"], button:has(span[data-icon="send"]), button[data-tab="11"]').first
+                    if send_btn.is_visible():
+                        try:
+                            send_btn.click()
                             sent_success = True
+                        except Exception:
+                            pass
+
+                    if not sent_success:
+                        composer = page.locator('footer div[contenteditable="true"], div[role="textbox"][contenteditable="true"], div[contenteditable="true"][data-tab="10"], div[contenteditable="true"][data-tab="6"]').first
+                        if composer.is_visible():
+                            try:
+                                composer.focus()
+                                composer.press("Enter")
+                                sent_success = True
+                            except Exception:
+                                pass
 
                     if sent_success:
                         time.sleep(delay_between_seconds)

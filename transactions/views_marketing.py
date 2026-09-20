@@ -18,6 +18,10 @@ from django.views import View
 from accounts.mixins import RoleBranchAccessMixin
 from branches.models import Branch
 from schemes.models import DailyGoldRate, Scheme
+from transactions.services_whatsapp_automator import (
+    is_whatsapp_paired,
+    get_whatsapp_session_info,
+)
 from transactions.services_marketing import (
     MARKETING_TEMPLATES,
     add_single_lead,
@@ -27,14 +31,19 @@ from transactions.services_marketing import (
     delete_or_reset_template,
     get_all_marketing_groups,
     get_all_marketing_templates,
+    get_broadcast_status,
     get_campaign_analytics,
     get_segmented_audience,
     get_social_media_ad_copies,
     import_leads_from_csv,
     launch_pywhatkit_broadcast_async,
     log_campaign_broadcast,
+    pause_automated_broadcast,
     render_campaign_message,
+    resume_automated_broadcast,
+    resume_remaining_broadcast,
     save_or_overwrite_template,
+    stop_automated_broadcast,
 )
 
 logger = logging.getLogger(__name__)
@@ -151,6 +160,9 @@ class DigitalMarketingDashboardView(LoginRequiredMixin, RoleBranchAccessMixin, V
         # Fetch Campaign Broadcast Analytics & History
         campaign_analytics = get_campaign_analytics(branch_id=selected_branch_id or None, limit=50)
 
+        # Raw template body with dynamic variables for editor textarea
+        raw_template_body = current_template.get('body_ta' if use_tamil else 'body_en', '')
+
         context = {
             'segment': segment,
             'selected_group_id': selected_group_id,
@@ -167,12 +179,17 @@ class DigitalMarketingDashboardView(LoginRequiredMixin, RoleBranchAccessMixin, V
             'campaign_analytics': campaign_analytics,
             'marketing_templates': all_marketing_templates,
             'current_template': current_template,
+            'raw_template_body': raw_template_body,
             'broadcast_queue': broadcast_queue,
             'total_queue_count': len(broadcast_queue),
+            'valid_whatsapp_count': sum(1 for item in broadcast_queue if item.get('is_valid_whatsapp')),
+            'invalid_whatsapp_count': sum(1 for item in broadcast_queue if not item.get('is_valid_whatsapp')),
             'sample_preview_text': sample_preview_text,
             'social_copies': social_copies,
             'schemes': schemes,
             'current_gold_rate': current_gold_rate,
+            'is_whatsapp_paired': is_whatsapp_paired(),
+            'whatsapp_session': get_whatsapp_session_info(),
             'organization_name': getattr(settings, 'ORGANIZATION_NAME', 'First Money Gold'),
         }
         return render(request, self.template_name, context)
@@ -180,9 +197,12 @@ class DigitalMarketingDashboardView(LoginRequiredMixin, RoleBranchAccessMixin, V
 
 class ExecuteBroadcastActionView(LoginRequiredMixin, RoleBranchAccessMixin, View):
     """
-    POST-only action to launch automated background PyWhatKit broadcast or download audience CSV.
+    POST-only action to launch automated background Playwright broadcast or download audience CSV.
     """
     def post(self, request):
+        is_ajax = (request.headers.get('x-requested-with') == 'XMLHttpRequest' or 
+                   request.content_type == 'application/json')
+
         action = request.POST.get('action', 'pywhatkit_broadcast')
         segment = request.POST.get('segment', 'all')
         group_id = request.POST.get('group', '')
@@ -196,7 +216,7 @@ class ExecuteBroadcastActionView(LoginRequiredMixin, RoleBranchAccessMixin, View
         lang = request.POST.get('lang', 'ta')
         branch_id = request.POST.get('branch', '')
         custom_message = request.POST.get('custom_message', '').strip() or None
-        delay_seconds = int(request.POST.get('delay_seconds', 20))
+        delay_seconds = int(request.POST.get('delay_seconds', 5))
 
         use_tamil = (lang == 'ta')
         target_audience = get_segmented_audience(
@@ -211,12 +231,71 @@ class ExecuteBroadcastActionView(LoginRequiredMixin, RoleBranchAccessMixin, View
             custom_body=custom_message
         )
 
+        # Check if user selected specific contacts in the UI table
+        selected_phones_raw = request.POST.get('selected_phones', '').strip()
+        selected_contacts_json = request.POST.get('selected_contacts_json', '').strip()
+        
+        target_phones = set()
+        target_customer_ids = set()
+        target_lead_ids = set()
+
+        if selected_phones_raw:
+            target_phones.update(p.strip() for p in selected_phones_raw.split(',') if p.strip())
+
+        if selected_contacts_json:
+            try:
+                import json
+                contacts_list = json.loads(selected_contacts_json)
+                if isinstance(contacts_list, list):
+                    for c in contacts_list:
+                        if isinstance(c, dict):
+                            if c.get('phone'):
+                                target_phones.add(str(c.get('phone')).strip())
+                            if c.get('customer_id'):
+                                target_customer_ids.add(str(c.get('customer_id')).strip())
+                            if c.get('lead_id'):
+                                target_lead_ids.add(str(c.get('lead_id')).strip())
+                        elif isinstance(c, str):
+                            target_phones.add(c.strip())
+            except Exception as e:
+                logger.warning(f"Error parsing selected_contacts_json: {e}")
+
+        def normalize_phone_match(phone_str):
+            if not phone_str:
+                return ''
+            digits = ''.join(c for c in str(phone_str) if c.isdigit())
+            return digits[-10:] if len(digits) >= 10 else digits
+
+        if target_phones or target_customer_ids or target_lead_ids:
+            normalized_target_phones = {normalize_phone_match(p) for p in target_phones if normalize_phone_match(p)}
+            filtered_queue = []
+            for item in broadcast_queue:
+                c_id = str(item.get('customer_id') or '').strip()
+                l_id = str(item.get('lead_id') or '').strip()
+                p_norm = normalize_phone_match(item.get('phone', ''))
+
+                if target_customer_ids and c_id and c_id in target_customer_ids:
+                    filtered_queue.append(item)
+                elif target_lead_ids and l_id and l_id in target_lead_ids:
+                    filtered_queue.append(item)
+                elif normalized_target_phones and p_norm and p_norm in normalized_target_phones:
+                    filtered_queue.append(item)
+
+            if filtered_queue:
+                broadcast_queue = filtered_queue
+
+        # Filter out invalid / non-WhatsApp numbers automatically for broadcast execution
+        if action in ('pywhatkit_broadcast', 'automated_blast', 'headless_broadcast'):
+            broadcast_queue = [item for item in broadcast_queue if item.get('is_valid_whatsapp', True)]
+
         redirect_url = reverse('digital_marketing') + f"?segment={segment}&template={template_key}&lang={lang}&branch={branch_id}"
         if group_id:
             redirect_url += f"&group={group_id}"
 
         if not broadcast_queue:
-            messages.warning(request, "No valid WhatsApp contacts found in the selected audience segment/group.")
+            if is_ajax:
+                return JsonResponse({'status': 'error', 'message': 'No valid WhatsApp contacts found for the selection.'}, status=400)
+            messages.warning(request, "No valid WhatsApp contacts found for the selection.")
             return redirect(redirect_url)
 
         if action == 'export_csv':
@@ -237,13 +316,20 @@ class ExecuteBroadcastActionView(LoginRequiredMixin, RoleBranchAccessMixin, View
                 ])
             return response
 
-        elif action == 'pywhatkit_broadcast':
+        elif action in ('pywhatkit_broadcast', 'automated_blast', 'headless_broadcast'):
+            # Verify WhatsApp session is paired
+            if not is_whatsapp_paired():
+                err_msg = "WhatsApp Web session is not paired! Please pair your WhatsApp session from 24/7 Autopilot or Loans page before launching an automated campaign."
+                if is_ajax:
+                    return JsonResponse({'status': 'error', 'message': err_msg, 'unpaired': True}, status=400)
+                messages.error(request, err_msg)
+                return redirect(redirect_url)
+
             send_mode = request.POST.get('send_mode', 'message_and_image')  # 'message_and_image', 'image_only', 'message_only'
             campaign_image_file = request.FILES.get('campaign_image')
             campaign_image_base64 = request.POST.get('campaign_image_base64', '').strip()
 
             saved_image_path = None
-            # Only process image if the selected mode actually needs one
             if send_mode != 'message_only':
                 try:
                     import base64
@@ -259,7 +345,6 @@ class ExecuteBroadcastActionView(LoginRequiredMixin, RoleBranchAccessMixin, View
                         filename = f"campaign_flyer_{int(time.time())}_{request.user.id}.png"
                         filepath = os.path.abspath(os.path.join(campaigns_dir, filename))
                         
-                        # Convert to standard RGB/RGBA PNG via Pillow to guarantee PyWhatKit compatibility
                         try:
                             img = Image.open(campaign_image_file)
                             if img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info):
@@ -269,7 +354,6 @@ class ExecuteBroadcastActionView(LoginRequiredMixin, RoleBranchAccessMixin, View
                             img.save(filepath, format='PNG')
                             saved_image_path = filepath
                         except Exception:
-                            # Fallback raw write
                             campaign_image_file.seek(0)
                             with open(filepath, 'wb+') as destination:
                                 for chunk in campaign_image_file.chunks():
@@ -298,12 +382,6 @@ class ExecuteBroadcastActionView(LoginRequiredMixin, RoleBranchAccessMixin, View
                             with open(filepath, 'wb') as f:
                                 f.write(file_data)
                             saved_image_path = filepath
-                    else:
-                        logger.warning(
-                            "PyWhatKit blast: send_mode='%s' but NO image was received from the browser. "
-                            "Check that the campaign_image_base64 hidden field is populated before form submit.",
-                            send_mode
-                        )
 
                     if saved_image_path and os.path.exists(saved_image_path) and os.path.getsize(saved_image_path) > 0:
                         logger.info("Campaign flyer image saved successfully: %s (%d bytes)", saved_image_path, os.path.getsize(saved_image_path))
@@ -317,23 +395,90 @@ class ExecuteBroadcastActionView(LoginRequiredMixin, RoleBranchAccessMixin, View
                 broadcast_queue,
                 delay_seconds=delay_seconds,
                 image_path=saved_image_path,
-                send_mode=send_mode
+                send_mode=send_mode,
+                user=request.user
             )
             if started:
                 mode_desc = (
                     "Image Flyer + Message"
                     if (saved_image_path and send_mode != 'image_only')
-                    else ("Image Flyer Only" if (saved_image_path and send_mode == 'image_only') else "Text Message")
+                    else ("Image Flyer Only" if (saved_image_path and send_mode == 'image_only') else "Personalized Text Message")
                 )
-                messages.success(
-                    request,
-                    f"🚀 1-Click WhatsApp PyWhatKit Auto-Blast launched in background for {len(broadcast_queue)} contacts "
-                    f"({mode_desc}, {delay_seconds}s safe interval). Ensure WhatsApp Web is active on your browser!"
+                success_msg = (
+                    f"🚀 Automated WhatsApp Campaign launched in background for {len(broadcast_queue)} contacts "
+                    f"({mode_desc}, {delay_seconds}s safe interval). Delivery is running automatically in background!"
                 )
+                if is_ajax:
+                    return JsonResponse({
+                        'status': 'success',
+                        'message': success_msg,
+                        'total': len(broadcast_queue),
+                        'delay_seconds': delay_seconds
+                    })
+                messages.success(request, success_msg)
             else:
-                messages.error(request, "Failed to initiate PyWhatKit background broadcast.")
+                fail_msg = "Failed to initiate automated background broadcast."
+                if is_ajax:
+                    return JsonResponse({'status': 'error', 'message': fail_msg}, status=500)
+                messages.error(request, fail_msg)
 
         return redirect(redirect_url)
+
+
+class MarketingBroadcastStatusView(LoginRequiredMixin, View):
+    """
+    AJAX endpoint: Returns real-time execution progress of background WhatsApp broadcasts.
+    """
+    def get(self, request):
+        status_data = get_broadcast_status()
+        status_data['is_whatsapp_paired'] = is_whatsapp_paired()
+        status_data['whatsapp_session'] = get_whatsapp_session_info()
+        return JsonResponse(status_data)
+
+
+class MarketingBroadcastControlView(LoginRequiredMixin, View):
+    """
+    AJAX endpoint: Pauses, Resumes, or Stops the active automated WhatsApp background campaign.
+    """
+    def post(self, request):
+        try:
+            import json
+            data = {}
+            if request.body:
+                try:
+                    data = json.loads(request.body.decode('utf-8'))
+                except Exception:
+                    data = request.POST.dict()
+            else:
+                data = request.POST.dict()
+
+            action = str(data.get('action', '')).lower().strip()
+            if action == 'pause':
+                success = pause_automated_broadcast()
+                msg = "Campaign paused." if success else "Campaign is not currently running."
+            elif action == 'resume':
+                success = resume_automated_broadcast()
+                msg = "Campaign resumed." if success else "Campaign is not currently running or paused."
+            elif action == 'resume_remaining':
+                success, msg = resume_remaining_broadcast(user=request.user)
+            elif action == 'stop':
+                success = stop_automated_broadcast()
+                msg = "Campaign stopped successfully." if success else "No active campaign to stop."
+            else:
+                return JsonResponse({'status': 'error', 'message': f"Invalid control action '{action}'."}, status=400)
+
+            current_status = get_broadcast_status()
+            current_status['is_whatsapp_paired'] = is_whatsapp_paired()
+            current_status['whatsapp_session'] = get_whatsapp_session_info()
+            return JsonResponse({
+                'status': 'success',
+                'action': action,
+                'message': msg,
+                'broadcast_status': current_status
+            })
+        except Exception as e:
+            logger.exception("Error in MarketingBroadcastControlView")
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 
 class GenerateAICampaignView(LoginRequiredMixin, View):
@@ -380,8 +525,12 @@ class SaveMarketingTemplateView(LoginRequiredMixin, View):
     def post(self, request):
         try:
             import json
-            if request.content_type == 'application/json':
-                data = json.loads(request.body.decode('utf-8'))
+            data = {}
+            if request.body:
+                try:
+                    data = json.loads(request.body.decode('utf-8'))
+                except Exception:
+                    data = request.POST.dict()
             else:
                 data = request.POST.dict()
 
@@ -686,16 +835,24 @@ class GroupContactsAPIView(LoginRequiredMixin, View):
 
         try:
             from transactions.models import MarketingGroup, MarketingLead
+            from transactions.services_marketing import get_known_non_whatsapp_phones, get_phone_whatsapp_status, normalize_phone_number
             group = MarketingGroup.objects.get(id=group_id)
             leads = MarketingLead.objects.filter(group=group).order_by('-created_at')
 
+            known_non_wa = get_known_non_whatsapp_phones()
             contacts = []
             for lead in leads:
+                raw_phone = lead.phone or ''
+                norm_phone = lead.norm_phone or normalize_phone_number(raw_phone)
+                is_valid, status_msg, status_code = get_phone_whatsapp_status(raw_phone, norm_phone, known_non_wa)
                 contacts.append({
                     'id': lead.id,
                     'name': lead.name or 'Valued Customer',
-                    'phone': lead.phone or '',
-                    'norm_phone': lead.norm_phone or '',
+                    'phone': raw_phone,
+                    'norm_phone': norm_phone,
+                    'is_valid_whatsapp': is_valid,
+                    'whatsapp_status_msg': status_msg,
+                    'whatsapp_status_code': status_code,
                     'city': lead.city or '',
                     'notes': lead.notes or '',
                     'source': lead.source,
@@ -718,6 +875,49 @@ class GroupContactsAPIView(LoginRequiredMixin, View):
         except Exception as e:
             logger.exception("Error in GroupContactsAPIView")
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+class ResetWhatsAppStatusAPIView(LoginRequiredMixin, View):
+    """
+    API endpoint to clear/reset non-WhatsApp flags for a specific contact or all contacts.
+    Allows manual recheck/re-verification before sending broadcast messages.
+    """
+    def post(self, request, *args, **kwargs):
+        try:
+            import json
+            data = {}
+            if request.body:
+                try:
+                    data = json.loads(request.body.decode('utf-8'))
+                except Exception:
+                    data = request.POST.dict()
+            else:
+                data = request.POST.dict()
+
+            phone = str(data.get('phone', '')).strip()
+            clear_all = data.get('clear_all') in [True, 'true', '1', 1]
+
+            from transactions.services_marketing import clear_non_whatsapp_flag, get_known_non_whatsapp_phones, get_phone_whatsapp_status, normalize_phone_number
+            res = clear_non_whatsapp_flag(phone=phone, clear_all=clear_all)
+
+            known_non_wa = get_known_non_whatsapp_phones()
+            norm_phone = normalize_phone_number(phone) if phone else ''
+            is_valid, status_msg, status_code = get_phone_whatsapp_status(phone, norm_phone, known_non_wa) if phone else (True, 'WhatsApp Ready', 'valid')
+
+            return JsonResponse({
+                'status': 'success',
+                'cleared_count': res.get('cleared_count', 0),
+                'phone': phone,
+                'norm_phone': norm_phone,
+                'is_valid_whatsapp': is_valid,
+                'whatsapp_status_msg': status_msg,
+                'whatsapp_status_code': status_code,
+                'message': f"All WhatsApp verification flags cleared ({res.get('cleared_count', 0)} records reset)." if clear_all else f"WhatsApp status for {phone} has been reset to Ready."
+            })
+        except Exception as e:
+            logger.exception("Error in ResetWhatsAppStatusAPIView")
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
 
 
 class LogBroadcastAPIView(LoginRequiredMixin, View):

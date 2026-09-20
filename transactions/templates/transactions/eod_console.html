@@ -678,42 +678,49 @@
     <!-- ═══ MODAL: WHATSAPP QR CODE PAIRING ═══ -->
     <div class="modal fade" id="pairWhatsAppModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow-lg">
-                <div class="modal-header text-white" style="background-color: #047857;">
+            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="modal-header text-white" style="background: linear-gradient(135deg, #16a34a 0%, #0d9488 100%) !important;">
                     <h5 class="modal-title fw-bold"><i class="fab fa-whatsapp text-white me-2"></i>Link WhatsApp Web Device</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4 text-center">
-                    <div class="p-3 bg-light rounded-3 border mb-3 text-start">
-                        <div class="d-flex align-items-center gap-2 mb-2">
-                            <span class="badge bg-success rounded-circle p-2" style="width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem;">1</span>
-                            <span class="small fw-bold text-dark">Open WhatsApp on your mobile phone</span>
-                        </div>
-                        <div class="d-flex align-items-center gap-2 mb-2">
-                            <span class="badge bg-success rounded-circle p-2" style="width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem;">2</span>
-                            <span class="small text-dark">Go to <b>Settings (or ⋮ Menu) &gt; Linked Devices &gt; Link a Device</b></span>
-                        </div>
-                        <div class="d-flex align-items-center gap-2">
-                            <span class="badge bg-success rounded-circle p-2" style="width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem;">3</span>
-                            <span class="small text-dark">Click the button below to open the Live Pairing Window & scan</span>
-                        </div>
-                    </div>
-
                     <div id="pairStatusMessage" class="alert alert-secondary small font-monospace mb-3">
                         <i class="fas fa-info-circle me-1"></i> Ready to pair WhatsApp Web session.
                     </div>
 
-                    <button type="button" class="btn btn-success w-100 py-2 fw-bold shadow-sm mb-2" id="launchPairingBrowserBtn" onclick="triggerServerPairing()">
-                        <i class="fas fa-external-link-alt me-1"></i> Open Live QR Pairing Window
-                    </button>
-                    <small class="text-muted d-block mb-3" style="font-size: 0.74rem;">
-                        A live Chromium window will open. Point your phone camera at the QR code on screen to link permanently.
-                    </small>
+                    <!-- Live QR Container -->
+                    <div id="eodQRCanvasContainer" class="p-3 mb-3 rounded-3 border bg-white text-center shadow-2xs">
+                        <div id="eodQRLoader" class="py-3 text-center">
+                            <div class="spinner-border text-success mb-2" style="width: 2.2rem; height: 2.2rem;" role="status"></div>
+                            <div class="small text-muted" id="eodQRLoaderText">Generating live QR code...</div>
+                        </div>
 
-                    <div class="border-top pt-2 text-start">
-                        <small class="text-muted fw-bold d-block" style="font-size: 0.72rem;">Alternative Terminal Setup:</small>
-                        <code class="d-block p-1 bg-light border rounded small text-dark mt-1" style="font-size: 0.75rem;">python manage.py setup_whatsapp_session</code>
+                        <div id="eodQRImageWrap" class="d-none text-center my-2">
+                            <img id="eodLiveQRImg" src="" alt="WhatsApp QR Code" class="img-fluid rounded border p-2 bg-white shadow-sm" style="max-width: 220px; height: auto;" />
+                            <small class="text-muted d-block mt-2" style="font-size: 0.76rem;">
+                                <i class="fas fa-camera text-primary me-1"></i> Scan with WhatsApp &rarr; Linked Devices
+                            </small>
+                        </div>
                     </div>
+
+                    <div class="p-3 bg-light rounded-3 border mb-3 text-start">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <span class="badge bg-success rounded-circle p-2" style="width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 0.65rem;">1</span>
+                            <span class="small fw-bold text-dark">Open WhatsApp on your mobile phone</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <span class="badge bg-success rounded-circle p-2" style="width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 0.65rem;">2</span>
+                            <span class="small text-dark">Go to <b>Settings (or ⋮ Menu) &gt; Linked Devices &gt; Link a Device</b></span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-success rounded-circle p-2" style="width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 0.65rem;">3</span>
+                            <span class="small text-dark">Point your camera at the QR code displayed above</span>
+                        </div>
+                    </div>
+
+                    <button type="button" class="btn btn-sm btn-outline-secondary w-100 py-1.5 fw-semibold" id="launchPairingBrowserBtn" onclick="triggerServerPairing()">
+                        <i class="fas fa-sync-alt me-1"></i> Reload QR Code
+                    </button>
                 </div>
                 <div class="modal-footer py-1 px-3 bg-light">
                     <button type="button" class="btn btn-sm btn-outline-secondary" onclick="checkEodPairingStatus()">
@@ -1008,17 +1015,29 @@ function renderAlertRunnerFinished() {
     document.getElementById('alertRunnerMessagePreview').innerHTML = '<strong class="text-success">All selected borrowers have received their statutory warning notices.</strong>';
 }
 
+let eodQRPollTimer = null;
+
 function openPairWhatsAppDialog() {
     bootstrap.Modal.getOrCreateInstance(document.getElementById('pairWhatsAppModal')).show();
-    checkEodPairingStatus(false);
+    checkEodPairingStatus(false, true);
 }
 
-async function checkEodPairingStatus(showAlert = false) {
-    const msg = document.getElementById('pairStatusMessage');
-    if (msg) {
-        msg.className = 'alert alert-secondary small font-monospace mb-3';
-        msg.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Checking WhatsApp pairing status...';
+document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('pairWhatsAppModal');
+    if (modal) {
+        modal.addEventListener('hidden.bs.modal', () => {
+            if (eodQRPollTimer) {
+                clearInterval(eodQRPollTimer);
+                eodQRPollTimer = null;
+            }
+        });
     }
+});
+
+async function checkEodPairingStatus(showAlert = false, autoStartQR = false) {
+    const msg = document.getElementById('pairStatusMessage');
+    const loader = document.getElementById('eodQRLoader');
+    const imgWrap = document.getElementById('eodQRImageWrap');
 
     try {
         const resp = await fetch("{% url 'eod_get_whatsapp_qr' %}", {
@@ -1026,18 +1045,23 @@ async function checkEodPairingStatus(showAlert = false) {
         });
         const data = await resp.json();
 
-        if (data.status === 'authenticated') {
+        if (data.status === 'authenticated' || data.is_paired) {
             if (msg) {
                 msg.className = 'alert alert-success small font-monospace mb-3';
-                msg.innerHTML = '<i class="fas fa-check-circle me-1"></i> <strong>WhatsApp is Connected!</strong> Session is active.';
+                msg.innerHTML = `<i class="fas fa-check-circle me-1"></i> <strong>WhatsApp Connected!</strong> (${data.phone || 'Active Session'})`;
             }
+            if (loader) loader.classList.add('d-none');
+            if (imgWrap) imgWrap.classList.add('d-none');
             if (showAlert) alert('WhatsApp session is already linked & active!');
         } else {
             if (msg) {
                 msg.className = 'alert alert-info small font-monospace mb-3';
-                msg.innerHTML = '<i class="fas fa-info-circle me-1"></i> Ready to pair. Click "Open Live QR Pairing Window" below.';
+                msg.innerHTML = '<i class="fas fa-info-circle me-1"></i> Scan the QR code below to connect your WhatsApp.';
             }
-            if (showAlert) alert('WhatsApp is not paired yet. Please click "Open Live QR Pairing Window".');
+            if (autoStartQR) {
+                triggerServerPairing();
+            }
+            if (showAlert) alert('WhatsApp is not paired yet. Please scan the QR code.');
         }
     } catch (err) {
         if (msg) {
@@ -1048,34 +1072,103 @@ async function checkEodPairingStatus(showAlert = false) {
 }
 
 async function triggerServerPairing() {
+    if (eodQRPollTimer) {
+        clearInterval(eodQRPollTimer);
+        eodQRPollTimer = null;
+    }
+
     const msg = document.getElementById('pairStatusMessage');
+    const loader = document.getElementById('eodQRLoader');
+    const loaderText = document.getElementById('eodQRLoaderText');
+    const imgWrap = document.getElementById('eodQRImageWrap');
     const btn = document.getElementById('launchPairingBrowserBtn');
-    msg.className = 'alert alert-info small font-monospace mb-3';
-    msg.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Browser window opening on your desktop. Please scan the QR code from your phone now (waiting up to 90s)...';
-    btn.disabled = true;
+
+    if (loader) loader.classList.remove('d-none');
+    if (imgWrap) imgWrap.classList.add('d-none');
+    if (loaderText) loaderText.innerText = 'Connecting to WhatsApp Web Engine...';
+    if (btn) btn.disabled = true;
 
     try {
-        const resp = await fetch("{% url 'eod_pair_whatsapp' %}", {
+        await fetch("{% url 'eod_pair_whatsapp' %}", {
             method: 'POST',
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
                 'X-CSRFToken': getCsrfToken()
             }
         });
-        const data = await resp.json();
-        if (data.success) {
-            msg.className = 'alert alert-success small font-monospace mb-3';
-            msg.innerHTML = '<i class="fas fa-check-circle me-1"></i> <strong>Success!</strong> WhatsApp session linked permanently.';
-            setTimeout(() => { location.reload(); }, 2000);
-        } else {
-            msg.className = 'alert alert-danger small font-monospace mb-3';
-            msg.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> ' + (data.message || 'Pairing timed out.');
-            btn.disabled = false;
-        }
     } catch (err) {
-        msg.className = 'alert alert-danger small font-monospace mb-3';
-        msg.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> Error: ' + err.message;
-        btn.disabled = false;
+        console.warn("EOD pair trigger notice:", err);
+    }
+
+    if (btn) btn.disabled = false;
+
+    // Start polling loop
+    pollEodQRStatus();
+    eodQRPollTimer = setInterval(pollEodQRStatus, 1300);
+}
+
+async function pollEodQRStatus() {
+    const msg = document.getElementById('pairStatusMessage');
+    const loader = document.getElementById('eodQRLoader');
+    const loaderText = document.getElementById('eodQRLoaderText');
+    const imgWrap = document.getElementById('eodQRImageWrap');
+    const liveImg = document.getElementById('eodLiveQRImg');
+
+    try {
+        const resp = await fetch("{% url 'eod_get_whatsapp_qr' %}", {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const data = await resp.json();
+
+        if (data.status === 'authenticated' || data.is_paired) {
+            if (eodQRPollTimer) {
+                clearInterval(eodQRPollTimer);
+                eodQRPollTimer = null;
+            }
+            if (msg) {
+                msg.className = 'alert alert-success small font-monospace mb-3';
+                msg.innerHTML = `<i class="fas fa-check-circle me-1"></i> <strong>Success!</strong> Connected: ${data.phone || 'Active WhatsApp'}`;
+            }
+            if (loader) loader.classList.add('d-none');
+            if (imgWrap) imgWrap.classList.add('d-none');
+            return;
+        }
+
+        if (data.status === 'qr_ready' && data.qr_image_base64) {
+            if (loader) loader.classList.add('d-none');
+            if (imgWrap) imgWrap.classList.remove('d-none');
+            if (liveImg && liveImg.src !== data.qr_image_base64) {
+                liveImg.src = data.qr_image_base64;
+            }
+            if (msg) {
+                msg.className = 'alert alert-info small font-monospace mb-3';
+                msg.innerHTML = '<i class="fas fa-qrcode me-1"></i> Point your WhatsApp camera at the QR code below.';
+            }
+            return;
+        }
+
+        if (data.status === 'starting' || data.status === 'idle') {
+            if (loader) loader.classList.remove('d-none');
+            if (imgWrap) imgWrap.classList.add('d-none');
+            if (loaderText) loaderText.innerText = data.message || 'Generating QR code...';
+            return;
+        }
+
+        if (data.status === 'timeout' || data.status === 'error') {
+            if (eodQRPollTimer) {
+                clearInterval(eodQRPollTimer);
+                eodQRPollTimer = null;
+            }
+            if (loader) loader.classList.add('d-none');
+            if (imgWrap) imgWrap.classList.add('d-none');
+            if (msg) {
+                msg.className = 'alert alert-warning small font-monospace mb-3';
+                msg.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> QR expired or timed out. Click Reload QR Code.';
+            }
+            return;
+        }
+    } catch(e) {
+        console.error("EOD QR poll error:", e);
     }
 }
 

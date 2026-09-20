@@ -5,6 +5,9 @@ Provides customer segmentation, bilingual marketing templates, dynamic variable
 injection, and background PyWhatKit automated blast queues.
 """
 
+import os
+os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
+import re
 import logging
 import time
 import threading
@@ -246,6 +249,8 @@ def get_segmented_audience(segment_type='all', branch_id=None, group_id=None, or
         except ValueError:
             target_group_id = None
 
+    known_non_wa = get_known_non_whatsapp_phones()
+
     if target_group_id or segment_type in ('new_prospects', 'imported_leads', 'leads', 'group'):
         lead_qs = MarketingLead.objects.all().select_related('branch', 'group')
         if branch_id:
@@ -262,13 +267,17 @@ def get_segmented_audience(segment_type='all', branch_id=None, group_id=None, or
             branch_phone = getattr(branch, 'phone', '') if branch else ''
             group_name = lead.group.name if lead.group else ''
 
+            is_valid, status_msg, status_code = get_phone_whatsapp_status(raw_phone, norm_phone, known_non_wa)
+
             audience.append({
                 'customer_id': f"LEAD-{lead.id}",
                 'lead_id': lead.id,
                 'name': lead.name or 'Valued Customer',
                 'raw_phone': raw_phone,
                 'norm_phone': norm_phone,
-                'is_valid_whatsapp': bool(norm_phone),
+                'is_valid_whatsapp': is_valid,
+                'whatsapp_status_msg': status_msg,
+                'whatsapp_status_code': status_code,
                 'city': lead.city or '',
                 'group_id': lead.group_id,
                 'group_name': group_name,
@@ -317,13 +326,17 @@ def get_segmented_audience(segment_type='all', branch_id=None, group_id=None, or
         active_loans_count = c.loans.filter(status='active').count() if hasattr(c, 'loans') else 0
         total_borrowed = sum(l.principal_amount for l in c.loans.all()) if hasattr(c, 'loans') else Decimal('0.00')
 
+        is_valid, status_msg, status_code = get_phone_whatsapp_status(raw_phone, norm_phone, known_non_wa)
+
         audience.append({
             'customer_id': c.id,
             'lead_id': None,
             'name': full_name,
             'raw_phone': raw_phone,
             'norm_phone': norm_phone,
-            'is_valid_whatsapp': bool(norm_phone),
+            'is_valid_whatsapp': is_valid,
+            'whatsapp_status_msg': status_msg,
+            'whatsapp_status_code': status_code,
             'city': getattr(c, 'city', '') or '',
             'group_id': None,
             'group_name': '',
@@ -676,6 +689,81 @@ def delete_or_reset_template(key):
     return deleted_count > 0
 
 
+def is_valid_whatsapp_phone(phone_str):
+    """
+    Checks if a phone string is a valid mobile number eligible for WhatsApp dispatch.
+    Rejects all-zeros, repeated digits, numbers not starting with 6-9 (for 10-digit Indian numbers).
+    """
+    if not phone_str:
+        return False
+    digits = re.sub(r'\D', '', str(phone_str))
+    if len(digits) < 10 or len(digits) > 15:
+        return False
+    if len(set(digits)) <= 1:
+        return False
+    if len(digits) == 10 and digits[0] not in '6789':
+        return False
+    if len(digits) == 12 and digits.startswith('91') and digits[2] not in '6789':
+        return False
+    return True
+
+
+def replace_dynamic_variables(raw_template, customer_dict, gold_rate=None):
+    """
+    Renders dynamic smart tags in text for the specific recipient.
+    Supports placeholders with {tag}, {{tag}}, [tag], and case-insensitive keys:
+    - customer_name, name, customer, client_name, recipient_name
+    - first_name
+    - branch_name, branch
+    - branch_phone, contact_phone
+    - organization_name, company_name, shop_name
+    - gold_rate, gold_price
+    - city, location
+    - customer_phone, phone
+    """
+    if not raw_template:
+        return ""
+
+    org_name = getattr(settings, 'ORGANIZATION_NAME', 'First Money Gold')
+    gr_str = f"{gold_rate:,.0f}" if gold_rate else "6,850"
+
+    full_name = str(customer_dict.get('name') or customer_dict.get('first_name') or 'Valued Customer').strip()
+    first_name = full_name.split()[0] if full_name else 'Valued Customer'
+    branch_name = str(customer_dict.get('branch_name') or org_name).strip()
+    branch_phone = str(customer_dict.get('branch_phone') or getattr(settings, 'COMPANY_PHONE', 'Customer Care')).strip()
+    city = str(customer_dict.get('city') or '').strip()
+    cust_phone = str(customer_dict.get('raw_phone') or customer_dict.get('phone') or '').strip()
+
+    replacements = {
+        'customer_name': full_name,
+        'name': full_name,
+        'customer': full_name,
+        'client_name': full_name,
+        'recipient_name': full_name,
+        'first_name': first_name,
+        'branch_name': branch_name,
+        'branch': branch_name,
+        'branch_phone': branch_phone,
+        'contact_phone': branch_phone,
+        'organization_name': org_name,
+        'company_name': org_name,
+        'shop_name': org_name,
+        'gold_rate': gr_str,
+        'gold_price': gr_str,
+        'city': city,
+        'location': city,
+        'customer_phone': cust_phone,
+        'phone': cust_phone,
+    }
+
+    msg = str(raw_template)
+    for key, val in replacements.items():
+        pattern = re.compile(r'(\{{1,2}\s*' + re.escape(key) + r'\s*\}{1,2}|\[\s*' + re.escape(key) + r'\s*\])', re.IGNORECASE)
+        msg = pattern.sub(str(val), msg)
+
+    return msg
+
+
 def render_campaign_message(template_key, customer_dict, use_tamil=False, custom_body=None, gold_rate=None):
     """
     Renders a campaign message by replacing dynamic smart tags.
@@ -687,44 +775,211 @@ def render_campaign_message(template_key, customer_dict, use_tamil=False, custom
         tmpl = all_templates.get(template_key, all_templates.get('festival_offer', {}))
         raw_template = tmpl.get('body_ta' if use_tamil else 'body_en', '')
 
-    org_name = getattr(settings, 'ORGANIZATION_NAME', 'First Money Gold')
-    gr_str = f"{gold_rate:,.0f}" if gold_rate else "6,850"
+    return replace_dynamic_variables(raw_template, customer_dict, gold_rate=gold_rate)
 
-    replacements = {
-        '{customer_name}': customer_dict.get('name', 'Valued Customer'),
-        '{branch_name}': customer_dict.get('branch_name', '') or org_name,
-        '{branch_phone}': customer_dict.get('branch_phone', '') or getattr(settings, 'COMPANY_PHONE', 'Customer Care'),
-        '{organization_name}': org_name,
-        '{gold_rate}': gr_str,
-        '{city}': customer_dict.get('city', ''),
-    }
 
-    msg = raw_template
-    for placeholder, val in replacements.items():
-        msg = msg.replace(placeholder, str(val))
+def get_known_non_whatsapp_phones():
+    """
+    Retrieves set of phones that were previously logged as invalid or not registered on WhatsApp.
+    Queries both MarketingCampaignLog and LoanWhatsAppLog across various failure/skipped reasons.
+    """
+    from transactions.models import MarketingCampaignLog, LoanWhatsAppLog
+    keywords = [
+        'not on whatsapp', 'not registered', 'invalid phone', 'invalid number',
+        'shared via url is invalid', 'url is invalid', 'phone number is invalid',
+        'not a valid whatsapp', 'chat took too long to load', 'composer not found',
+        'send button and chat composer not found', 'send button / chat composer not found',
+        'number is unavailable', 'failed to open chat', 'not_registered', 'no whatsapp'
+    ]
+    non_wa = set()
+    try:
+        logs = MarketingCampaignLog.objects.filter(
+            status__in=['skipped', 'failed']
+        ).values_list('recipient_phone', 'message_snippet')
+        for phone, snippet in logs:
+            snip_lower = (snippet or '').lower()
+            if phone and any(w in snip_lower for w in keywords):
+                phone_str = str(phone).strip()
+                non_wa.add(phone_str)
+                digits = re.sub(r'\D', '', phone_str)
+                if digits:
+                    non_wa.add(digits)
+                if len(digits) >= 10:
+                    clean_10 = digits[-10:]
+                    non_wa.add(clean_10)
+                    non_wa.add(f"91{clean_10}")
+                    non_wa.add(f"+91{clean_10}")
+                    non_wa.add(f"0{clean_10}")
+    except Exception:
+        pass
 
-    return msg
+    try:
+        loan_logs = LoanWhatsAppLog.objects.filter(
+            status__in=['failed', 'skipped', 'undelivered']
+        ).values_list('recipient_phone', 'customer__phone', 'error_message')
+        for rec_phone, cust_phone, err in loan_logs:
+            text = (err or '').lower()
+            if any(w in text for w in keywords):
+                for phone in [rec_phone, cust_phone]:
+                    if phone:
+                        phone_str = str(phone).strip()
+                        non_wa.add(phone_str)
+                        digits = re.sub(r'\D', '', phone_str)
+                        if digits:
+                            non_wa.add(digits)
+                        if len(digits) >= 10:
+                            clean_10 = digits[-10:]
+                            non_wa.add(clean_10)
+                            non_wa.add(f"91{clean_10}")
+                            non_wa.add(f"+91{clean_10}")
+                            non_wa.add(f"0{clean_10}")
+    except Exception:
+        pass
+
+    return non_wa
+
+
+def clear_non_whatsapp_flag(phone=None, clear_all=False):
+    """
+    Clears cached/logged non-WhatsApp failure records for a specific phone number or all numbers,
+    allowing contacts to be re-verified or re-included in WhatsApp campaigns.
+    """
+    from transactions.models import MarketingCampaignLog, LoanWhatsAppLog
+    keywords = [
+        'not on whatsapp', 'not registered', 'invalid phone', 'invalid number',
+        'shared via url is invalid', 'url is invalid', 'phone number is invalid',
+        'not a valid whatsapp', 'chat took too long to load', 'composer not found',
+        'send button and chat composer not found', 'send button / chat composer not found',
+        'number is unavailable', 'failed to open chat', 'not_registered', 'no whatsapp'
+    ]
+    cleared_count = 0
+    try:
+        if clear_all:
+            # Clear all non-wa failure logs
+            m_logs = MarketingCampaignLog.objects.filter(status__in=['skipped', 'failed'])
+            for m in m_logs:
+                snip = (m.message_snippet or '').lower()
+                if any(w in snip for w in keywords):
+                    m.delete()
+                    cleared_count += 1
+
+            l_logs = LoanWhatsAppLog.objects.filter(status__in=['failed', 'skipped', 'undelivered'])
+            for l in l_logs:
+                err = (l.error_message or '').lower()
+                if any(w in err for w in keywords):
+                    l.delete()
+                    cleared_count += 1
+
+        elif phone:
+            phone_str = str(phone).strip()
+            digits = re.sub(r'\D', '', phone_str)
+            phone_variants = [phone_str]
+            if digits:
+                phone_variants.append(digits)
+            if len(digits) >= 10:
+                clean_10 = digits[-10:]
+                phone_variants.extend([clean_10, f"91{clean_10}", f"+91{clean_10}", f"0{clean_10}"])
+
+            m_logs = MarketingCampaignLog.objects.filter(
+                recipient_phone__in=phone_variants,
+                status__in=['skipped', 'failed']
+            )
+            for m in m_logs:
+                snip = (m.message_snippet or '').lower()
+                if any(w in snip for w in keywords):
+                    m.delete()
+                    cleared_count += 1
+
+            l_logs = LoanWhatsAppLog.objects.filter(
+                recipient_phone__in=phone_variants,
+                status__in=['failed', 'skipped', 'undelivered']
+            )
+            for l in l_logs:
+                err = (l.error_message or '').lower()
+                if any(w in err for w in keywords):
+                    l.delete()
+                    cleared_count += 1
+
+        return {'success': True, 'cleared_count': cleared_count}
+    except Exception as e:
+        logger.error("Error clearing non-whatsapp flag: %s", e)
+        return {'success': False, 'error': str(e), 'cleared_count': 0}
+
+
+
+def get_phone_whatsapp_status(raw_phone, norm_phone, non_whatsapp_phones_set=None):
+    """
+    Evaluates a phone number to check if it can receive WhatsApp messages.
+    Returns tuple: (is_valid: bool, status_msg: str, status_code: str)
+    """
+    raw_str = str(raw_phone or '').strip()
+    norm_str = str(norm_phone or '').strip()
+
+    if not raw_str and not norm_str:
+        return False, "Missing Phone Number", "missing_phone"
+
+    digits = re.sub(r'\D', '', raw_str or norm_str)
+    if not digits:
+        return False, "Missing Phone Number", "missing_phone"
+
+    if digits == '0000000000' or len(set(digits)) <= 1:
+        return False, "Invalid Number (Dummy/All Zeros)", "dummy_number"
+
+    if len(digits) < 10:
+        return False, f"Incomplete Mobile ({digits})", "too_short"
+
+    if len(digits) == 10 and digits[0] not in '6789':
+        return False, f"Invalid Mobile (+91-{digits})", "invalid_prefix"
+
+    if len(digits) == 12 and digits.startswith('91') and digits[2] not in '6789':
+        return False, f"Invalid Mobile (+{digits})", "invalid_prefix"
+
+    if not norm_str or not is_valid_whatsapp_phone(norm_str):
+        return False, "Invalid Format (Not on WhatsApp)", "invalid_format"
+
+    if non_whatsapp_phones_set:
+        clean_10 = digits[-10:] if len(digits) >= 10 else digits
+        if (norm_str in non_whatsapp_phones_set or 
+            clean_10 in non_whatsapp_phones_set or 
+            raw_str in non_whatsapp_phones_set or
+            digits in non_whatsapp_phones_set or
+            f"+91{clean_10}" in non_whatsapp_phones_set or
+            f"91{clean_10}" in non_whatsapp_phones_set or
+            f"0{clean_10}" in non_whatsapp_phones_set):
+            return False, "Not Registered on WhatsApp", "not_registered"
+
+    return True, "WhatsApp Ready", "valid"
 
 
 def build_broadcast_queue(audience_list, template_key='festival_offer', use_tamil=False, custom_body=None, gold_rate=None):
     """
     Takes an audience list and generates personalized messages + 1-click WhatsApp links for each.
+    Includes validation status and warning messages for numbers not on WhatsApp.
     """
+    known_non_wa = get_known_non_whatsapp_phones()
     queue = []
     for cust in audience_list:
-        if not cust.get('is_valid_whatsapp'):
-            continue
+        raw_phone = cust.get('raw_phone') or cust.get('phone') or ''
+        norm_phone = cust.get('norm_phone') or normalize_phone_number(raw_phone)
+        
+        is_valid, status_msg, status_code = get_phone_whatsapp_status(raw_phone, norm_phone, known_non_wa)
         msg = render_campaign_message(template_key, cust, use_tamil=use_tamil, custom_body=custom_body, gold_rate=gold_rate)
-        digits = get_clean_phone_for_url(cust['norm_phone'])
-        encoded_text = urllib.parse.quote(msg)
-        wa_url = f"https://wa.me/{digits}?text={encoded_text}"
+        
+        wa_url = ""
+        if is_valid and norm_phone:
+            digits = get_clean_phone_for_url(norm_phone)
+            encoded_text = urllib.parse.quote(msg)
+            wa_url = f"https://wa.me/{digits}?text={encoded_text}"
 
         queue.append({
-            'customer_id': cust['customer_id'],
+            'customer_id': cust.get('customer_id'),
             'lead_id': cust.get('lead_id'),
-            'name': cust['name'],
-            'phone': cust['norm_phone'],
-            'raw_phone': cust.get('raw_phone', cust['norm_phone']),
+            'name': cust.get('name', 'Valued Customer'),
+            'phone': norm_phone or raw_phone or 'No Phone',
+            'raw_phone': raw_phone,
+            'is_valid_whatsapp': is_valid,
+            'whatsapp_status_msg': status_msg,
+            'whatsapp_status_code': status_code,
             'city': cust.get('city', ''),
             'branch_name': cust.get('branch_name', ''),
             'branch_phone': cust.get('branch_phone', ''),
@@ -803,200 +1058,630 @@ def _copy_image_to_clipboard_windows(image_path):
     return False
 
 
-def _run_pywhatkit_bulk_broadcast(broadcast_queue, delay_seconds=20, image_path=None, send_mode='message_and_image'):
+# ---------------------------------------------------------------------------
+# Global Real-Time Dispatch Status Tracking for Marketing UI
+# ---------------------------------------------------------------------------
+
+_broadcast_lock = threading.Lock()
+CURRENT_BROADCAST_STATUS = {
+    'is_running': False,
+    'is_paused': False,
+    'is_stopped': False,
+    'status': 'idle',  # 'idle', 'running', 'paused', 'stopped', 'completed', 'error'
+    'total': 0,
+    'sent': 0,
+    'failed': 0,
+    'remaining': 0,
+    'current_contact': '',
+    'current_phone': '',
+    'percent': 0,
+    'details': [],
+    'start_time': None,
+    'error': None,
+    'remaining_queue': [],
+    'campaign_params': {},
+}
+
+
+def get_broadcast_status():
+    """Returns a thread-safe snapshot of current marketing broadcast progress."""
+    with _broadcast_lock:
+        status_copy = dict(CURRENT_BROADCAST_STATUS)
+        status_copy['logs'] = list(CURRENT_BROADCAST_STATUS.get('details', []))
+        total = status_copy.get('total', 0)
+        sent = status_copy.get('sent', 0)
+        failed = status_copy.get('failed', 0)
+        status_copy['remaining'] = max(0, total - (sent + failed))
+        status_copy['remaining_queue'] = list(CURRENT_BROADCAST_STATUS.get('remaining_queue', []))
+        return status_copy
+
+
+def _update_broadcast_status(**kwargs):
+    """Updates broadcast status state safely."""
+    global CURRENT_BROADCAST_STATUS
+    with _broadcast_lock:
+        CURRENT_BROADCAST_STATUS.update(kwargs)
+        total = CURRENT_BROADCAST_STATUS.get('total', 0)
+        sent = CURRENT_BROADCAST_STATUS.get('sent', 0)
+        failed = CURRENT_BROADCAST_STATUS.get('failed', 0)
+        processed = sent + failed
+        CURRENT_BROADCAST_STATUS['remaining'] = max(0, total - processed)
+        if total > 0:
+            CURRENT_BROADCAST_STATUS['percent'] = min(100, int((processed / total) * 100))
+        else:
+            CURRENT_BROADCAST_STATUS['percent'] = 0
+
+
+def pause_automated_broadcast():
+    """Pauses the active automated background broadcast."""
+    with _broadcast_lock:
+        if CURRENT_BROADCAST_STATUS.get('is_running'):
+            CURRENT_BROADCAST_STATUS['is_paused'] = True
+            CURRENT_BROADCAST_STATUS['status'] = 'paused'
+            CURRENT_BROADCAST_STATUS['current_contact'] = 'Campaign Paused by User'
+            logger.info("⏸️ Automated WhatsApp marketing broadcast paused.")
+            return True
+        return False
+
+
+def resume_automated_broadcast():
+    """Resumes the paused automated background broadcast."""
+    with _broadcast_lock:
+        if CURRENT_BROADCAST_STATUS.get('is_running'):
+            CURRENT_BROADCAST_STATUS['is_paused'] = False
+            CURRENT_BROADCAST_STATUS['status'] = 'running'
+            CURRENT_BROADCAST_STATUS['current_contact'] = 'Resuming campaign...'
+            logger.info("▶️ Automated WhatsApp marketing broadcast resumed.")
+            return True
+        return False
+
+
+def stop_automated_broadcast():
+    """Stops the active automated background broadcast completely."""
+    with _broadcast_lock:
+        CURRENT_BROADCAST_STATUS['is_stopped'] = True
+        CURRENT_BROADCAST_STATUS['is_paused'] = False
+        CURRENT_BROADCAST_STATUS['is_running'] = False
+        CURRENT_BROADCAST_STATUS['status'] = 'stopped'
+        CURRENT_BROADCAST_STATUS['current_contact'] = 'Campaign Stopped by User'
+        logger.info("🛑 Automated WhatsApp marketing broadcast stopped by user.")
+        return True
+
+
+def is_broadcast_stopped():
+    """Checks if the broadcast has been requested to stop."""
+    with _broadcast_lock:
+        return bool(CURRENT_BROADCAST_STATUS.get('is_stopped'))
+
+
+def is_broadcast_paused():
+    """Checks if the broadcast is currently paused."""
+    with _broadcast_lock:
+        return bool(CURRENT_BROADCAST_STATUS.get('is_paused'))
+
+
+def resume_remaining_broadcast(user=None):
     """
-    Sequentially sends WhatsApp messages or images with safe delay interval.
-    Runs in a background daemon thread. Supports:
-    - 'message_and_image': Sends promotional flyer image with personalized message as caption
-    - 'image_only': Sends image flyer alone
-    - 'message_only': Standard text message
+    Resumes an unfinished/stopped broadcast by sending only to remaining unsent contacts.
+    """
+    with _broadcast_lock:
+        if CURRENT_BROADCAST_STATUS.get('is_running'):
+            return False, "Campaign is already running."
+        remaining_queue = list(CURRENT_BROADCAST_STATUS.get('remaining_queue', []))
+        if not remaining_queue:
+            return False, "No unfinished contacts remaining in queue."
+        params = dict(CURRENT_BROADCAST_STATUS.get('campaign_params', {}))
+        total = CURRENT_BROADCAST_STATUS.get('total', len(remaining_queue))
+        sent = CURRENT_BROADCAST_STATUS.get('sent', 0)
+        failed = CURRENT_BROADCAST_STATUS.get('failed', 0)
+        details = list(CURRENT_BROADCAST_STATUS.get('details', []))
+
+    started = launch_pywhatkit_broadcast_async(
+        broadcast_queue=remaining_queue,
+        delay_seconds=params.get('delay_seconds', 5),
+        image_path=params.get('image_path'),
+        send_mode=params.get('send_mode', 'message_and_image'),
+        user=user,
+        is_resume=True,
+        initial_sent=sent,
+        initial_failed=failed,
+        initial_total=total,
+        initial_details=details,
+    )
+    if started:
+        return True, f"Resuming campaign for {len(remaining_queue)} remaining contacts."
+    return False, "Failed to resume campaign."
+
+
+def _run_automated_marketing_broadcast(
+    broadcast_queue,
+    delay_seconds=5,
+    image_path=None,
+    send_mode='message_and_image',
+    user=None,
+    is_resume=False,
+    initial_sent=0,
+    initial_failed=0,
+    initial_total=None,
+    initial_details=None,
+):
+    """
+    Automated Headless / Background WhatsApp Campaign Dispatcher using Playwright.
+    Reuses persistent browser profile in `.whatsapp_user_data/` so QR code is scanned once.
+    Sends text and image flyer attachments reliably via DOM element targeting without hijacking the desktop screen.
     """
     import os
+    os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
     import re
     import urllib.parse
-    import webbrowser
-    import pyautogui
+    import time
+    from django.db import close_old_connections
+    close_old_connections()
+    from playwright.sync_api import sync_playwright
+    from transactions.services_whatsapp_automator import (
+        get_launch_context_options,
+        clean_phone_number,
+        is_whatsapp_paired,
+        clean_stale_locks,
+    )
 
-    # Disable pyautogui fail-safe for automation (move mouse to corner won't abort)
-    pyautogui.FAILSAFE = False
-    pyautogui.PAUSE = 0.1
+    total = initial_total if (is_resume and initial_total is not None) else len(broadcast_queue)
+    sent_count = initial_sent if is_resume else 0
+    failed_count = initial_failed if is_resume else 0
+    details = list(initial_details or []) if is_resume else []
+    has_valid_image = bool(image_path and os.path.exists(image_path))
 
+    _update_broadcast_status(
+        is_running=True,
+        is_paused=False,
+        is_stopped=False,
+        status='running',
+        total=total,
+        sent=sent_count,
+        failed=failed_count,
+        remaining=len(broadcast_queue),
+        remaining_queue=list(broadcast_queue),
+        campaign_params={
+            'delay_seconds': delay_seconds,
+            'image_path': image_path,
+            'send_mode': send_mode,
+        },
+        current_contact='Resuming campaign...' if is_resume else 'Starting campaign...',
+        current_phone='',
+        details=[],
+        start_time=timezone.now().strftime('%Y-%m-%d %H:%M:%S'),
+        error=None,
+    )
+
+    if not is_whatsapp_paired():
+        err_msg = "WhatsApp Web session is not paired. Please pair WhatsApp Web from Digital Marketing/Autopilot page first."
+        logger.warning(err_msg)
+        _update_broadcast_status(is_running=False, status='error', error=err_msg)
+        return
+
+    logger.info(
+        "🚀 Starting Automated WhatsApp Marketing Campaign for %d contacts (delay: %ds, mode: %s, image: %s)...",
+        total, delay_seconds, send_mode, has_valid_image
+    )
+
+    clean_stale_locks()
+    context = None
     try:
-        total = len(broadcast_queue)
-        has_valid_image = bool(image_path and os.path.exists(image_path))
-        screen_w, screen_h = pyautogui.size()
+        with sync_playwright() as p:
+            context = p.chromium.launch_persistent_context(
+                **get_launch_context_options(headless=True)
+            )
+            page = context.pages[0] if context.pages else context.new_page()
 
-        logger.info(
-            "Starting WhatsApp bulk auto-broadcast for %d contacts (delay: %ds, mode: %s, image_ready: %s, screen: %dx%d)...",
-            total, delay_seconds, send_mode, has_valid_image, screen_w, screen_h
-        )
-
-        if has_valid_image and send_mode != 'message_only':
-            logger.info("Image flyer path: %s (%d bytes)", image_path, os.path.getsize(image_path))
-        elif send_mode != 'message_only':
-            logger.warning("Image mode selected (%s) but no valid image_path provided! Will send text only.", send_mode)
-
-        for idx, item in enumerate(broadcast_queue, start=1):
-            raw_phone = str(item.get('phone', '')).strip()
-            msg = item.get('message', '')
-
-            # Ensure phone is in valid international format
-            clean_digits = re.sub(r'\D', '', raw_phone)
-            if clean_digits.startswith('91') and len(clean_digits) == 12:
-                phone_num = clean_digits
-            elif len(clean_digits) == 10:
-                phone_num = '91' + clean_digits
-            else:
-                phone_num = clean_digits
-
+            # Pre-warm WhatsApp Web session
             try:
-                logger.info("[%d/%d] Dispatching WhatsApp to +%s (mode: %s)...", idx, total, phone_num, send_mode)
+                page.goto("https://web.whatsapp.com/", timeout=45000)
+                time.sleep(4)
+            except Exception as e:
+                logger.warning("WhatsApp Web pre-warm notice: %s", e)
 
-                if has_valid_image and send_mode != 'message_only':
-                    # ── IMAGE DISPATCH FLOW ─────────────────────────────────────
-                    # Step 1: Build URL (no &text param for image_only)
-                    if send_mode == 'image_only':
-                        url = f"https://web.whatsapp.com/send?phone={phone_num}"
+            for offset_idx, item in enumerate(broadcast_queue, start=1):
+                display_idx = (sent_count + failed_count + 1) if is_resume else offset_idx
+
+                # ── 1. Check if user stopped the broadcast ──
+                curr_status = get_broadcast_status()
+                if curr_status.get('is_stopped'):
+                    logger.info("🛑 Broadcast stopped by user at contact #%d/%d.", display_idx, total)
+                    _update_broadcast_status(
+                        is_running=False,
+                        status='stopped',
+                        current_contact='Campaign Stopped by User',
+                        remaining_queue=list(broadcast_queue[offset_idx - 1:]),
+                        remaining=len(broadcast_queue[offset_idx - 1:])
+                    )
+                    break
+
+                # ── 2. Check if user paused the broadcast ──
+                while True:
+                    curr_status = get_broadcast_status()
+                    if curr_status.get('is_stopped'):
+                        break
+                    if not curr_status.get('is_paused'):
+                        break
+                    _update_broadcast_status(
+                        status='paused',
+                        current_contact=f"Paused at contact [{display_idx}/{total}]",
+                        remaining_queue=list(broadcast_queue[offset_idx - 1:]),
+                        remaining=len(broadcast_queue[offset_idx - 1:])
+                    )
+                    time.sleep(1)
+
+                if curr_status.get('is_stopped'):
+                    logger.info("🛑 Broadcast stopped by user at contact #%d/%d.", display_idx, total)
+                    _update_broadcast_status(
+                        is_running=False,
+                        status='stopped',
+                        current_contact='Campaign Stopped by User',
+                        remaining_queue=list(broadcast_queue[offset_idx - 1:]),
+                        remaining=len(broadcast_queue[offset_idx - 1:])
+                    )
+                    break
+
+                raw_phone = str(item.get('phone', '')).strip()
+                phone_clean = clean_phone_number(raw_phone)
+                cust_name = item.get('name', 'Valued Customer')
+                # ── Ensure all dynamic variables ({customer_name}, {name}, {branch_name}, etc.) are fully rendered for this specific contact
+                msg = replace_dynamic_variables(item.get('message', ''), item)
+
+                _update_broadcast_status(
+                    status='running',
+                    current_contact=f"[{display_idx}/{total}] {cust_name}",
+                    current_phone=phone_clean or raw_phone,
+                    remaining_queue=list(broadcast_queue[offset_idx - 1:]),
+                    remaining=len(broadcast_queue[offset_idx - 1:])
+                )
+
+                # Skip if contact doesn't have a valid mobile/WhatsApp number
+                if not phone_clean or not is_valid_whatsapp_phone(phone_clean):
+                    failed_count += 1
+                    err_txt = f"Invalid Mobile Number: '{raw_phone}' is not a valid 10-digit WhatsApp number"
+                    logger.info("[%d/%d] ⏭️ Skipping %s (+%s): invalid mobile number format", display_idx, total, cust_name, raw_phone)
+                    details.append({'name': cust_name, 'phone': raw_phone, 'status': 'SKIPPED', 'error': err_txt})
+                    _update_broadcast_status(
+                        failed=failed_count,
+                        details=details,
+                        remaining_queue=list(broadcast_queue[offset_idx:]),
+                        remaining=len(broadcast_queue[offset_idx:])
+                    )
+
+                    log_campaign_broadcast(
+                        template_key=item.get('template_key', ''),
+                        campaign_name=item.get('campaign_name', 'WhatsApp Campaign Auto-Blast'),
+                        recipient_name=cust_name,
+                        recipient_phone=raw_phone,
+                        recipient_type='lead' if item.get('is_lead') else 'customer',
+                        group_id=item.get('group_id'),
+                        branch_id=item.get('branch_id'),
+                        channel='whatsapp_blast',
+                        status='skipped',
+                        message_snippet=f"Failed/Skipped: {err_txt} | Msg: {msg[:200]}",
+                        user=user
+                    )
+                    continue
+
+                # Check if this phone number is already marked as not registered on WhatsApp
+                if is_phone_marked_non_whatsapp(phone_clean):
+                    failed_count += 1
+                    err_txt = f"Not Registered on WhatsApp: Phone +{phone_clean} was previously verified as unavailable on WhatsApp"
+                    logger.info("[%d/%d] ⏭️ Skipping %s (+%s): known non-WhatsApp number", display_idx, total, cust_name, phone_clean)
+                    details.append({'name': cust_name, 'phone': phone_clean, 'status': 'SKIPPED', 'error': err_txt})
+                    _update_broadcast_status(
+                        failed=failed_count,
+                        details=details,
+                        remaining_queue=list(broadcast_queue[offset_idx:]),
+                        remaining=len(broadcast_queue[offset_idx:])
+                    )
+
+                    log_campaign_broadcast(
+                        template_key=item.get('template_key', ''),
+                        campaign_name=item.get('campaign_name', 'WhatsApp Campaign Auto-Blast'),
+                        recipient_name=cust_name,
+                        recipient_phone=phone_clean,
+                        recipient_type='lead' if item.get('is_lead') else 'customer',
+                        group_id=item.get('group_id'),
+                        branch_id=item.get('branch_id'),
+                        channel='whatsapp_blast',
+                        status='skipped',
+                        message_snippet=f"Skipped: {err_txt}",
+                        user=user
+                    )
+                    continue
+
+                # ── Construct direct WhatsApp Web API URL ──
+                encoded_msg = urllib.parse.quote(msg) if msg else ""
+                direct_url = f"https://web.whatsapp.com/send?phone={phone_clean}&text={encoded_msg}"
+
+                try:
+                    logger.info("[%d/%d] Navigating to WhatsApp Web chat for %s (+%s)...", display_idx, total, cust_name, phone_clean)
+                    page.goto(direct_url, timeout=35000)
+
+                    # Wait for chat composer, invalid phone alert modal, or send button
+                    send_btn_sel = 'button[aria-label="Send"], span[data-icon="send"], span[data-icon="wds-ic-send-filled"]'
+                    composer_sel = 'div[contenteditable="true"][data-tab="10"], div[contenteditable="true"][role="textbox"], div[aria-placeholder="Type a message"]'
+                    invalid_phone_modal_sel = 'div[data-animate-modal-popup="true"], div[role="dialog"]'
+
+                    chat_loaded = False
+                    sent_ok = False
+                    fail_reason = ""
+
+                    for _ in range(35):
+                        if is_broadcast_stopped():
+                            break
+
+                        # ── Strict Check: "Phone number shared via url is invalid" popup modal ──
+                        try:
+                            invalid_modal = page.query_selector(invalid_phone_modal_sel)
+                            if invalid_modal and invalid_modal.is_visible():
+                                modal_text = (invalid_modal.inner_text() or "").lower()
+                                if "phone number shared via url is invalid" in modal_text or "url is invalid" in modal_text:
+                                    logger.warning("[%d/%d] ⚠️ WhatsApp confirmed phone +%s is NOT registered on WhatsApp: %s", display_idx, total, phone_clean, modal_text)
+                                    mark_phone_as_non_whatsapp(phone_clean, reason="Phone number shared via url is invalid")
+                                    fail_reason = f"Not Registered on WhatsApp: Phone +{phone_clean} is not on WhatsApp."
+                                    try:
+                                        ok_btn = invalid_modal.query_selector('button')
+                                        if ok_btn:
+                                            ok_btn.click()
+                                    except Exception:
+                                        pass
+                                    break
+                        except Exception:
+                            pass
+
+                        # Check if chat composer or send button is loaded
+                        try:
+                            composer = page.query_selector(composer_sel)
+                            send_btn = page.query_selector(send_btn_sel)
+                            if (composer and composer.is_visible()) or (send_btn and send_btn.is_visible()):
+                                chat_loaded = True
+                                break
+                        except Exception:
+                            pass
+
+                        time.sleep(0.5)
+
+                    if not chat_loaded and not fail_reason:
+                        try:
+                            invalid_modal = page.query_selector(invalid_phone_modal_sel)
+                            if invalid_modal and invalid_modal.is_visible():
+                                modal_text = (invalid_modal.inner_text() or "").lower()
+                                if "phone number shared via url is invalid" in modal_text or "url is invalid" in modal_text:
+                                    mark_phone_as_non_whatsapp(phone_clean, reason="Phone number shared via url is invalid")
+                                    fail_reason = f"Not Registered on WhatsApp: Phone +{phone_clean} is not on WhatsApp."
+                                else:
+                                    fail_reason = f"WhatsApp Alert / Dialog: {invalid_modal.inner_text()[:100]}"
+                            else:
+                                fail_reason = "Send button and chat composer not found (Chat took too long to load)."
+                        except Exception:
+                            fail_reason = "Send button and chat composer not found (Chat took too long to load)."
+
+                    if chat_loaded:
+                        time.sleep(1.0)
+
+                        # Mode: message_only OR (message_and_image without flyer file)
+                        if send_mode == 'message_only' or not has_valid_image:
+                            for _ in range(12):
+                                send_btn = page.query_selector(send_btn_sel)
+                                if send_btn and send_btn.is_visible():
+                                    try:
+                                        send_btn.click()
+                                        sent_ok = True
+                                        time.sleep(1.8)
+                                        break
+                                    except Exception:
+                                        pass
+                                time.sleep(0.5)
+
+                            if not sent_ok:
+                                try:
+                                    page.keyboard.press("Enter")
+                                    sent_ok = True
+                                    time.sleep(1.8)
+                                except Exception as press_e:
+                                    fail_reason = f"Could not trigger Enter key: {press_e}"
+
+                        # Mode: message_and_image OR image_only with attached flyer
+                        elif has_valid_image:
+                            try:
+                                attach_btn_sel = 'span[data-icon="plus"], span[data-icon="attach-menu-plus"], button[title="Attach"], button[aria-label="Attach"]'
+                                attach_btn = page.query_selector(attach_btn_sel)
+                                if attach_btn and attach_btn.is_visible():
+                                    attach_btn.click()
+                                    time.sleep(0.8)
+
+                                file_input = page.query_selector('input[type="file"]')
+                                if file_input:
+                                    file_input.set_input_files(image_path)
+                                    time.sleep(2.0)
+
+                                    if send_mode == 'message_and_image' and msg:
+                                        caption_input_sel = 'div[contenteditable="true"][data-tab="10"], div[contenteditable="true"][role="textbox"], div[aria-placeholder="Add a caption"]'
+                                        caption_el = page.query_selector(caption_input_sel)
+                                        if caption_el and caption_el.is_visible():
+                                            try:
+                                                caption_el.fill(msg)
+                                            except Exception:
+                                                pass
+
+                                    media_send_sel = 'span[data-icon="send"], span[data-icon="wds-ic-send-filled"], button[aria-label="Send"]'
+                                    for _ in range(10):
+                                        media_send_btn = page.query_selector(media_send_sel)
+                                        if media_send_btn and media_send_btn.is_visible():
+                                            media_send_btn.click()
+                                            sent_ok = True
+                                            time.sleep(2.5)
+                                            break
+                                        time.sleep(0.5)
+
+                                    if not sent_ok:
+                                        page.keyboard.press("Enter")
+                                        sent_ok = True
+                                        time.sleep(2.5)
+                                else:
+                                    fail_reason = "File attachment input not found in WhatsApp Web DOM"
+                            except Exception as attach_err:
+                                logger.warning("Could not attach flyer image via DOM: %s", attach_err)
+                                fail_reason = f"Image attachment error: {attach_err}"
+
+                    if not sent_ok and not fail_reason:
+                        fail_reason = "Send button / chat composer not found (Chat took too long to load or number is unavailable)."
+
+                    if sent_ok:
+                        sent_count += 1
+                        details.append({'name': cust_name, 'phone': phone_clean, 'status': 'SENT', 'error': ''})
+                        _update_broadcast_status(
+                            sent=sent_count,
+                            details=details,
+                            remaining_queue=list(broadcast_queue[offset_idx:]),
+                            remaining=len(broadcast_queue[offset_idx:])
+                        )
+
+                        log_campaign_broadcast(
+                            template_key=item.get('template_key', ''),
+                            campaign_name=item.get('campaign_name', 'WhatsApp Campaign Auto-Blast'),
+                            recipient_name=cust_name,
+                            recipient_phone=phone_clean,
+                            recipient_type='lead' if item.get('is_lead') else 'customer',
+                            group_id=item.get('group_id'),
+                            branch_id=item.get('branch_id'),
+                            channel='whatsapp_blast',
+                            status='sent',
+                            message_snippet=msg[:400],
+                            user=user
+                        )
                     else:
-                        encoded_msg = urllib.parse.quote(msg) if msg else ""
-                        url = f"https://web.whatsapp.com/send?phone={phone_num}&text={encoded_msg}"
+                        failed_count += 1
+                        details = list(get_broadcast_status().get('details', []))
+                        err_txt = fail_reason or "Timeout: Send button did not respond in WhatsApp Web"
+                        details.append({'name': cust_name, 'phone': phone_clean, 'status': 'FAILED', 'error': err_txt})
+                        _update_broadcast_status(
+                            failed=failed_count,
+                            details=details,
+                            remaining_queue=list(broadcast_queue[offset_idx:]),
+                            remaining=len(broadcast_queue[offset_idx:])
+                        )
 
-                    # Step 2: Open WhatsApp Web
-                    webbrowser.open(url)
+                        log_campaign_broadcast(
+                            template_key=item.get('template_key', ''),
+                            campaign_name=item.get('campaign_name', 'WhatsApp Campaign Auto-Blast'),
+                            recipient_name=cust_name,
+                            recipient_phone=phone_clean,
+                            recipient_type='lead' if item.get('is_lead') else 'customer',
+                            group_id=item.get('group_id'),
+                            branch_id=item.get('branch_id'),
+                            channel='whatsapp_blast',
+                            status='failed',
+                            message_snippet=f"Failed: {err_txt} | Msg: {msg[:200]}",
+                            user=user
+                        )
 
-                    # Step 3: Wait for WhatsApp Web to fully load (chat must appear)
-                    logger.info("[%d/%d] Waiting for WhatsApp Web to load...", idx, total)
-                    time.sleep(12)
+                except Exception as send_err:
+                    logger.warning("[%d/%d] Error sending to %s (+%s): %s", display_idx, total, cust_name, phone_clean, send_err)
+                    failed_count += 1
+                    details = list(get_broadcast_status().get('details', []))
+                    err_txt = f"Page / Network Error: {type(send_err).__name__} ({str(send_err)})"
+                    details.append({'name': cust_name, 'phone': phone_clean, 'status': 'FAILED', 'error': err_txt})
+                    _update_broadcast_status(
+                        failed=failed_count,
+                        details=details,
+                        remaining_queue=list(broadcast_queue[offset_idx:]),
+                        remaining=len(broadcast_queue[offset_idx:])
+                    )
 
-                    # Step 4: Copy image to clipboard AFTER page loads
-                    # (do it here so Chrome doesn't overwrite it on navigation)
-                    clipboard_ok = _copy_image_to_clipboard_windows(image_path)
-                    if not clipboard_ok:
-                        logger.warning("[%d/%d] Could not set clipboard image. Skipping paste.", idx, total)
-                    else:
-                        time.sleep(0.5)   # tiny pause to ensure clipboard write is committed
+                    log_campaign_broadcast(
+                        template_key=item.get('template_key', ''),
+                        campaign_name=item.get('campaign_name', 'WhatsApp Campaign Auto-Blast'),
+                        recipient_name=cust_name,
+                        recipient_phone=phone_clean,
+                        recipient_type='lead' if item.get('is_lead') else 'customer',
+                        group_id=item.get('group_id'),
+                        branch_id=item.get('branch_id'),
+                        channel='whatsapp_blast',
+                        status='failed',
+                        message_snippet=f"Failed: {err_txt} | Msg: {msg[:200]}",
+                        user=user
+                    )
 
-                        # Step 5: Click the WhatsApp Web chat message input box
-                        # WhatsApp Web input is roughly at center-X, ~88% down the screen
-                        input_x = int(screen_w * 0.55)
-                        input_y = int(screen_h * 0.88)
-                        pyautogui.click(input_x, input_y)
-                        time.sleep(0.8)
-
-                        # Step 6: Paste image (Ctrl+V)
-                        pyautogui.hotkey('ctrl', 'v')
-                        logger.info("[%d/%d] Ctrl+V paste triggered.", idx, total)
-
-                        # Step 7: WhatsApp Web shows image preview popup — wait for it to render
-                        time.sleep(3)
-
-                        # Step 8: Press Enter to confirm send from the image preview dialog
-                        pyautogui.press('enter')
+                if offset_idx < len(broadcast_queue):
+                    safe_delay = max(3, int(delay_seconds))
+                    for _ in range(safe_delay):
+                        curr = get_broadcast_status()
+                        if curr.get('is_stopped'):
+                            break
                         time.sleep(1)
 
-                        # Sometimes a second Enter is needed if WhatsApp opens caption box first
-                        pyautogui.press('enter')
-
-                        # Step 9: Wait for image to fully upload & send (4 seconds)
-                        # WhatsApp Web uploads the image before marking it sent —
-                        # closing too early will cancel the upload.
-                        logger.info("[%d/%d] Waiting for image to upload and send...", idx, total)
-                        time.sleep(4)
-
-                    # Step 10: Close the WhatsApp Web tab automatically
-                    logger.info("[%d/%d] Closing tab...", idx, total)
-                    pyautogui.hotkey('ctrl', 'w')
-                    time.sleep(0.5)
-                    # If Chrome shows a "Close tab?" confirmation dialog, press Enter to confirm
-                    pyautogui.press('enter')
-                    time.sleep(1)
-
-                else:
-                    # ── TEXT-ONLY DISPATCH FLOW ─────────────────────────────────
-                    encoded_msg = urllib.parse.quote(msg) if msg else ""
-                    url = f"https://web.whatsapp.com/send?phone={phone_num}&text={encoded_msg}"
-                    webbrowser.open(url)
-                    time.sleep(13)
-
-                    # Click the chat input box (text pre-filled via URL)
-                    input_x = int(screen_w * 0.55)
-                    input_y = int(screen_h * 0.88)
-                    pyautogui.click(input_x, input_y)
-                    time.sleep(0.8)
-                    pyautogui.press('enter')
-
-                    # Wait for message to be sent before closing
-                    logger.info("[%d/%d] Waiting for text message to send...", idx, total)
-                    time.sleep(3)
-
-                    # Close tab automatically
-                    logger.info("[%d/%d] Closing tab...", idx, total)
-                    pyautogui.hotkey('ctrl', 'w')
-                    time.sleep(0.5)
-                    # Confirm close if Chrome shows a dialog
-                    pyautogui.press('enter')
-                    time.sleep(1)
-
-                logger.info("[%d/%d] Successfully dispatched to +%s.", idx, total, phone_num)
-                # Log campaign broadcast
-                try:
-                    log_campaign_broadcast(
-                        template_key=item.get('template_key', ''),
-                        campaign_name=item.get('campaign_name', 'PyWhatKit Auto-Blast'),
-                        recipient_name=item.get('name', 'Valued Customer'),
-                        recipient_phone=item.get('phone', phone_num),
-                        recipient_type='lead' if item.get('is_lead') else 'customer',
-                        group_id=item.get('group_id'),
-                        branch_id=item.get('branch_id'),
-                        channel='pywhatkit',
-                        status='sent',
-                        message_snippet=msg[:500] if msg else ''
-                    )
-                except Exception as log_err:
-                    logger.warning("Could not write PyWhatKit campaign log: %s", log_err)
-
-            except Exception as exc:
-                logger.warning("[%d/%d] Failed to send to +%s: %s", idx, total, phone_num, exc)
-                try:
-                    log_campaign_broadcast(
-                        template_key=item.get('template_key', ''),
-                        campaign_name=item.get('campaign_name', 'PyWhatKit Auto-Blast'),
-                        recipient_name=item.get('name', 'Valued Customer'),
-                        recipient_phone=item.get('phone', phone_num),
-                        recipient_type='lead' if item.get('is_lead') else 'customer',
-                        group_id=item.get('group_id'),
-                        branch_id=item.get('branch_id'),
-                        channel='pywhatkit',
-                        status='failed',
-                        message_snippet=msg[:500] if msg else ''
-                    )
-                except Exception:
-                    pass
-
-            if idx < total:
-                logger.info("[%d/%d] Waiting %ds before next contact...", idx, total, delay_seconds)
-                time.sleep(delay_seconds)
-
-        logger.info("WhatsApp bulk auto-broadcast completed for %d contacts.", total)
-    except Exception as exc:
-        logger.error("WhatsApp bulk auto-broadcast runner error: %s", exc)
+    except Exception as fatal_err:
+        logger.error("Fatal error during automated marketing campaign: %s", fatal_err)
+        _update_broadcast_status(is_running=False, status='error', error=str(fatal_err))
+    finally:
+        if context:
+            try:
+                context.close()
+            except Exception:
+                pass
+        clean_stale_locks()
+        curr_final = get_broadcast_status()
+        if curr_final.get('is_stopped') or curr_final.get('status') == 'stopped':
+            _update_broadcast_status(is_running=False, status='stopped', current_contact='Campaign Stopped by User')
+        elif curr_final.get('status') == 'error':
+            _update_broadcast_status(is_running=False)
+        else:
+            _update_broadcast_status(
+                is_running=False,
+                status='completed',
+                current_contact='Campaign Completed',
+                remaining_queue=[],
+                remaining=0
+            )
+        logger.info("WhatsApp marketing campaign finished.")
 
 
-def launch_pywhatkit_broadcast_async(broadcast_queue, delay_seconds=20, image_path=None, send_mode='message_and_image'):
+def launch_pywhatkit_broadcast_async(
+    broadcast_queue,
+    delay_seconds=5,
+    image_path=None,
+    send_mode='message_and_image',
+    user=None,
+    is_resume=False,
+    initial_sent=0,
+    initial_failed=0,
+    initial_total=None,
+    initial_details=None,
+):
     """
-    Launches the background broadcast runner thread with image attachment support.
+    Launches the automated Playwright background broadcast runner thread.
+    (Named launch_pywhatkit_broadcast_async for backwards compatibility).
     """
     if not broadcast_queue:
         return False
 
     t = threading.Thread(
-        target=_run_pywhatkit_bulk_broadcast,
-        args=(broadcast_queue, delay_seconds, image_path, send_mode),
+        target=_run_automated_marketing_broadcast,
+        args=(
+            broadcast_queue,
+            delay_seconds,
+            image_path,
+            send_mode,
+            user,
+            is_resume,
+            initial_sent,
+            initial_failed,
+            initial_total,
+            initial_details,
+        ),
         daemon=True,
-        name="pywhatkit-bulk-broadcast-worker"
+        name="automated-marketing-broadcast-worker"
     )
     t.start()
     return True
+
+
+# Alias for explicit naming
+launch_automated_marketing_broadcast_async = launch_pywhatkit_broadcast_async
 
 
 # ---------------------------------------------------------------------------
@@ -1020,64 +1705,72 @@ def log_campaign_broadcast(
     Records an outgoing campaign message into MarketingCampaignLog and marks
     prospect MarketingLead as contacted if applicable.
     """
+    import os
+    os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
+    from django.db import close_old_connections
+    close_old_connections()
     from transactions.models import MarketingCampaignLog, MarketingLead, MarketingGroup
     from branches.models import Branch
 
-    group_obj = None
-    if group_id:
-        try:
-            group_obj = MarketingGroup.objects.get(id=group_id)
-        except Exception:
-            group_obj = None
+    try:
+        group_obj = None
+        if group_id:
+            try:
+                group_obj = MarketingGroup.objects.get(id=group_id)
+            except Exception:
+                group_obj = None
 
-    branch_obj = None
-    if branch_id:
-        try:
-            branch_obj = Branch.objects.get(id=branch_id)
-        except Exception:
-            branch_obj = None
+        branch_obj = None
+        if branch_id:
+            try:
+                branch_obj = Branch.objects.get(id=branch_id)
+            except Exception:
+                branch_obj = None
 
-    log_entry = MarketingCampaignLog.objects.create(
-        template_key=template_key or '',
-        campaign_name=campaign_name or 'Broadcast Campaign',
-        recipient_name=recipient_name or 'Valued Customer',
-        recipient_phone=recipient_phone or '',
-        recipient_type=recipient_type,
-        group=group_obj,
-        branch=branch_obj,
-        channel=channel,
-        status=status,
-        message_snippet=message_snippet or '',
-        sent_by=user if user and user.is_authenticated else None
-    )
+        log_entry = MarketingCampaignLog.objects.create(
+            template_key=template_key or '',
+            campaign_name=campaign_name or 'Broadcast Campaign',
+            recipient_name=recipient_name or 'Valued Customer',
+            recipient_phone=recipient_phone or '',
+            recipient_type=recipient_type,
+            group=group_obj,
+            branch=branch_obj,
+            channel=channel,
+            status=status,
+            message_snippet=message_snippet or '',
+            sent_by=user if user and user.is_authenticated else None
+        )
 
-    # If this was sent to a MarketingLead, mark is_contacted = True
-    if recipient_phone:
-        norm = normalize_phone_number(recipient_phone)
-        MarketingLead.objects.filter(norm_phone=norm).update(is_contacted=True)
+        # If this was sent to a MarketingLead, mark is_contacted = True
+        if recipient_phone:
+            norm = normalize_phone_number(recipient_phone)
+            MarketingLead.objects.filter(norm_phone=norm).update(is_contacted=True)
 
-        # Cross-log into LoanWhatsAppLog for any matching customer loans
-        try:
-            from transactions.models import Loan, LoanWhatsAppLog
-            phone_variants = [p for p in [recipient_phone, norm, norm[-10:] if len(norm) >= 10 else ''] if p]
-            matching_loans = Loan.objects.filter(
-                customer__phone__in=phone_variants
-            ).select_related('customer')
-            for l in matching_loans:
-                LoanWhatsAppLog.objects.create(
-                    loan=l,
-                    customer=l.customer,
-                    recipient_phone=recipient_phone,
-                    notification_type='marketing_broadcast',
-                    status=status.lower() if status else 'sent',
-                    message_content=f"[{campaign_name}] {message_snippet or ''}",
-                    channel=channel or 'whatsapp_blast',
-                    sent_by=user if user and user.is_authenticated else None,
-                )
-        except Exception:
-            pass
+            # Cross-log into LoanWhatsAppLog for any matching customer loans
+            try:
+                from transactions.models import Loan, LoanWhatsAppLog
+                phone_variants = [p for p in [recipient_phone, norm, norm[-10:] if len(norm) >= 10 else ''] if p]
+                matching_loans = Loan.objects.filter(
+                    customer__phone__in=phone_variants
+                ).select_related('customer')
+                for l in matching_loans:
+                    LoanWhatsAppLog.objects.create(
+                        loan=l,
+                        customer=l.customer,
+                        recipient_phone=recipient_phone,
+                        notification_type='marketing_broadcast',
+                        status=status.lower() if status else 'sent',
+                        message_content=f"[{campaign_name}] {message_snippet or ''}",
+                        channel=channel or 'whatsapp_blast',
+                        sent_by=user if user and user.is_authenticated else None,
+                    )
+            except Exception:
+                pass
 
-    return log_entry
+        return log_entry
+    except Exception as db_err:
+        logger.warning("Error logging campaign broadcast to database: %s", db_err)
+        return None
 
 
 def get_campaign_analytics(branch_id=None, limit=100):

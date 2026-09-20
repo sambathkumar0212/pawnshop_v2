@@ -1111,6 +1111,18 @@ class CustomerListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin,
         thirty_days_ago = timezone.now().date() - timedelta(days=30)
         context['recent_customers'] = base_queryset.filter(created_at__date__gte=thirty_days_ago).count()
         context['new_customers'] = context['recent_customers']
+
+        # Annotate WhatsApp status on customer objects in page context
+        try:
+            from transactions.services_marketing import get_known_non_whatsapp_phones, get_phone_whatsapp_status
+            known_non_wa = get_known_non_whatsapp_phones()
+            for cust in context.get('customers', []):
+                is_valid, status_msg, status_code = get_phone_whatsapp_status(cust.phone, cust.phone, known_non_wa)
+                cust.is_valid_whatsapp = is_valid
+                cust.whatsapp_status_msg = status_msg
+                cust.whatsapp_status_code = status_code
+        except Exception:
+            pass
         
         return context
 
