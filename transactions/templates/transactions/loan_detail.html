@@ -246,12 +246,14 @@
         </div>
     </div>
 
-    <!-- Tiered Maker-Checker Approval Status Banner (Task 2.1) -->
+    <!-- Tiered Maker-Checker Approval & OTP Verification Status Banner -->
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body p-3 d-flex flex-wrap justify-content-between align-items-center gap-3">
             <div class="d-flex align-items-center gap-3">
                 <div class="fs-2">
-                    {% if loan.status == 'approved' or loan.status == 'active' %}
+                    {% if loan.status == 'approved' %}
+                    <i class="fas fa-hand-holding-usd text-success animate__animated animate__pulse animate__infinite"></i>
+                    {% elif loan.status == 'active' %}
                     <i class="fas fa-check-circle text-success"></i>
                     {% elif loan.status == 'rejected' %}
                     <i class="fas fa-times-circle text-danger"></i>
@@ -261,16 +263,28 @@
                 </div>
                 <div>
                     <div class="d-flex align-items-center gap-2 flex-wrap">
-                        <span class="badge {% if loan.status == 'approved' or loan.status == 'active' %}bg-success{% elif loan.status == 'rejected' %}bg-danger{% else %}bg-warning text-dark{% endif %} fs-6">
+                        <span class="badge {% if loan.status == 'approved' %}bg-success text-white{% elif loan.status == 'active' %}bg-success{% elif loan.status == 'rejected' %}bg-danger{% else %}bg-warning text-dark{% endif %} fs-6">
                             {{ loan.get_status_display }}
                         </span>
+                        
+                        <!-- OTP Verification Status Badge -->
+                        {% if loan.is_otp_verified %}
+                        <span class="badge bg-success font-monospace" title="Customer Identity Confirmed via 6-digit OTP">
+                            <i class="fas fa-shield-alt me-1"></i>OTP Verified
+                        </span>
+                        {% else %}
+                        <span class="badge bg-danger font-monospace" title="Customer OTP Verification Required Before Approval">
+                            <i class="fas fa-exclamation-circle me-1"></i>OTP Pending
+                        </span>
+                        {% endif %}
+
                         <span class="badge bg-dark font-monospace">
                             {% if loan.approval_tier == 1 %}Tier 1 (≤ ₹2L)
                             {% elif loan.approval_tier == 2 %}Tier 2 (₹2L-₹10L)
                             {% else %}Tier 3 (> ₹10L){% endif %}
                         </span>
                         <span class="badge {% if loan.irac_status == 'STANDARD' %}bg-success{% elif loan.irac_status == 'SMA_0' %}bg-info text-dark{% elif loan.irac_status == 'SMA_1' or loan.irac_status == 'SMA_2' %}bg-warning text-dark{% else %}bg-danger{% endif %} font-monospace">
-                            <i class="fas fa-shield-alt me-1"></i>{{ loan.get_irac_status_display }} ({{ loan.provisioning_percentage }}% Prov.)
+                            <i class="fas fa-shield-alt me-1"></i>{{ loan.get_irac_status_display }}
                         </span>
                     </div>
                     <div class="small text-muted mt-1">
@@ -286,12 +300,18 @@
                 </div>
             </div>
 
-            <div class="d-flex align-items-center gap-2">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                {% if loan.status == 'approved' %}
+                <button type="button" class="btn btn-success fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#disburseLoanModal">
+                    <i class="fas fa-money-bill-wave me-1"></i> Disburse Money (₹{{ loan.distribution_amount|floatformat:0|intcomma }})
+                </button>
+                {% endif %}
                 <a href="{% url 'loan_approval_queue' %}" class="btn btn-outline-dark btn-sm">
                     <i class="fas fa-tasks me-1"></i>Approval Queue
                 </a>
             </div>
         </div>
+
         {% if loan.rejection_reason %}
         <div class="card-footer bg-danger text-white small py-2">
             <i class="fas fa-exclamation-triangle me-1"></i><strong>Rejection Reason:</strong> {{ loan.rejection_reason }}
@@ -302,6 +322,217 @@
         </div>
         {% endif %}
     </div>
+
+    <!-- Customer OTP Identity Verification Interactive Card -->
+    {% if not loan.is_otp_verified and loan.status == 'pending_approval' %}
+    <div class="card border border-warning shadow-sm mb-4 bg-warning bg-opacity-10">
+        <div class="card-body p-3">
+            <div class="row align-items-center g-3">
+                <div class="col-lg-7">
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="bg-warning text-dark p-2 rounded-circle fs-4 mt-1">
+                            <i class="fas fa-key"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold text-dark mb-1">
+                                <i class="fas fa-shield-alt text-warning me-1"></i> Customer Identity OTP Verification Required
+                            </h6>
+                            <p class="small text-muted mb-1">
+                                To ensure the rightful person is taking this gold loan, a 6-digit OTP was dispatched to 
+                                <strong>{{ loan.customer.full_name }}</strong> (<span class="font-monospace text-primary">{{ loan.customer.phone }}</span>).
+                                Manager approval and money disbursal are locked until OTP confirmation.
+                            </p>
+                            <div class="small text-muted">
+                                <span><i class="far fa-clock me-1"></i>Valid: 15 minutes</span> | 
+                                <span>Failed Attempts: {{ loan.otp_attempts }}/5</span>
+                                {% if user.is_superuser and loan.otp_code %}
+                                <span class="ms-2 badge bg-secondary" title="Superuser/Testing Code">OTP Code: {{ loan.otp_code }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-5">
+                    <form method="post" action="{% url 'loan_verify_otp' loan.pk %}" class="d-flex flex-column gap-2">
+                        {% csrf_token %}
+                        <div class="input-group">
+                            <span class="input-group-text bg-white font-monospace fw-bold"><i class="fas fa-lock"></i></span>
+                            <input type="text" name="otp_code" class="form-control font-monospace fw-bold text-center fs-5" 
+                                   placeholder="Enter 6-Digit OTP" maxlength="6" inputmode="numeric" pattern="[0-9]{6}" required autocomplete="one-time-code">
+                            <button type="submit" class="btn btn-success fw-bold px-3">
+                                <i class="fas fa-check me-1"></i> Verify OTP
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="d-flex justify-content-end gap-2 mt-2">
+                        <form method="post" action="{% url 'loan_resend_otp' loan.pk %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-dark btn-sm">
+                                <i class="fas fa-redo me-1"></i> Resend OTP (WhatsApp)
+                            </button>
+                        </form>
+                        {% if loan.customer.phone %}
+                        <a href="https://wa.me/{{ customer_phone_normalized }}?text={{ loan.build_otp_whatsapp_message|urlencode }}" 
+                           target="_blank" class="btn btn-outline-success btn-sm">
+                            <i class="fab fa-whatsapp me-1"></i> WhatsApp Web
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% elif loan.is_otp_verified and loan.status == 'pending_approval' %}
+    <div class="alert alert-success d-flex align-items-center justify-content-between p-3 mb-4 shadow-sm" role="alert">
+        <div class="d-flex align-items-center gap-2">
+            <i class="fas fa-check-circle fs-4 text-success"></i>
+            <div>
+                <strong class="text-success">Customer Identity Confirmed via OTP!</strong>
+                <div class="small text-muted">
+                    Verified on {{ loan.otp_verified_at|date:"d M Y, h:i A" }} by {{ loan.otp_verified_by.get_full_name|default:loan.otp_verified_by.username|default:"Branch Officer" }}.
+                    Application is now ready for Manager Review &amp; Sign-off.
+                </div>
+            </div>
+        </div>
+        <a href="{% url 'loan_approval_queue' %}" class="btn btn-success btn-sm fw-bold">
+            <i class="fas fa-tasks me-1"></i> Go to Approval Queue
+        </a>
+    </div>
+    {% elif loan.status == 'approved' %}
+    <div class="alert alert-success d-flex flex-wrap align-items-center justify-content-between p-3 mb-4 shadow-sm border-2 border-success" role="alert">
+        <div class="d-flex align-items-center gap-3">
+            <div class="fs-2 text-success">
+                <i class="fas fa-hand-holding-usd"></i>
+            </div>
+            <div>
+                <h6 class="fw-bold text-success mb-1">
+                    🎉 Loan Approved by Manager — Ready for Money Disbursal!
+                </h6>
+                <div class="small text-dark">
+                    Net Disbursal Amount: <strong class="fs-6 text-success">₹{{ loan.distribution_amount|floatformat:0|intcomma }}</strong>
+                    {% if loan.processing_fee %}(Principal: ₹{{ loan.principal_amount|floatformat:0|intcomma }} − Deductions: ₹{{ loan.processing_fee|floatformat:0|intcomma }}){% endif %}.
+                    Hand over cash or complete bank transfer to activate this loan.
+                </div>
+            </div>
+        </div>
+        <button type="button" class="btn btn-success btn-lg fw-bold shadow mt-2 mt-md-0" data-bs-toggle="modal" data-bs-target="#disburseLoanModal">
+            <i class="fas fa-money-bill-wave me-2"></i> Disburse Money to Customer
+        </button>
+    </div>
+    {% endif %}
+
+    <!-- Disburse Money Modal -->
+    {% if loan.status == 'approved' %}
+    <div class="modal fade" id="disburseLoanModal" tabindex="-1" aria-labelledby="disburseLoanModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow">
+                <form method="post" action="{% url 'loan_disburse' loan.pk %}">
+                    {% csrf_token %}
+                    <div class="modal-header bg-success text-white">
+                        <h5 class="modal-title fw-bold" id="disburseLoanModalLabel">
+                            <i class="fas fa-money-bill-wave me-2"></i> Disburse Money &amp; Activate Loan #{{ loan.loan_number }}
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <div class="card bg-light border-0 p-3 h-100">
+                                    <span class="small text-muted text-uppercase fw-semibold">Customer Name</span>
+                                    <h5 class="fw-bold mb-0 text-dark">{{ loan.customer.full_name }}</h5>
+                                    <span class="small text-muted">{{ loan.customer.phone }} | Branch: {{ loan.branch.name }}</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card bg-success bg-opacity-10 border border-success p-3 h-100">
+                                    <span class="small text-success text-uppercase fw-bold">Net Payout to Customer</span>
+                                    <h3 class="fw-bold mb-0 text-success rupee-symbol">₹{{ loan.distribution_amount|floatformat:0|intcomma }}</h3>
+                                    <span class="small text-muted">Principal: ₹{{ loan.principal_amount|floatformat:0|intcomma }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Section 269SS Warning if >= 20,000 -->
+                        {% if loan.distribution_amount >= 20000 %}
+                        <div class="alert alert-warning small d-flex align-items-center gap-2 mb-3">
+                            <i class="fas fa-exclamation-triangle fs-4 text-warning"></i>
+                            <div>
+                                <strong>Income Tax Section 269SS Compliance:</strong> Disbursal is &ge; ₹20,000. Cash payout is strictly prohibited by law. Please select <strong>Bank Transfer, UPI, or Cheque</strong>.
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Disbursement Mode <span class="text-danger">*</span></label>
+                                <select name="disbursement_mode" id="id_disbursement_mode_modal" class="form-select" required onchange="toggleDisburseBankFields(this.value)">
+                                    {% if loan.distribution_amount < 20000 %}
+                                    <option value="CASH" {% if loan.disbursement_detail and loan.disbursement_detail.payment_mode == 'CASH' %}selected{% endif %}>Cash (Permitted &lt; ₹20,000)</option>
+                                    {% endif %}
+                                    <option value="BANK_TRANSFER" {% if loan.disbursement_detail and loan.disbursement_detail.payment_mode == 'BANK_TRANSFER' or loan.distribution_amount >= 20000 %}selected{% endif %}>Bank Transfer (NEFT / RTGS / IMPS)</option>
+                                    <option value="UPI" {% if loan.disbursement_detail and loan.disbursement_detail.payment_mode == 'UPI' %}selected{% endif %}>UPI Payout</option>
+                                    <option value="CHEQUE" {% if loan.disbursement_detail and loan.disbursement_detail.payment_mode == 'CHEQUE' %}selected{% endif %}>Cheque / Demand Draft</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">UTR / Transaction Reference</label>
+                                <input type="text" name="utr_number" class="form-control" placeholder="e.g. UTR12345678 or Cheque No." 
+                                       value="{{ loan.disbursement_detail.utr_number|default:'' }}">
+                            </div>
+
+                            <div class="col-md-6 bank-detail-field">
+                                <label class="form-label fw-bold small">Beneficiary Account Number</label>
+                                <input type="text" name="account_number" class="form-control" placeholder="Bank Account Number"
+                                       value="{{ loan.disbursement_detail.account_number|default:loan.customer.bank_account_number|default:'' }}">
+                            </div>
+
+                            <div class="col-md-6 bank-detail-field">
+                                <label class="form-label fw-bold small">Bank IFSC Code</label>
+                                <input type="text" name="ifsc_code" class="form-control text-uppercase" placeholder="e.g. HDFC0001234"
+                                       value="{{ loan.disbursement_detail.ifsc_code|default:loan.customer.bank_ifsc_code|default:'' }}">
+                            </div>
+
+                            <div class="col-md-6 bank-detail-field">
+                                <label class="form-label fw-bold small">Bank Name</label>
+                                <input type="text" name="bank_name" class="form-control" placeholder="e.g. State Bank of India"
+                                       value="{{ loan.disbursement_detail.bank_name|default:loan.customer.bank_name|default:'' }}">
+                            </div>
+
+                            <div class="col-md-6 bank-detail-field">
+                                <label class="form-label fw-bold small">Beneficiary Name</label>
+                                <input type="text" name="beneficiary_name" class="form-control" placeholder="Name on bank account"
+                                       value="{{ loan.disbursement_detail.beneficiary_name|default:loan.customer.bank_beneficiary_name|default:loan.customer.full_name }}">
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label fw-bold small">Disbursal Remarks / Notes</label>
+                                <textarea name="notes" class="form-control" rows="2" placeholder="Optional notes (e.g. Cash handed over to customer / Bank transfer initiated via corporate portal)"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-success fw-bold px-4" onclick="return confirm('Confirm handing over / transferring ₹{{ loan.distribution_amount|floatformat:0|intcomma }} to {{ loan.customer.full_name }}?');">
+                            <i class="fas fa-check-circle me-1"></i> Confirm &amp; Disburse Money
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script>
+    function toggleDisburseBankFields(mode) {
+        const isCash = mode === 'CASH';
+        document.querySelectorAll('.bank-detail-field').forEach(el => {
+            el.style.opacity = isCash ? '0.5' : '1.0';
+        });
+    }
+    </script>
+    {% endif %}
+
 
     <!-- 1. KPI Metric Cards Row -->
     <div class="row g-3 mb-4">

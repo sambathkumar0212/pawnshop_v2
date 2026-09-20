@@ -1305,6 +1305,7 @@ class LoanForm(forms.ModelForm):
                     if disbursal_amt is None:
                         disbursal_amt = (instance.principal_amount or Decimal('0')) - (instance.processing_fee or Decimal('0'))
 
+                    bank_status = 'PROCESSED' if instance.status in ['approved', 'active'] else 'PENDING'
                     DisbursementTransaction.objects.update_or_create(
                         loan=instance,
                         defaults={
@@ -1316,7 +1317,7 @@ class LoanForm(forms.ModelForm):
                             'beneficiary_name': beneficiary,
                             'utr_number': utr,
                             'disbursed_by': self.user if hasattr(self, 'user') and self.user and self.user.is_authenticated else None,
-                            'bank_status': 'PROCESSED'
+                            'bank_status': bank_status
                         }
                     )
 

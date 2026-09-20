@@ -159,7 +159,18 @@
                                 <div class="text-muted small">{{ loan.created_at|date:"d M Y, h:i A" }}</div>
                             </td>
                             <td>
-                                <strong class="text-dark">{{ loan.customer.full_name }}</strong>
+                                <div class="d-flex align-items-center gap-2">
+                                    <strong class="text-dark">{{ loan.customer.full_name }}</strong>
+                                    {% if loan.is_otp_verified %}
+                                    <span class="badge bg-success bg-opacity-25 text-success border border-success font-monospace" style="font-size: 0.72rem;" title="Customer identity verified via OTP">
+                                        <i class="fas fa-shield-alt me-1"></i>OTP Verified
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-danger bg-opacity-25 text-danger border border-danger font-monospace" style="font-size: 0.72rem;" title="Customer identity OTP verification pending">
+                                        <i class="fas fa-exclamation-triangle me-1"></i>OTP Pending
+                                    </span>
+                                    {% endif %}
+                                </div>
                                 <div class="small text-muted">{{ loan.customer.phone }} | {{ loan.branch.name }}</div>
                             </td>
                             <td class="text-end font-monospace fw-bold fs-6 text-dark">
@@ -223,10 +234,17 @@
                                     </a>
 
                                     {% if loan.status == 'pending_approval' %}
+                                    {% if loan.is_otp_verified %}
                                     <!-- Approve Button (triggers modal) -->
                                     <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#approveModal{{ loan.pk }}" title="Approve Loan">
                                         <i class="fas fa-check me-1"></i>Approve
                                     </button>
+                                    {% else %}
+                                    <!-- Blocked Approve Button -->
+                                    <a href="{% url 'loan_detail' loan.loan_number %}" class="btn btn-outline-danger" title="Approval Blocked: Click to verify customer OTP on loan dossier">
+                                        <i class="fas fa-lock me-1"></i>Verify OTP
+                                    </a>
+                                    {% endif %}
                                     <!-- Reject Button -->
                                     <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#rejectModal{{ loan.pk }}" title="Reject Loan">
                                         <i class="fas fa-times"></i>
@@ -236,7 +254,9 @@
                                         <i class="fas fa-redo"></i>
                                     </button>
                                     {% elif loan.status == 'approved' %}
-                                    <span class="badge bg-success py-2 px-2"><i class="fas fa-check-circle me-1"></i>Ready for Payout</span>
+                                    <a href="{% url 'loan_detail' loan.loan_number %}" class="btn btn-success fw-bold" title="Disburse money and activate loan">
+                                        <i class="fas fa-money-bill-wave me-1"></i>Disburse
+                                    </a>
                                     {% elif loan.status == 'rejected' %}
                                     <span class="badge bg-danger py-2 px-2"><i class="fas fa-ban me-1"></i>Rejected</span>
                                     {% else %}

@@ -22,6 +22,7 @@ from transactions.services_autopilot import (
     run_pillar_2_whatsapp_collections,
     run_pillar_3_ltv_surveillance,
     run_pillar_4_retention_marketing,
+    run_special_dates_wishes_dispatch,
     run_pillar_5_owner_digest,
     start_autopilot_daemon,
 )
@@ -110,6 +111,10 @@ class AutopilotSaveConfigView(LoginRequiredMixin, View):
             # Pillar 4
             if 'enable_repledge_retention' in data:
                 config.enable_repledge_retention = str(data.get('enable_repledge_retention')).lower() in ('true', '1', 'on')
+            if 'enable_birthday_greetings' in data:
+                config.enable_birthday_greetings = str(data.get('enable_birthday_greetings')).lower() in ('true', '1', 'on')
+            if 'enable_anniversary_greetings' in data:
+                config.enable_anniversary_greetings = str(data.get('enable_anniversary_greetings')).lower() in ('true', '1', 'on')
             if 'repledge_cooldown_days' in data:
                 config.repledge_cooldown_days = int(data.get('repledge_cooldown_days', 30))
             if 'marketing_dispatch_time' in data and data.get('marketing_dispatch_time'):
@@ -277,6 +282,63 @@ class AutopilotTriggerActionView(LoginRequiredMixin, View):
                     return JsonResponse({'status': 'success', 'message': f'Re-Pledge Promo WhatsApp sent to {cust_name} (+{norm_phone})!'})
                 else:
                     return JsonResponse({'status': 'error', 'message': res.get('message', res.get('error', 'Failed to dispatch WhatsApp promo.'))})
+            elif pillar in ('pillar_4_wishes', 'special_wishes'):
+                custom_bday_tpl = data.get('custom_birthday_template') or data.get('birthday_template')
+                custom_anniv_tpl = data.get('custom_anniversary_template') or data.get('anniversary_template')
+                sel_custs = data.get('selected_customer_ids')
+                result = run_special_dates_wishes_dispatch(
+                    config=config,
+                    dry_run=is_dry_run,
+                    forced=True,
+                    user=request.user,
+                    custom_birthday_template=custom_bday_tpl,
+                    custom_anniversary_template=custom_anniv_tpl,
+                    selected_customer_ids=sel_custs
+                )
+            elif pillar == 'pillar_4_single_wish':
+                from accounts.models import Customer
+                from transactions.models import MarketingCampaignLog
+                from transactions.services_whatsapp import normalize_phone_number
+                from transactions.services_whatsapp_automator import send_whatsapp_message_headless, is_whatsapp_paired
+
+                cust_id = data.get('customer_id')
+                cust = Customer.objects.filter(id=cust_id).first() if cust_id else None
+                raw_phone = data.get('phone') or (cust.phone if cust else '')
+                norm_phone = normalize_phone_number(raw_phone)
+                msg = data.get('message', '')
+                occasion_type = data.get('occasion_type', 'birthday')
+                template_key = 'birthday_wishes' if occasion_type == 'birthday' else 'anniversary_wishes'
+                campaign_name = 'Birthday Wishes (Manual 1-Click)' if occasion_type == 'birthday' else 'Wedding Anniversary Wishes (Manual 1-Click)'
+
+                if not norm_phone:
+                    return JsonResponse({'status': 'error', 'message': 'Customer has no valid phone number.'})
+
+                if not is_whatsapp_paired():
+                    return JsonResponse({'status': 'error', 'message': 'WhatsApp session is not paired. Please pair WhatsApp Web from Digital Marketing/Autopilot page first.'})
+
+                res = send_whatsapp_message_headless(phone=norm_phone, message=msg, headless=True)
+                status_str = 'sent' if res.get('success') else 'failed'
+                cust_name = cust.full_name if cust else (data.get('name') or 'Customer')
+
+                try:
+                    MarketingCampaignLog.objects.create(
+                        template_key=template_key,
+                        campaign_name=campaign_name,
+                        recipient_name=cust_name,
+                        recipient_phone=norm_phone,
+                        recipient_type='customer',
+                        channel='whatsapp_blast',
+                        status=status_str,
+                        message_snippet=msg[:300],
+                        sent_by=request.user
+                    )
+                except Exception as log_ex:
+                    logger.warning("Could not log single wish: %s", log_ex)
+
+                if res.get('success'):
+                    return JsonResponse({'status': 'success', 'message': f'WhatsApp greetings sent to {cust_name} (+{norm_phone})!'})
+                else:
+                    return JsonResponse({'status': 'error', 'message': res.get('message', res.get('error', 'Failed to dispatch WhatsApp greetings.'))})
             elif pillar == 'pillar_5':
                 result = run_pillar_5_owner_digest(config=config, dry_run=is_dry_run, forced=True)
             else:

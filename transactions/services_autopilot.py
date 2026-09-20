@@ -26,6 +26,7 @@ _LAST_DISPATCH_RECORD = {
     'pillar_2_date': None,
     'pillar_3_date': None,
     'pillar_4_date': None,
+    'pillar_4_wishes_date': None,
     'pillar_5_date': None,
 }
 
@@ -535,6 +536,253 @@ def run_pillar_4_retention_marketing(
                 'phone': c['phone'],
                 'branch': c['branch'],
                 'closed_date': c['closed_date'],
+                'message': c['message']
+            }
+            for c in candidates
+        ]
+    }
+
+
+def run_special_dates_wishes_dispatch(
+    config=None,
+    dry_run=False,
+    forced=False,
+    user=None,
+    custom_birthday_template: str = None,
+    custom_anniversary_template: str = None,
+    selected_customer_ids: list = None
+) -> dict:
+    """
+    Identifies customers who have their Birthday or Wedding Anniversary today
+    and dispatches warm, personalized WhatsApp wishes automatically.
+    """
+    if not config:
+        config = get_or_create_autopilot_config()
+
+    if not config.is_enabled and not forced:
+        return {'status': 'skipped', 'reason': 'Autopilot is disabled'}
+
+    enable_bday = getattr(config, 'enable_birthday_greetings', True)
+    enable_anniv = getattr(config, 'enable_anniversary_greetings', True)
+
+    if not enable_bday and not enable_anniv and not forced:
+        return {'status': 'skipped', 'reason': 'Birthday and Anniversary greetings are both disabled in configuration'}
+
+    now = timezone.localtime()
+    if not is_within_safe_window(config, now.time()) and not forced:
+        return {'status': 'skipped', 'reason': 'Outside TRAI safe communication hours (09:00 AM - 07:30 PM)'}
+
+    from accounts.models import Customer
+    from transactions.models import AutopilotLog, MarketingCampaignLog
+    from transactions.services_whatsapp import normalize_phone_number
+    from transactions.services_whatsapp_automator import send_batch_special_wishes_automated, is_whatsapp_paired
+
+    today = now.date()
+    candidates = []
+    seen_phone_occasions = set()
+
+    # 1. Birthday Candidates
+    if enable_bday or forced:
+        bday_customers = Customer.objects.filter(
+            date_of_birth__month=today.month,
+            date_of_birth__day=today.day
+        ).select_related('branch')
+
+        for cust in bday_customers:
+            raw_phone = getattr(cust, 'phone', '') or ''
+            norm_phone = normalize_phone_number(raw_phone)
+            if not norm_phone:
+                continue
+
+            # Anti-spam: check if already wished birthday today
+            already_wished = MarketingCampaignLog.objects.filter(
+                recipient_phone__in=[raw_phone, norm_phone],
+                template_key='birthday_wishes',
+                created_at__date=today
+            ).exists()
+
+            if not already_wished or forced:
+                cust_name = cust.full_name or cust.first_name or 'Valued Customer'
+                branch_name = cust.branch.name if cust.branch else 'First Money Gold'
+                branch_phone = getattr(cust.branch, 'phone', '') or '9876543210'
+
+                if custom_birthday_template and custom_birthday_template.strip():
+                    wish_msg = (
+                        custom_birthday_template
+                        .replace('{customer_name}', cust_name)
+                        .replace('{name}', cust_name)
+                        .replace('{branch_name}', branch_name)
+                        .replace('{branch}', branch_name)
+                        .replace('{branch_phone}', branch_phone)
+                        .replace('{organization_name}', 'First Money Gold')
+                    )
+                else:
+                    wish_msg = (
+                        f"🎂 *இனிய பிறந்தநாள் நல்வாழ்த்துகள்! - {branch_name}* 🎂\n\n"
+                        f"அன்புள்ள *{cust_name}* அவர்களுக்கு,\n"
+                        f"First Money Gold நிறுவனத்தின் சார்பாக தங்களுக்கு எங்களின் மனமார்ந்த பிறந்தநாள் நல்வாழ்த்துகளை தெரிவித்துக் கொள்கிறோம்! ✨\n\n"
+                        f"தாங்கள் எல்லா வளமும், நலமும், நீடித்த ஆயுளும் பெற்று மகிழ்ச்சியோடு வாழ மனதார வாழ்த்துகிறோம்.\n\n"
+                        f"🌟 தங்களின் பிறந்தநாள் விசேஷ தினத்திற்கு வாழ்த்துகள்!\n"
+                        f"அன்புடன்,\n"
+                        f"*First Money Gold - {branch_name}*\n"
+                        f"📞 தொடர்பு: {branch_phone}"
+                    )
+
+                key = (norm_phone, 'birthday')
+                if key not in seen_phone_occasions:
+                    seen_phone_occasions.add(key)
+                    candidates.append({
+                        'customer': cust,
+                        'customer_id': cust.id,
+                        'name': cust_name,
+                        'phone': norm_phone,
+                        'raw_phone': raw_phone,
+                        'branch': branch_name,
+                        'occasion_type': 'birthday',
+                        'occasion_label': '🎂 Birthday Today',
+                        'date': cust.date_of_birth.strftime('%d-%b') if cust.date_of_birth else '',
+                        'message': wish_msg,
+                    })
+
+    # 2. Wedding Anniversary Candidates
+    if enable_anniv or forced:
+        anniv_customers = Customer.objects.filter(
+            anniversary_date__month=today.month,
+            anniversary_date__day=today.day
+        ).select_related('branch')
+
+        for cust in anniv_customers:
+            raw_phone = getattr(cust, 'phone', '') or ''
+            norm_phone = normalize_phone_number(raw_phone)
+            if not norm_phone:
+                continue
+
+            # Anti-spam: check if already wished anniversary today
+            already_wished = MarketingCampaignLog.objects.filter(
+                recipient_phone__in=[raw_phone, norm_phone],
+                template_key='anniversary_wishes',
+                created_at__date=today
+            ).exists()
+
+            if not already_wished or forced:
+                cust_name = cust.full_name or cust.first_name or 'Valued Customer'
+                branch_name = cust.branch.name if cust.branch else 'First Money Gold'
+                branch_phone = getattr(cust.branch, 'phone', '') or '9876543210'
+
+                if custom_anniversary_template and custom_anniversary_template.strip():
+                    wish_msg = (
+                        custom_anniversary_template
+                        .replace('{customer_name}', cust_name)
+                        .replace('{name}', cust_name)
+                        .replace('{branch_name}', branch_name)
+                        .replace('{branch}', branch_name)
+                        .replace('{branch_phone}', branch_phone)
+                        .replace('{organization_name}', 'First Money Gold')
+                    )
+                else:
+                    wish_msg = (
+                        f"💍 *இனிய திருமண நாள் நல்வாழ்த்துகள்! - {branch_name}* 💍\n\n"
+                        f"அன்புள்ள *{cust_name}* அவர்களுக்கு,\n"
+                        f"First Money Gold குடும்பத்தின் சார்பாக தங்களுக்கு எங்களின் மனமார்ந்த திருமண நாள் நல்வாழ்த்துகளை தெரிவித்துக் கொள்கிறோம்! ✨\n\n"
+                        f"தாங்கள் என்றும் இல்லற வாழ்வில் நலமும், வளமும், மகிழ்ச்சியும் பெற்று சீரோடும் சிறப்போடும் வாழ வாழ்த்துகிறோம்.\n\n"
+                        f"💖 தங்களின் சிறப்பு தினத்திற்கு வாழ்த்துகள்!\n"
+                        f"அன்புடன்,\n"
+                        f"*First Money Gold - {branch_name}*\n"
+                        f"📞 தொடர்பு: {branch_phone}"
+                    )
+
+                key = (norm_phone, 'anniversary')
+                if key not in seen_phone_occasions:
+                    seen_phone_occasions.add(key)
+                    candidates.append({
+                        'customer': cust,
+                        'customer_id': cust.id,
+                        'name': cust_name,
+                        'phone': norm_phone,
+                        'raw_phone': raw_phone,
+                        'branch': branch_name,
+                        'occasion_type': 'anniversary',
+                        'occasion_label': '💍 Wedding Anniversary Today',
+                        'date': cust.anniversary_date.strftime('%d-%b') if cust.anniversary_date else '',
+                        'message': wish_msg,
+                    })
+
+    # If selective list provided, filter down
+    if selected_customer_ids is not None:
+        sel_set = set(str(cid) for cid in selected_customer_ids)
+        candidates = [c for c in candidates if str(c['customer_id']) in sel_set]
+
+    target_count = len(candidates)
+
+    if dry_run or not candidates:
+        summary_msg = f"Identified {target_count} customer(s) with special occasions (Birthdays & Anniversaries) today."
+        if not dry_run:
+            AutopilotLog.objects.create(
+                pillar='pillar_4',
+                action_name='Special Occasions Wishes Scan',
+                target_count=target_count,
+                success_count=0,
+                failed_count=0,
+                summary=summary_msg,
+                status='success'
+            )
+        return {
+            'status': 'success',
+            'target_count': target_count,
+            'message': summary_msg,
+            'candidates': [
+                {
+                    'id': c['customer_id'],
+                    'name': c['name'],
+                    'phone': c['phone'],
+                    'branch': c['branch'],
+                    'occasion_type': c['occasion_type'],
+                    'occasion_label': c['occasion_label'],
+                    'date': c['date'],
+                    'message': c['message']
+                }
+                for c in candidates
+            ]
+        }
+
+    # Dispatch via single-session persistent browser context
+    batch_res = send_batch_special_wishes_automated(
+        wish_items=candidates,
+        delay_between_seconds=3,
+        headless=True,
+        user=user
+    )
+
+    sent_count = batch_res.get('sent', 0)
+    failed_count = batch_res.get('failed', 0)
+    summary_text = f"Birthday & Anniversary Wishes: Dispatched {sent_count} greetings ({failed_count} failed)."
+
+    AutopilotLog.objects.create(
+        pillar='pillar_4',
+        action_name='Birthday & Anniversary Wishes Auto-Blast',
+        target_count=target_count,
+        success_count=sent_count,
+        failed_count=failed_count,
+        summary=summary_text,
+        status='success' if (failed_count == 0 and sent_count > 0) else ('partial' if sent_count > 0 else 'failed')
+    )
+
+    return {
+        'status': 'success' if (failed_count == 0 and sent_count > 0) else ('partial' if sent_count > 0 else 'failed'),
+        'target_count': target_count,
+        'sent': sent_count,
+        'failed': failed_count,
+        'summary': summary_text,
+        'message': summary_text,
+        'candidates': [
+            {
+                'id': c['customer_id'],
+                'name': c['name'],
+                'phone': c['phone'],
+                'branch': c['branch'],
+                'occasion_type': c['occasion_type'],
+                'occasion_label': c['occasion_label'],
+                'date': c['date'],
                 'message': c['message']
             }
             for c in candidates
@@ -1085,6 +1333,13 @@ def run_autopilot_cycle(forced=False, dry_run=False):
             results['pillar_4'] = res_p4
             if not dry_run and res_p4.get('status') in ('success', 'partial'):
                 _LAST_DISPATCH_RECORD['pillar_4_date'] = today_str
+
+        # Check Pillar 4: Birthday & Wedding Anniversary Greetings (Scheduled daily after 09:30 AM)
+        if forced or (_LAST_DISPATCH_RECORD['pillar_4_wishes_date'] != today_str and current_time >= dtime(9, 30)):
+            res_wishes = run_special_dates_wishes_dispatch(config=config, forced=forced, dry_run=dry_run)
+            results['pillar_4_wishes'] = res_wishes
+            if not dry_run and res_wishes.get('status') in ('success', 'partial'):
+                _LAST_DISPATCH_RECORD['pillar_4_wishes_date'] = today_str
 
         # Check Pillar 5: Owner Daily Digest (default 08:30 PM)
         p5_time = _parse_time(config.digest_time, dtime(20, 30))

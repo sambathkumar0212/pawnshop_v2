@@ -8,7 +8,7 @@ from django.http import Http404, HttpResponse, JsonResponse
 from django.template.loader import get_template
 from io import BytesIO
 import csv
-from .models import Loan, Payment, LoanExtension, Sale
+from .models import Loan, Payment, LoanExtension, Sale, DisbursementTransaction
 from accounts.mixins import RoleBranchAccessMixin
 from .forms import LoanForm, SaleForm, LoanExtensionForm, PaymentRecordForm
 from .utils import ManagerPermissionMixin
@@ -2662,20 +2662,22 @@ class LoanCreateView(LoginRequiredMixin, RoleBranchAccessMixin, CreateView):
         else:
             # Last fallback: Use default value from model
             form.instance.interest_rate = Decimal('12.00')
+
+        # Loan Creation Maker-Checker & OTP Workflow
+        form.instance.maker = self.request.user
+        form.instance.status = 'pending_approval'
+        form.instance.is_otp_verified = False
+        form.instance.generate_otp(save=False)
         
         response = super().form_valid(form)
         try:
             from accounts.models import LoanEditLog
-            # Capture lightweight snapshot for audit log.
-            # Exclude binary blob fields (item_photos, customer_face_capture)
-            # to avoid serializing potentially megabytes of base64 data.
             try:
                 from django.forms.models import model_to_dict
                 new_data = model_to_dict(
                     self.object,
                     exclude=['item_photos', 'customer_face_capture', 'loan_document'],
                 )
-                # Convert non-serializable types to strings
                 new_data = {k: str(v) for k, v in new_data.items()}
             except Exception:
                 new_data = None
@@ -2683,46 +2685,23 @@ class LoanCreateView(LoginRequiredMixin, RoleBranchAccessMixin, CreateView):
                 loan=self.object,
                 edited_by=self.request.user,
                 change_type='create',
-                description=f'Loan created by {self.request.user.get_full_name() or self.request.user.username}',
+                description=f'Loan initiated by Maker {self.request.user.get_full_name() or self.request.user.username} (Pending Customer OTP & Manager Approval)',
                 changes={'new': new_data} if new_data is not None else None
             )
         except Exception:
             pass
-        # Auto-create a Payment record for the processing fee if paid upfront at loan creation
-        try:
-            loan = self.object
-            if loan.is_processing_fee_paid and loan.processing_fee and loan.processing_fee > 0:
-                fee_amount = Decimal(str(loan.processing_fee))
-                Payment.objects.create(
-                    loan=loan,
-                    amount=fee_amount,
-                    payment_date=loan.issue_date,
-                    payment_method='cash',
-                    received_by=self.request.user,
-                    notes=f'Processing Fee collected upfront at loan creation (Loan #{loan.loan_number})',
-                )
-        except Exception as e:
-            logging.getLogger(__name__).warning('Failed to create processing fee payment record: %s', e)
 
-        # Auto-create a Payment record for 1st month interest if paid upfront at loan creation
+        # Dispatch automated customer OTP WhatsApp message in background
         try:
-            loan = self.object
-            if loan.is_first_month_interest_paid:
-                monthly_info = loan.monthly_interest
-                interest_amount = Decimal(str(monthly_info.get('amount', 0))) if isinstance(monthly_info, dict) else Decimal('0')
-                if interest_amount > 0:
-                    Payment.objects.create(
-                        loan=loan,
-                        amount=interest_amount,
-                        payment_date=loan.issue_date,
-                        payment_method='cash',
-                        received_by=self.request.user,
-                        notes=f'1st Month Interest collected upfront at loan creation (Loan #{loan.loan_number})',
-                    )
+            from transactions.services_whatsapp_automator import send_loan_otp_whatsapp_async
+            send_loan_otp_whatsapp_async(self.object.id, user_id=self.request.user.id)
         except Exception as e:
-            logging.getLogger(__name__).warning('Failed to create first month interest payment record: %s', e)
+            logging.getLogger(__name__).warning("Failed to spawn background loan OTP dispatch: %s", e)
 
-        messages.success(self.request, 'Loan created successfully!')
+        messages.success(
+            self.request,
+            f"Gold Loan Application #{self.object.loan_number} initiated! A 6-digit identity OTP has been dispatched to {self.object.customer.full_name}'s mobile ({self.object.customer.phone}). Please verify customer OTP before manager approval."
+        )
         return response
 
 
@@ -5041,6 +5020,180 @@ class LoanReappraisalActionView(LoginRequiredMixin, View):
         loan.request_reappraisal(request.user, notes)
         messages.info(request, f"Loan #{loan.loan_number} sent back to Appraiser for physical re-appraisal.")
         return redirect('loan_approval_queue')
+
+
+# ==============================================================================
+# Customer OTP Identity Verification & Post-Approval Disbursal Actions
+# ==============================================================================
+
+class LoanVerifyOTPView(LoginRequiredMixin, View):
+    """
+    Validates customer 6-digit OTP code before loan approval.
+    """
+    def post(self, request, pk):
+        loan = get_object_or_404(Loan, pk=pk)
+        entered_otp = request.POST.get('otp_code', '').strip()
+        if not entered_otp:
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'message': 'Please enter the 6-digit OTP code.'}, status=400)
+            messages.error(request, 'Please enter the 6-digit OTP code.')
+            return redirect('loan_detail', loan_number=loan.loan_number)
+
+        success, msg = loan.verify_otp(entered_otp, user=request.user)
+
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'success': success, 'message': msg})
+
+        if success:
+            messages.success(request, f"✅ {msg}")
+        else:
+            messages.error(request, f"❌ {msg}")
+        return redirect('loan_detail', loan_number=loan.loan_number)
+
+
+class LoanResendOTPView(LoginRequiredMixin, View):
+    """
+    Regenerates a fresh 6-digit OTP and dispatches it via background WhatsApp worker.
+    """
+    def post(self, request, pk):
+        loan = get_object_or_404(Loan, pk=pk)
+        new_otp = loan.generate_otp(save=True)
+        from transactions.services_whatsapp_automator import send_loan_otp_whatsapp_async
+        send_loan_otp_whatsapp_async(loan.id, user_id=request.user.id)
+
+        wa_link = loan.get_otp_whatsapp_link()
+        msg = f"Fresh 6-digit OTP generated and sent to {loan.customer.full_name}'s mobile ({loan.customer.phone})."
+
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': msg,
+                'otp_code': new_otp,
+                'whatsapp_link': wa_link
+            })
+
+        messages.info(request, f"📲 {msg}")
+        return redirect('loan_detail', loan_number=loan.loan_number)
+
+
+class LoanDisburseActionView(LoginRequiredMixin, View):
+    """
+    Executes money payout/disbursement to the customer after manager approval.
+    Transitions loan status from 'approved' to 'active'.
+    Enforces Income Tax Section 269SS cash disbursement caps (< ₹20,000).
+    """
+    def post(self, request, pk):
+        loan = get_object_or_404(Loan, pk=pk)
+
+        if loan.status != 'approved' or not loan.is_approved_for_disbursal:
+            messages.error(
+                request,
+                f"Disbursal Blocked: Loan #{loan.loan_number} is currently '{loan.get_status_display()}'. "
+                f"Full Manager Approval is required before disbursing money."
+            )
+            return redirect('loan_detail', loan_number=loan.loan_number)
+
+        payment_mode = request.POST.get('disbursement_mode', 'CASH').upper()
+        account_number = request.POST.get('account_number', '').strip()
+        ifsc_code = request.POST.get('ifsc_code', '').strip().upper()
+        bank_name = request.POST.get('bank_name', '').strip()
+        beneficiary_name = request.POST.get('beneficiary_name', '').strip() or loan.customer.full_name
+        utr_number = request.POST.get('utr_number', '').strip()
+        notes = request.POST.get('notes', '').strip()
+
+        disbursal_amt = loan.distribution_amount
+        if disbursal_amt is None:
+            disbursal_amt = (loan.principal_amount or Decimal('0')) - (loan.processing_fee or Decimal('0'))
+
+        # Sec 269SS statutory validation
+        if payment_mode == 'CASH' and Decimal(str(disbursal_amt)) >= Decimal('20000.00'):
+            messages.error(
+                request,
+                "Section 269SS Violation: Cash disbursals of ₹20,000 or more are prohibited by Income Tax law. "
+                "Please select Bank Transfer, UPI, or Cheque."
+            )
+            return redirect('loan_detail', loan_number=loan.loan_number)
+
+        if payment_mode in ['BANK_TRANSFER', 'NEFT', 'IMPS', 'RTGS']:
+            if not account_number or not ifsc_code:
+                messages.error(request, "Bank Account Number and IFSC Code are required for Bank Transfer disbursals.")
+                return redirect('loan_detail', loan_number=loan.loan_number)
+
+        # Update or create processed DisbursementTransaction
+        disb, _ = DisbursementTransaction.objects.update_or_create(
+            loan=loan,
+            defaults={
+                'payment_mode': payment_mode,
+                'amount': disbursal_amt,
+                'account_number': account_number,
+                'ifsc_code': ifsc_code,
+                'bank_name': bank_name,
+                'beneficiary_name': beneficiary_name,
+                'utr_number': utr_number,
+                'disbursed_by': request.user,
+                'disbursed_at': timezone.now(),
+                'bank_status': 'PROCESSED',
+                'notes': notes
+            }
+        )
+
+        # Transition loan to active
+        loan.status = 'active'
+        loan.save(update_fields=['status'])
+
+        # Auto-create Payment record for processing fee if collected upfront
+        try:
+            if loan.is_processing_fee_paid and loan.processing_fee and loan.processing_fee > 0:
+                Payment.objects.get_or_create(
+                    loan=loan,
+                    notes=f'Processing Fee collected upfront at loan creation (Loan #{loan.loan_number})',
+                    defaults={
+                        'amount': Decimal(str(loan.processing_fee)),
+                        'payment_date': loan.issue_date,
+                        'payment_method': 'cash',
+                        'received_by': request.user,
+                    }
+                )
+        except Exception as e:
+            logging.getLogger(__name__).warning("Error creating upfront processing fee payment on disbursal: %s", e)
+
+        # Auto-create Payment record for 1st month interest if collected upfront
+        try:
+            if loan.is_first_month_interest_paid:
+                monthly_info = loan.monthly_interest
+                interest_amount = Decimal(str(monthly_info.get('amount', 0))) if isinstance(monthly_info, dict) else Decimal('0')
+                if interest_amount > 0:
+                    Payment.objects.get_or_create(
+                        loan=loan,
+                        notes=f'1st Month Interest collected upfront at loan creation (Loan #{loan.loan_number})',
+                        defaults={
+                            'amount': interest_amount,
+                            'payment_date': loan.issue_date,
+                            'payment_method': 'cash',
+                            'received_by': request.user,
+                        }
+                    )
+        except Exception as e:
+            logging.getLogger(__name__).warning("Error creating upfront 1st month interest payment on disbursal: %s", e)
+
+        # Audit log
+        try:
+            from accounts.models import LoanEditLog
+            LoanEditLog.objects.create(
+                loan=loan,
+                edited_by=request.user,
+                change_type='disbursed',
+                description=f"Loan disbursed (₹{disbursal_amt:,.2f} via {payment_mode}) by {request.user.get_full_name() or request.user.username}. Loan is now ACTIVE."
+            )
+        except Exception:
+            pass
+
+        messages.success(
+            request,
+            f"🎉 Money Disbursed Successfully! ₹{disbursal_amt:,.2f} handed over / transferred to {loan.customer.full_name}. Loan #{loan.loan_number} is now ACTIVE."
+        )
+        return redirect('loan_detail', loan_number=loan.loan_number)
+
 
 
 

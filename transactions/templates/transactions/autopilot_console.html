@@ -229,7 +229,7 @@
                                 Auto Re-Pledge Promos for Closed Loans
                             </label>
                         </div>
-                        <div class="row g-2">
+                        <div class="row g-2 mb-3">
                             <div class="col-6">
                                 <label class="form-label small text-muted mb-1">Closure Cooldown (Days):</label>
                                 <input type="number" name="repledge_cooldown_days" class="form-control form-control-sm font-monospace" value="{{ config.repledge_cooldown_days }}">
@@ -237,6 +237,33 @@
                             <div class="col-6">
                                 <label class="form-label small text-muted mb-1">Dispatch Time:</label>
                                 <input type="time" name="marketing_dispatch_time" class="form-control form-control-sm font-monospace" value="{{ config.marketing_dispatch_time|time:'H:i' }}">
+                            </div>
+                        </div>
+
+                        <!-- Special Occasions Section: Birthdays & Anniversaries -->
+                        <div class="border-top pt-2 mt-2">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="small fw-bold text-dark"><i class="fas fa-gift text-warning me-1"></i>Special Dates Auto-Wishes</span>
+                                <div class="d-flex gap-1">
+                                    <button type="button" class="btn btn-outline-secondary btn-xs py-0.5 px-2 fw-semibold" onclick="triggerPillarAction('pillar_4_wishes', true)" title="Scan today's birthdays & anniversaries">
+                                        <i class="fas fa-search me-1"></i> Scan Today
+                                    </button>
+                                    <button type="button" class="btn btn-warning text-dark btn-xs py-0.5 px-2 fw-bold" onclick="triggerPillarAction('pillar_4_wishes', false)" title="Wish all today's celebrants now">
+                                        <i class="fas fa-magic me-1"></i> Auto-Wish Now
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="form-check form-switch mb-1">
+                                <input class="form-check-input" type="checkbox" name="enable_birthday_greetings" id="enable_birthday_greetings" {% if config.enable_birthday_greetings %}checked{% endif %}>
+                                <label class="form-check-label text-dark small" for="enable_birthday_greetings">
+                                    🎂 Send Automated Birthday Wishes (WhatsApp)
+                                </label>
+                            </div>
+                            <div class="form-check form-switch mb-1">
+                                <input class="form-check-input" type="checkbox" name="enable_anniversary_greetings" id="enable_anniversary_greetings" {% if config.enable_anniversary_greetings %}checked{% endif %}>
+                                <label class="form-check-label text-dark small" for="enable_anniversary_greetings">
+                                    💍 Send Automated Wedding Anniversary Wishes
+                                </label>
                             </div>
                         </div>
                     </div>
@@ -540,6 +567,8 @@
                 
                 if (pillarName === 'pillar_3' || pillarName === '3' || pillarName === 'ltv') {
                     renderPillar3Dashboard(resData, container);
+                } else if (pillarName === 'pillar_4_wishes' || pillarName === 'special_wishes') {
+                    renderSpecialWishesDashboard(resData, container);
                 } else if (pillarName === 'pillar_4' || pillarName === '4') {
                     renderPillar4Dashboard(resData, container);
                 } else if (pillarName === 'pillar_5' || pillarName === '5') {
@@ -1206,6 +1235,297 @@
             if (btn) {
                 btn.disabled = false;
                 btn.innerHTML = `<i class="fas fa-paper-plane me-1"></i> Auto-Blast Selected (${selectedIds.length})`;
+            }
+            alert("Network error: " + err);
+        });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // RENDERER: Special Dates Wishes (Birthdays & Wedding Anniversaries)
+    // ═══════════════════════════════════════════════════════════════════════════════
+    let currentWishCandidates = [];
+
+    function renderSpecialWishesDashboard(data, container) {
+        currentWishCandidates = data.candidates || [];
+        const count = data.target_count !== undefined ? data.target_count : currentWishCandidates.length;
+        const sentCount = data.sent !== undefined ? data.sent : 0;
+        const failedCount = data.failed !== undefined ? data.failed : 0;
+
+        container.innerHTML = `
+            <!-- Top Metric Cards -->
+            <div class="row g-3 mb-3">
+                <div class="col-md-3">
+                    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+                        <small class="text-uppercase fw-bold text-muted" style="font-size: 0.7rem;">TODAY'S SPECIAL OCCASIONS</small>
+                        <div class="d-flex justify-content-between align-items-center mt-1">
+                            <span class="fs-4 fw-bold font-monospace text-warning">${count}</span>
+                            <span class="badge bg-warning-subtle text-dark p-2"><i class="fas fa-gift"></i></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+                        <small class="text-uppercase fw-bold text-muted" style="font-size: 0.7rem;">SELECTED CELEBRANTS</small>
+                        <div class="d-flex justify-content-between align-items-center mt-1">
+                            <span class="fs-4 fw-bold font-monospace text-primary" id="metricWishSelectedCount">${currentWishCandidates.length}</span>
+                            <span class="badge bg-primary-subtle text-primary p-2"><i class="fas fa-check-square"></i></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+                        <small class="text-uppercase fw-bold text-muted" style="font-size: 0.7rem;">WISHES DELIVERED</small>
+                        <div class="d-flex justify-content-between align-items-center mt-1">
+                            <span class="fs-4 fw-bold font-monospace text-success">${sentCount}</span>
+                            <span class="badge bg-success-subtle text-success p-2"><i class="fas fa-heart"></i></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+                        <small class="text-uppercase fw-bold text-muted" style="font-size: 0.7rem;">WHATSAPP ENGINE</small>
+                        <div class="d-flex justify-content-between align-items-center mt-1">
+                            <span class="fs-6 fw-bold text-dark">Playwright Headless</span>
+                            <span class="badge bg-success text-white p-1 px-2" style="font-size: 0.65rem;">SESSION READY</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action & Selection Bar -->
+            <div class="card border-0 shadow-sm rounded-3 mb-3 bg-white p-3">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-outline-primary btn-xs py-1 px-2 fw-bold" onclick="toggleSelectAllWishes(true)">
+                                <i class="fas fa-check-square me-1"></i> Select All
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-xs py-1 px-2 fw-semibold" onclick="toggleSelectAllWishes(false)">
+                                <i class="fas fa-square me-1"></i> Deselect All
+                            </button>
+                        </div>
+                        <span class="badge bg-warning text-dark px-3 py-2 rounded-pill fw-bold" id="wishSelectionBadge">
+                            <i class="fas fa-gift me-1"></i> <span id="badgeWishSelectedCount">${currentWishCandidates.length}</span> / ${currentWishCandidates.length} Celebrants
+                        </span>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-2">
+                        ${currentWishCandidates.length > 0 ? `
+                        <button type="button" class="btn btn-warning text-dark btn-sm px-3 fw-bold shadow-sm" id="btnAutoWishSelected" onclick="sendSelectedWishesBatch()">
+                            <i class="fas fa-paper-plane me-1"></i> Auto-Wish Selected (<span id="btnWishSelectedCount">${currentWishCandidates.length}</span>)
+                        </button>` : ''}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Celebrant Candidates List -->
+            ${currentWishCandidates.length > 0 ? `
+            <div class="card border-0 shadow-sm rounded-3 overflow-hidden bg-white mb-3">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 small">
+                        <thead class="bg-light text-muted">
+                            <tr>
+                                <th style="width: 40px;" class="text-center">
+                                    <input type="checkbox" class="form-check-input" id="selectAllWishCheck" checked onchange="toggleSelectAllWishes(this.checked)">
+                                </th>
+                                <th style="width: 50px;">#</th>
+                                <th>Occasion</th>
+                                <th>Customer Name</th>
+                                <th>Mobile Phone</th>
+                                <th>Branch</th>
+                                <th>Message Snippet</th>
+                                <th class="text-center" style="width: 140px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="wishTableBody">
+                            ${buildWishTableRows(currentWishCandidates)}
+                        </tbody>
+                    </table>
+                </div>
+            </div>` : `
+            <div class="alert alert-info py-4 text-center rounded-3 bg-white border shadow-sm">
+                <i class="fas fa-calendar-check fa-3x text-warning mb-2 d-block"></i>
+                <h6 class="fw-bold text-dark">No Birthdays or Anniversaries Today</h6>
+                <p class="text-muted small mb-0">None of your registered customers have their Date of Birth or Wedding Anniversary matching today's date (${new Date().toLocaleDateString('en-GB', {day:'numeric', month:'short'})}).</p>
+            </div>`}
+        `;
+    }
+
+    function buildWishTableRows(candidates) {
+        return candidates.map((c, idx) => {
+            const custId = c.id;
+            const safePhone = (c.phone || '').replace(/[^0-9]/g, '');
+            const encMsg = encodeURIComponent(c.message || '');
+            const occasionBadge = c.occasion_type === 'birthday' 
+                ? '<span class="badge bg-warning text-dark px-2 py-1"><i class="fas fa-birthday-cake me-1"></i>Birthday</span>'
+                : '<span class="badge bg-danger text-white px-2 py-1"><i class="fas fa-heart me-1"></i>Anniversary</span>';
+
+            return `
+                <tr class="wish-row">
+                    <td class="text-center">
+                        <input type="checkbox" class="form-check-input wish-candidate-check" value="${custId}" checked onchange="updateWishSelectionCount()">
+                    </td>
+                    <td class="text-muted fw-bold">${idx + 1}</td>
+                    <td>${occasionBadge}</td>
+                    <td>
+                        <strong class="text-dark">${c.name}</strong>
+                    </td>
+                    <td class="font-monospace">
+                        <a href="tel:${safePhone}" class="text-decoration-none text-dark">
+                            <i class="fas fa-phone-alt text-success me-1"></i>+${c.phone}
+                        </a>
+                    </td>
+                    <td class="text-muted">${c.branch || 'Main Branch'}</td>
+                    <td>
+                        <span class="text-truncate d-inline-block text-muted" style="max-width: 250px;" title="${c.message}">
+                            ${c.message.replace(/\n/g, ' ')}
+                        </span>
+                    </td>
+                    <td class="text-center">
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-warning text-dark btn-xs py-1 px-2 fw-semibold" id="btnWish_${custId}" onclick='sendSingleWish(${custId}, "${c.occasion_type}", ${JSON.stringify(c.name)}, ${JSON.stringify(c.phone)}, ${JSON.stringify(c.branch || "First Money Gold")}, ${JSON.stringify(c.message)})'>
+                                <i class="fas fa-paper-plane me-1"></i> Send Wish
+                            </button>
+                            ${safePhone ? `
+                            <a href="https://wa.me/${safePhone}?text=${encMsg}" target="_blank" class="btn btn-outline-success btn-xs py-1 px-2" title="Open Wish in WhatsApp Web">
+                                <i class="fab fa-whatsapp"></i>
+                            </a>` : ''}
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function toggleSelectAllWishes(isChecked) {
+        const masterCheck = document.getElementById('selectAllWishCheck');
+        if (masterCheck) masterCheck.checked = isChecked;
+
+        const checkboxes = document.querySelectorAll('.wish-candidate-check');
+        checkboxes.forEach(cb => {
+            cb.checked = isChecked;
+        });
+        updateWishSelectionCount();
+    }
+
+    function updateWishSelectionCount() {
+        const allChecks = document.querySelectorAll('.wish-candidate-check');
+        const checkedBoxes = document.querySelectorAll('.wish-candidate-check:checked');
+        const total = allChecks.length;
+        const selected = checkedBoxes.length;
+
+        const masterCheck = document.getElementById('selectAllWishCheck');
+        if (masterCheck) {
+            masterCheck.checked = selected === total && total > 0;
+            masterCheck.indeterminate = selected > 0 && selected < total;
+        }
+
+        const metricEl = document.getElementById('metricWishSelectedCount');
+        if (metricEl) metricEl.textContent = selected;
+
+        const badgeEl = document.getElementById('badgeWishSelectedCount');
+        if (badgeEl) badgeEl.textContent = selected;
+
+        const btnCountEl = document.getElementById('btnWishSelectedCount');
+        if (btnCountEl) btnCountEl.textContent = selected;
+
+        const btnAutoWish = document.getElementById('btnAutoWishSelected');
+        if (btnAutoWish) {
+            btnAutoWish.disabled = selected === 0;
+            btnAutoWish.classList.toggle('opacity-50', selected === 0);
+        }
+    }
+
+    function sendSingleWish(custId, occasionType, custName, phone, branch, message) {
+        const btn = document.getElementById(`btnWish_${custId}`);
+        if (!btn) return;
+
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status"></span> Sending...`;
+
+        fetch("{% url 'autopilot_trigger' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                pillar: 'pillar_4_single_wish',
+                customer_id: custId,
+                occasion_type: occasionType,
+                phone: phone,
+                name: custName,
+                message: message
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                btn.className = 'btn btn-success btn-xs py-1 px-2 fw-semibold';
+                btn.innerHTML = `<i class="fas fa-check me-1"></i> Wished ✓`;
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+                alert("Could not dispatch WhatsApp wish: " + (data.message || 'Error'));
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+            alert("Network error: " + err);
+        });
+    }
+
+    function sendSelectedWishesBatch() {
+        const checkedBoxes = document.querySelectorAll('.wish-candidate-check:checked');
+        const selectedIds = Array.from(checkedBoxes).map(cb => cb.value);
+
+        if (selectedIds.length === 0) {
+            alert("Please select at least one customer to wish.");
+            return;
+        }
+
+        if (!confirm(`Are you sure you want to dispatch personalized WhatsApp greetings to ${selectedIds.length} selected customer(s)?`)) {
+            return;
+        }
+
+        const btn = document.getElementById('btnAutoWishSelected');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status"></span> Dispatching (${selectedIds.length})...`;
+        }
+
+        fetch("{% url 'autopilot_trigger' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                pillar: 'pillar_4_wishes',
+                dry_run: false,
+                selected_customer_ids: selectedIds
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                renderSpecialWishesDashboard(data.result || {}, document.getElementById('autopilotResultContent'));
+            } else {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = `<i class="fas fa-paper-plane me-1"></i> Auto-Wish Selected (${selectedIds.length})`;
+                }
+                alert("Execution error: " + (data.message || 'Failed to dispatch wishes.'));
+            }
+        })
+        .catch(err => {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fas fa-paper-plane me-1"></i> Auto-Wish Selected (${selectedIds.length})`;
             }
             alert("Network error: " + err);
         });

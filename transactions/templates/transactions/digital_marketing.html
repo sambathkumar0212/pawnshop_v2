@@ -95,7 +95,7 @@
     <!-- ═══ INTERACTIVE AUDIENCE SEGMENT / KPI CARDS (COMBINED) ═══ -->
     <div class="row g-2 mb-2">
         <!-- 1. All Customers -->
-        <div class="col-6 col-md-4 col-xl-2">
+        <div class="col-6 col-md-3">
             <a href="?segment=all&template={{ template_key }}&lang={{ lang }}&branch={{ selected_branch_id }}" class="text-decoration-none d-block h-100">
                 <div class="card border-0 shadow-sm rounded-3 h-100 transition-all {% if segment == 'all' and not selected_group_id %}bg-primary text-white ring-active{% else %}bg-white hover-shadow border-start border-primary border-3{% endif %}">
                     <div class="card-body p-2 px-3 d-flex justify-content-between align-items-center">
@@ -110,7 +110,7 @@
         </div>
 
         <!-- 2. New Prospects (CSV / Manual) -->
-        <div class="col-6 col-md-4 col-xl-2">
+        <div class="col-6 col-md-3">
             <a href="?segment=new_prospects&template={{ template_key }}&lang={{ lang }}&branch={{ selected_branch_id }}" class="text-decoration-none d-block h-100">
                 <div class="card border-0 shadow-sm rounded-3 h-100 transition-all {% if segment == 'new_prospects' and not selected_group_id %}text-white ring-active{% else %}bg-white hover-shadow border-start border-3{% endif %}" 
                      style="{% if segment == 'new_prospects' and not selected_group_id %}background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);{% else %}border-left-color: #8b5cf6 !important;{% endif %}">
@@ -126,7 +126,7 @@
         </div>
 
         <!-- 3. Active Borrowers -->
-        <div class="col-6 col-md-4 col-xl-2">
+        <div class="col-6 col-md-3">
             <a href="?segment=active_borrowers&template={{ template_key }}&lang={{ lang }}&branch={{ selected_branch_id }}" class="text-decoration-none d-block h-100">
                 <div class="card border-0 shadow-sm rounded-3 h-100 transition-all {% if segment == 'active_borrowers' and not selected_group_id %}bg-info text-white ring-active{% else %}bg-white hover-shadow border-start border-info border-3{% endif %}">
                     <div class="card-body p-2 px-3 d-flex justify-content-between align-items-center">
@@ -141,7 +141,7 @@
         </div>
 
         <!-- 4. Closed Loan Customers (Re-engage) -->
-        <div class="col-6 col-md-4 col-xl-2">
+        <div class="col-6 col-md-3">
             <a href="?segment=closed_loans&template={{ template_key }}&lang={{ lang }}&branch={{ selected_branch_id }}" class="text-decoration-none d-block h-100">
                 <div class="card border-0 shadow-sm rounded-3 h-100 transition-all {% if segment == 'closed_loans' and not selected_group_id %}bg-warning text-dark ring-active{% else %}bg-white hover-shadow border-start border-warning border-3{% endif %}">
                     <div class="card-body p-2 px-3 d-flex justify-content-between align-items-center">
@@ -156,7 +156,7 @@
         </div>
 
         <!-- 5. Overdue (OTS Offers) -->
-        <div class="col-6 col-md-4 col-xl-2">
+        <div class="col-6 col-md-3">
             <a href="?segment=overdue&template={{ template_key }}&lang={{ lang }}&branch={{ selected_branch_id }}" class="text-decoration-none d-block h-100">
                 <div class="card border-0 shadow-sm rounded-3 h-100 transition-all {% if segment == 'overdue' and not selected_group_id %}bg-danger text-white ring-active{% else %}bg-white hover-shadow border-start border-danger border-3{% endif %}">
                     <div class="card-body p-2 px-3 d-flex justify-content-between align-items-center">
@@ -171,7 +171,7 @@
         </div>
 
         <!-- 6. High Value Borrowers -->
-        <div class="col-6 col-md-4 col-xl-2">
+        <div class="col-6 col-md-3">
             <a href="?segment=high_value&template={{ template_key }}&lang={{ lang }}&branch={{ selected_branch_id }}" class="text-decoration-none d-block h-100">
                 <div class="card border-0 shadow-sm rounded-3 h-100 transition-all {% if segment == 'high_value' and not selected_group_id %}bg-dark text-white ring-active{% else %}bg-white hover-shadow border-start border-dark border-3{% endif %}">
                     <div class="card-body p-2 px-3 d-flex justify-content-between align-items-center">
@@ -180,6 +180,38 @@
                             <h5 class="mb-0 fw-bold {% if segment == 'high_value' and not selected_group_id %}text-white{% else %}text-dark{% endif %}">{{ kpis.high_value_count|intcomma }}</h5>
                         </div>
                         <i class="fas fa-gem fa-lg {% if segment == 'high_value' and not selected_group_id %}text-white-50{% else %}text-secondary opacity-50{% endif %}"></i>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- 7. Today's Birthdays -->
+        <div class="col-6 col-md-3">
+            <a href="?segment=birthday&template=birthday_wishes&lang={{ lang }}&branch={{ selected_branch_id }}" class="text-decoration-none d-block h-100">
+                <div class="card border-0 shadow-sm rounded-3 h-100 transition-all {% if segment == 'birthday' and not selected_group_id %}text-white ring-active{% else %}bg-white hover-shadow border-start border-3{% endif %}"
+                     style="{% if segment == 'birthday' and not selected_group_id %}background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);{% else %}border-left-color: #ec4899 !important;{% endif %}">
+                    <div class="card-body p-2 px-3 d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="small text-uppercase fw-semibold d-block {% if segment == 'birthday' and not selected_group_id %}text-white-50{% else %}text-muted{% endif %}" style="font-size: 0.7rem;">🎂 Birthdays Today</span>
+                            <h5 class="mb-0 fw-bold {% if segment == 'birthday' and not selected_group_id %}text-white{% else %}text-pink{% endif %}" style="{% if segment != 'birthday' or selected_group_id %}color: #ec4899;{% endif %}">{{ kpis.birthday_count|default:0|intcomma }}</h5>
+                        </div>
+                        <i class="fas fa-cake-candles fa-lg {% if segment == 'birthday' and not selected_group_id %}text-white-50{% else %}opacity-75{% endif %}" style="{% if segment != 'birthday' or selected_group_id %}color: #ec4899;{% endif %}"></i>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- 8. Today's Anniversaries -->
+        <div class="col-6 col-md-3">
+            <a href="?segment=anniversary&template=anniversary_wishes&lang={{ lang }}&branch={{ selected_branch_id }}" class="text-decoration-none d-block h-100">
+                <div class="card border-0 shadow-sm rounded-3 h-100 transition-all {% if segment == 'anniversary' and not selected_group_id %}text-white ring-active{% else %}bg-white hover-shadow border-start border-3{% endif %}"
+                     style="{% if segment == 'anniversary' and not selected_group_id %}background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);{% else %}border-left-color: #a855f7 !important;{% endif %}">
+                    <div class="card-body p-2 px-3 d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="small text-uppercase fw-semibold d-block {% if segment == 'anniversary' and not selected_group_id %}text-white-50{% else %}text-muted{% endif %}" style="font-size: 0.7rem;">💍 Anniversaries Today</span>
+                            <h5 class="mb-0 fw-bold {% if segment == 'anniversary' and not selected_group_id %}text-white{% else %}" style="color: #a855f7;{% endif %}">{{ kpis.anniversary_count|default:0|intcomma }}</h5>
+                        </div>
+                        <i class="fas fa-heart-circle-bolt fa-lg {% if segment == 'anniversary' and not selected_group_id %}text-white-50{% else %}opacity-75{% endif %}" style="{% if segment != 'anniversary' or selected_group_id %}color: #a855f7;{% endif %}"></i>
                     </div>
                 </div>
             </a>

@@ -271,12 +271,14 @@ class CustomerForm(forms.ModelForm):
         model = Customer
         fields = [
             'first_name', 'first_name_tamil', 'last_name', 'last_name_tamil',
-            'email', 'phone', 'branch',
+            'email', 'phone', 'date_of_birth', 'anniversary_date', 'branch',
             'address', 'address_tamil', 'city', 'city_tamil', 'state', 'state_tamil',
             'zip_code', 'id_type', 'id_number', 'id_image',
             'notes', 'notes_tamil'
         ]
         widgets = {
+            'date_of_birth': forms.DateInput(attrs={'type': 'date', 'class': 'form-control form-control-sm'}),
+            'anniversary_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control form-control-sm'}),
             'address': forms.Textarea(attrs={'rows': 3}),
             'address_tamil': forms.Textarea(attrs={'rows': 3}),
             'notes': forms.Textarea(attrs={'rows': 3}),

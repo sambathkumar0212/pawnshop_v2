@@ -109,6 +109,52 @@ class TieredMakerCheckerApprovalTests(TestCase):
             branch=self.branch_salem
         )
 
+    def test_00_customer_otp_verification_gate(self):
+        """
+        0. Customer OTP Verification Gate:
+        - Customer identity must be confirmed via 6-digit OTP
+        - can_user_approve returns False while OTP unverified
+        - approve() raises ValidationError while OTP unverified
+        - Once verify_otp() succeeds, manager approval proceeds
+        """
+        loan = Loan.objects.create(
+            loan_number="LN-OTP-GATE-001",
+            customer=self.customer,
+            branch=self.branch_salem,
+            scheme=self.scheme,
+            principal_amount=Decimal('100000'),
+            processing_fee=1000,
+            distribution_amount=Decimal('99000'),
+            interest_rate=Decimal('12.00'),
+            issue_date=timezone.now().date(),
+            due_date=timezone.now().date() + timezone.timedelta(days=364),
+            grace_period_end=timezone.now().date() + timezone.timedelta(days=369),
+            status='pending_approval',
+            approval_tier=1,
+            maker=self.appraiser,
+            is_otp_verified=False
+        )
+        otp = loan.generate_otp(save=True)
+        self.assertFalse(loan.is_otp_verified)
+        self.assertFalse(loan.can_user_approve(self.bm))
+
+        with self.assertRaises(ValidationError):
+            loan.approve(self.bm)
+
+        # Invalid OTP
+        success, msg = loan.verify_otp('000000', user=self.appraiser)
+        self.assertFalse(success)
+        self.assertFalse(loan.is_otp_verified)
+
+        # Valid OTP
+        success, msg = loan.verify_otp(otp, user=self.appraiser)
+        self.assertTrue(success)
+        self.assertTrue(loan.is_otp_verified)
+        self.assertTrue(loan.can_user_approve(self.bm))
+
+        status = loan.approve(self.bm, "OTP verified and appraisal sign-off.")
+        self.assertEqual(status, 'approved')
+
     def test_01_tier1_approval_workflow_and_disbursal_lock(self):
         """
         1. Tier 1 Test (Loan <= ₹2,00,000):
@@ -131,7 +177,8 @@ class TieredMakerCheckerApprovalTests(TestCase):
             grace_period_end=timezone.now().date() + timezone.timedelta(days=369),
             status='pending_approval',
             approval_tier=1,
-            maker=self.appraiser
+            maker=self.appraiser,
+            is_otp_verified=True
         )
 
         self.assertEqual(loan.approval_tier, 1)
@@ -182,7 +229,8 @@ class TieredMakerCheckerApprovalTests(TestCase):
             grace_period_end=timezone.now().date() + timezone.timedelta(days=369),
             status='pending_approval',
             approval_tier=2,
-            maker=self.appraiser
+            maker=self.appraiser,
+            is_otp_verified=True
         )
 
         self.assertEqual(loan.determine_approval_tier(), 2)
@@ -221,7 +269,8 @@ class TieredMakerCheckerApprovalTests(TestCase):
             grace_period_end=timezone.now().date() + timezone.timedelta(days=369),
             status='pending_approval',
             approval_tier=3,
-            maker=self.appraiser
+            maker=self.appraiser,
+            is_otp_verified=True
         )
 
         # Step 1: BM
@@ -255,7 +304,8 @@ class TieredMakerCheckerApprovalTests(TestCase):
             grace_period_end=timezone.now().date() + timezone.timedelta(days=369),
             status='pending_approval',
             approval_tier=2,
-            maker=self.appraiser
+            maker=self.appraiser,
+            is_otp_verified=True
         )
 
         # Re-appraisal flow
@@ -285,7 +335,8 @@ class TieredMakerCheckerApprovalTests(TestCase):
             grace_period_end=timezone.now().date() + timezone.timedelta(days=369),
             status='pending_approval',
             approval_tier=1,
-            maker=self.appraiser
+            maker=self.appraiser,
+            is_otp_verified=True
         )
 
         self.client.login(username="bm_kumar", password="Password123!")

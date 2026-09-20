@@ -325,6 +325,8 @@ class Customer(models.Model):
     last_name_tamil = models.CharField(max_length=100, blank=True)
     email = models.EmailField(blank=True, null=True)
     phone = models.CharField(max_length=20)
+    date_of_birth = models.DateField(null=True, blank=True, help_text="Date of birth of the customer")
+    anniversary_date = models.DateField(null=True, blank=True, help_text="Wedding / Marriage anniversary date")
     branch = models.ForeignKey(
         'branches.Branch', 
         on_delete=models.PROTECT, 
@@ -411,7 +413,28 @@ class Customer(models.Model):
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
-    
+
+    @property
+    def is_birthday_today(self):
+        if not self.date_of_birth:
+            return False
+        today = timezone.localdate() if hasattr(timezone, 'localdate') else timezone.now().date()
+        return self.date_of_birth.month == today.month and self.date_of_birth.day == today.day
+
+    @property
+    def is_anniversary_today(self):
+        if not self.anniversary_date:
+            return False
+        today = timezone.localdate() if hasattr(timezone, 'localdate') else timezone.now().date()
+        return self.anniversary_date.month == today.month and self.anniversary_date.day == today.day
+
+    @property
+    def age(self):
+        if not self.date_of_birth:
+            return None
+        today = timezone.localdate() if hasattr(timezone, 'localdate') else timezone.now().date()
+        return today.year - self.date_of_birth.year - ((today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day))
+
     @property
     def active_loans_count(self):
         """Return number of active loans for this customer"""

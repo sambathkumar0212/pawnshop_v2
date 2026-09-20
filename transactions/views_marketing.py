@@ -101,6 +101,8 @@ class DigitalMarketingDashboardView(LoginRequiredMixin, RoleBranchAccessMixin, V
         overdue_aud = get_segmented_audience('overdue', branch_id=selected_branch_id or None)
         high_val_aud = get_segmented_audience('high_value', branch_id=selected_branch_id or None)
         new_prospects_aud = get_segmented_audience('new_prospects', branch_id=selected_branch_id or None)
+        birthday_aud = get_segmented_audience('birthday', branch_id=selected_branch_id or None)
+        anniversary_aud = get_segmented_audience('anniversary', branch_id=selected_branch_id or None)
 
         kpis = {
             'total_customers': len(all_aud),
@@ -110,6 +112,8 @@ class DigitalMarketingDashboardView(LoginRequiredMixin, RoleBranchAccessMixin, V
             'overdue_count': len(overdue_aud),
             'high_value_count': len(high_val_aud),
             'new_prospects_count': len(new_prospects_aud),
+            'birthday_count': len(birthday_aud),
+            'anniversary_count': len(anniversary_aud),
             'groups_count': len(groups),
         }
 

@@ -75,6 +75,21 @@ class Loan(models.Model):
     checker_ho_at = models.DateTimeField(null=True, blank=True)
     rejection_reason = models.TextField(blank=True, null=True)
     reappraisal_notes = models.TextField(blank=True, null=True)
+
+    # Customer Identity OTP Verification
+    otp_code = models.CharField(
+        max_length=6, blank=True, null=True,
+        help_text=_("6-digit OTP code sent to customer mobile for identity confirmation")
+    )
+    otp_created_at = models.DateTimeField(null=True, blank=True, help_text=_("Timestamp when OTP was generated"))
+    otp_attempts = models.PositiveSmallIntegerField(default=0, help_text=_("Count of invalid OTP verification attempts"))
+    is_otp_verified = models.BooleanField(default=False, db_index=True, help_text=_("Whether customer identity has been verified via OTP"))
+    otp_verified_at = models.DateTimeField(null=True, blank=True, help_text=_("Timestamp when customer OTP was successfully verified"))
+    otp_verified_by = models.ForeignKey(
+        'accounts.CustomUser', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='loans_otp_verified',
+        help_text=_("User / Officer who verified the customer OTP")
+    )
     
     # RBI IRAC Asset Classification & Provisioning (Task 2.2)
     IRAC_STATUS_CHOICES = (
@@ -234,10 +249,124 @@ class Loan(models.Model):
             return bool(self.checker_bm and self.checker_ro and self.checker_ho)
         return True
 
+    def generate_otp(self, save=True):
+        """Generate a cryptographically secure 6-digit OTP and reset attempt counters."""
+        import random
+        self.otp_code = f"{random.randint(100000, 999999)}"
+        self.otp_created_at = timezone.now()
+        self.otp_attempts = 0
+        self.is_otp_verified = False
+        self.otp_verified_at = None
+        self.otp_verified_by = None
+        if save and self.pk:
+            self.save(update_fields=['otp_code', 'otp_created_at', 'otp_attempts', 'is_otp_verified', 'otp_verified_at', 'otp_verified_by'])
+        return self.otp_code
+
+    def is_otp_expired(self, max_minutes=15):
+        """Check if generated OTP has exceeded validity window (default 15 minutes)."""
+        if not self.otp_created_at:
+            return True
+        from django.utils import timezone
+        diff = timezone.now() - self.otp_created_at
+        return diff.total_seconds() > (max_minutes * 60)
+
+    def verify_otp(self, entered_code, user=None):
+        """
+        Validates entered 6-digit OTP code for customer identity confirmation.
+        Returns tuple: (success: bool, message: str)
+        """
+        if self.is_otp_verified:
+            return True, _("Customer identity is already verified via OTP.")
+
+        if not self.otp_code:
+            return False, _("No active OTP found. Please request a new OTP.")
+
+        if self.is_otp_expired():
+            return False, _("OTP has expired (15-minute window). Please click 'Resend OTP' to generate a fresh code.")
+
+        if self.otp_attempts >= 5:
+            return False, _("Maximum invalid OTP attempts exceeded (5). Please request a fresh OTP.")
+
+        entered_clean = str(entered_code or '').strip()
+        if entered_clean == str(self.otp_code).strip():
+            self.is_otp_verified = True
+            self.otp_verified_at = timezone.now()
+            self.otp_verified_by = user
+            self.save(update_fields=['is_otp_verified', 'otp_verified_at', 'otp_verified_by'])
+            try:
+                from accounts.models import LoanEditLog
+                LoanEditLog.objects.create(
+                    loan=self,
+                    edited_by=user,
+                    change_type='otp_verified',
+                    description=f"Customer identity verified via 6-digit OTP by {user.get_full_name() if user else 'System'}."
+                )
+            except Exception:
+                pass
+            return True, _("Customer identity confirmed successfully via OTP!")
+        else:
+            self.otp_attempts += 1
+            self.save(update_fields=['otp_attempts'])
+            remaining = max(0, 5 - self.otp_attempts)
+            return False, _(f"Invalid OTP code entered. {remaining} attempt(s) remaining.")
+
+    def build_otp_whatsapp_message(self, lang='ta') -> str:
+        """Constructs bilingual OTP WhatsApp/SMS notification for customer."""
+        branch = getattr(self, 'branch', None)
+        org_name = 'First Money Gold'
+        if branch and getattr(branch, 'organization', None):
+            org_name = branch.organization.name or 'First Money Gold'
+        elif hasattr(settings, 'ORGANIZATION_NAME'):
+            org_name = getattr(settings, 'ORGANIZATION_NAME', 'First Money Gold')
+
+        customer_name = getattr(self.customer, 'full_name', '') or str(self.customer)
+        loan_num = self.loan_number or 'N/A'
+        principal_fmt = f"Rs. {self.principal_amount:,.0f}" if self.principal_amount else "Rs. 0"
+        otp = self.otp_code or '------'
+        branch_name = getattr(branch, 'name', '') or org_name
+        branch_phone = getattr(branch, 'phone', '') or getattr(settings, 'COMPANY_PHONE', '9876543210')
+
+        if lang == 'en':
+            return (
+                f"🔐 *{org_name} - Loan Verification OTP*\n\n"
+                f"Dear *{customer_name}*,\n"
+                f"Your OTP for Gold Loan application *#{loan_num}* (Amount: *{principal_fmt}*) is:\n\n"
+                f"👉 *{otp}* 👈\n\n"
+                f"⏱️ This OTP is valid for *15 minutes*.\n"
+                f"Please share this OTP with the branch officer to confirm your identity.\n"
+                f"⚠️ *Never share this code with anyone outside the branch.*\n\n"
+                f"📍 Branch: *{branch_name}* | Helpline: *{branch_phone}*"
+            )
+
+        # Tamil default
+        return (
+            f"🔐 *{org_name} - தங்கக் கடன் சரிபார்ப்பு OTP*\n\n"
+            f"அன்புள்ள *{customer_name}* அவர்களுக்கு,\n"
+            f"தங்களின் புதிய தங்கக் கடன் விண்ணப்பம் *#{loan_num}* (தொகை: *{principal_fmt}*)-க்கான உறுதிப்படுத்தல் OTP:\n\n"
+            f"👉 *{otp}* 👈\n\n"
+            f"⏱️ இந்த OTP *15 நிமிடங்கள்* மட்டுமே செல்லுபடியாகும்.\n"
+            f"தங்களின் அடையாளத்தை உறுதிப்படுத்த இந்த OTP எண்ணை கிளை அதிகாரியிடம் தெரிவிக்கவும்.\n"
+            f"⚠️ *இந்த OTP எண்ணை வேறு எவருடனும் பகிர வேண்டாம்.*\n\n"
+            f"📍 கிளை: *{branch_name}* | தொடர்பு: *{branch_phone}*"
+        )
+
+    def get_otp_whatsapp_link(self) -> str:
+        """Returns direct wa.me link for manual WhatsApp OTP dispatch."""
+        if not self.customer or not self.customer.phone:
+            return ''
+        from transactions.services_whatsapp import get_whatsapp_link
+        msg = self.build_otp_whatsapp_message(lang='ta')
+        return get_whatsapp_link(self.customer.phone, msg)
+
     def can_user_approve(self, user):
         """Check if the given user is authorized to approve the current pending tier"""
         if not user or not user.is_authenticated:
             return False
+
+        # CRITICAL: OTP must be verified before any manager can approve
+        if not self.is_otp_verified:
+            return False
+
         if user.is_superuser:
             return True
         
@@ -275,6 +404,10 @@ class Loan(models.Model):
 
     def approve(self, user, notes=None):
         """Advance approval workflow for current tier"""
+        if not self.is_otp_verified:
+            from django.core.exceptions import ValidationError
+            raise ValidationError(_("Approval Blocked: Customer identity OTP verification is pending. Please verify OTP first."))
+
         tier = self.determine_approval_tier()
         self.approval_tier = tier
 
@@ -1800,12 +1933,12 @@ class DisbursementTransaction(models.Model):
     def clean(self):
         super().clean()
         from django.core.exceptions import ValidationError
-        # Tiered Approval Enforcer: Loan must not be in draft, pending_approval, or rejected
+        # Tiered Approval Enforcer: Loan must not be in draft, pending_approval, or rejected for processed disbursals
         if hasattr(self, 'loan') and self.loan:
-            if self.loan.status in ['pending_approval', 'rejected', 'draft']:
+            if self.bank_status == 'PROCESSED' and self.loan.status in ['pending_approval', 'rejected', 'draft']:
                 raise ValidationError(
                     _(f"Disbursal Blocked: Loan #{self.loan.loan_number} is currently '{self.loan.get_status_display()}'. "
-                      f"Required Tier {self.loan.approval_tier} Maker-Checker approval must be completed before disbursal.")
+                      f"Customer identity OTP verification and Manager Approval must be completed before money disbursal.")
                 )
         # Sec 269SS Enforcer: >= ₹20,000 cannot be in Cash
         if self.payment_mode == 'CASH' and self.amount and Decimal(str(self.amount)) >= Decimal('20000.00'):
@@ -2498,7 +2631,8 @@ class AutopilotConfig(models.Model):
     # Pillar 4: Automated Customer Retention & Marketing
     enable_repledge_retention = models.BooleanField(default=True, verbose_name=_('Closed Loan Re-Pledge Promos'))
     repledge_cooldown_days = models.IntegerField(default=30, verbose_name=_('Closed Loan Cooldown (Days)'))
-    enable_birthday_greetings = models.BooleanField(default=False, verbose_name=_('Birthday / Festival Greetings'))
+    enable_birthday_greetings = models.BooleanField(default=True, verbose_name=_('Birthday Greetings'))
+    enable_anniversary_greetings = models.BooleanField(default=True, verbose_name=_('Wedding Anniversary Greetings'))
     marketing_dispatch_time = models.TimeField(default='15:00:00', verbose_name=_('Marketing Dispatch Time'))
 
     # Pillar 5: Automated Executive Daily Digest to Owner

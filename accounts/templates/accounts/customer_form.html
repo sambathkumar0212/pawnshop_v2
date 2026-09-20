@@ -237,25 +237,38 @@
                             </div>
                         </div>
 
-                        <!-- Phone, Email, DOB Row -->
-                        <div class="row g-2">
-                            <div class="col-md-4">
-                                <label for="id_phone" class="form-label required-field">Mobile Phone</label>
+                        <!-- Phone & Email Row -->
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-6">
+                                <label for="id_phone" class="form-label required-field"><i class="fas fa-phone-alt me-1 text-primary"></i>Mobile Phone</label>
                                 {{ form.phone|add_class:"form-control form-control-sm" }}
                                 {% if form.phone.errors %}<div class="invalid-feedback d-block">{{ form.phone.errors.0 }}</div>{% endif %}
                             </div>
-                            <div class="col-md-4">
-                                <label for="id_email" class="form-label">Email Address</label>
+                            <div class="col-md-6">
+                                <label for="id_email" class="form-label"><i class="fas fa-envelope me-1 text-secondary"></i>Email Address</label>
                                 {{ form.email|add_class:"form-control form-control-sm" }}
                                 {% if form.email.errors %}<div class="invalid-feedback d-block">{{ form.email.errors.0 }}</div>{% endif %}
                             </div>
-                            {% if form.date_of_birth %}
-                            <div class="col-md-4">
-                                <label for="id_date_of_birth" class="form-label">Date of Birth</label>
+                        </div>
+
+                        <!-- Special Occasion Dates: Date of Birth & Wedding Anniversary -->
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label for="id_date_of_birth" class="form-label">
+                                    <i class="fas fa-birthday-cake me-1 text-warning"></i>Date of Birth (DOB)
+                                </label>
                                 {{ form.date_of_birth|add_class:"form-control form-control-sm" }}
+                                <small class="text-muted d-block" style="font-size: 0.72rem;">Enables automated WhatsApp birthday wishes</small>
                                 {% if form.date_of_birth.errors %}<div class="invalid-feedback d-block">{{ form.date_of_birth.errors.0 }}</div>{% endif %}
                             </div>
-                            {% endif %}
+                            <div class="col-md-6">
+                                <label for="id_anniversary_date" class="form-label">
+                                    <i class="fas fa-heart me-1 text-danger"></i>Wedding Anniversary Date
+                                </label>
+                                {{ form.anniversary_date|add_class:"form-control form-control-sm" }}
+                                <small class="text-muted d-block" style="font-size: 0.72rem;">Enables automated wedding anniversary wishes</small>
+                                {% if form.anniversary_date.errors %}<div class="invalid-feedback d-block">{{ form.anniversary_date.errors.0 }}</div>{% endif %}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -515,6 +528,7 @@
                     email: document.getElementById('id_email')?.value || '',
                     phone: document.getElementById('id_phone')?.value || '',
                     date_of_birth: document.getElementById('id_date_of_birth')?.value || '',
+                    anniversary_date: document.getElementById('id_anniversary_date')?.value || '',
                     address: document.getElementById('id_address')?.value || '',
                     address_tamil: document.getElementById('id_address_tamil')?.value || '',
                     city: document.getElementById('id_city')?.value || '',

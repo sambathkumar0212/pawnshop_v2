@@ -115,6 +115,55 @@
         </div>
     </div>
 
+    <!-- WhatsApp Welcome Wish Delivery Status Strip -->
+    <div class="card border-0 shadow-2xs rounded-3 mb-2 {% if welcome_log and welcome_log.status == 'sent' %}bg-success-subtle border-start border-success border-3{% elif welcome_log and welcome_log.status == 'failed' %}bg-danger-subtle border-start border-danger border-3{% else %}bg-white border-start border-primary border-3{% endif %}">
+        <div class="card-body p-2 px-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <i class="fab fa-whatsapp fa-lg {% if welcome_log and welcome_log.status == 'sent' %}text-success{% elif welcome_log and welcome_log.status == 'failed' %}text-danger{% else %}text-primary{% endif %}"></i>
+                <div>
+                    <div class="fw-bold d-flex align-items-center gap-2" style="font-size: 0.84rem;">
+                        <span>WhatsApp Welcome Wish:</span>
+                        {% if welcome_log %}
+                            {% if welcome_log.status == 'sent' %}
+                                <span class="badge bg-success text-white"><i class="fas fa-check-circle me-1"></i>Sent Successfully</span>
+                            {% elif welcome_log.status == 'failed' %}
+                                <span class="badge bg-danger text-white"><i class="fas fa-times-circle me-1"></i>Failed / Skipped</span>
+                            {% else %}
+                                <span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>{{ welcome_log.status|title }}</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="badge bg-secondary-subtle text-secondary"><i class="fas fa-paper-plane me-1"></i>Not Dispatched Yet</span>
+                        {% endif %}
+                    </div>
+                    <small class="text-muted d-block" style="font-size: 0.74rem;">
+                        {% if welcome_log %}
+                            {% if welcome_log.status == 'sent' %}
+                                Delivered to +{{ welcome_log.recipient_phone }} on {{ welcome_log.created_at|date:"d-M-Y h:i A" }}
+                            {% else %}
+                                {{ welcome_log.message_snippet|truncatechars:120 }} ({{ welcome_log.created_at|date:"d-M-Y h:i A" }})
+                            {% endif %}
+                        {% else %}
+                            Automated welcome greeting triggered on customer creation.
+                        {% endif %}
+                    </small>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <form method="POST" action="{% url 'customer_resend_welcome_wish' customer.id %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-xs btn-outline-success fw-bold py-1 px-2 shadow-2xs" title="Trigger Automated Headless Background Dispatch">
+                        <i class="fas fa-sync-alt me-1"></i>{% if welcome_log and welcome_log.status == 'sent' %}Resend Wish{% else %}Send Welcome Wish{% endif %}
+                    </button>
+                </form>
+                {% if welcome_whatsapp_link %}
+                <a href="{{ welcome_whatsapp_link }}" target="_blank" class="btn btn-xs btn-success fw-bold py-1 px-2 shadow-2xs" title="Open WhatsApp Web directly with prefilled welcome message">
+                    <i class="fab fa-whatsapp me-1"></i>Open in WhatsApp
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
     <!-- Customer Dossier Summary Card (High-Density Top Card) -->
     <div class="customer-dossier-card p-3 mb-2">
         <div class="row g-3 align-items-center">
@@ -167,6 +216,29 @@
                         </div>
                     </div>
                 </div>
+                {% if customer.date_of_birth or customer.anniversary_date %}
+                <div class="mt-2 pt-1 border-top d-flex flex-wrap gap-3" style="font-size: 0.78rem;">
+                    {% if customer.date_of_birth %}
+                    <div>
+                        <span class="text-muted d-block" style="font-size: 0.68rem; text-transform: uppercase; font-weight: 600;">Date of Birth</span>
+                        <span class="fw-semibold text-dark">
+                            <i class="fas fa-birthday-cake text-warning me-1"></i>{{ customer.date_of_birth|date:"d M Y" }}
+                            {% if customer.age %}<span class="badge bg-light text-secondary border ms-1">{{ customer.age }} yrs</span>{% endif %}
+                            {% if customer.is_birthday_today %}<span class="badge bg-warning text-dark ms-1 shadow-2xs">🎂 Birthday Today!</span>{% endif %}
+                        </span>
+                    </div>
+                    {% endif %}
+                    {% if customer.anniversary_date %}
+                    <div>
+                        <span class="text-muted d-block" style="font-size: 0.68rem; text-transform: uppercase; font-weight: 600;">Wedding Anniversary</span>
+                        <span class="fw-semibold text-dark">
+                            <i class="fas fa-heart text-danger me-1"></i>{{ customer.anniversary_date|date:"d M Y" }}
+                            {% if customer.is_anniversary_today %}<span class="badge bg-danger text-white ms-1 shadow-2xs">💍 Anniversary Today!</span>{% endif %}
+                        </span>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
                 {% if customer.notes %}
                 <div class="mt-2 pt-1 border-top" style="font-size: 0.75rem;">
                     <span class="text-secondary fw-semibold"><i class="fas fa-sticky-note text-warning me-1"></i>Notes:</span>

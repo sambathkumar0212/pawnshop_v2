@@ -2,167 +2,172 @@
 {% load static %}
 {% load custom_filters %}
 
-{% block title %}Customers Management - Pawnshop{% endblock %}
+{% block title %}Customer Directory - Pawnshop{% endblock %}
 
 {% block customers_active %}active{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-3">
-    <!-- Header & Actions -->
-    <div class="row mb-3 align-items-center">
-        <div class="col-md-6">
-            <h3 class="fw-bold text-dark mb-1">
+<div class="container-fluid px-3 py-2">
+    <!-- Compact Header & Quick Actions Bar -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 gap-2">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <h4 class="fw-bold text-dark mb-0 d-flex align-items-center">
                 <i class="fas fa-users text-primary me-2"></i>Customer Directory &amp; Records
-            </h3>
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}" class="text-decoration-none">Dashboard</a></li>
-                    <li class="breadcrumb-item active">
-                        {% if current_tab == 'loan' %}Gold Loan Customers
-                        {% elif current_tab == 'used_gold' %}Used Gold Sale Customers
-                        {% else %}All Customers{% endif %}
-                    </li>
-                </ol>
-            </nav>
+            </h4>
+            <span class="badge {% if current_tab == 'loan' or not current_tab %}bg-success-subtle text-success border border-success-subtle{% elif current_tab == 'used_gold' %}bg-warning-subtle text-warning-emphasis border border-warning-subtle{% else %}bg-primary-subtle text-primary border border-primary-subtle{% endif %} font-monospace" style="font-size: 0.75rem;">
+                {% if current_tab == 'loan' or not current_tab %}🏦 Gold Loan Clients
+                {% elif current_tab == 'used_gold' %}💰 Used Gold Sellers
+                {% else %}👥 All Registered Customers{% endif %}
+            </span>
         </div>
-        <div class="col-md-6 text-md-end mt-2 mt-md-0 d-flex flex-wrap justify-content-md-end gap-2">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
             <div class="btn-group">
-                <button type="button" class="btn btn-outline-secondary dropdown-toggle shadow-sm" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="fas fa-download me-1"></i> Export Data
+                <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle shadow-2xs py-1" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-download me-1 text-muted"></i> Export Data
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
-                    <li><a class="dropdown-item py-2" href="?download=pdf&tab={{ current_tab }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
+                <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0" style="font-size: 0.85rem;">
+                    <li><a class="dropdown-item py-1 px-3" href="?download=pdf&tab={{ current_tab }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
                         <i class="fas fa-file-pdf text-danger me-2"></i> Download PDF Report
                     </a></li>
-                    <li><a class="dropdown-item py-2" href="?download=excel&tab={{ current_tab }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
+                    <li><a class="dropdown-item py-1 px-3" href="?download=excel&tab={{ current_tab }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
                         <i class="fas fa-file-excel text-success me-2"></i> Download Excel (XLSX)
                     </a></li>
-                    <li><a class="dropdown-item py-2" href="?download=csv&tab={{ current_tab }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
+                    <li><a class="dropdown-item py-1 px-3" href="?download=csv&tab={{ current_tab }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">
                         <i class="fas fa-file-csv text-info me-2"></i> Download CSV
                     </a></li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item py-2" href="#" data-bs-toggle="modal" data-bs-target="#columnSelectModal">
+                    <li><hr class="dropdown-divider my-1"></li>
+                    <li><a class="dropdown-item py-1 px-3" href="#" data-bs-toggle="modal" data-bs-target="#columnSelectModal">
                         <i class="fas fa-columns text-secondary me-2"></i> Customize Columns
                     </a></li>
                 </ul>
             </div>
-            <a href="{% url 'gold_purchase_create' %}" class="btn btn-warning text-dark fw-bold shadow-sm" title="Direct used/old gold purchase from customer">
+            <a href="{% url 'gold_purchase_create' %}" class="btn btn-sm btn-warning text-dark fw-bold shadow-2xs py-1" title="Direct used/old gold purchase from customer">
                 <i class="fas fa-coins me-1"></i> + New Gold Purchase
             </a>
-            <a href="{% url 'customer_create' %}" class="btn btn-primary fw-bold shadow-sm">
+            <a href="{% url 'customer_create' %}" class="btn btn-sm btn-primary fw-bold shadow-2xs py-1">
                 <i class="fas fa-user-plus me-1"></i> + New Customer
             </a>
         </div>
     </div>
 
-    <!-- Segment KPI Stat Cards -->
-    <div class="row g-3 mb-4">
-        <!-- Total Customers Card -->
-        <div class="col-md-3 col-sm-6">
-            <a href="?tab=all{% if search_query %}&search={{ search_query }}{% endif %}" class="text-decoration-none">
-                <div class="card border-0 shadow-sm rounded-3 p-3 {% if current_tab == 'all' or not current_tab %}border-start border-primary border-4 bg-white{% else %}bg-white{% endif %} stat-hover-card">
-                    <div class="d-flex justify-content-between align-items-center">
+    <!-- Space-Efficient KPI Stat Cards (4-Column Strip) -->
+    <div class="row g-2 mb-2">
+        <!-- 1. Gold Loan Customers Card (Default) -->
+        <div class="col-6 col-md-3">
+            <a href="?tab=loan{% if search_query %}&search={{ search_query }}{% endif %}" class="text-decoration-none d-block h-100">
+                <div class="card border-0 shadow-sm rounded-3 h-100 transition-all {% if current_tab == 'loan' or not current_tab %}bg-success text-white ring-active{% else %}bg-white hover-shadow border-start border-success border-3{% endif %}">
+                    <div class="card-body p-2 px-3 d-flex justify-content-between align-items-center">
                         <div>
-                            <small class="text-uppercase fw-bold text-muted" style="font-size: 0.72rem;">ALL REGISTERED CUSTOMERS</small>
-                            <h3 class="fw-bold text-dark mb-0 mt-1">{{ total_customers }}</h3>
-                            <small class="text-muted" style="font-size: 0.75rem;">Complete client base</small>
+                            <span class="small text-uppercase fw-semibold d-block {% if current_tab == 'loan' or not current_tab %}text-white-50{% else %}text-muted{% endif %}" style="font-size: 0.68rem; letter-spacing: 0.03em;">🏦 GOLD LOAN CLIENTS</span>
+                            <div class="d-flex align-items-baseline gap-2">
+                                <h5 class="mb-0 fw-bold {% if current_tab == 'loan' or not current_tab %}text-white{% else %}text-success{% endif %}">{{ loan_customers_count }}</h5>
+                                <span class="{% if current_tab == 'loan' or not current_tab %}text-white-50{% else %}text-muted{% endif %}" style="font-size: 0.72rem;">({{ active_loan_customers_count }} active)</span>
+                            </div>
                         </div>
-                        <div class="rounded-circle bg-primary-subtle p-3 text-primary">
-                            <i class="fas fa-users fs-4"></i>
-                        </div>
+                        <i class="fas fa-hand-holding-usd fa-lg {% if current_tab == 'loan' or not current_tab %}text-white-50{% else %}text-success opacity-50{% endif %}"></i>
                     </div>
                 </div>
             </a>
         </div>
 
-        <!-- Gold Loan Customers Card -->
-        <div class="col-md-3 col-sm-6">
-            <a href="?tab=loan{% if search_query %}&search={{ search_query }}{% endif %}" class="text-decoration-none">
-                <div class="card border-0 shadow-sm rounded-3 p-3 {% if current_tab == 'loan' %}border-start border-success border-4 bg-white{% else %}bg-white{% endif %} stat-hover-card">
-                    <div class="d-flex justify-content-between align-items-center">
+        <!-- 2. Used Gold Sale Customers Card -->
+        <div class="col-6 col-md-3">
+            <a href="?tab=used_gold{% if search_query %}&search={{ search_query }}{% endif %}" class="text-decoration-none d-block h-100">
+                <div class="card border-0 shadow-sm rounded-3 h-100 transition-all {% if current_tab == 'used_gold' %}bg-warning text-dark ring-active{% else %}bg-white hover-shadow border-start border-warning border-3{% endif %}">
+                    <div class="card-body p-2 px-3 d-flex justify-content-between align-items-center">
                         <div>
-                            <small class="text-uppercase fw-bold text-success" style="font-size: 0.72rem;">🏦 GOLD LOAN CUSTOMERS</small>
-                            <h3 class="fw-bold text-success mb-0 mt-1">{{ loan_customers_count }}</h3>
-                            <small class="text-muted" style="font-size: 0.75rem;">{{ active_loan_customers_count }} with active gold loans</small>
+                            <span class="small text-uppercase fw-semibold d-block text-muted" style="font-size: 0.68rem; letter-spacing: 0.03em;">💰 USED GOLD SELLERS</span>
+                            <div class="d-flex align-items-baseline gap-2">
+                                <h5 class="mb-0 fw-bold {% if current_tab == 'used_gold' %}text-dark{% else %}text-warning{% endif %}">{{ used_gold_customers_count }}</h5>
+                                <span class="{% if current_tab == 'used_gold' %}text-dark-50{% else %}text-muted{% endif %}" style="font-size: 0.72rem;">({{ total_used_gold_grams|floatformat:1 }}g)</span>
+                            </div>
                         </div>
-                        <div class="rounded-circle bg-success-subtle p-3 text-success">
-                            <i class="fas fa-hand-holding-usd fs-4"></i>
-                        </div>
+                        <i class="fas fa-coins fa-lg text-warning opacity-75"></i>
                     </div>
                 </div>
             </a>
         </div>
 
-        <!-- Used Gold Sale Customers Card -->
-        <div class="col-md-3 col-sm-6">
-            <a href="?tab=used_gold{% if search_query %}&search={{ search_query }}{% endif %}" class="text-decoration-none">
-                <div class="card border-0 shadow-sm rounded-3 p-3 {% if current_tab == 'used_gold' %}border-start border-warning border-4 bg-white{% else %}bg-white{% endif %} stat-hover-card">
-                    <div class="d-flex justify-content-between align-items-center">
+        <!-- 3. All Registered Customers Card -->
+        <div class="col-6 col-md-3">
+            <a href="?tab=all{% if search_query %}&search={{ search_query }}{% endif %}" class="text-decoration-none d-block h-100">
+                <div class="card border-0 shadow-sm rounded-3 h-100 transition-all {% if current_tab == 'all' %}bg-primary text-white ring-active{% else %}bg-white hover-shadow border-start border-primary border-3{% endif %}">
+                    <div class="card-body p-2 px-3 d-flex justify-content-between align-items-center">
                         <div>
-                            <small class="text-uppercase fw-bold text-amber-800" style="font-size: 0.72rem; color: #b45309;">💰 USED GOLD SALE CUSTOMERS</small>
-                            <h3 class="fw-bold text-dark mb-0 mt-1">{{ used_gold_customers_count }}</h3>
-                            <small class="text-muted" style="font-size: 0.75rem;">{{ total_used_gold_grams|floatformat:1 }}g sold | ₹{{ total_used_gold_payout|floatformat:0 }}</small>
+                            <span class="small text-uppercase fw-semibold d-block {% if current_tab == 'all' %}text-white-50{% else %}text-muted{% endif %}" style="font-size: 0.68rem; letter-spacing: 0.03em;">👥 ALL REGISTERED</span>
+                            <div class="d-flex align-items-baseline gap-2">
+                                <h5 class="mb-0 fw-bold {% if current_tab == 'all' %}text-white{% else %}text-primary{% endif %}">{{ total_customers }}</h5>
+                                <span class="{% if current_tab == 'all' %}text-white-50{% else %}text-muted{% endif %}" style="font-size: 0.72rem;">(Directory total)</span>
+                            </div>
                         </div>
-                        <div class="rounded-circle bg-warning-subtle p-3 text-warning">
-                            <i class="fas fa-coins fs-4"></i>
-                        </div>
+                        <i class="fas fa-users fa-lg {% if current_tab == 'all' %}text-white-50{% else %}text-primary opacity-50{% endif %}"></i>
                     </div>
                 </div>
             </a>
         </div>
 
-        <!-- Dual / Recent Customers Card -->
-        <div class="col-md-3 col-sm-6">
-            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white stat-hover-card">
-                <div class="d-flex justify-content-between align-items-center">
+        <!-- 4. Dual & New Customers Card -->
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm rounded-3 h-100 bg-white hover-shadow border-start border-info border-3">
+                <div class="card-body p-2 px-3 d-flex justify-content-between align-items-center">
                     <div>
-                        <small class="text-uppercase fw-bold text-muted" style="font-size: 0.72rem;">NEW / DUAL CLIENTS</small>
-                        <h3 class="fw-bold text-info mb-0 mt-1">{{ new_customers }}</h3>
-                        <small class="text-muted" style="font-size: 0.75rem;">{{ both_type_customers_count }} transacted loans &amp; gold sales</small>
+                        <span class="small text-uppercase fw-semibold d-block text-muted" style="font-size: 0.68rem; letter-spacing: 0.03em;">⭐ DUAL &amp; RECENT</span>
+                        <div class="d-flex align-items-baseline gap-2">
+                            <h5 class="mb-0 fw-bold text-info">{{ both_type_customers_count }}</h5>
+                            <span class="text-muted" style="font-size: 0.72rem;">dual | {{ new_customers }} new (30d)</span>
+                        </div>
                     </div>
-                    <div class="rounded-circle bg-info-subtle p-3 text-info">
-                        <i class="fas fa-user-plus fs-4"></i>
-                    </div>
+                    <i class="fas fa-user-check fa-lg text-info opacity-50"></i>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Segment Navigation Tabs Bar -->
-    <div class="card border-0 shadow-sm rounded-3 mb-3 bg-white">
-        <div class="card-body p-2 d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <!-- Unified Customers Table Card with Integrated Segment Tabs & Filter Bar -->
+    <div class="card border-0 shadow-sm rounded-3 overflow-hidden bg-white mb-3">
+        <!-- Integrated Header: Segment Tabs + Search + Filter -->
+        <div class="card-header bg-white py-2 px-3 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
             <!-- Nav Pills -->
             <ul class="nav nav-pills gap-1" id="customerTypeTabs">
                 <li class="nav-item">
-                    <a class="nav-link px-3 py-2 fw-semibold {% if current_tab == 'all' or not current_tab %}active bg-dark text-white{% else %}text-secondary{% endif %}" href="?tab=all{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}">
-                        <i class="fas fa-users me-1"></i> All Customers <span class="badge {% if current_tab == 'all' or not current_tab %}bg-light text-dark{% else %}bg-secondary-subtle text-secondary{% endif %} ms-1">{{ total_customers }}</span>
+                    <a class="nav-link px-3 py-1 fw-semibold btn-sm {% if current_tab == 'loan' or not current_tab %}active bg-success text-white{% else %}text-secondary bg-light{% endif %}" 
+                       href="?tab=loan{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}"
+                       style="font-size: 0.8rem;">
+                        <i class="fas fa-hand-holding-usd me-1"></i> Gold Loan Customers 
+                        <span class="badge {% if current_tab == 'loan' or not current_tab %}bg-white text-success{% else %}bg-secondary-subtle text-secondary{% endif %} ms-1">{{ loan_customers_count }}</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link px-3 py-2 fw-semibold {% if current_tab == 'loan' %}active bg-success text-white{% else %}text-secondary{% endif %}" href="?tab=loan{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}">
-                        <i class="fas fa-hand-holding-usd me-1"></i> Gold Loan Customers <span class="badge {% if current_tab == 'loan' %}bg-white text-success{% else %}bg-success-subtle text-success{% endif %} ms-1">{{ loan_customers_count }}</span>
+                    <a class="nav-link px-3 py-1 fw-semibold btn-sm {% if current_tab == 'used_gold' %}active bg-warning text-dark{% else %}text-secondary bg-light{% endif %}" 
+                       href="?tab=used_gold{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}"
+                       style="font-size: 0.8rem;">
+                        <i class="fas fa-coins me-1"></i> Used Gold Sale Customers 
+                        <span class="badge {% if current_tab == 'used_gold' %}bg-dark text-white{% else %}bg-warning-subtle text-warning{% endif %} ms-1">{{ used_gold_customers_count }}</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link px-3 py-2 fw-semibold {% if current_tab == 'used_gold' %}active bg-warning text-dark{% else %}text-secondary{% endif %}" href="?tab=used_gold{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}">
-                        <i class="fas fa-coins me-1"></i> Used Gold Sale Customers <span class="badge {% if current_tab == 'used_gold' %}bg-dark text-white{% else %}bg-warning-subtle text-warning{% endif %} ms-1">{{ used_gold_customers_count }}</span>
+                    <a class="nav-link px-3 py-1 fw-semibold btn-sm {% if current_tab == 'all' %}active bg-dark text-white{% else %}text-secondary bg-light{% endif %}" 
+                       href="?tab=all{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}"
+                       style="font-size: 0.8rem;">
+                        <i class="fas fa-users me-1"></i> All Customers 
+                        <span class="badge {% if current_tab == 'all' %}bg-light text-dark{% else %}bg-secondary-subtle text-secondary{% endif %} ms-1">{{ total_customers }}</span>
                     </a>
                 </li>
             </ul>
 
             <!-- Search and Filter Form -->
-            <form method="GET" class="d-flex align-items-center gap-2 flex-grow-1 flex-md-grow-0" style="min-width: 320px;">
+            <form method="GET" class="d-flex align-items-center gap-2 flex-grow-1 flex-md-grow-0 ms-auto" style="min-width: 280px; max-width: 480px;">
                 <input type="hidden" name="tab" value="{{ current_tab }}">
                 <div class="input-group input-group-sm flex-grow-1">
-                    <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted"></i></span>
-                    <input type="text" name="search" class="form-control border-start-0" placeholder="Search customer, phone, ID, loan #..." value="{{ search_query }}">
+                    <span class="input-group-text bg-light border-end-0 py-1"><i class="fas fa-search text-muted"></i></span>
+                    <input type="text" name="search" class="form-control border-start-0 py-1" placeholder="Search customer, phone, ID, loan #..." value="{{ search_query }}" style="font-size: 0.8rem;">
                     {% if search_query %}
-                        <a href="?tab={{ current_tab }}{% if filter %}&filter={{ filter }}{% endif %}" class="btn btn-outline-secondary" title="Clear Search"><i class="fas fa-times"></i></a>
+                        <a href="?tab={{ current_tab }}{% if filter %}&filter={{ filter }}{% endif %}" class="btn btn-outline-secondary py-1" title="Clear Search"><i class="fas fa-times"></i></a>
                     {% endif %}
-                    <button class="btn btn-primary px-3" type="submit">Search</button>
+                    <button class="btn btn-primary px-3 py-1 fw-semibold" type="submit" style="font-size: 0.8rem;">Search</button>
                 </div>
-                <div style="width: 160px;">
-                    <select name="filter" class="form-select form-select-sm" onchange="this.form.submit()">
+                <div style="width: 145px; flex-shrink: 0;">
+                    <select name="filter" class="form-select form-select-sm py-1" onchange="this.form.submit()" style="font-size: 0.8rem;">
                         <option value="" {% if not filter %}selected{% endif %}>All Records</option>
                         <option value="active_loans" {% if filter == 'active_loans' %}selected{% endif %}>With Active Loans</option>
                         <option value="recent" {% if filter == 'recent' %}selected{% endif %}>Recently Added (30d)</option>
@@ -170,18 +175,16 @@
                 </div>
             </form>
         </div>
-    </div>
 
-    <!-- Customers Main Table Card -->
-    <div class="card border-0 shadow-sm rounded-3 overflow-hidden bg-white mb-4">
+        <!-- Table Body -->
         <div class="card-body p-0">
             {% if customers %}
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
+                    <table class="table table-hover table-sm align-middle mb-0">
                         <thead class="table-light border-bottom" style="background-color: #f8fafc;">
                             <tr>
-                                <th class="px-3 py-3 text-secondary text-uppercase font-monospace" style="font-size: 0.75rem; width: 60px;">ID</th>
-                                <th class="px-3 py-3 text-secondary text-uppercase font-monospace" style="font-size: 0.75rem;">
+                                <th class="px-2 py-2 text-secondary text-uppercase font-monospace" style="font-size: 0.72rem; width: 55px;">ID</th>
+                                <th class="px-2 py-2 text-secondary text-uppercase font-monospace" style="font-size: 0.72rem; min-width: 180px;">
                                     <a href="?sort={% if current_sort == 'name' %}-{% endif %}name&tab={{ current_tab }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}" class="text-decoration-none text-dark d-flex align-items-center gap-1">
                                         Customer Details
                                         {% if current_sort == 'name' %}<i class="fas fa-sort-up text-primary"></i>
@@ -189,40 +192,40 @@
                                         {% else %}<i class="fas fa-sort text-muted opacity-50"></i>{% endif %}
                                     </a>
                                 </th>
-                                <th class="px-3 py-3 text-secondary text-uppercase font-monospace" style="font-size: 0.75rem;">Contact &amp; Location</th>
-                                <th class="px-3 py-3 text-secondary text-uppercase font-monospace" style="font-size: 0.75rem;">Branch</th>
+                                <th class="px-2 py-2 text-secondary text-uppercase font-monospace" style="font-size: 0.72rem; min-width: 150px;">Contact &amp; Location</th>
+                                <th class="px-2 py-2 text-secondary text-uppercase font-monospace" style="font-size: 0.72rem; width: 120px;">Branch</th>
 
                                 {% if current_tab == 'used_gold' %}
                                     <!-- Used Gold Sale Customers Specific Columns -->
-                                    <th class="px-3 py-3 text-secondary text-uppercase font-monospace text-center" style="font-size: 0.75rem;">Used Gold Sales</th>
-                                    <th class="px-3 py-3 text-secondary text-uppercase font-monospace text-end" style="font-size: 0.75rem;">
+                                    <th class="px-2 py-2 text-secondary text-uppercase font-monospace text-center" style="font-size: 0.72rem; width: 110px;">Gold Sales</th>
+                                    <th class="px-2 py-2 text-secondary text-uppercase font-monospace text-end" style="font-size: 0.72rem; width: 120px;">
                                         <a href="?sort={% if current_sort == 'gold_weight' %}-{% endif %}gold_weight&tab={{ current_tab }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}" class="text-decoration-none text-dark d-inline-flex align-items-center gap-1">
-                                            Total Gold Sold (g)
+                                            Gold Sold (g)
                                             {% if current_sort == 'gold_weight' %}<i class="fas fa-sort-up text-primary"></i>
                                             {% elif current_sort == '-gold_weight' %}<i class="fas fa-sort-down text-primary"></i>
                                             {% else %}<i class="fas fa-sort text-muted opacity-50"></i>{% endif %}
                                         </a>
                                     </th>
-                                    <th class="px-3 py-3 text-secondary text-uppercase font-monospace text-end" style="font-size: 0.75rem;">
+                                    <th class="px-2 py-2 text-secondary text-uppercase font-monospace text-end" style="font-size: 0.72rem; width: 120px;">
                                         <a href="?sort={% if current_sort == 'gold_payout' %}-{% endif %}gold_payout&tab={{ current_tab }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}" class="text-decoration-none text-dark d-inline-flex align-items-center gap-1">
-                                            Total Payout (₹)
+                                            Payout (₹)
                                             {% if current_sort == 'gold_payout' %}<i class="fas fa-sort-up text-primary"></i>
                                             {% elif current_sort == '-gold_payout' %}<i class="fas fa-sort-down text-primary"></i>
                                             {% else %}<i class="fas fa-sort text-muted opacity-50"></i>{% endif %}
                                         </a>
                                     </th>
-                                {% elif current_tab == 'loan' %}
+                                {% elif current_tab == 'loan' or not current_tab %}
                                     <!-- Gold Loan Customers Specific Columns -->
-                                    <th class="px-3 py-3 text-secondary text-uppercase font-monospace" style="font-size: 0.75rem;">Active Gold Loans</th>
-                                    <th class="px-3 py-3 text-secondary text-uppercase font-monospace text-center" style="font-size: 0.75rem;">Total Loan History</th>
-                                    <th class="px-3 py-3 text-secondary text-uppercase font-monospace text-center" style="font-size: 0.75rem;">Status</th>
+                                    <th class="px-2 py-2 text-secondary text-uppercase font-monospace" style="font-size: 0.72rem; min-width: 170px;">Active Gold Loans</th>
+                                    <th class="px-2 py-2 text-secondary text-uppercase font-monospace text-center" style="font-size: 0.72rem; width: 110px;">Loan History</th>
+                                    <th class="px-2 py-2 text-secondary text-uppercase font-monospace text-center" style="font-size: 0.72rem; width: 110px;">Status</th>
                                 {% else %}
                                     <!-- All Customers Overview Columns -->
-                                    <th class="px-3 py-3 text-secondary text-uppercase font-monospace text-center" style="font-size: 0.75rem;">Customer Classification</th>
-                                    <th class="px-3 py-3 text-secondary text-uppercase font-monospace" style="font-size: 0.75rem;">Pawn &amp; Sale Activity</th>
+                                    <th class="px-2 py-2 text-secondary text-uppercase font-monospace text-center" style="font-size: 0.72rem; width: 140px;">Classification</th>
+                                    <th class="px-2 py-2 text-secondary text-uppercase font-monospace" style="font-size: 0.72rem; min-width: 170px;">Activity Summary</th>
                                 {% endif %}
 
-                                <th class="px-3 py-3 text-secondary text-uppercase font-monospace" style="font-size: 0.75rem;">
+                                <th class="px-2 py-2 text-secondary text-uppercase font-monospace" style="font-size: 0.72rem; width: 100px;">
                                     <a href="?sort={% if current_sort == 'created_at' %}-{% endif %}created_at&tab={{ current_tab }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}" class="text-decoration-none text-dark d-flex align-items-center gap-1">
                                         Registered
                                         {% if current_sort == 'created_at' %}<i class="fas fa-sort-up text-primary"></i>
@@ -230,94 +233,94 @@
                                         {% else %}<i class="fas fa-sort text-muted opacity-50"></i>{% endif %}
                                     </a>
                                 </th>
-                                <th class="px-3 py-3 text-secondary text-uppercase font-monospace text-center" style="font-size: 0.75rem; width: 140px;">Actions</th>
+                                <th class="px-2 py-2 text-secondary text-uppercase font-monospace text-center" style="font-size: 0.72rem; width: 115px;">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for customer in customers %}
                                 <tr class="hover-row">
-                                    <td class="px-3 font-monospace text-muted small">#{{ customer.id }}</td>
-                                    <td class="px-3">
+                                    <td class="px-2 py-1 font-monospace text-muted" style="font-size: 0.78rem;">#{{ customer.id }}</td>
+                                    <td class="px-2 py-1">
                                         <div class="d-flex align-items-center gap-2">
                                             {% if customer.photo %}
-                                                <img src="{{ customer.photo }}" alt="{{ customer.first_name }}" class="rounded-circle border shadow-xs" style="width: 38px; height: 38px; object-fit: cover;">
+                                                <img src="{{ customer.photo }}" alt="{{ customer.first_name }}" class="rounded-circle border shadow-2xs" style="width: 32px; height: 32px; object-fit: cover; flex-shrink: 0;">
                                             {% else %}
-                                                <div class="rounded-circle bg-light border text-secondary d-flex align-items-center justify-content-center fw-bold" style="width: 38px; height: 38px; font-size: 0.85rem;">
+                                                <div class="rounded-circle bg-light border text-secondary d-flex align-items-center justify-content-center fw-bold shadow-2xs" style="width: 32px; height: 32px; font-size: 0.78rem; flex-shrink: 0;">
                                                     {{ customer.first_name|slice:":1" }}{{ customer.last_name|slice:":1" }}
                                                 </div>
                                             {% endif %}
-                                            <div>
-                                                <a href="{% url 'customer_detail' customer.id %}" class="fw-bold text-dark text-decoration-none d-block">
+                                            <div class="text-truncate" style="max-width: 170px;">
+                                                <a href="{% url 'customer_detail' customer.id %}" class="fw-bold text-dark text-decoration-none d-block text-truncate" style="font-size: 0.84rem;">
                                                     {{ customer.first_name }} {{ customer.last_name }}
                                                 </a>
                                                 {% if customer.id_number %}
-                                                    <small class="text-muted font-monospace" style="font-size: 0.72rem;">
-                                                        <i class="fas fa-id-card me-1 text-secondary"></i>{{ customer.id_type|upper }}: {{ customer.id_number }}
-                                                    </small>
+                                                    <span class="text-muted font-monospace d-block" style="font-size: 0.68rem;">
+                                                        {{ customer.id_type|upper }}: {{ customer.id_number }}
+                                                    </span>
                                                 {% endif %}
                                             </div>
                                         </div>
                                     </td>
-                                    <td class="px-3">
+                                    <td class="px-2 py-1">
                                         {% if customer.phone %}
                                             {% if customer.is_valid_whatsapp != False %}
-                                                <div class="font-monospace text-success fw-semibold" style="font-size: 0.85rem;">
+                                                <div class="font-monospace text-success fw-semibold" style="font-size: 0.8rem;">
                                                     <i class="fab fa-whatsapp text-success me-1"></i>+{{ customer.phone|mobile_format }}
                                                 </div>
                                             {% else %}
-                                                <div class="d-inline-flex flex-column gap-1 align-items-start">
-                                                    <span class="font-monospace text-danger fw-semibold" style="font-size: 0.85rem;">
+                                                <div class="d-inline-flex flex-column gap-0 align-items-start">
+                                                    <span class="font-monospace text-danger fw-semibold" style="font-size: 0.8rem;">
                                                         <i class="fas fa-phone-slash text-danger me-1"></i>+{{ customer.phone|mobile_format }}
                                                     </span>
-                                                    <span class="badge bg-danger text-white shadow-2xs" style="font-size: 0.65rem; font-weight: 600;" title="{{ customer.whatsapp_status_msg|default:'Not on WhatsApp' }}">
-                                                        <i class="fas fa-exclamation-triangle me-1"></i>{{ customer.whatsapp_status_msg|default:"Not on WhatsApp" }}
+                                                    <span class="badge bg-danger text-white shadow-2xs py-0" style="font-size: 0.6rem; font-weight: 600;" title="{{ customer.whatsapp_status_msg|default:'Not on WhatsApp' }}">
+                                                        <i class="fas fa-exclamation-triangle me-1"></i>No WhatsApp
                                                     </span>
                                                 </div>
                                             {% endif %}
                                         {% endif %}
-                                        <div class="text-muted small" style="font-size: 0.75rem;">
+                                        <div class="text-muted text-truncate" style="font-size: 0.72rem; max-width: 140px;">
                                             <i class="fas fa-map-marker-alt text-secondary me-1"></i>{{ customer.city|default:customer.state|default:"Tamil Nadu" }}
                                         </div>
                                     </td>
-                                    <td class="px-3">
+                                    <td class="px-2 py-1">
                                         {% if customer.branch %}
-                                            <span class="badge bg-light text-primary border fw-semibold" style="font-size: 0.75rem;">
-                                                <i class="fas fa-building me-1"></i>{{ customer.branch.name }}
+                                            <span class="badge bg-light text-primary border fw-semibold text-truncate d-inline-block" style="font-size: 0.7rem; max-width: 110px;">
+                                                {{ customer.branch.name }}
                                             </span>
                                         {% else %}
-                                            <span class="badge bg-light text-secondary border" style="font-size: 0.75rem;">HQ / Main</span>
+                                            <span class="badge bg-light text-secondary border" style="font-size: 0.7rem;">HQ</span>
                                         {% endif %}
                                     </td>
 
                                     {% if current_tab == 'used_gold' %}
                                         <!-- Used Gold Sale Specific Body -->
-                                        <td class="px-3 text-center">
-                                            <span class="badge bg-warning-subtle text-amber-900 border border-warning-subtle px-2 py-1 font-monospace fw-bold" style="color: #78350f;">
+                                        <td class="px-2 py-1 text-center">
+                                            <span class="badge bg-warning-subtle text-amber-900 border border-warning-subtle px-2 py-1 font-monospace fw-bold" style="color: #78350f; font-size: 0.75rem;">
                                                 <i class="fas fa-receipt me-1"></i>{{ customer.annotated_gold_purchases_count|default:customer.gold_purchases.count }} Sale(s)
                                             </span>
                                         </td>
-                                        <td class="px-3 text-end font-monospace fw-bold text-dark">
+                                        <td class="px-2 py-1 text-end font-monospace fw-bold text-dark" style="font-size: 0.82rem;">
                                             {{ customer.annotated_gold_purchased_weight|default:0|floatformat:3 }} g
                                         </td>
-                                        <td class="px-3 text-end font-monospace fw-bold text-success">
+                                        <td class="px-2 py-1 text-end font-monospace fw-bold text-success" style="font-size: 0.82rem;">
                                             ₹{{ customer.annotated_gold_purchased_amount|default:0|floatformat:0 }}
                                         </td>
-                                    {% elif current_tab == 'loan' %}
+                                    {% elif current_tab == 'loan' or not current_tab %}
                                         <!-- Gold Loan Customer Specific Body -->
-                                        <td class="px-3">
+                                        <td class="px-2 py-1">
                                             {% if customer.annotated_active_loans_count %}
                                                 <div class="d-flex align-items-center gap-1 flex-wrap">
                                                     {% for loan in customer.loans.all %}
                                                         {% if loan.status == 'active' %}
                                                             {% if loan.item_photos %}
-                                                                <a href="{% url 'loan_detail' loan.loan_number %}" class="position-relative d-inline-block" data-bs-toggle="tooltip" title="Loan #{{ loan.loan_number }} ({{ loan.principal_amount|floatformat:0 }})">
+                                                                <a href="{% url 'loan_detail' loan.loan_number %}" class="position-relative d-inline-block" data-bs-toggle="tooltip" title="Loan #{{ loan.loan_number }} (₹{{ loan.principal_amount|floatformat:0 }})">
                                                                     <img src="{{ loan.item_photos|get_first_photo }}" 
                                                                          alt="Gold Item" 
-                                                                         class="rounded border shadow-xs"
-                                                                         style="width: 36px; height: 36px; object-fit: cover;">
+                                                                         class="rounded border shadow-2xs" 
+                                                                         style="width: 28px; height: 28px; object-fit: cover;">
                                                                 </a>
                                                             {% else %}
-                                                                <a href="{% url 'loan_detail' loan.loan_number %}" class="badge bg-primary-subtle text-primary border text-decoration-none font-monospace py-1 px-2">
+                                                                <a href="{% url 'loan_detail' loan.loan_number %}" class="badge bg-primary-subtle text-primary border text-decoration-none font-monospace py-1 px-2" style="font-size: 0.72rem;">
                                                                     {{ loan.loan_number }}
                                                                 </a>
                                                             {% endif %}
@@ -325,65 +328,65 @@
                                                     {% endfor %}
                                                 </div>
                                             {% else %}
-                                                <span class="badge bg-secondary-subtle text-secondary border" style="font-size: 0.72rem;">0 Active Loans</span>
+                                                <span class="badge bg-secondary-subtle text-secondary border" style="font-size: 0.7rem;">0 Active</span>
                                             {% endif %}
                                         </td>
-                                        <td class="px-3 text-center">
-                                            <span class="badge bg-light text-dark border font-monospace">
-                                                {{ customer.annotated_loans_count|default:customer.loans.count }} Total Loans
+                                        <td class="px-2 py-1 text-center">
+                                            <span class="badge bg-light text-dark border font-monospace" style="font-size: 0.72rem;">
+                                                {{ customer.annotated_loans_count|default:customer.loans.count }} Total
                                             </span>
                                         </td>
-                                        <td class="px-3 text-center">
+                                        <td class="px-2 py-1 text-center">
                                             {% if customer.annotated_active_loans_count %}
-                                                <span class="badge bg-success text-white py-1 px-2" style="font-size: 0.72rem;">Active Borrower</span>
+                                                <span class="badge bg-success text-white py-1 px-2" style="font-size: 0.68rem;">Active</span>
                                             {% else %}
-                                                <span class="badge bg-secondary text-white py-1 px-2" style="font-size: 0.72rem;">Closed / Inactive</span>
+                                                <span class="badge bg-secondary text-white py-1 px-2" style="font-size: 0.68rem;">Inactive</span>
                                             {% endif %}
                                         </td>
                                     {% else %}
                                         <!-- All Customers Segment Classification -->
-                                        <td class="px-3 text-center">
+                                        <td class="px-2 py-1 text-center">
                                             <div class="d-flex flex-column gap-1 align-items-center">
                                                 {% if customer.annotated_loans_count and customer.annotated_gold_purchases_count %}
-                                                    <span class="badge bg-purple-subtle text-purple border fw-bold" style="background-color: #f3e8ff; color: #6b21a8; border-color: #d8b4fe !important; font-size: 0.72rem;">
-                                                        <i class="fas fa-star text-warning me-1"></i> Dual (Loan &amp; Gold Sale)
+                                                    <span class="badge bg-purple-subtle text-purple border fw-bold" style="background-color: #f3e8ff; color: #6b21a8; border-color: #d8b4fe !important; font-size: 0.68rem;">
+                                                        <i class="fas fa-star text-warning me-1"></i> Dual Client
                                                     </span>
                                                 {% elif customer.annotated_loans_count %}
-                                                    <span class="badge bg-primary-subtle text-primary border fw-semibold" style="font-size: 0.72rem;">
-                                                        <i class="fas fa-hand-holding-usd me-1"></i> Gold Loan Customer
+                                                    <span class="badge bg-primary-subtle text-primary border fw-semibold" style="font-size: 0.68rem;">
+                                                        <i class="fas fa-hand-holding-usd me-1"></i> Loan Client
                                                     </span>
                                                 {% elif customer.annotated_gold_purchases_count %}
-                                                    <span class="badge bg-warning-subtle text-amber-900 border fw-semibold" style="background-color: #fef3c7; color: #92400e; border-color: #fde68a !important; font-size: 0.72rem;">
-                                                        <i class="fas fa-coins me-1"></i> Used Gold Seller
+                                                    <span class="badge bg-warning-subtle text-amber-900 border fw-semibold" style="background-color: #fef3c7; color: #92400e; border-color: #fde68a !important; font-size: 0.68rem;">
+                                                        <i class="fas fa-coins me-1"></i> Gold Seller
                                                     </span>
                                                 {% else %}
-                                                    <span class="badge bg-light text-muted border" style="font-size: 0.72rem;">Registered Prospect</span>
+                                                    <span class="badge bg-light text-muted border" style="font-size: 0.68rem;">Prospect</span>
                                                 {% endif %}
                                             </div>
                                         </td>
-                                        <td class="px-3">
-                                            <div class="d-flex flex-column gap-1 small">
+                                        <td class="px-2 py-1">
+                                            <div class="d-flex flex-column gap-0 small">
                                                 {% if customer.annotated_loans_count %}
-                                                    <div class="text-primary font-monospace" style="font-size: 0.75rem;">
-                                                        <i class="fas fa-hand-holding-usd me-1"></i>{{ customer.annotated_loans_count }} Loan(s) {% if customer.annotated_active_loans_count %}({{ customer.annotated_active_loans_count }} active){% endif %}
+                                                    <div class="text-primary font-monospace" style="font-size: 0.72rem;">
+                                                        <i class="fas fa-hand-holding-usd me-1"></i>{{ customer.annotated_loans_count }} Loan(s) {% if customer.annotated_active_loans_count %}({{ customer.annotated_active_loans_count }} act){% endif %}
                                                     </div>
                                                 {% endif %}
                                                 {% if customer.annotated_gold_purchases_count %}
-                                                    <div class="text-amber-800 font-monospace" style="color: #b45309; font-size: 0.75rem;">
-                                                        <i class="fas fa-coins me-1"></i>{{ customer.annotated_gold_purchases_count }} Used Gold Sale(s) ({{ customer.annotated_gold_purchased_weight|default:0|floatformat:1 }}g)
+                                                    <div class="text-amber-800 font-monospace" style="color: #b45309; font-size: 0.72rem;">
+                                                        <i class="fas fa-coins me-1"></i>{{ customer.annotated_gold_purchases_count }} Sale(s) ({{ customer.annotated_gold_purchased_weight|default:0|floatformat:1 }}g)
                                                     </div>
                                                 {% endif %}
                                                 {% if not customer.annotated_loans_count and not customer.annotated_gold_purchases_count %}
-                                                    <span class="text-muted" style="font-size: 0.72rem;">No transactions yet</span>
+                                                    <span class="text-muted" style="font-size: 0.7rem;">No transactions</span>
                                                 {% endif %}
                                             </div>
                                         </td>
                                     {% endif %}
 
-                                    <td class="px-3 text-muted small font-monospace" style="font-size: 0.78rem;">
+                                    <td class="px-2 py-1 text-muted font-monospace" style="font-size: 0.75rem;">
                                         {{ customer.created_at|date:"d-M-Y" }}
                                     </td>
-                                    <td class="px-3 text-center">
+                                    <td class="px-2 py-1 text-center">
                                         <div class="btn-group btn-group-sm">
                                             <a href="{% url 'customer_detail' customer.id %}" class="btn btn-outline-primary btn-xs py-1 px-2" title="View Full Profile">
                                                 <i class="fas fa-eye"></i>
@@ -408,27 +411,27 @@
                     </table>
                 </div>
             {% else %}
-                <div class="py-5 text-center bg-white rounded-3">
-                    <div class="rounded-circle bg-light d-inline-flex p-4 mb-3 text-muted">
+                <div class="py-4 text-center bg-white rounded-3">
+                    <div class="rounded-circle bg-light d-inline-flex p-3 mb-2 text-muted">
                         {% if current_tab == 'used_gold' %}
-                            <i class="fas fa-coins fs-2 text-warning"></i>
-                        {% elif current_tab == 'loan' %}
-                            <i class="fas fa-hand-holding-usd fs-2 text-primary"></i>
+                            <i class="fas fa-coins fs-3 text-warning"></i>
+                        {% elif current_tab == 'loan' or not current_tab %}
+                            <i class="fas fa-hand-holding-usd fs-3 text-primary"></i>
                         {% else %}
-                            <i class="fas fa-users-slash fs-2 text-secondary"></i>
+                            <i class="fas fa-users-slash fs-3 text-secondary"></i>
                         {% endif %}
                     </div>
-                    <h5 class="fw-bold text-dark mb-1">
+                    <h6 class="fw-bold text-dark mb-1">
                         {% if current_tab == 'used_gold' %}No Used Gold Sale Customers Found
-                        {% elif current_tab == 'loan' %}No Gold Loan Customers Found
+                        {% elif current_tab == 'loan' or not current_tab %}No Gold Loan Customers Found
                         {% else %}No Customers Found{% endif %}
-                    </h5>
-                    <p class="text-muted small mb-3">
+                    </h6>
+                    <p class="text-muted small mb-2" style="font-size: 0.8rem;">
                         {% if search_query %}
                             No records matching "{{ search_query }}" in this category.
                         {% else %}
                             {% if current_tab == 'used_gold' %}
-                                No customers have sold old/used gold yet. Create a new gold purchase record to begin.
+                                No customers have sold old/used gold yet. Record a gold purchase to begin.
                             {% else %}
                                 Get started by onboarding new clients or creating loan accounts.
                             {% endif %}
@@ -436,14 +439,14 @@
                     </p>
                     <div class="d-flex justify-content-center gap-2">
                         {% if search_query %}
-                            <a href="?tab={{ current_tab }}" class="btn btn-outline-secondary btn-sm">Clear Search Filter</a>
+                            <a href="?tab={{ current_tab }}" class="btn btn-outline-secondary btn-sm py-1">Clear Search</a>
                         {% endif %}
                         {% if current_tab == 'used_gold' %}
-                            <a href="{% url 'gold_purchase_create' %}" class="btn btn-warning btn-sm text-dark fw-bold">
+                            <a href="{% url 'gold_purchase_create' %}" class="btn btn-warning btn-sm text-dark fw-bold py-1">
                                 <i class="fas fa-coins me-1"></i> + Record Used Gold Purchase
                             </a>
                         {% else %}
-                            <a href="{% url 'customer_create' %}" class="btn btn-primary btn-sm fw-bold">
+                            <a href="{% url 'customer_create' %}" class="btn btn-primary btn-sm fw-bold py-1">
                                 <i class="fas fa-user-plus me-1"></i> + Add New Customer
                             </a>
                         {% endif %}
@@ -455,16 +458,16 @@
 
     <!-- Pagination -->
     {% if is_paginated %}
-    <nav aria-label="Page navigation" class="mb-4">
+    <nav aria-label="Page navigation" class="mb-3">
         <ul class="pagination pagination-sm justify-content-center mb-0">
             {% if page_obj.has_previous %}
                 <li class="page-item">
-                    <a class="page-link shadow-xs" href="?page=1&tab={{ current_tab }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}" aria-label="First">
+                    <a class="page-link shadow-2xs" href="?page=1&tab={{ current_tab }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}" aria-label="First">
                         <span aria-hidden="true">&laquo;&laquo;</span>
                     </a>
                 </li>
                 <li class="page-item">
-                    <a class="page-link shadow-xs" href="?page={{ page_obj.previous_page_number }}&tab={{ current_tab }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}" aria-label="Previous">
+                    <a class="page-link shadow-2xs" href="?page={{ page_obj.previous_page_number }}&tab={{ current_tab }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}" aria-label="Previous">
                         <span aria-hidden="true">&laquo;</span>
                     </a>
                 </li>
@@ -475,22 +478,22 @@
             
             {% for num in page_obj.paginator.page_range %}
                 {% if page_obj.number == num %}
-                    <li class="page-item active"><a class="page-link shadow-xs fw-bold">{{ num }}</a></li>
+                    <li class="page-item active"><a class="page-link shadow-2xs fw-bold">{{ num }}</a></li>
                 {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
                     <li class="page-item">
-                        <a class="page-link shadow-xs" href="?page={{ num }}&tab={{ current_tab }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">{{ num }}</a>
+                        <a class="page-link shadow-2xs" href="?page={{ num }}&tab={{ current_tab }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">{{ num }}</a>
                     </li>
                 {% endif %}
             {% endfor %}
             
             {% if page_obj.has_next %}
                 <li class="page-item">
-                    <a class="page-link shadow-xs" href="?page={{ page_obj.next_page_number }}&tab={{ current_tab }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}" aria-label="Next">
+                    <a class="page-link shadow-2xs" href="?page={{ page_obj.next_page_number }}&tab={{ current_tab }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}" aria-label="Next">
                         <span aria-hidden="true">&raquo;</span>
                     </a>
                 </li>
                 <li class="page-item">
-                    <a class="page-link shadow-xs" href="?page={{ page_obj.paginator.num_pages }}&tab={{ current_tab }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}" aria-label="Last">
+                    <a class="page-link shadow-2xs" href="?page={{ page_obj.paginator.num_pages }}&tab={{ current_tab }}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}" aria-label="Last">
                         <span aria-hidden="true">&raquo;&raquo;</span>
                     </a>
                 </li>
@@ -504,18 +507,22 @@
 </div>
 
 <style>
-    .stat-hover-card {
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    .shadow-2xs {
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
     }
-    .stat-hover-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08) !important;
+    .hover-shadow:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.07) !important;
+    }
+    .ring-active {
+        box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.35) !important;
     }
     .hover-row:hover {
         background-color: #f8fafc !important;
     }
-    .shadow-xs {
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    .btn-xs {
+        padding: 0.15rem 0.4rem;
+        font-size: 0.75rem;
+        border-radius: 0.25rem;
     }
 </style>
 
@@ -523,90 +530,90 @@
 <div class="modal fade" id="columnSelectModal" tabindex="-1" aria-labelledby="columnSelectModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="columnSelectModalLabel">Select Columns to Download</h5>
+            <div class="modal-header py-2 px-3">
+                <h6 class="modal-title fw-bold" id="columnSelectModalLabel">Select Columns to Download</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="columnSelectForm" method="GET">
-                <div class="modal-body">
-                    <div class="row">
+                <div class="modal-body p-3">
+                    <div class="row g-2">
                         <div class="col-md-6">
-                            <h6>Available Columns</h6>
+                            <h6 class="small fw-bold text-muted mb-2">Basic &amp; Contact Info</h6>
                             <div class="form-check">
                                 <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="roll_number" id="col_roll_number" checked>
-                                <label class="form-check-label" for="col_roll_number">Roll Number</label>
+                                <label class="form-check-label small" for="col_roll_number">Roll Number</label>
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="first_name" id="col_first_name" checked>
-                                <label class="form-check-label" for="col_first_name">First Name</label>
+                                <label class="form-check-label small" for="col_first_name">First Name</label>
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="last_name" id="col_last_name" checked>
-                                <label class="form-check-label" for="col_last_name">Last Name</label>
+                                <label class="form-check-label small" for="col_last_name">Last Name</label>
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="phone" id="col_phone" checked>
-                                <label class="form-check-label" for="col_phone">Phone</label>
+                                <label class="form-check-label small" for="col_phone">Phone</label>
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="email" id="col_email" checked>
-                                <label class="form-check-label" for="col_email">Email</label>
+                                <label class="form-check-label small" for="col_email">Email</label>
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="address" id="col_address" checked>
-                                <label class="form-check-label" for="col_address">Address</label>
+                                <label class="form-check-label small" for="col_address">Address</label>
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="city" id="col_city" checked>
-                                <label class="form-check-label" for="col_city">City</label>
+                                <label class="form-check-label small" for="col_city">City</label>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <h6>&nbsp;</h6>
+                            <h6 class="small fw-bold text-muted mb-2">Location &amp; Identity</h6>
                             <div class="form-check">
                                 <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="state" id="col_state" checked>
-                                <label class="form-check-label" for="col_state">State</label>
+                                <label class="form-check-label small" for="col_state">State</label>
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="zip_code" id="col_zip_code" checked>
-                                <label class="form-check-label" for="col_zip_code">ZIP Code</label>
+                                <label class="form-check-label small" for="col_zip_code">ZIP Code</label>
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="id_type" id="col_id_type" checked>
-                                <label class="form-check-label" for="col_id_type">ID Type</label>
+                                <label class="form-check-label small" for="col_id_type">ID Type</label>
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="id_number" id="col_id_number" checked>
-                                <label class="form-check-label" for="col_id_number">ID Number</label>
+                                <label class="form-check-label small" for="col_id_number">ID Number</label>
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="branch" id="col_branch" checked>
-                                <label class="form-check-label" for="col_branch">Branch</label>
+                                <label class="form-check-label small" for="col_branch">Branch</label>
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="created_at" id="col_created_at" checked>
-                                <label class="form-check-label" for="col_created_at">Created Date</label>
+                                <label class="form-check-label small" for="col_created_at">Created Date</label>
                             </div>
                         </div>
                     </div>
-                    <hr>
+                    <hr class="my-2">
                     <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-sm btn-outline-primary" id="selectAllBtn">Select All</button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" id="deselectAllBtn">Deselect All</button>
+                        <button type="button" class="btn btn-xs btn-outline-primary" id="selectAllBtn">Select All</button>
+                        <button type="button" class="btn btn-xs btn-outline-secondary" id="deselectAllBtn">Deselect All</button>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <div class="me-auto">
-                        <label for="downloadFormat" class="form-label">Download Format:</label>
+                <div class="modal-footer py-2 px-3">
+                    <div class="me-auto d-flex align-items-center gap-2">
+                        <label for="downloadFormat" class="form-label mb-0 small">Format:</label>
                         <select name="format" id="downloadFormat" class="form-select form-select-sm" style="width: auto; display: inline-block;">
                             <option value="pdf">PDF</option>
                             <option value="excel">Excel</option>
                             <option value="csv">CSV</option>
                         </select>
                     </div>
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-success" onclick="downloadWithColumns(event)">
-                        <i class="fas fa-download"></i> Download
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-success" onclick="downloadWithColumns(event)">
+                        <i class="fas fa-download me-1"></i> Download
                     </button>
                 </div>
             </form>

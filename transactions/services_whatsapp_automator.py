@@ -529,6 +529,324 @@ def send_whatsapp_message_headless(phone: str, message: str, headless: bool = Tr
             clean_stale_locks()
 
 
+# ---------------------------------------------------------------------------
+# Automated New Customer Welcome Wish Dispatches
+# ---------------------------------------------------------------------------
+
+def build_customer_welcome_whatsapp_message(customer, lang: str = 'ta') -> str:
+    """
+    Constructs a warm, highly professional bilingual welcome message for a newly onboarded customer.
+    """
+    branch = getattr(customer, 'branch', None)
+    org_name = 'First Money Gold'
+    if branch and getattr(branch, 'organization', None):
+        org_name = branch.organization.name or 'First Money Gold'
+    elif hasattr(settings, 'ORGANIZATION_NAME'):
+        org_name = getattr(settings, 'ORGANIZATION_NAME', 'First Money Gold')
+
+    branch_name = getattr(branch, 'name', '') or org_name
+    branch_phone = getattr(branch, 'phone', '') or getattr(settings, 'COMPANY_PHONE', '9876543210')
+    customer_name = getattr(customer, 'full_name', '') or f"{getattr(customer, 'first_name', '')} {getattr(customer, 'last_name', '')}".strip() or 'Valued Customer'
+
+    if lang == 'en':
+        return (
+            f"🌟 *WELCOME TO {org_name}!* 🌟\n\n"
+            f"Dear *{customer_name}*,\n"
+            f"Welcome to the {org_name} family! We are delighted to have you as our valued customer. ✨\n\n"
+            f"💎 *Our Core Services:*\n"
+            f"• Instant Gold Loans at lowest interest rates (starting 0.99%)\n"
+            f"• 100% Safe & Insured Bank-Grade Vault Storage\n"
+            f"• Spot Cash for Old / Used Gold Ornaments\n"
+            f"• Quick 5-Minute Direct Disbursal\n\n"
+            f"📍 Your Branch: *{branch_name}*\n"
+            f"📞 Helpline: *{branch_phone}*\n\n"
+            f"Thank you for choosing us as your trusted financial partner! 🙏"
+        )
+
+    # Tamil default
+    return (
+        f"🌟 *{org_name}-க்கு அன்புடன் வரவேற்கிறோம்!* 🌟\n\n"
+        f"அன்புள்ள *{customer_name}* அவர்களுக்கு,\n"
+        f"எங்கள் {org_name} குடும்பத்தில் தங்களை இணைத்துக் கொண்டதில் பெருமகிழ்ச்சி அடைகிறோம்! ✨\n\n"
+        f"💎 *எங்களின் சிறப்பு நிதிச் சேவைகள்:*\n"
+        f"• மிகக் குறைந்த வட்டியில் உடனடி தங்கக் கடன் (0.99% முதல்)\n"
+        f"• 100% பாதுகாப்பான வங்கி பெட்டக பாதுகாப்பு\n"
+        f"• பழைய & பயன்படுத்திய தங்க நகைகளுக்கு உடனடி ரொக்கம்\n"
+        f"• 5 நிமிடங்களில் உடனடி கடன் பட்டுவாடா\n\n"
+        f"📍 உங்கள் கிளை: *{branch_name}*\n"
+        f"📞 தொடர்பு எண்: *{branch_phone}*\n\n"
+        f"எங்களை நம்பியதற்கு மனமார்ந்த நன்றிகள்! 🙏"
+    )
+
+
+def send_single_customer_welcome_automated(customer, user=None, headless: bool = True) -> dict:
+    """
+    Dispatches a single welcome WhatsApp message for a newly created customer
+    and records the transaction in MarketingCampaignLog.
+    """
+    from transactions.models import MarketingCampaignLog
+    from transactions.services_whatsapp import normalize_phone_number
+
+    raw_phone = getattr(customer, 'phone', '') or ''
+    norm_phone = normalize_phone_number(raw_phone)
+    cust_name = getattr(customer, 'full_name', '') or str(customer)
+    branch = getattr(customer, 'branch', None)
+
+    if not norm_phone:
+        err_msg = f"Skipped: Customer '{cust_name}' does not have a valid WhatsApp mobile number ({raw_phone})"
+        logger.warning(err_msg)
+        try:
+            MarketingCampaignLog.objects.create(
+                template_key='welcome_new_customer',
+                campaign_name='New Customer Welcome Wish',
+                recipient_name=cust_name,
+                recipient_phone=raw_phone or 'N/A',
+                recipient_type='customer',
+                branch=branch,
+                channel='whatsapp_web',
+                status='failed',
+                message_snippet=err_msg,
+                sent_by=user
+            )
+        except Exception as e:
+            logger.warning("Could not create MarketingCampaignLog for skipped welcome: %s", e)
+        return {"success": False, "status": "skipped", "error": err_msg}
+
+    welcome_msg = build_customer_welcome_whatsapp_message(customer, lang='ta')
+
+    if not is_whatsapp_paired():
+        err_msg = "Skipped: WhatsApp Web session is not paired / connected on server"
+        logger.warning(err_msg)
+        try:
+            MarketingCampaignLog.objects.create(
+                template_key='welcome_new_customer',
+                campaign_name='New Customer Welcome Wish',
+                recipient_name=cust_name,
+                recipient_phone=norm_phone,
+                recipient_type='customer',
+                branch=branch,
+                channel='whatsapp_web',
+                status='failed',
+                message_snippet=f"{err_msg}. Message queued: {welcome_msg[:100]}...",
+                sent_by=user
+            )
+        except Exception as e:
+            logger.warning("Could not create MarketingCampaignLog for offline welcome: %s", e)
+        return {"success": False, "status": "offline", "error": err_msg}
+
+    # Dispatch via headless Playwright worker
+    res = send_whatsapp_message_headless(phone=norm_phone, message=welcome_msg, headless=headless)
+    
+    if res.get('success'):
+        status = 'sent'
+        snippet = welcome_msg[:250]
+    else:
+        status = 'failed'
+        snippet = f"Failed: {res.get('error', 'Unknown WhatsApp dispatch error')}"
+
+    try:
+        MarketingCampaignLog.objects.create(
+            template_key='welcome_new_customer',
+            campaign_name='New Customer Welcome Wish',
+            recipient_name=cust_name,
+            recipient_phone=norm_phone,
+            recipient_type='customer',
+            branch=branch,
+            channel='whatsapp_web',
+            status=status,
+            message_snippet=snippet,
+            sent_by=user
+        )
+    except Exception as e:
+        logger.warning("Could not log welcome wish MarketingCampaignLog: %s", e)
+
+    return {
+        "success": res.get('success', False),
+        "status": status,
+        "phone": norm_phone,
+        "customer_name": cust_name,
+        "error": res.get('error')
+    }
+
+
+def _dispatch_customer_welcome_worker(customer_id: int, user_id: int = None):
+    """Background worker entry point."""
+    import os
+    os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
+    from accounts.models import Customer
+    from django.contrib.auth import get_user_model
+
+    try:
+        customer = Customer.objects.select_related('branch', 'branch__organization').get(id=customer_id)
+    except Exception as e:
+        logger.error(f"Customer #{customer_id} not found for background welcome dispatch: {e}")
+        return
+
+    user = None
+    if user_id:
+        User = get_user_model()
+        try:
+            user = User.objects.get(id=user_id)
+        except Exception:
+            pass
+
+    try:
+        result = send_single_customer_welcome_automated(customer=customer, user=user, headless=True)
+        logger.info(f"Background Welcome Wish result for customer #{customer_id} ({customer.full_name}): {result}")
+    except Exception as e:
+        logger.exception(f"Exception during background welcome wish dispatch for customer #{customer_id}: {e}")
+
+
+def send_customer_welcome_whatsapp_async(customer_id: int, user_id: int = None):
+    """Spawns an asynchronous background worker thread to dispatch welcome message."""
+    t = threading.Thread(
+        target=_dispatch_customer_welcome_worker,
+        args=(customer_id, user_id),
+        daemon=True,
+        name=f"welcome-wish-{customer_id}"
+    )
+    t.start()
+    return t
+
+
+# ---------------------------------------------------------------------------
+# Automated Gold Loan Customer Identity OTP Dispatches
+# ---------------------------------------------------------------------------
+
+def send_single_loan_otp_automated(loan, user=None, headless: bool = True) -> dict:
+    """
+    Dispatches a 6-digit customer verification OTP WhatsApp message for a newly initiated loan application
+    and logs the transaction in MarketingCampaignLog.
+    """
+    from transactions.models import MarketingCampaignLog
+    from transactions.services_whatsapp import normalize_phone_number
+
+    customer = getattr(loan, 'customer', None)
+    raw_phone = getattr(customer, 'phone', '') or ''
+    norm_phone = normalize_phone_number(raw_phone)
+    cust_name = getattr(customer, 'full_name', '') or (str(customer) if customer else 'Customer')
+    branch = getattr(loan, 'branch', None) or (getattr(customer, 'branch', None) if customer else None)
+    loan_num = getattr(loan, 'loan_number', 'N/A')
+
+    if not norm_phone:
+        err_msg = f"Skipped: Customer '{cust_name}' does not have a valid WhatsApp mobile number ({raw_phone})"
+        logger.warning(err_msg)
+        try:
+            MarketingCampaignLog.objects.create(
+                template_key='loan_creation_otp',
+                campaign_name=f"Loan #{loan_num} Customer Verification OTP",
+                recipient_name=cust_name,
+                recipient_phone=raw_phone or 'N/A',
+                recipient_type='customer',
+                branch=branch,
+                channel='whatsapp_web',
+                status='failed',
+                message_snippet=err_msg,
+                sent_by=user
+            )
+        except Exception as e:
+            logger.warning("Could not create MarketingCampaignLog for skipped OTP: %s", e)
+        return {"success": False, "status": "skipped", "error": err_msg}
+
+    otp_msg = loan.build_otp_whatsapp_message(lang='ta')
+
+    if not is_whatsapp_paired():
+        err_msg = "Skipped: WhatsApp Web session is not paired / connected on server"
+        logger.warning(err_msg)
+        try:
+            MarketingCampaignLog.objects.create(
+                template_key='loan_creation_otp',
+                campaign_name=f"Loan #{loan_num} Customer Verification OTP",
+                recipient_name=cust_name,
+                recipient_phone=norm_phone,
+                recipient_type='customer',
+                branch=branch,
+                channel='whatsapp_web',
+                status='failed',
+                message_snippet=f"{err_msg}. OTP Code: {loan.otp_code}",
+                sent_by=user
+            )
+        except Exception as e:
+            logger.warning("Could not create MarketingCampaignLog for offline OTP: %s", e)
+        return {"success": False, "status": "offline", "error": err_msg, "otp_code": loan.otp_code}
+
+    # Dispatch via headless Playwright worker
+    res = send_whatsapp_message_headless(phone=norm_phone, message=otp_msg, headless=headless)
+    
+    if res.get('success'):
+        status = 'sent'
+        snippet = f"OTP {loan.otp_code} sent successfully for Loan #{loan_num}"
+    else:
+        status = 'failed'
+        snippet = f"Failed: {res.get('error', 'Unknown WhatsApp dispatch error')}"
+
+    try:
+        MarketingCampaignLog.objects.create(
+            template_key='loan_creation_otp',
+            campaign_name=f"Loan #{loan_num} Customer Verification OTP",
+            recipient_name=cust_name,
+            recipient_phone=norm_phone,
+            recipient_type='customer',
+            branch=branch,
+            channel='whatsapp_web',
+            status=status,
+            message_snippet=snippet,
+            sent_by=user
+        )
+    except Exception as e:
+        logger.warning("Could not log loan OTP MarketingCampaignLog: %s", e)
+
+    return {
+        "success": res.get('success', False),
+        "status": status,
+        "phone": norm_phone,
+        "loan_number": loan_num,
+        "otp_code": loan.otp_code,
+        "customer_name": cust_name,
+        "error": res.get('error')
+    }
+
+
+def _dispatch_loan_otp_worker(loan_id: int, user_id: int = None):
+    """Background worker entry point for loan OTP dispatch."""
+    import os
+    os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
+    from transactions.models import Loan
+    from django.contrib.auth import get_user_model
+
+    try:
+        loan = Loan.objects.select_related('customer', 'branch', 'branch__organization').get(id=loan_id)
+    except Exception as e:
+        logger.error(f"Loan #{loan_id} not found for background OTP dispatch: {e}")
+        return
+
+    user = None
+    if user_id:
+        User = get_user_model()
+        try:
+            user = User.objects.get(id=user_id)
+        except Exception:
+            pass
+
+    try:
+        result = send_single_loan_otp_automated(loan=loan, user=user, headless=True)
+        logger.info(f"Background OTP result for Loan #{loan.loan_number} ({loan.customer.full_name}): {result}")
+    except Exception as e:
+        logger.exception(f"Exception during background OTP dispatch for Loan #{loan_id}: {e}")
+
+
+def send_loan_otp_whatsapp_async(loan_id: int, user_id: int = None):
+    """Spawns an asynchronous background worker thread to dispatch customer OTP message."""
+    t = threading.Thread(
+        target=_dispatch_loan_otp_worker,
+        args=(loan_id, user_id),
+        daemon=True,
+        name=f"loan-otp-{loan_id}"
+    )
+    t.start()
+    return t
+
+
 def send_batch_retention_promos_automated(
     promo_items: list,
     delay_between_seconds: int = 3,
@@ -760,6 +1078,237 @@ def send_batch_retention_promos_automated(
 
         except Exception as e:
             logger.exception("Batch retention promo automated WhatsApp dispatch encountered an exception: %s", e)
+            results["error"] = str(e)
+        finally:
+            if context:
+                try:
+                    context.close()
+                except Exception:
+                    pass
+            clean_stale_locks()
+
+    return results
+
+
+def send_batch_special_wishes_automated(
+    wish_items: list,
+    delay_between_seconds: int = 3,
+    headless: bool = True,
+    user=None
+) -> dict:
+    """
+    Dispatches automated WhatsApp Birthday & Wedding Anniversary greetings in a single persistent browser session.
+    Logs successful dispatches to MarketingCampaignLog and prevents duplicate wishes.
+    """
+    from playwright.sync_api import sync_playwright
+    import urllib.parse
+    from transactions.models import MarketingCampaignLog
+
+    results = {
+        "total": len(wish_items),
+        "sent": 0,
+        "failed": 0,
+        "details": [],
+    }
+
+    if not wish_items:
+        return results
+
+    if not is_whatsapp_paired():
+        results["error"] = "WhatsApp Web session is not paired. Please pair WhatsApp Web from Digital Marketing/Autopilot page first."
+        for item in wish_items:
+            results["failed"] += 1
+            results["details"].append({
+                "customer": item.get('name', 'Customer'),
+                "phone": item.get('phone', ''),
+                "occasion": item.get('occasion_type', 'greeting'),
+                "status": "FAILED",
+                "error": "WhatsApp session not paired"
+            })
+        return results
+
+    clean_stale_locks()
+    with sync_playwright() as p:
+        context = None
+        try:
+            context = p.chromium.launch_persistent_context(
+                **get_launch_context_options(headless=headless)
+            )
+            page = context.pages[0] if context.pages else context.new_page()
+
+            # Pre-warm WhatsApp Web
+            page.goto("https://web.whatsapp.com/", timeout=45000)
+            time.sleep(5)
+
+            for item in wish_items:
+                cust = item.get('customer')
+                cust_name = item.get('name') or (getattr(cust, 'first_name', '') if cust else 'Valued Customer')
+                raw_phone = item.get('phone') or ''
+                phone_clean = clean_phone_number(raw_phone)
+                wish_text = item.get('message', '')
+                occasion_type = item.get('occasion_type', 'birthday')
+                campaign_name = item.get('campaign_name') or ('Birthday Wishes (Autopilot)' if occasion_type == 'birthday' else 'Wedding Anniversary Wishes (Autopilot)')
+                template_key = 'birthday_wishes' if occasion_type == 'birthday' else 'anniversary_wishes'
+
+                if not phone_clean or len(phone_clean) < 10:
+                    results["failed"] += 1
+                    err_msg = f"Invalid phone number: '{raw_phone}'"
+                    results["details"].append({
+                        "customer": cust_name,
+                        "phone": raw_phone,
+                        "occasion": occasion_type,
+                        "status": "FAILED",
+                        "error": err_msg,
+                    })
+                    try:
+                        MarketingCampaignLog.objects.create(
+                            template_key=template_key,
+                            campaign_name=campaign_name,
+                            recipient_name=cust_name,
+                            recipient_phone=raw_phone,
+                            recipient_type='customer',
+                            channel='whatsapp_blast',
+                            status='failed',
+                            message_snippet=wish_text[:300],
+                            sent_by=user if (user and getattr(user, 'is_authenticated', False)) else None
+                        )
+                    except Exception:
+                        pass
+                    continue
+
+                encoded_msg = urllib.parse.quote(wish_text)
+                send_url = f"https://web.whatsapp.com/send?phone={phone_clean}&text={encoded_msg}"
+
+                try:
+                    page.goto(send_url, timeout=35000)
+                    time.sleep(3)
+
+                    # Check for invalid number popup
+                    if page.locator("text=Phone number shared via url is invalid").is_visible() or page.locator("text=URL is invalid").is_visible():
+                        results["failed"] += 1
+                        err_msg = f"Phone number +{phone_clean} is not registered on WhatsApp"
+                        results["details"].append({
+                            "customer": cust_name,
+                            "phone": phone_clean,
+                            "occasion": occasion_type,
+                            "status": "FAILED",
+                            "error": err_msg,
+                        })
+                        try:
+                            MarketingCampaignLog.objects.create(
+                                template_key=template_key,
+                                campaign_name=campaign_name,
+                                recipient_name=cust_name,
+                                recipient_phone=phone_clean,
+                                recipient_type='customer',
+                                channel='whatsapp_blast',
+                                status='failed',
+                                message_snippet=wish_text[:300],
+                                sent_by=user if (user and getattr(user, 'is_authenticated', False)) else None
+                            )
+                        except Exception:
+                            pass
+
+                        try:
+                            ok_btn = page.locator('button:has-text("OK"), div[role="button"]:has-text("OK")').first
+                            if ok_btn.is_visible():
+                                ok_btn.click()
+                        except Exception:
+                            pass
+                        continue
+
+                    # Look for Send button or composer
+                    send_btn = page.locator('button[aria-label="Send"], button[aria-label="Send message"], span[data-icon="send"], span[data-icon="send-light"], button span[data-icon="send"], button[data-tab="11"]').first
+                    sent_success = False
+
+                    try:
+                        send_btn.wait_for(state="visible", timeout=12000)
+                        send_btn.click()
+                        sent_success = True
+                    except Exception:
+                        composer = page.locator('footer div[contenteditable="true"], div[role="textbox"][contenteditable="true"], div[contenteditable="true"][data-tab="10"], div[contenteditable="true"][data-tab="6"]').first
+                        if composer.is_visible():
+                            composer.focus()
+                            composer.press("Enter")
+                            sent_success = True
+
+                    if sent_success:
+                        time.sleep(delay_between_seconds)
+
+                        try:
+                            MarketingCampaignLog.objects.create(
+                                template_key=template_key,
+                                campaign_name=campaign_name,
+                                recipient_name=cust_name,
+                                recipient_phone=phone_clean,
+                                recipient_type='customer',
+                                channel='whatsapp_blast',
+                                status='sent',
+                                message_snippet=wish_text[:300],
+                                sent_by=user if (user and getattr(user, 'is_authenticated', False)) else None
+                            )
+                        except Exception as log_err:
+                            logger.warning("Could not create MarketingCampaignLog for wish: %s", log_err)
+
+                        results["sent"] += 1
+                        results["details"].append({
+                            "customer": cust_name,
+                            "phone": phone_clean,
+                            "occasion": occasion_type,
+                            "status": "SENT",
+                        })
+                    else:
+                        results["failed"] += 1
+                        err_msg = "Send button / chat composer not found or timed out"
+                        results["details"].append({
+                            "customer": cust_name,
+                            "phone": phone_clean,
+                            "occasion": occasion_type,
+                            "status": "FAILED",
+                            "error": err_msg,
+                        })
+                        try:
+                            MarketingCampaignLog.objects.create(
+                                template_key=template_key,
+                                campaign_name=campaign_name,
+                                recipient_name=cust_name,
+                                recipient_phone=phone_clean,
+                                recipient_type='customer',
+                                channel='whatsapp_blast',
+                                status='failed',
+                                message_snippet=wish_text[:300],
+                                sent_by=user if (user and getattr(user, 'is_authenticated', False)) else None
+                            )
+                        except Exception:
+                            pass
+
+                except Exception as ex:
+                    results["failed"] += 1
+                    err_msg = str(ex)
+                    results["details"].append({
+                        "customer": cust_name,
+                        "phone": phone_clean,
+                        "occasion": occasion_type,
+                        "status": "FAILED",
+                        "error": err_msg,
+                    })
+                    try:
+                        MarketingCampaignLog.objects.create(
+                            template_key=template_key,
+                            campaign_name=campaign_name,
+                            recipient_name=cust_name,
+                            recipient_phone=phone_clean,
+                            recipient_type='customer',
+                            channel='whatsapp_blast',
+                            status='failed',
+                            message_snippet=wish_text[:300],
+                            sent_by=user if (user and getattr(user, 'is_authenticated', False)) else None
+                        )
+                    except Exception:
+                        pass
+
+        except Exception as e:
+            logger.exception("Batch special wishes automated WhatsApp dispatch encountered an exception: %s", e)
             results["error"] = str(e)
         finally:
             if context:

@@ -53,6 +53,7 @@ urlpatterns = [
     path('customers/', views.CustomerListView.as_view(), name='customer_list'),
     path('customers/add/', views.CustomerCreateView.as_view(), name='customer_create'),
     path('customers/<int:pk>/', views.CustomerDetailView.as_view(), name='customer_detail'),
+    path('customers/<int:pk>/resend-welcome/', views.CustomerResendWelcomeWishView.as_view(), name='customer_resend_welcome_wish'),
     path('customers/<int:pk>/edit/', views.CustomerUpdateView.as_view(), name='customer_update'),
     path('customers/<int:pk>/delete/', views.CustomerDeleteView.as_view(), name='customer_delete'),
     path('customer/<int:pk>/json/', views.CustomerJsonView.as_view(), name='customer_json'),

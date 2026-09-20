@@ -207,6 +207,56 @@ MARKETING_TEMPLATES = {
             "எத்தனை பேரை வேண்டுமானாலும் அறிமுகம் செய்து வரம்பற்ற பரிசுகளை வெல்லுங்கள்! 🚀\n\n"
             "🏢 கிளை: *{branch_name}* | 📞 *{branch_phone}*"
         ),
+    },
+    'birthday_wishes': {
+        'title_en': '🎂 Customer Birthday Greetings',
+        'title_ta': '🎂 வாடிக்கையாளர் பிறந்தநாள் வாழ்த்துகள்',
+        'category': 'Greetings',
+        'badge': 'Special Date',
+        'body_en': (
+            "🎂 *HAPPY BIRTHDAY FROM {organization_name}!* 🎂\n\n"
+            "Dear *{customer_name}*,\n"
+            "Wishing you a wonderful Birthday filled with joy, prosperity, and great success! 🌟\n\n"
+            "As a token of our appreciation, enjoy exclusive priority service & special festive rates on your next visit to *{branch_name}*.\n\n"
+            "Have a fantastic day ahead! 🎉\n"
+            "Warm regards,\n"
+            "*{organization_name} Family*\n"
+            "📞 *{branch_phone}*"
+        ),
+        'body_ta': (
+            "🎂 *இனிய பிறந்தநாள் நல்வாழ்த்துகள் - {organization_name}!* 🎂\n\n"
+            "அன்பார்ந்த *{customer_name}*,\n"
+            "உங்கள் பிறந்தநாளில் நீங்கள் எல்லா நலமும், வளமும், நீடித்த ஆரோக்கியமும் பெற்று மகிழ்ச்சியுடன் வாழ {organization_name} சார்பாக மனமார்ந்த பிறந்தநாள் நல்வாழ்த்துகள்! 🌟\n\n"
+            "எங்களின் மதிப்புமிக்க வாடிக்கையாளரான உங்களுக்கு சிறப்பு முன்னுரிமை சேவை வழங்க நாங்கள் எப்போதும் கடமைப்பட்டுள்ளோம்.\n\n"
+            "அன்புடன்,\n"
+            "*{organization_name} குழுமம்*\n"
+            "🏢 கிளை: *{branch_name}* | 📞 *{branch_phone}*"
+        ),
+    },
+    'anniversary_wishes': {
+        'title_en': '💍 Wedding Anniversary Greetings',
+        'title_ta': '💍 திருமண நாள் நல்வாழ்த்துகள்',
+        'category': 'Greetings',
+        'badge': 'Special Date',
+        'body_en': (
+            "💍 *HAPPY WEDDING ANNIVERSARY FROM {organization_name}!* 💍\n\n"
+            "Dear *{customer_name}*,\n"
+            "Heartiest congratulations to you both on your Wedding Anniversary! May your bond grow stronger and more joyful each passing year. ✨\n\n"
+            "Thank you for being a cherished part of our {organization_name} family.\n\n"
+            "Wishing you many more years of togetherness & happiness! 💐\n"
+            "Warm regards,\n"
+            "*{organization_name}*\n"
+            "📞 *{branch_phone}*"
+        ),
+        'body_ta': (
+            "💍 *இனிய திருமண நாள் நல்வாழ்த்துகள் - {organization_name}!* 💍\n\n"
+            "அன்பார்ந்த *{customer_name}*,\n"
+            "உங்கள் திருமண திருநாளில் அன்பும் அமைதியும் ஆனந்தமும் நிறைந்து பல்லாண்டு காலம் வாழ {organization_name} சார்பாக உளமார்ந்த நல்வாழ்த்துகள்! ✨\n\n"
+            "எங்கள் {organization_name} குடும்பத்தின் சிறப்பு வாடிக்கையாளராக திகழ்வதற்கு மனமார்ந்த நன்றிகள்.\n\n"
+            "அன்புடன்,\n"
+            "*{organization_name} குழுமம்*\n"
+            "🏢 கிளை: *{branch_name}* | 📞 *{branch_phone}*"
+        ),
     }
 }
 
@@ -313,6 +363,10 @@ def get_segmented_audience(segment_type='all', branch_id=None, group_id=None, or
         # Borrowers with loan amount >= 100000
         high_val_cust_ids = Loan.objects.filter(principal_amount__gte=100000).values_list('customer_id', flat=True).distinct()
         qs = qs.filter(id__in=high_val_cust_ids)
+    elif segment_type in ('birthday', 'today_birthdays', 'birthdays'):
+        qs = qs.filter(date_of_birth__month=today.month, date_of_birth__day=today.day)
+    elif segment_type in ('anniversary', 'today_anniversaries', 'anniversaries'):
+        qs = qs.filter(anniversary_date__month=today.month, anniversary_date__day=today.day)
 
     audience = []
     for c in qs:

@@ -680,10 +680,10 @@ class CustomerListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin,
             queryset = queryset.filter(branch__organization=user.organization)
         
         # Tab / Type segmentation
-        # 'loan' / 'loan_customers' -> Customers who have taken gold loans
+        # 'loan' / 'loan_customers' -> Customers who have taken gold loans (default selection)
         # 'used_gold' / 'used_gold_customers' -> Customers who sold old/used gold to the pawnshop
         # 'all' -> All registered customers
-        customer_type = self.request.GET.get('type') or self.request.GET.get('tab') or 'all'
+        customer_type = self.request.GET.get('type') or self.request.GET.get('tab') or 'loan'
         if customer_type in ['loan', 'loan_customers', 'loans']:
             queryset = queryset.filter(loans__isnull=False).distinct()
         elif customer_type in ['used_gold', 'used_gold_customers', 'gold_sale', 'gold_purchase']:
@@ -1070,7 +1070,7 @@ class CustomerListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin,
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        customer_type = self.request.GET.get('type') or self.request.GET.get('tab') or 'all'
+        customer_type = self.request.GET.get('type') or self.request.GET.get('tab') or 'loan'
         context['current_tab'] = customer_type
         context['search_query'] = self.request.GET.get('search', '')
         context['filter'] = self.request.GET.get('filter', '')
@@ -1171,8 +1171,24 @@ class CustomerCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView
         # Set created_by to current user
         form.instance.created_by = self.request.user
         
-        messages.success(self.request, f'Customer {form.instance.full_name} has been created successfully!')
-        return super().form_valid(form)
+        response = super().form_valid(form)
+
+        # Trigger automated background WhatsApp welcome wish
+        try:
+            from transactions.services_whatsapp_automator import send_customer_welcome_whatsapp_async
+            send_customer_welcome_whatsapp_async(self.object.id, user_id=self.request.user.id)
+            messages.success(
+                self.request,
+                f"Customer {self.object.full_name} created successfully! 📲 Automated WhatsApp welcome wish is being dispatched in the background."
+            )
+        except Exception as e:
+            logger.warning("Could not spawn welcome WhatsApp worker: %s", e)
+            messages.success(self.request, f"Customer {self.object.full_name} has been created successfully!")
+
+        return response
+    
+    def get_success_url(self):
+        return reverse('customer_detail', kwargs={'pk': self.object.pk})
     
     def get_form_kwargs(self):
         """Add user context to form"""
@@ -1294,8 +1310,52 @@ class CustomerDetailView(LoginRequiredMixin, RoleBranchAccessMixin, PermissionRe
                 expiry_notices.append(loan)
 
         context['expiry_notices'] = expiry_notices
+
+        # WhatsApp Welcome Wish status & direct fallback link
+        from transactions.models import MarketingCampaignLog
+        from transactions.services_whatsapp import get_whatsapp_link, normalize_phone_number
+        from transactions.services_whatsapp_automator import build_customer_welcome_whatsapp_message, is_whatsapp_paired
+
+        raw_phone = getattr(customer, 'phone', '') or ''
+        norm_phone = normalize_phone_number(raw_phone)
+        phone_variants = [raw_phone]
+        if norm_phone:
+            phone_variants.append(norm_phone)
+            phone_variants.append(norm_phone.replace('+', ''))
+
+        welcome_log = MarketingCampaignLog.objects.filter(
+            recipient_phone__in=phone_variants,
+            template_key='welcome_new_customer'
+        ).order_by('-created_at').first()
+
+        context['welcome_log'] = welcome_log
+        context['is_whatsapp_paired'] = is_whatsapp_paired()
+        welcome_msg = build_customer_welcome_whatsapp_message(customer, lang='ta')
+        context['welcome_msg_text'] = welcome_msg
+        context['welcome_whatsapp_link'] = get_whatsapp_link(raw_phone, welcome_msg)
         
         return context
+
+
+class CustomerResendWelcomeWishView(LoginRequiredMixin, RoleBranchAccessMixin, View):
+    """
+    1-Click manual trigger or re-send of the automated WhatsApp Welcome Wish.
+    """
+    def post(self, request, pk, *args, **kwargs):
+        from accounts.models import Customer
+        from transactions.services_whatsapp_automator import send_single_customer_welcome_automated
+
+        customer = get_object_or_404(Customer, pk=pk)
+        self.check_object_branch_access(customer, branch_attr='branch')
+
+        result = send_single_customer_welcome_automated(customer=customer, user=request.user, headless=True)
+        if result.get('success'):
+            messages.success(request, f"✅ Welcome wish sent successfully via WhatsApp to {customer.full_name} (+{result.get('phone')})!")
+        else:
+            err = result.get('error') or result.get('status')
+            messages.warning(request, f"⚠️ Welcome wish could not be sent: {err}")
+
+        return redirect('customer_detail', pk=customer.pk)
 
 
 class CustomerUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
