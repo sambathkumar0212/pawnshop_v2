@@ -1,20 +1,30 @@
-﻿# Pawnshop Management System
+# Pawnshop Management System
 
 A comprehensive Django-based management system for pawn shops with multiple branches, biometric authentication, and extensive reporting capabilities.
 
 [![Run Project (Windows)](https://img.shields.io/badge/Run_Project-Windows_BAT-0078D4?logo=windows&logoColor=white)](./run_project.bat)
 
-## Features
+## Features & Recent Enhancements
 
-- **Multi-User Access**: Role-based permissions system with different access levels
-- **Branch Management**: Track operations across multiple physical locations
-- **Inventory Management**: Comprehensive item tracking with appraisal system
-- **Loan Processing**: Complete pawn loan life-cycle management
-- **Sales Management**: Item sales tracking and reporting
-- **Customer Management**: Customer database with biometric identification
-- **Biometric Authentication**: Facial recognition for staff and customers
-- **Reporting & Analytics**: Customizable reports and interactive dashboards
-- **External Integrations**: Connect with POS, accounting, and CRM systems
+### 🛡️ 1. Risk Management & Maker-Checker Governance
+- **Tiered Maker-Checker Approvals**: 3-level approval governance (Tier 1 &le; ₹2L [BM], Tier 2 ₹2L-₹10L [BM + RO], Tier 3 > ₹10L [BM + RO + Head Office Credit Committee]).
+- **Customer OTP Verification**: Mandatory 6-digit cryptographic OTP verification via WhatsApp on loan creation before manager approval can be granted.
+- **Controlled Disbursal (IT Sec 269SS/269T)**: Money disbursement locked until manager approval; strict statutory cash limit enforcement (< ₹20,000 in Cash; mandatory Bank Transfer/UPI/Cheque for &ge; ₹20,000).
+- **RBI IRAC NPA Tagging & EOD Console**: Automated asset classification (Standard, SMA-0, SMA-1, SMA-2, NPA Substandard/Doubtful/Loss) with daily interest accrual and provisioning calculations.
+
+### 🤖 2. 24/7 Autopilot Automation & WhatsApp Communication Engine
+- **24/7 Autopilot Background Engine**: Automatic surveillance running scheduled cycles for overdue collections, payment reminders, and retention alerts.
+- **Headless In-Modal WhatsApp QR Streaming**: Pair WhatsApp Web seamlessly with real-time base64 QR stream directly inside the modal with zero popup windows.
+- **Automated Customer Welcome Wishes**: Instant bilingual WhatsApp welcome message sent upon customer registration with live delivery diagnostics.
+- **Special Occasion Celebration Engine**: Proactive automated Birthday (🎂) & Wedding Anniversary (💍) WhatsApp wishes dispatch with duplicate suppression.
+- **Digital Marketing Auto-Blaster**: Headless bulk broadcasts with smart tags (`{customer_name}`, `{gold_rate}`, `{branch_name}`), invalid/dummy number auto-skipping, and pause/resume/stop campaign controls.
+
+### 💎 3. Gold Loan & Pawnshop Core Operations
+- **Partial Ornament Release**: Item-level collateral release workflow with real-time valuation recalculation and bilingual PDF release vouchers.
+- **Gold Purchase Module**: Spot cash gold purchasing with karat testing valuation, biometric KYC, and instant receipts.
+- **Bilingual Bills (Tamil / English)**: Dynamic bilingual PDF bill generation for pawn agreements, receipts, and closure certificates with translation caching.
+- **Branch Cash Till & Double-Entry Accounting**: Real-time cash till tracking, daily drawer reconciliation, physical cash count auditing, and automated GL entries.
+- **High-Density Customer Directory**: Optimized customer records layout with Gold Loan Customer default filtering and compact quick-action drawers.
 
 ## Requirements
 
