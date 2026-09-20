@@ -448,6 +448,53 @@ class GoldPurchaseDetailView(LoginRequiredMixin, RoleBranchAccessMixin, DetailVi
         return context
 
 
+class GoldPurchaseDeleteView(LoginRequiredMixin, RoleBranchAccessMixin, View):
+    """
+    Deletes or voids a Used Gold Purchase voucher, reverting associated inventory items and journal entries.
+    """
+    def get(self, request, pk):
+        purchase = get_object_or_404(GoldPurchase, pk=pk)
+        return render(request, 'transactions/gold_purchase_confirm_delete.html', {
+            'purchase': purchase,
+            'next_url': request.GET.get('next', '')
+        })
+
+    def post(self, request, pk):
+        purchase = get_object_or_404(GoldPurchase, pk=pk)
+        purchase_no = purchase.purchase_number
+        cust_id = purchase.customer.id if purchase.customer else None
+        next_destination = request.POST.get('next', request.GET.get('next', ''))
+
+        with transaction.atomic():
+            # 1. Delete associated inventory items created during purchase
+            for itm in purchase.items.all():
+                if itm.inventory_item:
+                    try:
+                        itm.inventory_item.delete()
+                    except Exception:
+                        pass
+            try:
+                Item.objects.filter(item_id__startswith=f"BUY-{purchase.id}-").delete()
+            except Exception:
+                pass
+
+            # 2. Delete associated double-entry journal entries
+            try:
+                from accounting.models import JournalEntry
+                JournalEntry.objects.filter(reference_id=f"BUY-{purchase.id}").delete()
+            except Exception:
+                pass
+
+            # 3. Delete GoldPurchase record (cascades to GoldPurchaseItem)
+            purchase.delete()
+
+        messages.success(request, f"Used Gold Purchase #{purchase_no} has been deleted successfully.")
+        
+        if next_destination == 'customer' and cust_id:
+            return redirect('customer_detail', pk=cust_id)
+        return redirect('gold_purchase_list')
+
+
 class GoldPurchaseReceiptPDFView(LoginRequiredMixin, View):
     """
     Generates printable PDF receipt / Purchase Voucher for a Gold Purchase transaction.

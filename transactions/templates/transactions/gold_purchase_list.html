@@ -214,6 +214,9 @@
                                 <a href="{% url 'gold_purchase_receipt' p.pk %}" class="btn btn-outline-secondary" title="Download Purchase Voucher (PDF)" download>
                                     <i class="fas fa-download"></i>
                                 </a>
+                                <a href="{% url 'gold_purchase_delete' p.pk %}" class="btn btn-outline-danger" title="Delete Purchase Voucher">
+                                    <i class="fas fa-trash"></i>
+                                </a>
                             </div>
                         </td>
                     </tr>

@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Delete Gold Purchase Voucher #{{ purchase.purchase_number }} - Pawnshop Management{% endblock %}
+{% block gold_purchase_active %}active{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+            <div class="card shadow border-danger">
+                <div class="card-header bg-danger text-white d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Delete Used Gold Purchase Voucher
+                    </h5>
+                    <span class="badge bg-white text-danger font-monospace fw-bold">{{ purchase.purchase_number }}</span>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-danger border-danger shadow-sm d-flex align-items-start gap-2 mb-3">
+                        <i class="fas fa-exclamation-circle text-danger fs-5 mt-1"></i>
+                        <div>
+                            <strong>Permanent Deletion Warning:</strong>
+                            <div class="small">This action cannot be undone. Deleting this Used Gold Purchase will remove the purchase record, its items, and reverse the associated inventory entries &amp; accounting journal.</div>
+                        </div>
+                    </div>
+
+                    <p class="mb-3 fw-semibold text-secondary">Are you sure you want to delete this Used Gold Purchase transaction?</p>
+
+                    <div class="card bg-light border mb-4">
+                        <div class="card-body">
+                            <div class="row mb-2">
+                                <div class="col-sm-4 fw-bold text-muted">Purchase Voucher:</div>
+                                <div class="col-sm-8 font-monospace fw-bold text-dark">{{ purchase.purchase_number }}</div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-sm-4 fw-bold text-muted">Customer:</div>
+                                <div class="col-sm-8 fw-semibold text-primary">
+                                    {% if purchase.customer %}
+                                        <a href="{% url 'customer_detail' purchase.customer.id %}" class="text-decoration-none">
+                                            {{ purchase.customer.full_name }}
+                                        </a>
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-sm-4 fw-bold text-muted">Purchase Date:</div>
+                                <div class="col-sm-8">{{ purchase.purchase_date|date:"d M Y" }}</div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-sm-4 fw-bold text-muted">Gold Items:</div>
+                                <div class="col-sm-8">{{ purchase.items.count }} item(s) ({{ purchase.total_net_weight|floatformat:3 }} g net wt.)</div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-sm-4 fw-bold text-muted">Payout Amount:</div>
+                                <div class="col-sm-8 font-monospace fw-bold text-success fs-6">₹{{ purchase.net_payable_amount|floatformat:2|intcomma }}</div>
+                            </div>
+                            <div class="row">
+                                <div class="col-sm-4 fw-bold text-muted">Payment Mode:</div>
+                                <div class="col-sm-8"><span class="badge bg-light text-dark border text-uppercase">{{ purchase.payment_method|default:"Cash" }}</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        {% if next_url %}
+                            <input type="hidden" name="next" value="{{ next_url }}">
+                        {% endif %}
+                        <div class="d-flex justify-content-end gap-2">
+                            {% if next_url == 'customer' and purchase.customer %}
+                                <a href="{% url 'customer_detail' purchase.customer.id %}" class="btn btn-secondary">
+                                    <i class="fas fa-arrow-left me-1"></i> Cancel
+                                </a>
+                            {% else %}
+                                <a href="{% url 'gold_purchase_detail' purchase.pk %}" class="btn btn-secondary">
+                                    <i class="fas fa-arrow-left me-1"></i> Cancel
+                                </a>
+                            {% endif %}
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash me-1"></i> Confirm Delete Purchase
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

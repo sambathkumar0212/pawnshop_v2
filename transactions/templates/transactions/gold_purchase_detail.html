@@ -29,15 +29,18 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-6 text-md-end mt-3 mt-md-0 d-flex gap-2 justify-content-md-end">
+        <div class="col-md-6 text-md-end mt-3 mt-md-0 d-flex gap-2 justify-content-md-end flex-wrap">
             <a href="{% url 'gold_purchase_receipt' purchase.pk %}" class="btn btn-primary fw-bold" download>
-                <i class="fas fa-download me-1"></i> Download Purchase Voucher (PDF)
+                <i class="fas fa-download me-1"></i> Voucher (PDF)
             </a>
             <a href="{% url 'gold_purchase_create' %}" class="btn btn-warning text-dark fw-bold">
                 <i class="fas fa-plus me-1"></i> New Purchase
             </a>
+            <a href="{% url 'gold_purchase_delete' purchase.pk %}" class="btn btn-outline-danger" title="Delete this Used Gold Purchase">
+                <i class="fas fa-trash me-1"></i> Delete
+            </a>
             <a href="{% url 'gold_purchase_list' %}" class="btn btn-outline-secondary">
-                <i class="fas fa-arrow-left me-1"></i> Back to List
+                <i class="fas fa-arrow-left me-1"></i> Back
             </a>
         </div>
     </div>

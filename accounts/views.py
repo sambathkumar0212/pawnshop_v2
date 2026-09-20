@@ -1415,6 +1415,7 @@ class CustomerDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['linked_loans'] = self.object.loans.all().order_by('-created_at')
+        context['linked_purchases'] = self.object.gold_purchases.all().order_by('-purchase_date')
         return context
 
     def post(self, request, *args, **kwargs):
@@ -1423,12 +1424,29 @@ class CustomerDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView
             return super().post(request, *args, **kwargs)
         except ProtectedError:
             loan_numbers = list(self.object.loans.values_list('loan_number', flat=True))
-            loan_list = ', '.join(loan_numbers[:5])
-            if len(loan_numbers) > 5:
-                loan_list += ', ...'
+            purchase_numbers = list(self.object.gold_purchases.values_list('purchase_number', flat=True))
+            
+            reasons = []
+            if loan_numbers:
+                loan_list = ', '.join(loan_numbers[:5])
+                if len(loan_numbers) > 5:
+                    loan_list += ', ...'
+                reasons.append(f"Linked Loans: {loan_list}")
+                
+            if purchase_numbers:
+                gp_list = ', '.join(purchase_numbers[:5])
+                if len(purchase_numbers) > 5:
+                    gp_list += ', ...'
+                reasons.append(f"Used Gold Sales: {gp_list}")
+
+            if not reasons:
+                reasons_str = "Linked active records exist in system."
+            else:
+                reasons_str = " | ".join(reasons)
+
             messages.error(
                 request,
-                f'Customer cannot be deleted because linked loans exist: {loan_list}'
+                f'Customer cannot be deleted because linked records exist: {reasons_str}'
             )
             return redirect('customer_detail', pk=self.object.pk)
 

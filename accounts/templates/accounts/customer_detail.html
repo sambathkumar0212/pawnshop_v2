@@ -544,8 +544,11 @@
                                             <a href="{% url 'gold_purchase_detail' gp.pk %}" class="btn btn-sm py-1 px-2 border-end text-secondary" title="View Purchase Details">
                                                 <i class="fas fa-eye fa-xs"></i>
                                             </a>
-                                            <a href="{% url 'gold_purchase_receipt' gp.pk %}" target="_blank" class="btn btn-sm py-1 px-2 text-danger" title="Download Official Receipt (PDF)">
+                                            <a href="{% url 'gold_purchase_receipt' gp.pk %}" target="_blank" class="btn btn-sm py-1 px-2 border-end text-danger" title="Download Official Receipt (PDF)">
                                                 <i class="fas fa-file-pdf fa-xs"></i>
+                                            </a>
+                                            <a href="{% url 'gold_purchase_delete' gp.pk %}?next=customer" class="btn btn-sm py-1 px-2 text-danger" title="Delete Used Gold Sale Record">
+                                                <i class="fas fa-trash fa-xs"></i>
                                             </a>
                                         </div>
                                     </td>

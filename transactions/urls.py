@@ -75,6 +75,7 @@ urlpatterns = [
     path('gold-purchases/', views_gold_purchase.GoldPurchaseListView.as_view(), name='gold_purchase_list'),
     path('gold-purchases/add/', views_gold_purchase.GoldPurchaseCreateView.as_view(), name='gold_purchase_create'),
     path('gold-purchases/<int:pk>/', views_gold_purchase.GoldPurchaseDetailView.as_view(), name='gold_purchase_detail'),
+    path('gold-purchases/<int:pk>/delete/', views_gold_purchase.GoldPurchaseDeleteView.as_view(), name='gold_purchase_delete'),
     path('gold-purchases/<int:pk>/receipt/', views_gold_purchase.GoldPurchaseReceiptPDFView.as_view(), name='gold_purchase_receipt'),
 
     # Digital Marketing & WhatsApp Broadcast Campaign Hub

@@ -8,7 +8,7 @@ from django.http import Http404, HttpResponse, JsonResponse
 from django.template.loader import get_template
 from io import BytesIO
 import csv
-from .models import Loan, Payment, LoanExtension, Sale, DisbursementTransaction
+from .models import Loan, Payment, LoanExtension, Sale, DisbursementTransaction, LoanItem
 from accounts.mixins import RoleBranchAccessMixin
 from .forms import LoanForm, SaleForm, LoanExtensionForm, PaymentRecordForm
 from .utils import ManagerPermissionMixin

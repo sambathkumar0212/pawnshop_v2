@@ -34,24 +34,61 @@
                                 <div class="col-sm-4 fw-bold">Branch:</div>
                                 <div class="col-sm-8">{{ customer.branch.name|default:"-" }}</div>
                             </div>
-                            <div class="row">
+                            <div class="row mb-2">
                                 <div class="col-sm-4 fw-bold">Active Loans:</div>
                                 <div class="col-sm-8">{{ customer.loans.count }}</div>
+                            </div>
+                            <div class="row">
+                                <div class="col-sm-4 fw-bold">Used Gold Sales:</div>
+                                <div class="col-sm-8">{{ customer.gold_purchases.count }}</div>
                             </div>
                         </div>
                     </div>
 
-                    {% if linked_loans %}
-                    <div class="alert alert-info">
-                        This customer has linked loans. Delete may be blocked until those loans are removed.
+                    {% if linked_loans or linked_purchases %}
+                    <div class="alert alert-danger border-danger shadow-sm d-flex align-items-start gap-2 mb-3">
+                        <i class="fas fa-exclamation-circle text-danger fs-5 mt-1"></i>
+                        <div>
+                            <strong class="d-block text-danger">Customer cannot be deleted because linked records exist:</strong>
+                            <span class="small">This customer is associated with active or historical records below. Deletion will be blocked until these linked loans/purchases are deleted or resolved.</span>
+                        </div>
                     </div>
-                    <div class="card bg-light mb-4">
-                        <div class="card-body">
-                            <h6 class="mb-3">Linked Loans</h6>
+                    {% endif %}
+
+                    {% if linked_loans %}
+                    <div class="card border-danger-subtle bg-light mb-3">
+                        <div class="card-body py-2">
+                            <h6 class="mb-2 text-danger fw-bold"><i class="fas fa-link me-1"></i>Linked Loans ({{ linked_loans|length }})</h6>
                             {% for loan in linked_loans %}
-                            <div class="d-flex justify-content-between border-bottom py-2">
-                                <span>{{ loan.loan_number }}</span>
-                                <span class="text-muted">{{ loan.status|title }}</span>
+                            <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                                <div>
+                                    <a href="{% url 'loan_detail' loan.loan_number %}" class="fw-semibold text-decoration-none font-monospace">{{ loan.loan_number }}</a>
+                                    <span class="text-muted small ms-2">Principal: ₹{{ loan.principal_amount }}</span>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle">{{ loan.status|title }}</span>
+                                    <a href="{% url 'loan_delete' loan.loan_number %}" class="btn btn-xs btn-outline-danger py-0 px-1" title="Delete Loan"><i class="fas fa-trash fa-xs"></i></a>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if linked_purchases %}
+                    <div class="card border-danger-subtle bg-light mb-4">
+                        <div class="card-body py-2">
+                            <h6 class="mb-2 text-danger fw-bold"><i class="fas fa-coins me-1"></i>Linked Used Gold Sales to Pawnshop ({{ linked_purchases|length }})</h6>
+                            {% for gp in linked_purchases %}
+                            <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                                <div>
+                                    <a href="{% url 'gold_purchase_detail' gp.pk %}" class="fw-semibold text-decoration-none font-monospace">{{ gp.purchase_number }}</a>
+                                    <span class="text-muted small ms-2">{{ gp.total_net_weight }}g | ₹{{ gp.net_payable_amount }}</span>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle">{{ gp.status|title }}</span>
+                                    <a href="{% url 'gold_purchase_delete' gp.pk %}?next=customer" class="btn btn-xs btn-outline-danger py-0 px-1" title="Delete Purchase Voucher"><i class="fas fa-trash fa-xs"></i></a>
+                                </div>
                             </div>
                             {% endfor %}
                         </div>
