@@ -10,44 +10,20 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # Create LoanItem table only if it doesn't exist
-        migrations.RunSQL(
-            sql="""
-                CREATE TABLE IF NOT EXISTS transactions_loanitem (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    loan_id INTEGER NOT NULL REFERENCES transactions_loan(id) ON DELETE CASCADE,
-                    item_id INTEGER NOT NULL REFERENCES inventory_item(id) ON DELETE CASCADE,
-                    gold_karat DECIMAL(4,2) NOT NULL,
-                    gross_weight DECIMAL(7,3) NOT NULL,
-                    net_weight DECIMAL(7,3) NOT NULL,
-                    stone_weight DECIMAL(7,3) NULL,
-                    market_price_22k DECIMAL(10,2) NOT NULL,
-                    UNIQUE(loan_id, item_id)
-                );
-            """,
-            reverse_sql="DROP TABLE IF EXISTS transactions_loanitem;",
-        ),
-        # Drop quantity column if it exists (SQLite workaround via recreate)
-        migrations.RunSQL(
-            sql="""
-                CREATE TABLE IF NOT EXISTS transactions_loanitem_new (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    loan_id INTEGER NOT NULL REFERENCES transactions_loan(id) ON DELETE CASCADE,
-                    item_id INTEGER NOT NULL REFERENCES inventory_item(id) ON DELETE CASCADE,
-                    gold_karat DECIMAL(4,2) NOT NULL,
-                    gross_weight DECIMAL(7,3) NOT NULL,
-                    net_weight DECIMAL(7,3) NOT NULL,
-                    stone_weight DECIMAL(7,3) NULL,
-                    market_price_22k DECIMAL(10,2) NOT NULL,
-                    UNIQUE(loan_id, item_id)
-                );
-                INSERT OR IGNORE INTO transactions_loanitem_new
-                    (id, loan_id, item_id, gold_karat, gross_weight, net_weight, stone_weight, market_price_22k)
-                SELECT id, loan_id, item_id, gold_karat, gross_weight, net_weight, stone_weight, market_price_22k
-                FROM transactions_loanitem;
-                DROP TABLE transactions_loanitem;
-                ALTER TABLE transactions_loanitem_new RENAME TO transactions_loanitem;
-            """,
-            reverse_sql=migrations.RunSQL.noop,
+        migrations.CreateModel(
+            name='LoanItem',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('gold_karat', models.DecimalField(decimal_places=2, max_digits=4)),
+                ('gross_weight', models.DecimalField(decimal_places=3, max_digits=7)),
+                ('net_weight', models.DecimalField(decimal_places=3, max_digits=7)),
+                ('stone_weight', models.DecimalField(blank=True, decimal_places=3, max_digits=7, null=True)),
+                ('market_price_22k', models.DecimalField(decimal_places=2, max_digits=10)),
+                ('item', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='inventory.item')),
+                ('loan', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='transactions.loan')),
+            ],
+            options={
+                'unique_together': {('loan', 'item')},
+            },
         ),
     ]

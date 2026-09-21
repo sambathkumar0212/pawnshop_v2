@@ -47,8 +47,23 @@ SECRET_KEY = env('SECRET_KEY', 'django-insecure-development-key')
 
 ALLOWED_HOSTS = env_list(
     'ALLOWED_HOSTS',
-    '127.0.0.1,localhost' if DEBUG else '127.0.0.1,localhost,pawnshop-z817.onrender.com,35.224.25.162',
+    '*' if DEBUG else '127.0.0.1,localhost,.onrender.com',
 )
+render_external_hostname = env('RENDER_EXTERNAL_HOSTNAME')
+if render_external_hostname and render_external_hostname not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(render_external_hostname)
+if '.onrender.com' not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append('.onrender.com')
+
+CSRF_TRUSTED_ORIGINS = env_list(
+    'CSRF_TRUSTED_ORIGINS',
+    'https://*.onrender.com,http://127.0.0.1:8000,http://localhost:8000',
+)
+if render_external_hostname:
+    render_origin = f"https://{render_external_hostname}"
+    if render_origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(render_origin)
+
 if env('GAE_APPLICATION') and '.appspot.com' not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append('.appspot.com')
 
@@ -139,8 +154,13 @@ DATABASE_ENGINE = env('DATABASE_ENGINE', 'django.db.backends.sqlite3').strip()
 DATABASE_NAME = env('DATABASE_NAME', 'db.sqlite3').strip()
 
 if DATABASE_URL:
+    is_cloud_db = ('neon.tech' in DATABASE_URL or 'sslmode=require' in DATABASE_URL or not DEBUG)
     DATABASES = {
-        'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600),
+        'default': dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=600,
+            ssl_require=is_cloud_db
+        ),
     }
 elif DATABASE_ENGINE == 'django.db.backends.sqlite3':
     database_name = Path(DATABASE_NAME)
@@ -217,6 +237,16 @@ SESSION_CACHE_ALIAS = 'default'
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
+WHITENOISE_MANIFEST_STRICT = False
+
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage" if not DEBUG else "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'

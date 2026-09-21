@@ -3,18 +3,18 @@ set -e
 
 echo "Starting build process for Render.com deployment..."
 
-# Install minimal requirements with proper dependency resolution
-echo "Installing minimal dependencies..."
-pip install --no-cache-dir -r requirements-minimal.txt
+# Install requirements with proper dependency resolution
+echo "Installing dependencies from requirements.txt..."
+pip install --no-cache-dir -r requirements.txt
 
 # Set environment variables for the build process
 export DJANGO_SETTINGS_MODULE=pawnshop_management.settings
 export DJANGO_MINIMAL_BUILD=True
 export RENDER=true  # Mark that we're running on Render
 
-# Copy SQLite environment file if it exists
-if [ -f .env.sqlite ]; then
-  echo "Using SQLite database configuration for all environments"
+# Copy SQLite environment file ONLY if DATABASE_URL is not provided and .env doesn't exist
+if [ -z "$DATABASE_URL" ] && [ ! -f .env ] && [ -f .env.sqlite ]; then
+  echo "No DATABASE_URL set; using SQLite database configuration for build"
   cp .env.sqlite .env
 fi
 
