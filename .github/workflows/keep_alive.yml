@@ -18,7 +18,7 @@ jobs:
     steps:
       - name: Ping Service Endpoint
         run: |
-          TARGET_URL="${{ github.event.inputs.custom_url || secrets.RENDER_APP_URL || vars.RENDER_APP_URL || 'https://pawnshop-z817.onrender.com/ping/' }}"
+          TARGET_URL="${{ github.event.inputs.custom_url || secrets.RENDER_APP_URL || vars.RENDER_APP_URL || 'https://fmg-app-tbi8.onrender.com/ping/' }}"
           echo "Pinging target URL: $TARGET_URL"
 
           # Perform HTTP ping
