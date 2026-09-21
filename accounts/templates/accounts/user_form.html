@@ -46,13 +46,18 @@
                                 {% endif %}
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Password</label>
+                                <label class="form-label" for="{{ form.password.id_for_label }}">Password</label>
                                 {% if form.password %}
                                     {{ form.password.errors }}
-                                    <input type="password" name="{{ form.password.name }}" 
-                                           class="form-control {% if form.password.errors %}is-invalid{% endif %}"
-                                           id="{{ form.password.id_for_label }}" 
-                                           {% if not form.instance.pk %}required{% endif %}>
+                                    <div class="input-group">
+                                        <input type="password" name="{{ form.password.name }}" 
+                                               class="form-control {% if form.password.errors %}is-invalid{% endif %}"
+                                               id="{{ form.password.id_for_label }}" 
+                                               {% if not form.instance.pk %}required{% endif %}>
+                                        <button type="button" class="btn btn-outline-secondary toggle-password-btn" data-target="{{ form.password.id_for_label }}" tabindex="-1" title="Toggle password visibility">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
                                     {% if form.instance.pk %}
                                         <small class="text-muted">Leave blank to keep current password</small>
                                     {% endif %}

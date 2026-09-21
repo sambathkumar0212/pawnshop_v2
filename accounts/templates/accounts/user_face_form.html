@@ -63,10 +63,50 @@
                         {% if not form.instance.pk %}
                         <div class="row mb-3">
                             <div class="col-md-6">
-                                {{ form.password|as_crispy_field }}
+                                <label for="id_password" class="form-label requiredField">
+                                    Password<span class="asteriskField text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <input type="password" 
+                                           name="password" 
+                                           id="id_password" 
+                                           class="form-control {% if form.password.errors %}is-invalid{% endif %}" 
+                                           placeholder="Enter password" 
+                                           required 
+                                           autocomplete="new-password">
+                                    <button type="button" class="btn btn-outline-secondary toggle-password-btn" data-target="id_password" tabindex="-1" title="Toggle password visibility">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                                {% if form.password.help_text %}
+                                <div class="form-text text-muted small">{{ form.password.help_text }}</div>
+                                {% endif %}
+                                {% if form.password.errors %}
+                                <div class="invalid-feedback d-block">{{ form.password.errors|join:", " }}</div>
+                                {% endif %}
                             </div>
                             <div class="col-md-6">
-                                {{ form.confirm_password|as_crispy_field }}
+                                <label for="id_confirm_password" class="form-label requiredField">
+                                    Confirm Password<span class="asteriskField text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <input type="password" 
+                                           name="confirm_password" 
+                                           id="id_confirm_password" 
+                                           class="form-control {% if form.confirm_password.errors %}is-invalid{% endif %}" 
+                                           placeholder="Confirm password" 
+                                           required 
+                                           autocomplete="new-password">
+                                    <button type="button" class="btn btn-outline-secondary toggle-password-btn" data-target="id_confirm_password" tabindex="-1" title="Toggle password visibility">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                                {% if form.confirm_password.help_text %}
+                                <div class="form-text text-muted small">{{ form.confirm_password.help_text }}</div>
+                                {% endif %}
+                                {% if form.confirm_password.errors %}
+                                <div class="invalid-feedback d-block">{{ form.confirm_password.errors|join:", " }}</div>
+                                {% endif %}
                             </div>
                         </div>
                         {% endif %}
