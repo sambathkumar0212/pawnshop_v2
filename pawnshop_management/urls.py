@@ -81,8 +81,9 @@ urlpatterns = [
     path('', home_page, name='home'),  # New home page as the root URL
     # Migration status endpoint - for monitoring migrations
     path('migration-status/', migration_status, name='migration_status'),
-    # Add camera test URL for debugging
-    path('camera-test/', TemplateView.as_view(template_name='camera_test.html'), name='camera_test'),
+    # Ultra-lightweight keep-alive / health-check endpoints for UptimeRobot / Cron-Job pingers
+    path('ping/', lambda request: JsonResponse({'status': 'ok', 'service': 'pawnshop'}), name='ping'),
+    path('health/', lambda request: JsonResponse({'status': 'ok', 'service': 'pawnshop'}), name='health'),
 ]
 
 # Serve media files during development
