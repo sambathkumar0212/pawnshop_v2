@@ -1,11 +1,11 @@
-﻿import os
+import os
 from pathlib import Path
 
 from dotenv import load_dotenv
 
 
 def load_env():
-    """Load the environment file for the selected Django environment."""
+    """Load the environment file for the selected Django environment if present."""
     base_dir = Path(__file__).resolve().parent
     env = os.getenv('DJANGO_ENV', 'development').strip().lower()
     candidates = [base_dir / f'.env.{env}', base_dir / '.env']
@@ -16,7 +16,6 @@ def load_env():
             print(f"Loaded environment from {env_path.name}")
             return env_path
 
-    searched = ', '.join(path.name for path in candidates)
-    raise FileNotFoundError(
-        f"No environment file found for DJANGO_ENV={env!r}. Looked for: {searched}"
-    )
+    # In cloud/production platforms (Render, Cloud Run, Heroku, Docker), environment
+    # variables are injected directly via the platform rather than local .env files.
+    return None
