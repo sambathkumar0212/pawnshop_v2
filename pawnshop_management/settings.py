@@ -229,9 +229,9 @@ CACHES = {
     }
 }
 
-# Store sessions in the cache (RAM) instead of the database to eliminate
-# one DB query on every authenticated request.
-SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+# Store sessions in cached_db (writes to DB, reads from cache) so user
+# logins persist across server restarts, deploys, and container scale cycles.
+SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
 SESSION_CACHE_ALIAS = 'default'
 
 STATIC_URL = 'static/'
