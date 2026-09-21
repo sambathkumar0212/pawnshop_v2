@@ -593,11 +593,42 @@ class DailyGoldRateManageView(LoginRequiredMixin, View):
     template_name = 'schemes/daily_gold_rate_manage.html'
 
     def get(self, request):
+        from .services_gold_api import fetch_live_gold_rate
         user = request.user
         org = getattr(user, 'organization', None)
         
         # Get active rate
         current_rate = DailyGoldRate.get_current_rate(organization=org)
+
+        # Fetch live market rate from API
+        live_api_rate = fetch_live_gold_rate()
+
+        # If current rate in database is still old hardcoded default (6600/7200), auto-update to today's live rate
+        today = timezone.now().date()
+        if live_api_rate.get('success') and (
+            current_rate.rate_22k_per_gram == Decimal('6600.00') or 
+            current_rate.rate_24k_per_gram == Decimal('7200.00') or 
+            current_rate.date < today
+        ):
+            try:
+                current_rate = DailyGoldRate.objects.create(
+                    organization=org,
+                    date=today,
+                    rate_24k_per_gram=Decimal(str(live_api_rate['rate_24k_per_gram'])),
+                    rate_22k_per_gram=Decimal(str(live_api_rate['rate_22k_per_gram'])),
+                    rate_20k_per_gram=Decimal(str(live_api_rate['rate_20k_per_gram'])),
+                    rate_18k_per_gram=Decimal(str(live_api_rate['rate_18k_per_gram'])),
+                    maximum_ltv_percentage=current_rate.maximum_ltv_percentage or Decimal('75.00'),
+                    updated_by=user,
+                    is_active=True,
+                    notes=f"Auto-synced from {live_api_rate.get('source', 'Live Market API')} at {live_api_rate.get('fetched_at_time', '')}"
+                )
+                DailyGoldRate.objects.filter(
+                    organization=org,
+                    is_active=True
+                ).exclude(pk=current_rate.pk).update(is_active=False)
+            except Exception:
+                pass
         
         # Historical rate log
         rate_history = DailyGoldRate.objects.all()
@@ -608,6 +639,7 @@ class DailyGoldRateManageView(LoginRequiredMixin, View):
         context = {
             'current_rate': current_rate,
             'rate_history': rate_history,
+            'live_api_rate': live_api_rate,
             'today': timezone.now().date(),
         }
         return render(request, self.template_name, context)
@@ -616,13 +648,31 @@ class DailyGoldRateManageView(LoginRequiredMixin, View):
         user = request.user
         org = getattr(user, 'organization', None)
 
+        action = request.POST.get('action', 'manual_broadcast')
+
         try:
-            rate_24k = Decimal(str(request.POST.get('rate_24k_per_gram', '7200.00')).strip())
-            rate_22k = Decimal(str(request.POST.get('rate_22k_per_gram', '6600.00')).strip())
-            rate_20k = Decimal(str(request.POST.get('rate_20k_per_gram', '6000.00')).strip())
-            rate_18k = Decimal(str(request.POST.get('rate_18k_per_gram', '5400.00')).strip())
-            max_ltv = Decimal(str(request.POST.get('maximum_ltv_percentage', '75.00')).strip())
-            notes = request.POST.get('notes', '').strip()
+            today = timezone.now().date()
+
+            if action == 'sync_live_api':
+                from .services_gold_api import fetch_live_gold_rate
+                live = fetch_live_gold_rate()
+                if not live.get('success'):
+                    messages.error(request, f"Live Gold API sync failed: {live.get('error', 'Unknown error')}")
+                    return redirect('daily_gold_rates')
+
+                rate_24k = Decimal(str(live['rate_24k_per_gram']))
+                rate_22k = Decimal(str(live['rate_22k_per_gram']))
+                rate_20k = Decimal(str(live['rate_20k_per_gram']))
+                rate_18k = Decimal(str(live['rate_18k_per_gram']))
+                max_ltv = Decimal(str(request.POST.get('maximum_ltv_percentage', '75.00')).strip())
+                notes = f"Live Market Sync: 22K @ ₹{rate_22k}/g ({live.get('source', 'API')}) at {live.get('fetched_at_time', '')}"
+            else:
+                rate_24k = Decimal(str(request.POST.get('rate_24k_per_gram', '7200.00')).strip())
+                rate_22k = Decimal(str(request.POST.get('rate_22k_per_gram', '6600.00')).strip())
+                rate_20k = Decimal(str(request.POST.get('rate_20k_per_gram', '6000.00')).strip())
+                rate_18k = Decimal(str(request.POST.get('rate_18k_per_gram', '5400.00')).strip())
+                max_ltv = Decimal(str(request.POST.get('maximum_ltv_percentage', '75.00')).strip())
+                notes = request.POST.get('notes', '').strip()
 
             # Hard RBI Cap Validation
             if max_ltv > Decimal('90.00'):
@@ -633,7 +683,6 @@ class DailyGoldRateManageView(LoginRequiredMixin, View):
                 return redirect('daily_gold_rates')
 
             # Create or update broadcast
-            today = timezone.now().date()
             new_rate = DailyGoldRate.objects.create(
                 organization=org,
                 date=today,
@@ -655,7 +704,7 @@ class DailyGoldRateManageView(LoginRequiredMixin, View):
 
             messages.success(
                 request,
-                f"🎉 Central Daily Gold Rate broadcasted successfully! 22K Rate: ₹{rate_22k:,.2f}/g | RBI LTV Cap: {max_ltv}%"
+                f"🎉 Central Daily Gold Rate broadcasted successfully! 22K Rate: ₹{rate_22k:,.2f}/g | 24K: ₹{rate_24k:,.2f}/g | RBI LTV Cap: {max_ltv}%"
             )
         except Exception as e:
             messages.error(request, f"Failed to broadcast gold rate: {str(e)}")

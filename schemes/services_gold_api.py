@@ -4,6 +4,8 @@ import ssl
 import logging
 from decimal import Decimal
 
+from django.utils import timezone
+
 logger = logging.getLogger(__name__)
 
 def fetch_live_gold_rate():
@@ -21,6 +23,11 @@ def fetch_live_gold_rate():
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'application/json, text/plain, */*',
     }
+
+    now = timezone.now()
+    now_local = timezone.localtime(now) if timezone.is_aware(now) else now
+    fetched_date_str = now_local.strftime('%d %b %Y')
+    fetched_time_str = now_local.strftime('%I:%M:%S %p')
 
     # Provider 1: Fawazahmed0 Currency API / XAU Spot to INR
     try:
@@ -41,12 +48,16 @@ def fetch_live_gold_rate():
                 
                 return {
                     'success': True,
-                    'source': 'Global Bullion Market Spot (XAU/INR Domestic Basis)',
+                    'source': 'Global Bullion Spot (XAU/INR Domestic Basis)',
                     'rate_24k_per_gram': rate_24k,
                     'rate_22k_per_gram': rate_22k,
                     'rate_20k_per_gram': rate_20k,
                     'rate_18k_per_gram': rate_18k,
                     'sovereign_8g': rate_22k * 8,
+                    'fetched_at_date': fetched_date_str,
+                    'fetched_at_time': fetched_time_str,
+                    'fetched_at_datetime': f"{fetched_date_str} at {fetched_time_str}",
+                    'fetched_at_iso': now.isoformat(),
                 }
     except Exception as e:
         logger.warning(f"Primary gold price provider failed: {e}")
@@ -84,6 +95,10 @@ def fetch_live_gold_rate():
                 'rate_20k_per_gram': rate_20k,
                 'rate_18k_per_gram': rate_18k,
                 'sovereign_8g': rate_22k * 8,
+                'fetched_at_date': fetched_date_str,
+                'fetched_at_time': fetched_time_str,
+                'fetched_at_datetime': f"{fetched_date_str} at {fetched_time_str}",
+                'fetched_at_iso': now.isoformat(),
             }
     except Exception as e:
         logger.warning(f"Secondary gold price provider failed: {e}")
@@ -91,4 +106,6 @@ def fetch_live_gold_rate():
     return {
         'success': False,
         'error': 'Unable to connect to live gold price APIs at this moment. Please enter rates manually or try again in a few seconds.',
+        'fetched_at_date': fetched_date_str,
+        'fetched_at_time': fetched_time_str,
     }

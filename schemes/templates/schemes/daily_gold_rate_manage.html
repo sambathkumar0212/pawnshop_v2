@@ -16,14 +16,47 @@
         <div class="d-flex flex-wrap gap-2 align-items-center">
             <button type="button" class="btn btn-warning btn-sm text-dark fw-bold px-3 shadow-xs d-flex align-items-center gap-2" id="btnHeaderFetchLive" onclick="fetchLiveGoldRates()">
                 <i class="fas fa-satellite-dish text-danger" id="iconHeaderFetchLive"></i>
-                <span>Fetch Live Gold Price (API)</span>
+                <span>Fetch Latest Live API Rate</span>
             </button>
+            <form method="post" class="d-inline" id="quickSyncForm">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="sync_live_api">
+                <input type="hidden" name="maximum_ltv_percentage" value="{{ current_rate.maximum_ltv_percentage|default:'75' }}">
+                <button type="submit" class="btn btn-success btn-sm fw-bold px-3 shadow-xs">
+                    <i class="fas fa-bolt me-1"></i>Sync & Broadcast Now
+                </button>
+            </form>
             <a href="{% url 'scheme_list' %}" class="btn btn-white border btn-sm text-secondary">
                 <i class="fas fa-arrow-left me-1"></i>Back to Schemes
             </a>
             <a href="{% url 'loan_create' %}" class="btn btn-primary btn-sm px-3">
                 <i class="fas fa-plus-circle me-1"></i>New Loan
             </a>
+        </div>
+    </div>
+
+    <!-- Live Market API Sync & Timestamp Banner -->
+    <div class="card border-0 mb-3 shadow-xs" style="background: #f8fafc; border-left: 4px solid #f59e0b !important; border-radius: 8px;">
+        <div class="card-body py-2 px-3">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div class="d-flex align-items-center gap-3">
+                    <span class="badge bg-success py-1 px-2" style="font-size: 0.76rem;">
+                        <i class="fas fa-check-circle me-1"></i>Live Market Sync Active
+                    </span>
+                    <div style="font-size: 0.82rem; color: #1e293b;">
+                        <i class="far fa-calendar-alt text-muted me-1"></i>Date: <strong id="bannerFetchDate">{{ live_api_rate.fetched_at_date|default:current_rate.created_at|date:"d M Y" }}</strong>
+                        <span class="mx-2 text-muted">|</span>
+                        <i class="far fa-clock text-muted me-1"></i>Time: <strong id="bannerFetchTime" class="text-primary">{{ live_api_rate.fetched_at_time|default:current_rate.created_at|time:"h:i:s A" }}</strong>
+                        <span class="mx-2 text-muted">|</span>
+                        <i class="fas fa-globe text-muted me-1"></i>Feed: <span id="bannerFetchSource" class="text-secondary">{{ live_api_rate.source|default:current_rate.notes|default:"Global Bullion Spot" }}</span>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-outline-dark btn-sm py-1 px-2 fw-semibold" onclick="fetchLiveGoldRates()" style="font-size: 0.75rem;">
+                        <i class="fas fa-sync-alt me-1"></i>Refresh Rate
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -35,10 +68,13 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <div class="text-uppercase fw-semibold" style="font-size: 0.72rem; opacity: 0.9;">24K Pure Gold (99.9%)</div>
-                        <h3 class="fw-bold mb-0 mt-1">₹{{ current_rate.rate_24k_per_gram|floatformat:0 }}<span style="font-size: 0.8rem; font-weight: normal;"> /g</span></h3>
-                        <small style="font-size: 0.72rem; opacity: 0.85;">1 Sovereign (8g): ₹{{ current_rate.rate_24k_per_gram|default:0|floatformat:0 }}</small>
+                        <h3 class="fw-bold mb-0 mt-1" id="card24kVal">₹{{ current_rate.rate_24k_per_gram|floatformat:0 }}<span style="font-size: 0.8rem; font-weight: normal;"> /g</span></h3>
+                        <small style="font-size: 0.72rem; opacity: 0.85;" id="card8gVal">1 Sovereign (8g): ₹{% widthratio current_rate.rate_22k_per_gram 1 8 %}</small>
                     </div>
                     <i class="fas fa-crown fa-2x opacity-50"></i>
+                </div>
+                <div class="mt-2 pt-2 border-top border-white border-opacity-25 d-flex justify-content-between" style="font-size: 0.68rem; opacity: 0.9;">
+                    <span><i class="far fa-clock me-1"></i>Updated: <span id="cardUpdateTimestamp">{{ current_rate.created_at|date:"d M Y, h:i A" }}</span></span>
                 </div>
             </div>
         </div>
@@ -49,10 +85,13 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <div class="text-uppercase fw-semibold" style="font-size: 0.72rem; opacity: 0.9;">22K Standard Gold (91.6%)</div>
-                        <h3 class="fw-bold mb-0 mt-1">₹{{ current_rate.rate_22k_per_gram|floatformat:0 }}<span style="font-size: 0.8rem; font-weight: normal;"> /g</span></h3>
+                        <h3 class="fw-bold mb-0 mt-1" id="card22kVal">₹{{ current_rate.rate_22k_per_gram|floatformat:0 }}<span style="font-size: 0.8rem; font-weight: normal;"> /g</span></h3>
                         <small style="font-size: 0.72rem; opacity: 0.85;">Hallmark 916 Benchmark</small>
                     </div>
                     <i class="fas fa-medal fa-2x opacity-50"></i>
+                </div>
+                <div class="mt-2 pt-2 border-top border-white border-opacity-25 d-flex justify-content-between" style="font-size: 0.68rem; opacity: 0.9;">
+                    <span><i class="fas fa-check me-1"></i>Active Loan Rate</span>
                 </div>
             </div>
         </div>
@@ -63,10 +102,13 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <div class="text-uppercase fw-semibold" style="font-size: 0.72rem; opacity: 0.9;">18K Gold (75.0%)</div>
-                        <h3 class="fw-bold mb-0 mt-1">₹{{ current_rate.rate_18k_per_gram|floatformat:0 }}<span style="font-size: 0.8rem; font-weight: normal;"> /g</span></h3>
+                        <h3 class="fw-bold mb-0 mt-1" id="card18kVal">₹{{ current_rate.rate_18k_per_gram|floatformat:0 }}<span style="font-size: 0.8rem; font-weight: normal;"> /g</span></h3>
                         <small style="font-size: 0.72rem; opacity: 0.85;">Diamond / Stone Jewellery</small>
                     </div>
                     <i class="fas fa-gem fa-2x opacity-50"></i>
+                </div>
+                <div class="mt-2 pt-2 border-top border-white border-opacity-25 d-flex justify-content-between" style="font-size: 0.68rem; opacity: 0.9;">
+                    <span><i class="fas fa-percentage me-1"></i>Purity: 75.00%</span>
                 </div>
             </div>
         </div>
@@ -81,6 +123,9 @@
                         <small style="font-size: 0.72rem; opacity: 0.85;">Mandatory Regulatory Ceiling</small>
                     </div>
                     <i class="fas fa-shield-alt fa-2x opacity-50"></i>
+                </div>
+                <div class="mt-2 pt-2 border-top border-white border-opacity-25 d-flex justify-content-between" style="font-size: 0.68rem; opacity: 0.9;">
+                    <span><i class="fas fa-landmark me-1"></i>Enforced on All Branches</span>
                 </div>
             </div>
         </div>
@@ -106,6 +151,9 @@
                                 <span class="badge bg-success me-1"><i class="fas fa-check-circle me-1"></i>Live API Synced</span>
                                 <strong id="liveRateSourceText" class="small text-dark">Global Bullion Spot</strong>
                                 <div class="text-dark small mt-1" id="liveRateDetailsText" style="font-size: 0.78rem;"></div>
+                                <div class="text-muted small mt-1" style="font-size: 0.72rem;">
+                                    <i class="far fa-clock me-1"></i>Fetched At: <strong id="liveRateTimestampText" class="text-dark"></strong>
+                                </div>
                             </div>
                             <button type="button" class="btn btn-sm btn-success fw-bold px-2 py-1 text-nowrap" style="font-size: 0.75rem;" onclick="document.getElementById('goldRateForm').submit();">
                                 <i class="fas fa-paper-plane me-1"></i>Publish Now
@@ -115,6 +163,7 @@
 
                     <form method="post" id="goldRateForm">
                         {% csrf_token %}
+                        <input type="hidden" name="action" value="manual_broadcast">
 
                         <div class="alert alert-info py-2 px-3 mb-3" style="font-size: 0.78rem;">
                             <i class="fas fa-info-circle me-1"></i>
@@ -204,7 +253,7 @@
                         <table class="table table-hover table-striped mb-0 align-middle" style="font-size: 0.84rem;">
                             <thead class="table-light" style="font-size: 0.76rem;">
                                 <tr>
-                                    <th class="ps-3">Date</th>
+                                    <th class="ps-3">Date & Time</th>
                                     <th>24K Rate</th>
                                     <th>22K Rate</th>
                                     <th>18K Rate</th>
@@ -216,7 +265,10 @@
                             <tbody>
                                 {% for r in rate_history %}
                                 <tr>
-                                    <td class="ps-3 fw-semibold text-dark">{{ r.date|date:"d M Y" }}</td>
+                                    <td class="ps-3">
+                                        <div class="fw-semibold text-dark">{{ r.date|date:"d M Y" }}</div>
+                                        <small class="text-muted" style="font-size: 0.72rem;">{{ r.created_at|date:"h:i A" }}</small>
+                                    </td>
                                     <td>₹{{ r.rate_24k_per_gram|floatformat:0 }}</td>
                                     <td class="fw-bold text-dark">₹{{ r.rate_22k_per_gram|floatformat:0 }}</td>
                                     <td>₹{{ r.rate_18k_per_gram|floatformat:0 }}</td>
@@ -225,7 +277,7 @@
                                         {% if r.updated_by %}
                                             {{ r.updated_by.get_full_name|default:r.updated_by.username }}
                                         {% else %}
-                                            System
+                                            System (API)
                                         {% endif %}
                                     </td>
                                     <td class="pe-3">
@@ -299,8 +351,29 @@
                     if (r20k) r20k.value = d.rate_20k_per_gram;
                     if (r18k) r18k.value = d.rate_18k_per_gram;
                     if (notes && !notes.value) {
-                        notes.value = `Live Market Sync: 22K @ ₹${d.rate_22k_per_gram}/g (${d.source})`;
+                        notes.value = `Live Market Sync: 22K @ ₹${d.rate_22k_per_gram}/g (${d.source}) at ${d.fetched_at_time}`;
                     }
+
+                    // Update Top Metric Cards immediately on screen
+                    const c24k = document.getElementById('card24kVal');
+                    const c22k = document.getElementById('card22kVal');
+                    const c18k = document.getElementById('card18kVal');
+                    const c8g = document.getElementById('card8gVal');
+                    const cTime = document.getElementById('cardUpdateTimestamp');
+
+                    if (c24k) c24k.innerHTML = `₹${d.rate_24k_per_gram.toLocaleString('en-IN')}<span style="font-size: 0.8rem; font-weight: normal;"> /g</span>`;
+                    if (c22k) c22k.innerHTML = `₹${d.rate_22k_per_gram.toLocaleString('en-IN')}<span style="font-size: 0.8rem; font-weight: normal;"> /g</span>`;
+                    if (c18k) c18k.innerHTML = `₹${d.rate_18k_per_gram.toLocaleString('en-IN')}<span style="font-size: 0.8rem; font-weight: normal;"> /g</span>`;
+                    if (c8g) c8g.innerHTML = `1 Sovereign (8g): ₹${d.sovereign_8g.toLocaleString('en-IN')}`;
+                    if (cTime) cTime.textContent = `${d.fetched_at_date}, ${d.fetched_at_time}`;
+
+                    // Update Top Banner
+                    const bDate = document.getElementById('bannerFetchDate');
+                    const bTime = document.getElementById('bannerFetchTime');
+                    const bSource = document.getElementById('bannerFetchSource');
+                    if (bDate) bDate.textContent = d.fetched_at_date;
+                    if (bTime) bTime.textContent = d.fetched_at_time;
+                    if (bSource) bSource.textContent = d.source;
 
                     // Highlight inputs
                     [r22k, r24k, r20k, r18k].forEach(el => {
@@ -317,10 +390,12 @@
                     const banner = document.getElementById('liveRateStatusBanner');
                     const sourceText = document.getElementById('liveRateSourceText');
                     const detailsText = document.getElementById('liveRateDetailsText');
+                    const timestampText = document.getElementById('liveRateTimestampText');
 
                     if (banner) {
                         banner.classList.remove('d-none');
                         if (sourceText) sourceText.textContent = d.source;
+                        if (timestampText) timestampText.textContent = `${d.fetched_at_date} at ${d.fetched_at_time}`;
                         if (detailsText) {
                             detailsText.innerHTML = `24K: <strong>₹${d.rate_24k_per_gram.toLocaleString('en-IN')}/g</strong> &nbsp;|&nbsp; 22K: <strong>₹${d.rate_22k_per_gram.toLocaleString('en-IN')}/g</strong> &nbsp;|&nbsp; 18K: <strong>₹${d.rate_18k_per_gram.toLocaleString('en-IN')}/g</strong> &nbsp;|&nbsp; Sovereign (8g): <strong>₹${d.sovereign_8g.toLocaleString('en-IN')}</strong>`;
                         }
