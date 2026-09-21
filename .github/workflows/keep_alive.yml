@@ -1,0 +1,32 @@
+name: 24/7 Render Keep-Alive Pinger
+
+on:
+  schedule:
+    # Triggers every 10 minutes to prevent the 15-minute Render inactivity sleep
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+    inputs:
+      custom_url:
+        description: 'Optional custom URL to ping'
+        required: false
+        default: ''
+
+jobs:
+  keep-alive:
+    name: Keep Alive Ping
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Service Endpoint
+        run: |
+          TARGET_URL="${{ github.event.inputs.custom_url || secrets.RENDER_APP_URL || vars.RENDER_APP_URL || 'https://pawnshop-z817.onrender.com/ping/' }}"
+          echo "Pinging target URL: $TARGET_URL"
+
+          # Perform HTTP ping
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 "$TARGET_URL" || echo "000")
+          echo "HTTP Status Code: $HTTP_CODE"
+
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 400 ]; then
+            echo "✅ Render web service is active and responsive!"
+          else
+            echo "ℹ️ Returned status $HTTP_CODE. If your Render URL is different, set RENDER_APP_URL in GitHub Repository Settings -> Secrets and Variables -> Actions."
+          fi
