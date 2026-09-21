@@ -86,12 +86,12 @@
                     <div>
                         <div class="text-uppercase fw-semibold" style="font-size: 0.72rem; opacity: 0.9;">22K Standard Gold (91.6%)</div>
                         <h3 class="fw-bold mb-0 mt-1" id="card22kVal">₹{{ current_rate.rate_22k_per_gram|floatformat:0 }}<span style="font-size: 0.8rem; font-weight: normal;"> /g</span></h3>
-                        <small style="font-size: 0.72rem; opacity: 0.85;">Hallmark 916 Benchmark</small>
+                        <small style="font-size: 0.72rem; opacity: 0.85;" id="card22k8gVal">1 Pavpon (8g): ₹{% widthratio current_rate.rate_22k_per_gram 1 8 %}</small>
                     </div>
                     <i class="fas fa-medal fa-2x opacity-50"></i>
                 </div>
                 <div class="mt-2 pt-2 border-top border-white border-opacity-25 d-flex justify-content-between" style="font-size: 0.68rem; opacity: 0.9;">
-                    <span><i class="fas fa-check me-1"></i>Active Loan Rate</span>
+                    <span><i class="fas fa-check-circle me-1"></i>Hallmark 916 Benchmark</span>
                 </div>
             </div>
         </div>
@@ -359,12 +359,14 @@
                     const c22k = document.getElementById('card22kVal');
                     const c18k = document.getElementById('card18kVal');
                     const c8g = document.getElementById('card8gVal');
+                    const c22k8g = document.getElementById('card22k8gVal');
                     const cTime = document.getElementById('cardUpdateTimestamp');
 
                     if (c24k) c24k.innerHTML = `₹${d.rate_24k_per_gram.toLocaleString('en-IN')}<span style="font-size: 0.8rem; font-weight: normal;"> /g</span>`;
                     if (c22k) c22k.innerHTML = `₹${d.rate_22k_per_gram.toLocaleString('en-IN')}<span style="font-size: 0.8rem; font-weight: normal;"> /g</span>`;
                     if (c18k) c18k.innerHTML = `₹${d.rate_18k_per_gram.toLocaleString('en-IN')}<span style="font-size: 0.8rem; font-weight: normal;"> /g</span>`;
-                    if (c8g) c8g.innerHTML = `1 Sovereign (8g): ₹${d.sovereign_8g.toLocaleString('en-IN')}`;
+                    if (c8g) c8g.innerHTML = `1 Sovereign (8g): ₹${(d.rate_24k_per_gram * 8).toLocaleString('en-IN')}`;
+                    if (c22k8g) c22k8g.innerHTML = `1 Pavpon (8g): ₹${d.sovereign_8g.toLocaleString('en-IN')}`;
                     if (cTime) cTime.textContent = `${d.fetched_at_date}, ${d.fetched_at_time}`;
 
                     // Update Top Banner
