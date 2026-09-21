@@ -588,8 +588,178 @@ def get_loan_total_items_count(loan):
     return len(loan_items)
 
 
-ORNAMENT_DICT_EN_TO_TA = {
-    # Ornaments
+MASTER_DICT_EN_TO_TA = {
+    # -------------------------------------------------------------------------
+    # Indian States & Union Territories
+    # -------------------------------------------------------------------------
+    'tamil nadu': 'தமிழ்நாடு',
+    'tamilnadu': 'தமிழ்நாடு',
+    'tamil nadu state': 'தமிழ்நாடு',
+    'tamil nadu, india': 'தமிழ்நாடு, இந்தியா',
+    'tamilnadu, india': 'தமிழ்நாடு, இந்தியா',
+    'tn': 'தமிழ்நாடு',
+    'andhra pradesh': 'ஆந்திரப் பிரதேசம்',
+    'andhra': 'ஆந்திரா',
+    'ap': 'ஆந்திரப் பிரதேசம்',
+    'kerala': 'கேரளா',
+    'karnataka': 'கர்நாடகா',
+    'telangana': 'தெலங்கானா',
+    'puducherry': 'புதுச்சேரி',
+    'pondicherry': 'புதுச்சேரி',
+    'maharashtra': 'மகாராஷ்டிரா',
+    'delhi': 'டெல்லி',
+    'gujarat': 'குஜராத்',
+    'rajasthan': 'ராஜஸ்தான்',
+    'punjab': 'பஞ்சாப்',
+    'haryana': 'ஹரியானா',
+    'uttar pradesh': 'உத்தரப் பிரதேசம்',
+    'up': 'உத்தரப் பிரதேசம்',
+    'madhya pradesh': 'மத்தியப் பிரதேசம்',
+    'mp': 'மத்தியப் பிரதேசம்',
+    'west bengal': 'மேற்கு வங்காளம்',
+    'odisha': 'ஒடிசா',
+    'orissa': 'ஒடிசா',
+    'bihar': 'பீகார்',
+    'assam': 'அசாம்',
+    'goa': 'கோவா',
+    'india': 'இந்தியா',
+
+    # -------------------------------------------------------------------------
+    # Tamil Nadu Districts & Major Cities / Towns
+    # -------------------------------------------------------------------------
+    'chennai': 'சென்னை',
+    'madras': 'சென்னை',
+    'coimbatore': 'கோயம்புத்தூர்',
+    'kovai': 'கோவை',
+    'madurai': 'மதுரை',
+    'tiruchirappalli': 'திருச்சிராப்பள்ளி',
+    'trichy': 'திருச்சி',
+    'salem': 'சேலம்',
+    'tirunelveli': 'திருநெல்வேலி',
+    'nellai': 'நெல்லை',
+    'erode': 'ஈரோடு',
+    'tiruppur': 'திருப்பூர்',
+    'tirupur': 'திருப்பூர்',
+    'vellore': 'வேலூர்',
+    'thoothukudi': 'தூத்துக்குடி',
+    'tuticorin': 'தூத்துக்குடி',
+    'dindigul': 'திண்டுக்கல்',
+    'thanjavur': 'தஞ்சாவூர்',
+    'tanjore': 'தஞ்சாவூர்',
+    'kanyakumari': 'கன்னியாகுமரி',
+    'nagercoil': 'நாகர்கோவில்',
+    'kanchipuram': 'காஞ்சிபுரம்',
+    'kancheepuram': 'காஞ்சிபுரம்',
+    'karur': 'கரூர்',
+    'nagapattinam': 'நாகப்பட்டினம்',
+    'namakkal': 'நாமக்கல்',
+    'pudukkottai': 'புதுக்கோட்டை',
+    'ramanathapuram': 'ராமநாதபுரம்',
+    'ramnad': 'ராமநாதபுரம்',
+    'sivaganga': 'சிவகங்கை',
+    'sivagangai': 'சிவகங்கை',
+    'tenkasi': 'தென்காசி',
+    'theni': 'தேனி',
+    'thiruvallur': 'திருவள்ளூர்',
+    'tiruvallur': 'திருவள்ளூர்',
+    'thiruvarur': 'திருவாரூர்',
+    'tiruvarur': 'திருவாரூர்',
+    'tirupathur': 'திருப்பத்தூர்',
+    'tirupattur': 'திருப்பத்தூர்',
+    'tiruvannamalai': 'திருவண்ணாமலை',
+    'thiruvannamalai': 'திருவண்ணாமலை',
+    'nilgiris': 'நீலகிரி',
+    'the nilgiris': 'நீலகிரி',
+    'ooty': 'ஊட்டி',
+    'udhagamandalam': 'உதகமண்டலம்',
+    'viluppuram': 'விழுப்புரம்',
+    'villupuram': 'விழுப்புரம்',
+    'virudhunagar': 'விருதுநகர்',
+    'krishnagiri': 'கிருஷ்ணகிரி',
+    'dharmapuri': 'தர்மபுரி',
+    'cuddalore': 'கடலூர்',
+    'ariyalur': 'அரியலூர்',
+    'perambalur': 'பெரம்பலூர்',
+    'ranipet': 'ராணிப்பேட்டை',
+    'kallakurichi': 'கள்ளக்குறிச்சி',
+    'chengalpattu': 'செங்கல்பட்டு',
+    'hosur': 'ஓசூர்',
+    'pollachi': 'பொள்ளாச்சி',
+    'karaikudi': 'காரைக்குடி',
+    'kumbakonam': 'கும்பகோணம்',
+    'ambur': 'ஆம்பூர்',
+    'vaniyambadi': 'வாணியம்பாடி',
+    'rajapalayam': 'ராஜபாளையம்',
+    'neyveli': 'நெய்வேலி',
+    'kovilpatti': 'கோவில்பட்டி',
+    'avadi': 'ஆவடி',
+    'tambaram': 'தாம்பரம்',
+
+    # -------------------------------------------------------------------------
+    # Address & Locality Terms
+    # -------------------------------------------------------------------------
+    'street': 'தெரு',
+    'st': 'தெரு',
+    'nagar': 'நகர்',
+    'salai': 'சாலை',
+    'road': 'சாலை',
+    'rd': 'சாலை',
+    'main road': 'மெயின் ரோடு',
+    'cross': 'கிராஸ்',
+    'cross street': 'குறுக்குத் தெரு',
+    'lane': 'சந்து',
+    'colony': 'காலனி',
+    'layout': 'லேஅவுட்',
+    'avenue': 'அவென்யூ',
+    'village': 'கிராமம்',
+    'town': 'நகரம்',
+    'taluk': 'தாலுகா',
+    'district': 'மாவட்டம்',
+    'post': 'அஞ்சல்',
+    'po': 'அஞ்சல்',
+    'flat': 'பிளாட்',
+    'flat no': 'பிளாட் எண்',
+    'door no': 'கதவு எண்',
+    'd.no': 'கதவு எண்',
+    'd.no.': 'கதவு எண்',
+    'no': 'எண்',
+    'no.': 'எண்',
+    'building': 'கட்டிடம்',
+    'house': 'வீடு',
+    'floor': 'தளம்',
+    '1st floor': 'முதல் தளம்',
+    '2nd floor': 'இரண்டாம் தளம்',
+    'near': 'அருகில்',
+    'opp': 'எதிரில்',
+    'opposite': 'எதிரில்',
+    'behind': 'பின்புறம்',
+
+    # -------------------------------------------------------------------------
+    # Relations & Personal Attributes
+    # -------------------------------------------------------------------------
+    's/o': 'மகன்', 'son of': 'மகன்',
+    'd/o': 'மகள்', 'daughter of': 'மகள்',
+    'w/o': 'மனைவி', 'wife of': 'மனைவி',
+    'c/o': 'பாதுகாவலர்', 'care of': 'பாதுகாவலர்',
+    'h/o': 'கணவர்', 'husband of': 'கணவர்',
+    'father': 'தந்தை', 'mother': 'தாய்',
+    'brother': 'சகோதரர்', 'sister': 'சகோதரி',
+    'male': 'ஆண்', 'female': 'பெண்', 'other': 'மற்றவை',
+
+    # -------------------------------------------------------------------------
+    # ID Proofs & Banking
+    # -------------------------------------------------------------------------
+    'aadhaar': 'ஆதார்', 'aadhaar card': 'ஆதார் அட்டை', 'aadhar': 'ஆதார்',
+    'pan': 'பான்', 'pan card': 'பான் அட்டை',
+    'voter id': 'வாக்காளர் அட்டை', 'epic': 'வாக்காளர் அட்டை',
+    'driving license': 'ஓட்டுநர் உரிமம்', 'dl': 'ஓட்டுநர் உரிமம்',
+    'ration card': 'ரேஷன் கார்டு', 'smart card': 'ஸ்மார்ட் கார்டு',
+    'passport': 'பாஸ்போர்ட்', 'bank': 'வங்கி', 'account': 'கணக்கு', 'branch': 'கிளை',
+    'ifsc': 'ஐ.எஃப்.எஸ்.சி', 'savings': 'சேமிப்பு', 'current': 'நடப்பு',
+
+    # -------------------------------------------------------------------------
+    # Ornaments, Gold & Jewellery Terms
+    # -------------------------------------------------------------------------
     'ring': 'மோதிரம்', 'rings': 'மோதிரங்கள்', 'mothiram': 'மோதிரம்', 'modhiram': 'மோதிரம்', 'mothirangal': 'மோதிரங்கள்',
     'chain': 'சங்கிலி', 'chains': 'சங்கிலிகள்', 'sangili': 'சங்கிலி', 'sangilikal': 'சங்கிலிகள்',
     'bangle': 'வளையல்', 'bangles': 'வளையல்கள்', 'valaiyal': 'வளையல்', 'valaiyalkal': 'வளையல்கள்', 'kappu': 'காப்பு',
@@ -627,7 +797,8 @@ ORNAMENT_DICT_EN_TO_TA = {
     'monthly': 'மாதாந்திர', 'annual': 'ஆண்டு'
 }
 
-ORNAMENT_DICT_TA_TO_EN = {v: k.title() for k, v in ORNAMENT_DICT_EN_TO_TA.items()}
+ORNAMENT_DICT_EN_TO_TA = MASTER_DICT_EN_TO_TA
+ORNAMENT_DICT_TA_TO_EN = {v: k.title() for k, v in MASTER_DICT_EN_TO_TA.items()}
 
 
 def transliterate_between_english_tamil(request):
@@ -639,15 +810,24 @@ def transliterate_between_english_tamil(request):
 
     clean_lower = text.lower().strip()
 
-    # 1. Fast Dictionary Lookup (Exact match — instant, no network)
+    # 1. Fast Master Dictionary Lookup (Exact match — instant & 100% accurate)
     if direction == 'to_tamil':
-        if clean_lower in ORNAMENT_DICT_EN_TO_TA:
-            return JsonResponse({'result': ORNAMENT_DICT_EN_TO_TA[clean_lower]})
+        if clean_lower in MASTER_DICT_EN_TO_TA:
+            return JsonResponse({'result': MASTER_DICT_EN_TO_TA[clean_lower]})
     else:
-        if text in ORNAMENT_DICT_TA_TO_EN:
-            return JsonResponse({'result': ORNAMENT_DICT_TA_TO_EN[text]})
+        if text in MASTER_DICT_TA_TO_EN:
+            return JsonResponse({'result': MASTER_DICT_TA_TO_EN[text]})
 
-    # 2. MyMemory Translation API (free, no API key, handles names & sentences)
+    # 2. Multi-word phrase matching with master dictionary terms
+    if direction == 'to_tamil':
+        replaced = text
+        for k, v in sorted(MASTER_DICT_EN_TO_TA.items(), key=lambda x: -len(x[0])):
+            if len(k) > 2:
+                replaced = re.sub(r'\b' + re.escape(k) + r'\b', v, replaced, flags=re.IGNORECASE)
+        if replaced != text and not any(c.isascii() and c.isalpha() for c in replaced):
+            return JsonResponse({'result': replaced})
+
+    # 3. MyMemory Translation with Validation Guard
     try:
         import requests as req
 
@@ -658,25 +838,48 @@ def transliterate_between_english_tamil(request):
         response = req.get(
             'https://api.mymemory.translated.net/get',
             params={'q': text, 'langpair': langpair},
-            timeout=5,
+            timeout=4,
         )
         if response.status_code == 200:
             data = response.json()
             translated = (data.get('responseData') or {}).get('translatedText', '').strip()
-            # MyMemory returns 'PLEASE SELECT' or similar on errors
+
+            # Guard against known crowdsourced errors in MyMemory
+            if 'tamil' in clean_lower and 'ஆந்திர' in translated:
+                return JsonResponse({'result': 'தமிழ்நாடு'})
+            if 'coimbatore' in clean_lower and 'பிரசாத்' in translated:
+                return JsonResponse({'result': 'கோயம்புத்தூர்'})
+            if 'kerala' in clean_lower and 'tumhra' in translated.lower():
+                return JsonResponse({'result': 'கேரளா'})
+
             if translated and translated != text and 'PLEASE' not in translated.upper() and 'SELECT' not in translated.upper():
                 return JsonResponse({'result': translated})
     except Exception:
         pass
 
-    # 3. Word-by-word Dictionary + Phonetic Fallback (last resort)
+    # 4. Indic Transliteration Phonetic Library Fallback
+    try:
+        from indic_transliteration import sanscript
+        from indic_transliteration.sanscript import transliterate
+        if direction == 'to_tamil':
+            phonetic_result = transliterate(text.lower(), sanscript.ITRANS, sanscript.TAMIL)
+            if phonetic_result and phonetic_result != text:
+                return JsonResponse({'result': phonetic_result})
+        else:
+            phonetic_result = transliterate(text, sanscript.TAMIL, sanscript.ITRANS)
+            if phonetic_result and phonetic_result != text:
+                return JsonResponse({'result': phonetic_result.title()})
+    except Exception:
+        pass
+
+    # 5. Word-by-word Dictionary Fallback
     if direction == 'to_tamil':
         words = text.split()
         translated_parts = []
         for w in words:
             wl = w.lower().strip('.,:;()-[]{}')
-            if wl in ORNAMENT_DICT_EN_TO_TA:
-                translated_parts.append(ORNAMENT_DICT_EN_TO_TA[wl])
+            if wl in MASTER_DICT_EN_TO_TA:
+                translated_parts.append(MASTER_DICT_EN_TO_TA[wl])
             else:
                 translated_parts.append(w)
         return JsonResponse({'result': ' '.join(translated_parts)})
