@@ -20,6 +20,7 @@ from django.utils import timezone
 from datetime import datetime
 import os
 import glob
+from decimal import Decimal
 
 from .models import CustomUser, Role, UserActivity, Customer, Organization
 from .mixins import RoleBranchAccessMixin

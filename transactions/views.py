@@ -12,7 +12,8 @@ from .models import Loan, Payment, LoanExtension, Sale, DisbursementTransaction,
 from accounts.mixins import RoleBranchAccessMixin
 from .forms import LoanForm, SaleForm, LoanExtensionForm, PaymentRecordForm
 from .utils import ManagerPermissionMixin
-from django.db.models import Q
+from django.db.models import Q, Count, Sum, F, Case, When, Value as V, Avg, Max, Min
+from django.db.models.functions import Coalesce
 from num2words import num2words
 from django.core.files.base import ContentFile
 from decimal import Decimal
@@ -1298,15 +1299,8 @@ class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, Lis
             base_queryset = base_queryset.filter(branch__organization=user.organization)
         
         # Calculate statistics efficiently - SINGLE QUERY with annotations
-        from django.utils import timezone
-        from django.db.models import Count, Q, Sum, F, Case, When
-        
         today = timezone.now().date()
         
-        # Get all statistics in a single aggregation query, including outstanding sums
-        from django.db.models import Sum, F, Value as V
-        from django.db.models.functions import Coalesce
-
         # Expression for outstanding per loan: use total_payable_till_date if present else principal_amount, minus amount_paid
         outstanding_expr = (Coalesce(F('total_payable_till_date'), F('principal_amount'), V(0)) - Coalesce(F('amount_paid'), V(0)))
 
