@@ -683,3 +683,22 @@ def api_get_today_gold_rate(request):
     }
     return JsonResponse(data)
 
+
+def api_fetch_live_gold_rates(request):
+    """
+    JSON endpoint to fetch real-time market gold price from live API feeds.
+    """
+    from .services_gold_api import fetch_live_gold_rate
+    res = fetch_live_gold_rate()
+    if res.get('success'):
+        return JsonResponse({
+            'status': 'success',
+            'data': res
+        })
+    else:
+        return JsonResponse({
+            'status': 'error',
+            'message': res.get('error', 'Unable to fetch live rates')
+        }, status=502)
+
+

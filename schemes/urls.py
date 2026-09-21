@@ -24,4 +24,5 @@ urlpatterns = [
     # Central Daily Gold Rate & RBI 75% LTV Cap Management
     path('gold-rates/', views.DailyGoldRateManageView.as_view(), name='daily_gold_rates'),
     path('api/today-rate/', views.api_get_today_gold_rate, name='api_today_gold_rate'),
+    path('api/fetch-live-rate/', views.api_fetch_live_gold_rates, name='api_fetch_live_gold_rates'),
 ]

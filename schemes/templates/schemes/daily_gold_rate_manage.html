@@ -6,14 +6,18 @@
 {% block content %}
 <div class="container-fluid py-3 px-3">
     <!-- Top Action Header -->
-    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 pb-2 border-bottom gap-2">
         <div>
             <h4 class="mb-0 fw-bold" style="color: #0f172a;">
                 <i class="fas fa-coins text-warning me-2"></i>Head Office Central Gold Rate & RBI 75% LTV Cap
             </h4>
             <small class="text-muted">Broadcast official daily gold valuation rates to all 100+ branch locations</small>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <button type="button" class="btn btn-warning btn-sm text-dark fw-bold px-3 shadow-xs d-flex align-items-center gap-2" id="btnHeaderFetchLive" onclick="fetchLiveGoldRates()">
+                <i class="fas fa-satellite-dish text-danger" id="iconHeaderFetchLive"></i>
+                <span>Fetch Live Gold Price (API)</span>
+            </button>
             <a href="{% url 'scheme_list' %}" class="btn btn-white border btn-sm text-secondary">
                 <i class="fas fa-arrow-left me-1"></i>Back to Schemes
             </a>
@@ -86,12 +90,29 @@
         <!-- Broadcast Form (Col 5) -->
         <div class="col-lg-5">
             <div class="card h-100 shadow-xs">
-                <div class="card-header bg-light py-2 px-3 border-bottom">
+                <div class="card-header bg-light py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
                     <h6 class="mb-0 fw-bold" style="color: #0f172a;">
                         <i class="fas fa-broadcast-tower text-primary me-2"></i>Broadcast Daily Rate Update
                     </h6>
+                    <button type="button" class="btn btn-outline-primary btn-sm py-0 px-2 fw-semibold" id="btnCardFetchLive" onclick="fetchLiveGoldRates()" style="font-size: 0.76rem;">
+                        <i class="fas fa-sync-alt me-1" id="iconCardFetchLive"></i>Fetch Live API Rate
+                    </button>
                 </div>
                 <div class="card-body p-3">
+                    <!-- Live Rate Status Alert Banner -->
+                    <div id="liveRateStatusBanner" class="alert alert-warning py-2 px-3 mb-3 d-none" style="border-left: 4px solid #f59e0b; border-radius: 6px;">
+                        <div class="d-flex justify-content-between align-items-start gap-2">
+                            <div>
+                                <span class="badge bg-success me-1"><i class="fas fa-check-circle me-1"></i>Live API Synced</span>
+                                <strong id="liveRateSourceText" class="small text-dark">Global Bullion Spot</strong>
+                                <div class="text-dark small mt-1" id="liveRateDetailsText" style="font-size: 0.78rem;"></div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-success fw-bold px-2 py-1 text-nowrap" style="font-size: 0.75rem;" onclick="document.getElementById('goldRateForm').submit();">
+                                <i class="fas fa-paper-plane me-1"></i>Publish Now
+                            </button>
+                        </div>
+                    </div>
+
                     <form method="post" id="goldRateForm">
                         {% csrf_token %}
 
@@ -108,7 +129,7 @@
                             </label>
                             <div class="input-group input-group-sm">
                                 <span class="input-group-text bg-light text-dark fw-bold">₹</span>
-                                <input type="number" step="1" min="1000" max="25000" class="form-control fw-bold fs-6" id="rate_22k_per_gram" name="rate_22k_per_gram" value="{{ current_rate.rate_22k_per_gram|floatformat:0 }}" oninput="autoDeriveFrom22K()" required>
+                                <input type="number" step="1" min="1000" max="25000" class="form-control fw-bold fs-6 transition-all" id="rate_22k_per_gram" name="rate_22k_per_gram" value="{{ current_rate.rate_22k_per_gram|floatformat:0 }}" oninput="autoDeriveFrom22K()" required>
                             </div>
                             <small class="text-muted" style="font-size: 0.7rem;">Main market Hallmark 916 rate. Typing here automatically calculates other purities.</small>
                         </div>
@@ -121,7 +142,7 @@
                             </label>
                             <div class="input-group input-group-sm">
                                 <span class="input-group-text">₹</span>
-                                <input type="number" step="1" min="1000" max="25000" class="form-control" id="rate_24k_per_gram" name="rate_24k_per_gram" value="{{ current_rate.rate_24k_per_gram|floatformat:0 }}" required>
+                                <input type="number" step="1" min="1000" max="25000" class="form-control transition-all" id="rate_24k_per_gram" name="rate_24k_per_gram" value="{{ current_rate.rate_24k_per_gram|floatformat:0 }}" required>
                             </div>
                         </div>
 
@@ -131,14 +152,14 @@
                                 <label for="rate_20k_per_gram" class="form-label small fw-semibold text-secondary mb-1">20K Rate (₹/g)</label>
                                 <div class="input-group input-group-sm">
                                     <span class="input-group-text">₹</span>
-                                    <input type="number" step="1" min="1000" max="25000" class="form-control" id="rate_20k_per_gram" name="rate_20k_per_gram" value="{{ current_rate.rate_20k_per_gram|floatformat:0 }}" required>
+                                    <input type="number" step="1" min="1000" max="25000" class="form-control transition-all" id="rate_20k_per_gram" name="rate_20k_per_gram" value="{{ current_rate.rate_20k_per_gram|floatformat:0 }}" required>
                                 </div>
                             </div>
                             <div class="col-6">
                                 <label for="rate_18k_per_gram" class="form-label small fw-semibold text-secondary mb-1">18K Rate (₹/g)</label>
                                 <div class="input-group input-group-sm">
                                     <span class="input-group-text">₹</span>
-                                    <input type="number" step="1" min="1000" max="25000" class="form-control" id="rate_18k_per_gram" name="rate_18k_per_gram" value="{{ current_rate.rate_18k_per_gram|floatformat:0 }}" required>
+                                    <input type="number" step="1" min="1000" max="25000" class="form-control transition-all" id="rate_18k_per_gram" name="rate_18k_per_gram" value="{{ current_rate.rate_18k_per_gram|floatformat:0 }}" required>
                                 </div>
                             </div>
                         </div>
@@ -161,7 +182,7 @@
                             <input type="text" class="form-control form-control-sm" id="notes" name="notes" placeholder="e.g. IBJA Morning Opening Rate Fix">
                         </div>
 
-                        <button type="submit" class="btn btn-primary btn-sm w-100 py-2">
+                        <button type="submit" class="btn btn-primary btn-sm w-100 py-2 fw-semibold">
                             <i class="fas fa-paper-plane me-1"></i>Publish & Broadcast Rates
                         </button>
                     </form>
@@ -246,6 +267,78 @@
             document.getElementById('rate_20k_per_gram').value = Math.round(rate24k * (20 / 24));
             document.getElementById('rate_18k_per_gram').value = Math.round(rate24k * (18 / 24));
         }
+    }
+
+    function fetchLiveGoldRates() {
+        const btnHeader = document.getElementById('btnHeaderFetchLive');
+        const btnCard = document.getElementById('btnCardFetchLive');
+        const iconHeader = document.getElementById('iconHeaderFetchLive');
+        const iconCard = document.getElementById('iconCardFetchLive');
+
+        if (btnHeader) btnHeader.disabled = true;
+        if (btnCard) btnCard.disabled = true;
+        if (iconHeader) iconHeader.className = 'fas fa-spinner fa-spin text-danger';
+        if (iconCard) iconCard.className = 'fas fa-spinner fa-spin me-1';
+
+        fetch("{% url 'api_fetch_live_gold_rates' %}")
+            .then(res => {
+                if (!res.ok) throw new Error('Live API returned status ' + res.status);
+                return res.json();
+            })
+            .then(res => {
+                if (res.status === 'success' && res.data) {
+                    const d = res.data;
+                    const r22k = document.getElementById('rate_22k_per_gram');
+                    const r24k = document.getElementById('rate_24k_per_gram');
+                    const r20k = document.getElementById('rate_20k_per_gram');
+                    const r18k = document.getElementById('rate_18k_per_gram');
+                    const notes = document.getElementById('notes');
+
+                    if (r22k) r22k.value = d.rate_22k_per_gram;
+                    if (r24k) r24k.value = d.rate_24k_per_gram;
+                    if (r20k) r20k.value = d.rate_20k_per_gram;
+                    if (r18k) r18k.value = d.rate_18k_per_gram;
+                    if (notes && !notes.value) {
+                        notes.value = `Live Market Sync: 22K @ ₹${d.rate_22k_per_gram}/g (${d.source})`;
+                    }
+
+                    // Highlight inputs
+                    [r22k, r24k, r20k, r18k].forEach(el => {
+                        if (el) {
+                            el.style.backgroundColor = '#fef08a';
+                            el.style.transition = 'background-color 0.4s ease';
+                            setTimeout(() => {
+                                el.style.backgroundColor = '';
+                            }, 2000);
+                        }
+                    });
+
+                    // Display alert banner
+                    const banner = document.getElementById('liveRateStatusBanner');
+                    const sourceText = document.getElementById('liveRateSourceText');
+                    const detailsText = document.getElementById('liveRateDetailsText');
+
+                    if (banner) {
+                        banner.classList.remove('d-none');
+                        if (sourceText) sourceText.textContent = d.source;
+                        if (detailsText) {
+                            detailsText.innerHTML = `24K: <strong>₹${d.rate_24k_per_gram.toLocaleString('en-IN')}/g</strong> &nbsp;|&nbsp; 22K: <strong>₹${d.rate_22k_per_gram.toLocaleString('en-IN')}/g</strong> &nbsp;|&nbsp; 18K: <strong>₹${d.rate_18k_per_gram.toLocaleString('en-IN')}/g</strong> &nbsp;|&nbsp; Sovereign (8g): <strong>₹${d.sovereign_8g.toLocaleString('en-IN')}</strong>`;
+                        }
+                    }
+                } else {
+                    alert(res.message || 'Unable to fetch live rates.');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Live Gold API error: ' + err.message);
+            })
+            .finally(() => {
+                if (btnHeader) btnHeader.disabled = false;
+                if (btnCard) btnCard.disabled = false;
+                if (iconHeader) iconHeader.className = 'fas fa-satellite-dish text-danger';
+                if (iconCard) iconCard.className = 'fas fa-sync-alt me-1';
+            });
     }
 </script>
 {% endblock %}
