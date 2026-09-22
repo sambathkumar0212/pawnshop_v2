@@ -21,6 +21,7 @@ openpyxl
 polib>=1.1.0
 indic-transliteration>=2.3.79
 pywhatkit>=5.4
+playwright>=1.40.0
 # Optional/large requirements - comment these out if facing memory issues during build
 # face-recognition>=1.3.0
 # numpy>=2.0.0

@@ -7,6 +7,7 @@ echo "==> Starting Pawnshop Management Web Service..."
 export PYTHONPATH="$(pwd):$PYTHONPATH"
 export DJANGO_SETTINGS_MODULE=pawnshop_management.settings
 export RENDER=true
+export PLAYWRIGHT_BROWSERS_PATH=0
 
 # Run migrations to ensure database schema is up-to-date
 echo "==> Ensuring migrations are applied..."
