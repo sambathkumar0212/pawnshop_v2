@@ -207,8 +207,40 @@ def reset_whatsapp_session() -> bool:
             return True
         except Exception as e:
             logger.warning("Could not delete session dir: %s", e)
-            return False
-    return True
+def get_pairing_state_file() -> Path:
+    return Path(get_session_dir()) / "live_pairing_state.json"
+
+
+def _load_pairing_state() -> dict:
+    """Reads pairing state from shared JSON file so all Gunicorn workers stay synchronized."""
+    state_file = get_pairing_state_file()
+    if state_file.exists():
+        try:
+            content = state_file.read_text(encoding="utf-8")
+            data = json.loads(content)
+            if isinstance(data, dict):
+                return data
+        except Exception:
+            pass
+    return {
+        'is_active': False,
+        'status': 'idle',
+        'qr_image_base64': None,
+        'phone': None,
+        'raw_phone': None,
+        'message': 'No pairing in progress',
+        'cancel_requested': False,
+        'started_at': 0,
+    }
+
+
+def _save_pairing_state(state: dict):
+    """Persists pairing state to shared JSON file."""
+    state_file = get_pairing_state_file()
+    try:
+        state_file.write_text(json.dumps(state, indent=2), encoding="utf-8")
+    except Exception as e:
+        logger.warning("Could not persist pairing state: %s", e)
 
 
 # Global thread-safe Live QR Pairing State
@@ -226,27 +258,49 @@ LIVE_PAIRING_STATE = {
 
 
 def get_live_qr_pairing_status() -> dict:
-    """Returns the current state of headless live QR code streaming & pairing."""
+    """Returns the current state of headless live QR code streaming & pairing across all worker processes."""
+    session_info = get_whatsapp_session_info()
+    if session_info.get('is_paired'):
+        state = {
+            'is_active': False,
+            'is_paired': True,
+            'status': 'authenticated',
+            'phone': session_info['phone'],
+            'raw_phone': session_info.get('raw_phone'),
+            'display_name': session_info.get('display_name'),
+            'message': session_info['message'],
+            'qr_image_base64': None,
+        }
+        _save_pairing_state(state)
+        return state
+
     with LIVE_PAIRING_LOCK:
-        session_info = get_whatsapp_session_info()
-        state = dict(LIVE_PAIRING_STATE)
-        state['is_paired'] = session_info['is_paired']
-        if session_info['is_paired']:
-            state['phone'] = session_info['phone']
-            state['raw_phone'] = session_info.get('raw_phone')
-            state['display_name'] = session_info.get('display_name')
-            state['status'] = 'authenticated'
-            state['message'] = session_info['message']
+        file_state = _load_pairing_state()
+        state = dict(file_state)
+        state['is_paired'] = False
+
+        # If it's been in 'starting' state for more than 40s without QR or error, auto-mark timeout
+        started_at = state.get('started_at') or 0
+        if state.get('status') == 'starting' and started_at > 0 and (time.time() - started_at > 40):
+            state['status'] = 'error'
+            state['is_active'] = False
+            state['message'] = 'Browser engine startup timed out. On cloud hosting, please use 1-Click WhatsApp Direct Broadcast.'
+            _save_pairing_state(state)
+
         return state
 
 
 def cancel_headless_qr_pairing():
     """Requests cancellation of active background QR pairing worker."""
     with LIVE_PAIRING_LOCK:
-        LIVE_PAIRING_STATE['cancel_requested'] = True
-        LIVE_PAIRING_STATE['is_active'] = False
-        LIVE_PAIRING_STATE['status'] = 'idle'
-        LIVE_PAIRING_STATE['qr_image_base64'] = None
+        LIVE_PAIRING_STATE.update({
+            'cancel_requested': True,
+            'is_active': False,
+            'status': 'idle',
+            'qr_image_base64': None,
+            'message': 'Pairing cancelled.'
+        })
+        _save_pairing_state(LIVE_PAIRING_STATE)
 
 
 def _run_headless_qr_pairing_worker(force_relink: bool = False, timeout_seconds: int = 120):
@@ -254,32 +308,50 @@ def _run_headless_qr_pairing_worker(force_relink: bool = False, timeout_seconds:
     Background worker thread that runs Playwright headlessly, captures the live QR code screenshot,
     and streams it via base64 directly to the web modal.
     """
-    import json
-    import base64
     from django.db import close_old_connections
     close_old_connections()
-    from playwright.sync_api import sync_playwright
 
+    start_init_state = {
+        'is_active': True,
+        'status': 'starting',
+        'qr_image_base64': None,
+        'message': 'Initializing WhatsApp Web engine...',
+        'cancel_requested': False,
+        'started_at': time.time(),
+    }
     with LIVE_PAIRING_LOCK:
-        LIVE_PAIRING_STATE['is_active'] = True
-        LIVE_PAIRING_STATE['status'] = 'starting'
-        LIVE_PAIRING_STATE['qr_image_base64'] = None
-        LIVE_PAIRING_STATE['message'] = 'Initializing WhatsApp Web engine...'
-        LIVE_PAIRING_STATE['cancel_requested'] = False
-        LIVE_PAIRING_STATE['started_at'] = time.time()
+        LIVE_PAIRING_STATE.update(start_init_state)
+        _save_pairing_state(LIVE_PAIRING_STATE)
 
     clean_stale_locks()
     context = None
 
     try:
-        with sync_playwright() as p:
-            context = p.chromium.launch_persistent_context(
-                **get_launch_context_options(headless=True)
+        # 1. Safely attempt Playwright import
+        try:
+            from playwright.sync_api import sync_playwright
+        except (ImportError, ModuleNotFoundError) as imp_err:
+            raise RuntimeError(
+                "Playwright library is not installed on this server. "
+                "You can send broadcasts directly via 1-Click WhatsApp Direct sending!"
             )
+
+        with sync_playwright() as p:
+            try:
+                context = p.chromium.launch_persistent_context(
+                    **get_launch_context_options(headless=True)
+                )
+            except Exception as launch_err:
+                raise RuntimeError(
+                    f"Chromium browser engine could not be launched on this cloud server: {launch_err}. "
+                    "Please use 1-Click WhatsApp Direct broadcast."
+                )
+
             page = context.pages[0] if context.pages else context.new_page()
             
             with LIVE_PAIRING_LOCK:
                 LIVE_PAIRING_STATE['message'] = 'Connecting to WhatsApp Web...'
+                _save_pairing_state(LIVE_PAIRING_STATE)
 
             try:
                 page.goto("https://web.whatsapp.com/", timeout=50000)
@@ -291,7 +363,8 @@ def _run_headless_qr_pairing_worker(force_relink: bool = False, timeout_seconds:
 
             while time.time() - start_time < timeout_seconds:
                 with LIVE_PAIRING_LOCK:
-                    if LIVE_PAIRING_STATE.get('cancel_requested'):
+                    current_file_state = _load_pairing_state()
+                    if current_file_state.get('cancel_requested') or LIVE_PAIRING_STATE.get('cancel_requested'):
                         logger.info("QR pairing worker cancelled by user.")
                         break
 
@@ -359,13 +432,16 @@ def _run_headless_qr_pairing_worker(force_relink: bool = False, timeout_seconds:
                             pass
 
                     with LIVE_PAIRING_LOCK:
-                        LIVE_PAIRING_STATE['is_active'] = False
-                        LIVE_PAIRING_STATE['status'] = 'authenticated'
-                        LIVE_PAIRING_STATE['qr_image_base64'] = None
-                        LIVE_PAIRING_STATE['phone'] = formatted_phone or "Connected WhatsApp Device"
-                        LIVE_PAIRING_STATE['raw_phone'] = raw_phone_extracted
-                        LIVE_PAIRING_STATE['display_name'] = display_name
-                        LIVE_PAIRING_STATE['message'] = f"WhatsApp paired successfully! Connected: {formatted_phone or 'Active Device'}"
+                        LIVE_PAIRING_STATE.update({
+                            'is_active': False,
+                            'status': 'authenticated',
+                            'qr_image_base64': None,
+                            'phone': formatted_phone or "Connected WhatsApp Device",
+                            'raw_phone': raw_phone_extracted,
+                            'display_name': display_name,
+                            'message': f"WhatsApp paired successfully! Connected: {formatted_phone or 'Active Device'}"
+                        })
+                        _save_pairing_state(LIVE_PAIRING_STATE)
                     
                     logger.info("✅ Headless WhatsApp QR pairing completed! Connected: %s", formatted_phone)
                     return
@@ -374,7 +450,6 @@ def _run_headless_qr_pairing_worker(force_relink: bool = False, timeout_seconds:
                 try:
                     qr_loc = page.locator('canvas, div[data-testid="qrcode"], div[data-ref]').first
                     if qr_loc.is_visible():
-                        # Take screenshot of the QR code canvas
                         time.sleep(0.5)
                         qr_bytes = qr_loc.screenshot()
                         qr_b64 = "data:image/png;base64," + base64.b64encode(qr_bytes).decode('utf-8')
@@ -382,6 +457,7 @@ def _run_headless_qr_pairing_worker(force_relink: bool = False, timeout_seconds:
                             LIVE_PAIRING_STATE['status'] = 'qr_ready'
                             LIVE_PAIRING_STATE['qr_image_base64'] = qr_b64
                             LIVE_PAIRING_STATE['message'] = 'Scan this QR code with WhatsApp on your phone'
+                            _save_pairing_state(LIVE_PAIRING_STATE)
                         qr_captured = True
                 except Exception:
                     pass
@@ -399,19 +475,25 @@ def _run_headless_qr_pairing_worker(force_relink: bool = False, timeout_seconds:
 
             # If loop finished without login
             with LIVE_PAIRING_LOCK:
-                LIVE_PAIRING_STATE['is_active'] = False
-                if LIVE_PAIRING_STATE['status'] != 'authenticated':
-                    LIVE_PAIRING_STATE['status'] = 'timeout'
-                    LIVE_PAIRING_STATE['qr_image_base64'] = None
-                    LIVE_PAIRING_STATE['message'] = 'QR code pairing timed out. Please click Retry to generate a new QR code.'
+                if LIVE_PAIRING_STATE.get('status') != 'authenticated':
+                    LIVE_PAIRING_STATE.update({
+                        'is_active': False,
+                        'status': 'timeout',
+                        'qr_image_base64': None,
+                        'message': 'QR code pairing timed out. Please click Retry to generate a new QR code.'
+                    })
+                    _save_pairing_state(LIVE_PAIRING_STATE)
 
     except Exception as fatal_err:
         logger.error("Error in headless QR pairing worker: %s", fatal_err)
         with LIVE_PAIRING_LOCK:
-            LIVE_PAIRING_STATE['is_active'] = False
-            LIVE_PAIRING_STATE['status'] = 'error'
-            LIVE_PAIRING_STATE['qr_image_base64'] = None
-            LIVE_PAIRING_STATE['message'] = str(fatal_err)
+            LIVE_PAIRING_STATE.update({
+                'is_active': False,
+                'status': 'error',
+                'qr_image_base64': None,
+                'message': str(fatal_err)
+            })
+            _save_pairing_state(LIVE_PAIRING_STATE)
     finally:
         if context:
             try:
@@ -426,8 +508,21 @@ def start_headless_qr_pairing_thread(force_relink: bool = False) -> dict:
     Spawns or resumes the background headless QR code streaming and pairing worker.
     """
     with LIVE_PAIRING_LOCK:
-        if LIVE_PAIRING_STATE.get('is_active'):
+        file_state = _load_pairing_state()
+        started_at = file_state.get('started_at') or 0
+        if file_state.get('is_active') and (time.time() - started_at < 120):
             return get_live_qr_pairing_status()
+
+        fresh_state = {
+            'is_active': True,
+            'status': 'starting',
+            'qr_image_base64': None,
+            'message': 'Starting WhatsApp Web engine...',
+            'cancel_requested': False,
+            'started_at': time.time(),
+        }
+        LIVE_PAIRING_STATE.update(fresh_state)
+        _save_pairing_state(LIVE_PAIRING_STATE)
 
     t = threading.Thread(
         target=_run_headless_qr_pairing_worker,

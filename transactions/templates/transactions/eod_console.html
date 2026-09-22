@@ -1071,11 +1071,14 @@ async function checkEodPairingStatus(showAlert = false, autoStartQR = false) {
     }
 }
 
+let eodQRPollAttempts = 0;
+
 async function triggerServerPairing() {
     if (eodQRPollTimer) {
         clearInterval(eodQRPollTimer);
         eodQRPollTimer = null;
     }
+    eodQRPollAttempts = 0;
 
     const msg = document.getElementById('pairStatusMessage');
     const loader = document.getElementById('eodQRLoader');
@@ -1108,11 +1111,26 @@ async function triggerServerPairing() {
 }
 
 async function pollEodQRStatus() {
+    eodQRPollAttempts++;
     const msg = document.getElementById('pairStatusMessage');
     const loader = document.getElementById('eodQRLoader');
     const loaderText = document.getElementById('eodQRLoaderText');
     const imgWrap = document.getElementById('eodQRImageWrap');
     const liveImg = document.getElementById('eodLiveQRImg');
+
+    if (eodQRPollAttempts > 30) {
+        if (eodQRPollTimer) {
+            clearInterval(eodQRPollTimer);
+            eodQRPollTimer = null;
+        }
+        if (loader) loader.classList.add('d-none');
+        if (imgWrap) imgWrap.classList.add('d-none');
+        if (msg) {
+            msg.className = 'alert alert-warning small font-monospace mb-3';
+            msg.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> QR generator startup timed out. You can send alerts via <strong>1-Click WhatsApp Direct</strong>!';
+        }
+        return;
+    }
 
     try {
         const resp = await fetch("{% url 'eod_get_whatsapp_qr' %}", {
@@ -1147,10 +1165,30 @@ async function pollEodQRStatus() {
             return;
         }
 
-        if (data.status === 'starting' || data.status === 'idle') {
+        if (data.status === 'starting') {
             if (loader) loader.classList.remove('d-none');
             if (imgWrap) imgWrap.classList.add('d-none');
             if (loaderText) loaderText.innerText = data.message || 'Generating QR code...';
+            return;
+        }
+
+        if (data.status === 'idle') {
+            if (eodQRPollAttempts <= 2) {
+                fetch("{% url 'eod_pair_whatsapp' %}", {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': getCsrfToken() }
+                }).catch(() => {});
+            } else if (eodQRPollAttempts > 8) {
+                if (eodQRPollTimer) {
+                    clearInterval(eodQRPollTimer);
+                    eodQRPollTimer = null;
+                }
+                if (loader) loader.classList.add('d-none');
+                if (msg) {
+                    msg.className = 'alert alert-secondary small font-monospace mb-3';
+                    msg.innerHTML = '<i class="fas fa-info-circle me-1"></i> Ready to pair. Click <strong>Reload QR Code</strong> to start.';
+                }
+            }
             return;
         }
 
@@ -1163,7 +1201,7 @@ async function pollEodQRStatus() {
             if (imgWrap) imgWrap.classList.add('d-none');
             if (msg) {
                 msg.className = 'alert alert-warning small font-monospace mb-3';
-                msg.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> QR expired or timed out. Click Reload QR Code.';
+                msg.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> ' + (data.message || 'QR expired or timed out. Click Reload QR Code.');
             }
             return;
         }

@@ -4167,11 +4167,14 @@ async function checkDMPairingStatus(showAlert = false, autoStartQR = false) {
     }
 }
 
+let dmQRPollAttempts = 0;
+
 async function startInlineQRPairing(forceRelink = false) {
     if (dmQRPollTimer) {
         clearInterval(dmQRPollTimer);
         dmQRPollTimer = null;
     }
+    dmQRPollAttempts = 0;
 
     const loader = document.getElementById('dmQRLoader');
     const imgWrap = document.getElementById('dmQRImageWrap');
@@ -4207,12 +4210,13 @@ async function startInlineQRPairing(forceRelink = false) {
 
     if (reloadBtn) reloadBtn.disabled = false;
 
-    // Start fast polling loop (every 1.3s) to fetch the live canvas screenshot
+    // Start polling loop
     pollInlineQRStatus();
     dmQRPollTimer = setInterval(pollInlineQRStatus, 1300);
 }
 
 async function pollInlineQRStatus() {
+    dmQRPollAttempts++;
     const loader = document.getElementById('dmQRLoader');
     const imgWrap = document.getElementById('dmQRImageWrap');
     const liveImg = document.getElementById('dmLiveQRImg');
@@ -4222,6 +4226,25 @@ async function pollInlineQRStatus() {
     const loaderTitle = document.getElementById('dmQRLoaderTitle');
     const errorTitle = document.getElementById('dmQRErrorTitle');
     const errorMsg = document.getElementById('dmQRErrorMsg');
+
+    // Auto-timeout after 30 attempts (~40s) so it never spins indefinitely
+    if (dmQRPollAttempts > 30) {
+        if (dmQRPollTimer) {
+            clearInterval(dmQRPollTimer);
+            dmQRPollTimer = null;
+        }
+        if (loader) loader.classList.add('d-none');
+        if (imgWrap) imgWrap.classList.add('d-none');
+        if (pairedBanner) pairedBanner.classList.add('d-none');
+        if (errorBanner) errorBanner.classList.remove('d-none');
+        if (errorTitle) errorTitle.innerText = 'Cloud Browser Notice';
+        if (errorMsg) errorMsg.innerHTML = 'Headless browser engine took too long to start. You can broadcast instantly via <strong>1-Click WhatsApp Direct</strong> from your browser without pairing!';
+        if (statusBadge) {
+            statusBadge.className = 'badge bg-warning text-dark font-monospace';
+            statusBadge.innerText = 'NOTICE';
+        }
+        return;
+    }
 
     try {
         const res = await fetch("{% url 'eod_get_whatsapp_qr' %}");
@@ -4241,10 +4264,8 @@ async function pollInlineQRStatus() {
             if (errorBanner) errorBanner.classList.add('d-none');
             if (pairedBanner) pairedBanner.classList.add('d-none');
             if (imgWrap) imgWrap.classList.remove('d-none');
-            if (liveImg) {
-                if (liveImg.src !== data.qr_image_base64) {
-                    liveImg.src = data.qr_image_base64;
-                }
+            if (liveImg && liveImg.src !== data.qr_image_base64) {
+                liveImg.src = data.qr_image_base64;
             }
             if (statusBadge) {
                 statusBadge.className = 'badge bg-success-subtle text-success font-monospace fw-bold';
@@ -4253,7 +4274,7 @@ async function pollInlineQRStatus() {
             return;
         }
 
-        if (data.status === 'starting' || data.status === 'idle') {
+        if (data.status === 'starting') {
             if (loader) loader.classList.remove('d-none');
             if (imgWrap) imgWrap.classList.add('d-none');
             if (errorBanner) errorBanner.classList.add('d-none');
@@ -4262,6 +4283,31 @@ async function pollInlineQRStatus() {
             if (statusBadge) {
                 statusBadge.className = 'badge bg-info-subtle text-info-emphasis font-monospace';
                 statusBadge.innerHTML = '<span class="spinner-border spinner-border-sm me-1" style="width: 0.7rem; height: 0.7rem;"></span> Loading...';
+            }
+            return;
+        }
+
+        if (data.status === 'idle') {
+            // Trigger start on initial idle
+            if (dmQRPollAttempts <= 2) {
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '';
+                fetch("{% url 'eod_pair_whatsapp' %}", {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' }
+                }).catch(() => {});
+            } else if (dmQRPollAttempts > 8) {
+                if (dmQRPollTimer) {
+                    clearInterval(dmQRPollTimer);
+                    dmQRPollTimer = null;
+                }
+                if (loader) loader.classList.add('d-none');
+                if (errorBanner) errorBanner.classList.remove('d-none');
+                if (errorTitle) errorTitle.innerText = 'Ready to Connect';
+                if (errorMsg) errorMsg.innerHTML = 'Click <strong>Generate New QR Code</strong> to start linking your phone, or use 1-Click WhatsApp Direct.';
+                if (statusBadge) {
+                    statusBadge.className = 'badge bg-secondary text-white font-monospace';
+                    statusBadge.innerText = 'IDLE';
+                }
             }
             return;
         }
@@ -4275,11 +4321,11 @@ async function pollInlineQRStatus() {
             if (imgWrap) imgWrap.classList.add('d-none');
             if (pairedBanner) pairedBanner.classList.add('d-none');
             if (errorBanner) errorBanner.classList.remove('d-none');
-            if (errorTitle) errorTitle.innerText = data.status === 'timeout' ? 'QR Code Expired' : 'Pairing Error';
+            if (errorTitle) errorTitle.innerText = data.status === 'timeout' ? 'QR Code Expired' : 'Pairing Notice';
             if (errorMsg) errorMsg.innerText = data.message || 'QR code expired or closed. Click Generate New QR Code.';
             if (statusBadge) {
                 statusBadge.className = 'badge bg-danger-subtle text-danger font-monospace';
-                statusBadge.innerText = 'EXPIRED';
+                statusBadge.innerText = data.status === 'timeout' ? 'EXPIRED' : 'NOTICE';
             }
             return;
         }
