@@ -255,6 +255,25 @@
 
 {% block content %}
 
+<!-- Top Quick Action Bar with Customer Portal Link -->
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 p-2 px-3 bg-white rounded-3 border shadow-2xs gap-2">
+    <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+            <i class="fas fa-building me-1"></i>{{ user.branch.name|default:"Head Office / Global View" }}
+        </span>
+        <small class="text-muted d-none d-md-inline">Welcome back, <strong>{{ user.get_full_name|default:user.username }}</strong></small>
+    </div>
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+        <a href="{% url 'portal_login' %}" target="_blank" class="btn btn-sm btn-success fw-bold shadow-2xs d-flex align-items-center gap-2">
+            <i class="fas fa-external-link-alt"></i>
+            <span>Customer Self-Service Portal</span>
+            <span class="badge bg-white text-success ms-1" style="font-size: 0.70rem;">/portal/login/</span>
+        </a>
+        <a href="{% url 'pending_upi_payments' %}" class="btn btn-sm btn-outline-primary fw-bold shadow-2xs">
+            <i class="fas fa-qrcode me-1"></i>UPI Verifications
+        </a>
+    </div>
+</div>
 
 <!-- Key Performance Indicators -->
 <div class="row mb-2 mb-md-3 g-2 g-md-3">
@@ -366,12 +385,23 @@
         <a href="{% url 'loan_list' %}" class="btn btn-primary btn-sm">Manage Loans</a>
     </div>
     
+    <div class="module-card border-start border-3 border-success shadow-xs">
+        <div class="module-icon" style="background: linear-gradient(135deg, #059669, #10b981);">
+            <i class="fas fa-mobile-alt"></i>
+        </div>
+        <h5>Customer Portal (Self-Service)</h5>
+        <p class="text-muted small">Live customer portal with dynamic UPI QR & loan history</p>
+        <a href="{% url 'portal_login' %}" target="_blank" class="btn btn-success btn-sm fw-bold">
+            <i class="fas fa-external-link-alt me-1"></i>Open Customer Portal
+        </a>
+    </div>
+
     <div class="module-card">
         <div class="module-icon bg-customers">
             <i class="fas fa-users"></i>
         </div>
-        <h5>Customer Portal</h5>
-        <p class="text-muted small">Comprehensive customer profiles and transaction history</p>
+        <h5>Customer Directory</h5>
+        <p class="text-muted small">Comprehensive customer profiles, KYC, and loan history</p>
         <a href="{% url 'customer_list' %}" class="btn btn-danger btn-sm">Manage Customers</a>
     </div>
     

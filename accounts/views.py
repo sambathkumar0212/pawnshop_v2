@@ -54,6 +54,17 @@ class CustomLoginView(LoginView):
         log_login(self.request.user, self.request)
         return response
 
+    def get_success_url(self):
+        user = self.request.user
+        from accounts.models import Role
+        is_customer = (
+            (hasattr(user, 'role') and user.role and user.role.role_type == Role.CUSTOMER) or
+            hasattr(user, 'customer_profile')
+        )
+        if is_customer and not (user.is_superuser or getattr(user, 'is_pawnshop_admin', False)):
+            return reverse_lazy('portal_dashboard')
+        return super().get_success_url()
+
 
 
 class CustomLogoutView(LogoutView):
@@ -143,6 +154,17 @@ def get_request_info(request):
 
 class DashboardView(LoginRequiredMixin, TemplateView):
     template_name = 'home/home.html'
+    
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            from accounts.models import Role
+            is_customer = (
+                (hasattr(request.user, 'role') and request.user.role and request.user.role.role_type == Role.CUSTOMER) or
+                hasattr(request.user, 'customer_profile')
+            )
+            if is_customer and not (request.user.is_superuser or getattr(request.user, 'is_pawnshop_admin', False)):
+                return redirect('portal_dashboard')
+        return super().dispatch(request, *args, **kwargs)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
