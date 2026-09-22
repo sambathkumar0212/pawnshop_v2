@@ -1837,49 +1837,57 @@
                         </div>
 
                         <!-- WhatsApp Pairing / Connected Phone Banner -->
+                        <!-- WhatsApp Status Notice -->
                         <div id="modalWhatsAppStatusContainer">
                             {% if whatsapp_session.is_paired %}
-                            <div class="alert alert-success py-2.5 px-3 small mb-3 d-flex flex-wrap align-items-center justify-content-between gap-2 rounded-3 border border-success-subtle shadow-2xs" style="font-size: 0.8rem; background-color: #f0fdf4;">
+                            <div class="alert alert-success py-2 px-3 small mb-2 d-flex flex-wrap align-items-center justify-content-between gap-2 rounded-3 border border-success-subtle shadow-2xs" style="font-size: 0.78rem; background-color: #f0fdf4;">
                                 <div class="d-flex align-items-center gap-2">
                                     <i class="fab fa-whatsapp text-success fs-5"></i>
                                     <div>
                                         <strong class="text-success d-block">WhatsApp Connected: <span class="font-monospace text-dark">{{ whatsapp_session.phone }}</span></strong>
-                                        <span class="text-muted" style="font-size: 0.73rem;"><i class="fas fa-check-circle text-success me-1"></i>Paired via QR Scan • Ready for automated background dispatch</span>
+                                        <span class="text-muted" style="font-size: 0.72rem;"><i class="fas fa-check-circle text-success me-1"></i>Paired via QR Scan • Ready for automated dispatch</span>
                                     </div>
                                 </div>
-                                <button type="button" class="btn btn-sm btn-outline-success py-1 px-2.5 fw-bold shadow-2xs" onclick="openDigitalMarketingQRPairModal()" style="font-size: 0.75rem;">
-                                    <i class="fas fa-qrcode me-1"></i> Change / Scan QR
+                                <button type="button" class="btn btn-sm btn-outline-success py-0.5 px-2 fw-bold shadow-2xs" onclick="openDigitalMarketingQRPairModal()" style="font-size: 0.72rem;">
+                                    <i class="fas fa-qrcode me-1"></i> Change QR
                                 </button>
                             </div>
                             {% else %}
-                            <div class="alert alert-warning py-2.5 px-3 small mb-3 d-flex flex-wrap align-items-center justify-content-between gap-2 rounded-3 border border-warning-subtle shadow-2xs" style="font-size: 0.8rem; background-color: #fffbeb;">
+                            <div class="alert alert-light py-2 px-3 small mb-2 d-flex flex-wrap align-items-center justify-content-between gap-2 rounded-3 border shadow-2xs" style="font-size: 0.78rem; background-color: #f8fafc;">
                                 <div class="d-flex align-items-center gap-2">
-                                    <i class="fas fa-exclamation-triangle text-warning fs-5"></i>
+                                    <i class="fas fa-laptop-code text-primary fs-5"></i>
                                     <div>
-                                        <strong class="text-warning-emphasis d-block">No WhatsApp Account Connected</strong>
-                                        <span class="text-muted" style="font-size: 0.73rem;">Scan QR code once to link your phone for 1-Click auto-broadcasting.</span>
+                                        <strong class="text-dark d-block">⚡ Instant In-Browser WhatsApp Auto-Sender</strong>
+                                        <span class="text-muted" style="font-size: 0.72rem;">Runs right in your browser using your phone or web WhatsApp • Zero server setup required!</span>
                                     </div>
                                 </div>
-                                <button type="button" class="btn btn-sm btn-dark py-1 px-3 fw-bold shadow-2xs" onclick="openDigitalMarketingQRPairModal()" style="font-size: 0.75rem;">
-                                    <i class="fas fa-qrcode me-1"></i> Scan QR to Connect
+                                <button type="button" class="btn btn-sm btn-outline-secondary py-0.5 px-2 fw-semibold shadow-2xs" onclick="openDigitalMarketingQRPairModal()" style="font-size: 0.72rem;">
+                                    <i class="fas fa-qrcode me-1"></i> QR Hub
                                 </button>
                             </div>
                             {% endif %}
                         </div>
 
-                        <!-- Main Big Primary Button -->
-                        <button type="submit" class="btn btn-success fw-bold w-100 py-3 shadow fs-6" id="btnLaunchAutomatedBlast" {% if not is_whatsapp_paired %}disabled{% endif %}>
-                            <i class="fas fa-paper-plane me-2"></i> 🚀 Launch 100% Automated Background Blast ({{ total_queue_count }} Contacts)
+                        <!-- 1. Primary Action: In-Browser Instant Sequential Auto-Blast (100% Works Everywhere) -->
+                        <button type="button" class="btn btn-success fw-bold w-100 py-2.5 shadow-sm fs-6 mb-2" onclick="startInBrowserAutoBlast()">
+                            <i class="fas fa-bolt me-2"></i> 🚀 Launch In-Browser WhatsApp Auto-Blast ({{ total_queue_count }} Contacts)
                         </button>
 
-                        <!-- Shortcut to Live Monitor -->
-                        <button type="button" class="btn btn-outline-primary btn-sm w-100 py-2 mt-2 fw-semibold" onclick="openLiveMonitorModal()">
-                            <i class="fas fa-desktop me-1"></i> View Live Delivery Monitor &amp; Unfinished Progress
-                        </button>
+                        <div class="d-flex gap-2">
+                            <!-- 2. Secondary: Server Background Headless Blast (if paired) -->
+                            <button type="submit" class="btn btn-outline-secondary btn-sm flex-grow-1 py-1.5 fw-semibold" id="btnLaunchAutomatedBlast" {% if not whatsapp_session.is_paired %}disabled title="Scan QR first to use server background engine"{% endif %} style="font-size: 0.78rem;">
+                                <i class="fas fa-server me-1"></i> Server Background Engine
+                            </button>
+
+                            <!-- 3. Shortcut to Live Monitor -->
+                            <button type="button" class="btn btn-outline-primary btn-sm py-1.5 fw-semibold px-3" onclick="openLiveMonitorModal()" style="font-size: 0.78rem;">
+                                <i class="fas fa-desktop me-1"></i> Live Monitor
+                            </button>
+                        </div>
                     </form>
 
                 </div>
-                <div class="modal-footer bg-light">
+                <div class="modal-footer bg-light p-2">
                     <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
@@ -1968,14 +1976,19 @@
 
                         <!-- QR Error / Timeout State -->
                         <div id="dmQRErrorBanner" class="d-none py-3 text-center">
-                            <div class="text-danger mb-2">
-                                <i class="fas fa-exclamation-triangle fa-2x"></i>
+                            <div class="text-warning mb-2">
+                                <i class="fas fa-info-circle fa-2x"></i>
                             </div>
-                            <h6 class="fw-bold text-danger mb-1" id="dmQRErrorTitle" style="font-size: 0.9rem;">QR Code Expired</h6>
-                            <p class="small text-muted mb-3" id="dmQRErrorMsg" style="font-size: 0.78rem;">QR code was not scanned in time or session closed.</p>
-                            <button type="button" class="btn btn-sm btn-success px-3 fw-bold" onclick="startInlineQRPairing(true)">
-                                <i class="fas fa-redo me-1"></i> Generate New QR Code
-                            </button>
+                            <h6 class="fw-bold text-dark mb-1" id="dmQRErrorTitle" style="font-size: 0.9rem;">Browser Notice</h6>
+                            <p class="small text-muted mb-3 px-2" id="dmQRErrorMsg" style="font-size: 0.78rem;">On cloud hosting, server browser engine is restricted. You can broadcast instantly with zero setup via In-Browser Auto-Blaster!</p>
+                            <div class="d-flex flex-wrap justify-content-center gap-2">
+                                <button type="button" class="btn btn-sm btn-success px-3 fw-bold" onclick="startInBrowserAutoBlast()">
+                                    <i class="fas fa-bolt me-1"></i> 🚀 Launch In-Browser Auto-Blast
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary px-2.5 fw-semibold" onclick="startInlineQRPairing(true)">
+                                    <i class="fas fa-redo me-1"></i> Retry QR
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Bottom Controls -->
