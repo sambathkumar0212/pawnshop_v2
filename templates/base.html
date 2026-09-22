@@ -4,33 +4,52 @@
 <html lang="{{ LANGUAGE_CODE }}">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>{% block title %}Pawnshop Management System{% endblock %}</title>
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <!-- Google Fonts - Inter, Plus Jakarta Sans & Noto Sans Tamil for high legibility -->
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts - Inter, Plus Jakarta Sans & Noto Sans Tamil -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Tamil:wght@400;500;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
     <!-- Custom CSS -->
     <style>
+        :root {
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --secondary-color: #0f172a;
+            --secondary-surface: #1e293b;
+            --accent-color: #f59e0b;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --info-color: #06b6d4;
+            --canvas-bg: #f8fafc;
+            --card-bg: #ffffff;
+            --border-color: #e2e8f0;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+        }
+
         /* High-Legibility Enterprise Typography & Calming Canvas */
         html, body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans Tamil', sans-serif;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             text-rendering: optimizeLegibility;
-            color: #1e293b;
+            color: var(--text-main);
             font-size: 15px;
             line-height: 1.5;
-            background-color: #f1f5f9;
+            background-color: var(--canvas-bg);
             background-image: 
                 radial-gradient(at 0% 0%, rgba(224, 231, 255, 0.4) 0px, transparent 50%),
                 radial-gradient(at 100% 0%, rgba(240, 249, 255, 0.5) 0px, transparent 50%),
                 radial-gradient(at 100% 100%, rgba(241, 245, 249, 0.8) 0px, transparent 50%);
             background-attachment: fixed;
+            min-height: 100vh;
+            overflow-x: hidden;
         }
         
         h1, h2, h3, h4, h5, h6, .card-title, .modal-title {
@@ -52,277 +71,164 @@
 
         /* Soft, eye-pleasing card shadows */
         .card, .calm-card, .form-card, .customer-dossier-card {
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
             box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02);
-            background-color: #ffffff;
+            background-color: var(--card-bg);
         }
 
+        .card-header {
+            background-color: #f8fafc;
+            border-bottom: 1px solid var(--border-color);
+            padding: 0.85rem 1.25rem;
+            border-top-left-radius: 10px;
+            border-top-right-radius: 10px;
+        }
+
+        /* App Shell Layout */
         .app-shell {
-            flex-grow: 1; /* Allow container-fluid to take available height */
-            display: flex; /* Make it a flex container */
-            flex-direction: column; /* Stack children vertically */
-            overflow: hidden; /* Hide overflow of the container-fluid itself */
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 0;
         }
 
-        .app-shell > .row { /* Target the direct row child */
-            flex-grow: 1; /* Make the row take remaining vertical space */
-            overflow: hidden; /* Hide its overflow for controlled scrolling of children */
+        .app-shell > .row {
+            flex-grow: 1;
+            margin: 0;
         }
 
-        /* Adjust sidebar and main-content to scroll independently */
+        /* Desktop Sticky Sidebar */
         .sidebar {
             background-color: var(--secondary-color);
-            /* min-height: 100vh; - No longer needed, handled by flex/sticky */
-            height: 100%; /* Ensure sidebar takes full height within its parent */
-            display: flex; /* Make sidebar a flex container */
-            flex-direction: column; /* Stack children vertically */
-        }
-        
-        /* The offcanvas-body inside the sidebar will handle its own scrolling */
-        .sidebar .offcanvas-body {
-            flex-grow: 1; /* Allow it to take up remaining vertical space */
-            overflow-y: auto; /* Enable vertical scrolling */
-            overflow-x: hidden; /* Prevent horizontal scrolling */
-            -ms-overflow-style: none; /* Hide scrollbar for IE/Edge */
-            scrollbar-width: none; /* Hide scrollbar for Firefox */
-        }
-
-        .sidebar .offcanvas-body::-webkit-scrollbar {
-            display: none; /* Hide scrollbar for Chrome/Safari */
-        }
-
-        .main-content {
-            padding: 20px;
-            flex-grow: 1; /* Allow main content to take up remaining vertical space */
-            overflow-y: auto; /* Enable vertical scrolling for main content */
-            overflow-x: hidden; /* Prevent horizontal scrolling */
-            min-height: 0; /* Crucial for flex items to correctly constrain height and enable scrolling */
-        }
-
-        :root {
-            --primary-color: #3498db;
-            --secondary-color: #2c3e50;
-            --accent-color: #f39c12;
-            --success-color: #2ecc71;
-            --danger-color: #e74c3c;
-            --warning-color: #f1c40f;
-            --info-color: #3498db;
-        }
-        
-        .sidebar .nav-link {
-            color: #fff;
-            border-radius: 0;
-            padding: 0.75rem 1rem;
-            position: relative;
-            transition: all 0.3s ease;
-            margin: 2px 0;
-        }
-        
-        .sidebar .nav-link {
-            color: #fff;
-            border-radius: 0;
-            padding: 0.75rem 1rem;
-            position: relative;
-            transition: all 0.3s ease;
-            margin: 2px 0;
-        }
-        
-        .sidebar .nav-link:hover {
-            background-color: rgba(255, 255, 255, 0.1);
-        }
-        
-        .sidebar .nav-link.active {
-            background-color: var(--primary-color);
-            color: #fff !important;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            transform: translateX(2px);
-        }
-        
-        .sidebar .nav-link.active::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 4px;
-            background-color: var(--accent-color);
-        }
-        
-        .sidebar .nav-link i {
-            margin-right: 10px;
-            width: 20px;
-            text-align: center;
-        }
-        
-        .main-content {
-            padding: 20px;
-        }
-        
-        .navbar {
-            background-color: #fff;
-            border-bottom: 1px solid #e9ecef;
-        }
-        
-        .card {
-            margin-bottom: 20px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            border-radius: 0.5rem;
-            border: none;
-        }
-        
-        .card-header {
-            background-color: #f8f9fa;
-            border-bottom: 1px solid #e9ecef;
-            padding: 0.75rem 1.25rem;
-            border-top-left-radius: 0.5rem;
-            border-top-right-radius: 0.5rem;
-        }
-        
-        .table-hover tbody tr:hover {
-            background-color: rgba(52, 152, 219, 0.05);
-        }
-        
-        .btn-primary {
-            background-color: var(--primary-color);
-            border-color: var(--primary-color);
-        }
-        
-        .btn-primary:hover {
-            background-color: #2980b9;
-            border-color: #2980b9;
-        }
-        
-        .badge {
-            font-weight: 500;
-            padding: 0.4em 0.7em;
-        }
-        
-        .footer {
-            background-color: #f8f9fa;
-            padding: 1rem;
-            border-top: 1px solid #e9ecef;
-            text-align: center;
-            position: relative;
-            bottom: 0;
-            width: 100%;
-        }
-        
-        /* Custom styles for dashboard stats */
-        .stat-card {
-            border-radius: 0.5rem;
-            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
-            border: none;
-            transition: transform 0.2s;
-        }
-        
-        .stat-card:hover {
-            transform: translateY(-5px);
-        }
-        
-        .stat-card .card-body {
+            border-right: 1px solid var(--secondary-surface);
+            min-height: 100vh;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .stat-card .icon {
-            font-size: 3rem;
-            opacity: 0.7;
-        }
-        
-        .stat-card .value {
-            font-size: 2rem;
-            font-weight: bold;
-        }
-
-        /* Fix for datetime display color (assuming it's in a specific element or general text) */
-        .datetime-display, .card-text.text-muted { /* Targeting common elements for date/time */
-            color: #333 !important; /* Darker text for readability */
-        }
-
-        /* Specific styles for the sidebar's navigation list to enable scrolling */
-        /* Reverting these styles to allow parent to handle scrolling */
-
-        /* Offcanvas for mobile sidebar - styles for larger screens (md and up) */
-        .sidebar.offcanvas-md {
-            position: sticky; /* Keep it sticky on desktop */
+            flex-direction: column;
+            position: sticky;
             top: 0;
-            height: 100vh; /* Full height on desktop */
-            z-index: 999; /* Below navbar for larger screens */
-            border-right: 1px solid rgba(0,0,0,.05); /* Restore border on desktop */
-            /* Removed !important here, relies on bg-secondary utility class on <nav> */
+            height: 100vh;
+            z-index: 100;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.2) transparent;
         }
-        
-        /* Offcanvas specific styles for mobile (less than md breakpoint) */
-        @media (max-width: 767.98px) {
-            .sidebar.offcanvas-md {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 250px; /* Specific width for mobile offcanvas */
-                height: 100vh;
-                z-index: 1045; /* Above navbar on mobile */
-                background-color: var(--secondary-color) !important; /* Force dark background on mobile offcanvas */
-                border-right: 1px solid rgba(0,0,0,.175);
-                transform: translateX(-100%); /* Hidden by default */
-                transition: transform .3s ease-in-out;
-            }
-            .sidebar.offcanvas-md.show {
-                transform: translateX(0%); /* Visible state for mobile */
-            }
-            /* Ensure text color is white in mobile offcanvas */
-            .sidebar.offcanvas-md .nav-link {
-                color: #fff !important;
-            }
-            .sidebar.offcanvas-md .offcanvas-title {
-                color: #fff !important;
-            }
-            .sidebar.offcanvas-md .text-light { /* For "Super Admin" header */
-                color: rgba(255, 255, 255, 0.7) !important;
-            }
-            /* Explicitly set color for all text within the offcanvas body for mobile */
-            .sidebar.offcanvas-md .offcanvas-body {
-                background-color: var(--secondary-color) !important; /* Ensure dark background */
-                color: #000 !important; /* Default text color to white */
-            }
-            .sidebar.offcanvas-md .offcanvas-body h3 {
-                color: #fff !important; /* Force logo text to be white */
-            }
-            .sidebar.offcanvas-md .offcanvas-body hr {
-                border-color: rgba(255, 255, 255, 0.25) !important; /* Ensure divider is visible */
-            }
-            .main-content {
-                margin-left: 0 !important; /* Reset margin for mobile */
-            }
-            /* Add backdrop for mobile offcanvas */
-            .offcanvas-backdrop.show {
-                opacity: 0.5;
-            }
+
+        .sidebar::-webkit-scrollbar {
+            width: 5px;
         }
-        
+        .sidebar::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.2);
+            border-radius: 4px;
+        }
+
+        .sidebar-brand-header {
+            padding: 1.25rem 1rem;
+            background: linear-gradient(180deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.95) 100%);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        /* Navigation Links (Both Desktop and Mobile Offcanvas) */
+        .sidebar-nav-list .nav-link {
+            color: #cbd5e1;
+            padding: 0.65rem 1rem;
+            font-size: 0.88rem;
+            font-weight: 500;
+            border-radius: 8px;
+            margin: 2px 8px;
+            display: flex;
+            align-items: center;
+            transition: all 0.2s ease-in-out;
+            text-decoration: none;
+        }
+
+        .sidebar-nav-list .nav-link:hover {
+            color: #ffffff;
+            background-color: rgba(255, 255, 255, 0.08);
+            transform: translateX(3px);
+        }
+
+        .sidebar-nav-list .nav-link.active {
+            color: #ffffff !important;
+            background-color: var(--primary-color) !important;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+            font-weight: 600;
+        }
+
+        .sidebar-nav-list .nav-link i {
+            margin-right: 12px;
+            width: 20px;
+            font-size: 1rem;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        /* Mobile Offcanvas Drawer */
+        .mobile-sidebar-offcanvas {
+            width: 300px !important;
+            max-width: 85vw;
+            background-color: var(--secondary-color) !important;
+            border-right: 1px solid var(--secondary-surface);
+            color: #ffffff;
+            z-index: 1055;
+        }
+
+        .mobile-sidebar-offcanvas .offcanvas-header {
+            background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 1rem 1.25rem;
+        }
+
+        .mobile-sidebar-offcanvas .offcanvas-body {
+            padding: 0.75rem 0.5rem;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Mobile Offcanvas User Summary Card */
+        .mobile-user-card {
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 0.85rem;
+            margin: 0 0.5rem 1rem 0.5rem;
+        }
+
+        /* Main Content Styling */
+        .main-content {
+            padding: 24px;
+            flex-grow: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* Top Navbar */
+        .navbar {
+            background-color: #ffffff;
+            border-bottom: 1px solid #e2e8f0;
+            border-radius: 10px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+            padding: 0.5rem 1rem;
+            transition: all 0.2s ease;
+        }
+
         /* Compact Modern DateTime Widget */
         .datetime-widget {
             background: #0f172a;
-            border-radius: 6px;
+            border-radius: 8px;
             color: white;
-            padding: 4px 10px;
+            padding: 5px 12px;
             text-align: center;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
             display: inline-flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
             white-space: nowrap;
         }
         
-        .datetime-display {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
-        
         #dateTimeDisplay {
-            font-size: 0.78rem;
+            font-size: 0.8rem;
             line-height: 1;
             color: #ffffff;
             font-weight: 600;
@@ -330,301 +236,304 @@
         }
         
         #dayDisplay {
-            font-size: 0.72rem;
+            font-size: 0.74rem;
             color: #94a3b8 !important;
             text-transform: capitalize;
             font-weight: 500;
+        }
+
+        /* Mobile Quick Action Bottom Navigation Bar */
+        .mobile-bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 62px;
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 1040;
+            box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.06);
+            padding-bottom: env(safe-area-inset-bottom, 0);
+        }
+
+        .mobile-bottom-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            text-decoration: none;
+            font-size: 0.68rem;
+            font-weight: 600;
+            padding: 6px 0;
+            transition: all 0.15s ease-in-out;
+            cursor: pointer;
+            border: none;
+            background: none;
+        }
+
+        .mobile-bottom-item i {
+            font-size: 1.15rem;
+            margin-bottom: 3px;
+            transition: transform 0.2s ease;
+        }
+
+        .mobile-bottom-item:active i {
+            transform: scale(0.9);
+        }
+
+        .mobile-bottom-item.active {
+            color: var(--primary-color);
+        }
+
+        .mobile-bottom-item.active i {
+            transform: translateY(-2px);
+            color: var(--primary-color);
+        }
+
+        /* Search Autocomplete Box */
+        #globalNavSearchDropdown, #mobileNavSearchDropdown {
+            border-radius: 10px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e2e8f0;
+        }
+
+        /* Mobile Responsive Overrides */
+        @media (max-width: 767.98px) {
+            .main-content {
+                padding: 12px 10px 80px 10px !important; /* Extra bottom room for mobile bottom nav bar */
+            }
+
+            .navbar {
+                border-radius: 8px;
+                padding: 0.45rem 0.65rem;
+                margin-bottom: 1rem !important;
+            }
+
+            .navbar-brand {
+                font-size: 1rem;
+                font-weight: 700;
+            }
+
+            /* Responsive tables with smooth touch scrolling */
+            .table-responsive {
+                border-radius: 8px;
+                border: 1px solid #e2e8f0;
+                -webkit-overflow-scrolling: touch;
+                margin-bottom: 1rem;
+            }
+
+            .table thead th {
+                white-space: nowrap;
+                font-size: 0.76rem;
+                padding: 7px 9px;
+            }
+
+            .table tbody td {
+                padding: 8px 9px;
+                font-size: 0.82rem;
+            }
+
+            /* Touch-friendly inputs and buttons */
+            .form-control, .form-select, .btn {
+                min-height: 40px;
+                font-size: 0.92rem;
+            }
+
+            /* Prevent mobile iOS zoom on input focus */
+            input[type="text"],
+            input[type="search"],
+            input[type="number"],
+            input[type="email"],
+            input[type="password"],
+            select,
+            textarea {
+                font-size: 16px !important;
+            }
+
+            /* Action button toolbars */
+            .btn-group, .d-flex.gap-2, .d-flex.gap-3 {
+                flex-wrap: wrap;
+            }
+
+            /* Heading sizes on small phones */
+            h1, .h1 { font-size: 1.45rem; }
+            h2, .h2 { font-size: 1.3rem; }
+            h3, .h3 { font-size: 1.15rem; }
+            h4, .h4 { font-size: 1.05rem; }
+
+            /* Modals on mobile */
+            .modal-dialog {
+                margin: 0.5rem;
+            }
+
+            .footer {
+                margin-bottom: 45px;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .mobile-bottom-nav {
+                display: none !important;
+            }
+        }
+
+        /* Footer */
+        .footer {
+            background-color: transparent;
+            padding: 1.25rem 0;
+            border-top: 1px solid #e2e8f0;
+            text-align: center;
+            font-size: 0.82rem;
+            color: var(--text-muted);
         }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
 <body>
     {% if user.is_authenticated and not hide_sidebar %}
+    
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- MOBILE OFFCANVAS SIDEBAR (Drawer for Mobile & Tablet screens)      -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <div class="offcanvas offcanvas-start mobile-sidebar-offcanvas" tabindex="-1" id="sidebarOffcanvas" aria-labelledby="sidebarOffcanvasLabel">
+        <!-- Offcanvas Header -->
+        <div class="offcanvas-header d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-2">
+                <div class="rounded-3 bg-warning text-dark d-flex align-items-center justify-content-center shadow-sm" style="width: 34px; height: 34px;">
+                    <i class="fas fa-coins fs-6"></i>
+                </div>
+                <div>
+                    <h6 class="offcanvas-title text-white fw-bold mb-0" id="sidebarOffcanvasLabel">Pawnshop MS</h6>
+                    <small class="text-white-50" style="font-size: 0.68rem;">Enterprise Gold Vault</small>
+                </div>
+            </div>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+
+        <!-- Offcanvas Body -->
+        <div class="offcanvas-body">
+            <!-- Mobile User Quick Profile Card -->
+            <div class="mobile-user-card">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold" style="width: 36px; height: 36px; font-size: 0.95rem;">
+                        <i class="fas fa-user-tie"></i>
+                    </div>
+                    <div class="overflow-hidden">
+                        <div class="text-white fw-bold text-truncate" style="font-size: 0.88rem;">{{ user.get_full_name|default:user.username }}</div>
+                        <div class="d-flex align-items-center gap-1 flex-wrap">
+                            <span class="badge {% if user.is_superuser %}bg-danger{% elif user.is_organization_admin %}bg-purple text-white{% elif user.role.role_type == 'branch_manager' %}bg-success{% else %}bg-primary{% endif %}" style="font-size: 0.62rem; padding: 2px 5px;">
+                                {% if user.is_superuser %}Super Admin{% elif user.role %}{{ user.role.name }}{% elif user.is_organization_admin %}Org Admin{% else %}Staff{% endif %}
+                            </span>
+                            {% if user.branch %}
+                            <span class="text-white-50 text-truncate" style="font-size: 0.68rem;">• {{ user.branch.name }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex gap-1 pt-1 border-top border-secondary border-opacity-25">
+                    <a href="{% url 'profile' %}" class="btn btn-sm btn-outline-light py-1 px-2 flex-grow-1" style="font-size: 0.75rem;">
+                        <i class="fas fa-user-circle me-1"></i>{% trans "Profile" %}
+                    </a>
+                    <form action="{% url 'logout' %}" method="post" class="m-0">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-outline-danger py-1 px-2" style="font-size: 0.75rem;" title="Logout">
+                            <i class="fas fa-sign-out-alt"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Include modular Navigation List -->
+            {% include '_sidebar.html' %}
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- MAIN APP SHELL (Desktop Sticky Sidebar + Content Area)             -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
     <div class="container-fluid app-shell">
         <div class="row">
-            <!-- Sidebar -->
-            <div class="col-md-3 col-lg-2 p-0 sidebar d-none d-md-block">
-                <div class="py-4 px-3 mb-2 text-center">
-                    <h3 class="text-white">Pawnshop MS</h3>
+            <!-- Desktop Sidebar (Hidden on Mobile) -->
+            <div class="col-md-3 col-lg-2 p-0 sidebar d-none d-md-flex">
+                <div class="sidebar-brand-header text-center">
+                    <div class="d-flex align-items-center justify-content-center gap-2">
+                        <div class="rounded-3 bg-warning text-dark d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px;">
+                            <i class="fas fa-coins fs-6"></i>
+                        </div>
+                        <h5 class="text-white fw-bold mb-0">Pawnshop MS</h5>
+                    </div>
+                    {% if user.branch %}
+                    <div class="mt-1">
+                        <span class="badge bg-secondary bg-opacity-50 text-light border border-secondary" style="font-size: 0.68rem; font-weight: normal;">
+                            <i class="fas fa-store me-1 text-warning"></i>{{ user.branch.name }}
+                        </span>
+                    </div>
+                    {% endif %}
                 </div>
-                <ul class="nav flex-column">
 
-                    <!-- ═══ DASHBOARD ═══ -->
-                    <li class="nav-item">
-                        <a href="{% url 'dashboard' %}" class="nav-link {% block dashboard_active %}{% endblock %}">
-                            <i class="fas fa-tachometer-alt" style="color:#38bdf8;"></i> {% trans "Dashboard" %}
-                        </a>
-                    </li>
-
-                    <!-- ═══ SUPER ADMIN (conditional) ═══ -->
-                    {% if user.is_superuser %}
-                    <li class="nav-item">
-                        <div class="px-3 pt-3 pb-1">
-                            <small class="text-light text-uppercase fw-bold" style="font-size:0.65rem;letter-spacing:0.08em;">Super Admin</small>
-                        </div>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'superadmin_dashboard' %}" class="nav-link {% block superadmin_dashboard_active %}{% endblock %}">
-                            <i class="fas fa-user-shield" style="color:#f472b6;"></i> Admin Dashboard
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'superadmin_organization_list' %}" class="nav-link {% block superadmin_organizations_active %}{% endblock %}">
-                            <i class="fas fa-building" style="color:#a78bfa;"></i> Manage Organizations
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'admin:index' %}" class="nav-link" target="_blank">
-                            <i class="fas fa-cogs" style="color:#fb923c;"></i> Django Admin
-                        </a>
-                    </li>
-                    <li class="nav-item"><div class="px-3 py-1"><hr class="text-light opacity-25 my-1"></div></li>
-                    {% endif %}
-
-                    <!-- ═══ SECTION 1 — DAILY OPERATIONS ═══ -->
-                    <li class="nav-item">
-                        <div class="px-3 pt-3 pb-1">
-                            <small class="text-warning text-uppercase fw-bold" style="font-size:0.65rem;letter-spacing:0.08em;">
-                                <i class="fas fa-star me-1" style="font-size:0.6rem;"></i>Daily Operations
-                            </small>
-                        </div>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'loan_list' %}" class="nav-link {% block loans_active %}{% endblock %}">
-                            <i class="fas fa-hand-holding-usd" style="color:#34d399;"></i> {% trans "Loans" %}
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'customer_list' %}" class="nav-link {% block customers_active %}{% endblock %}">
-                            <i class="fas fa-users" style="color:#60a5fa;"></i> {% trans "Customers" %}
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'loan_approval_queue' %}" class="nav-link {% block approvals_active %}{% endblock %}">
-                            <i class="fas fa-tasks" style="color:#fbbf24;"></i> {% trans "Loan Approvals" %}
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'payment_list' %}" class="nav-link {% block interest_paid_active %}{% endblock %}">
-                            <i class="fas fa-dollar-sign" style="color:#4ade80;"></i> {% trans "Interest Paid" %}
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'cash_till_dashboard' %}" class="nav-link {% block cash_till_active %}{% endblock %}">
-                            <i class="fas fa-cash-register" style="color:#a3e635;"></i> Cash Till &amp; Scroll
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'vault_explorer' %}" class="nav-link {% block vault_active %}{% endblock %}">
-                            <i class="fas fa-shield-alt" style="color:#f59e0b;"></i> Gold Vault Custody
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'gold_purchase_list' %}" class="nav-link {% block gold_purchase_active %}{% endblock %}">
-                            <i class="fas fa-coins" style="color:#eab308;"></i> Buy Used Gold
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'autopilot_console' %}" class="nav-link {% block autopilot_active %}{% endblock %}">
-                            <i class="fas fa-satellite" style="color:#06b6d4;"></i> {% trans "24/7 Autopilot Hub" %}
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'eod_console' %}" class="nav-link {% block eod_active %}{% endblock %}">
-                            <i class="fas fa-moon" style="color:#818cf8;"></i> {% trans "EOD Operations" %}
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'eod_console' %}#watchlistSection" class="nav-link">
-                            <i class="fas fa-triangle-exclamation" style="color:#f87171;"></i> {% trans "IRAC / NPA Risk Alerts" %}
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'digital_marketing' %}" class="nav-link {% block marketing_active %}{% endblock %}">
-                            <i class="fas fa-bullhorn" style="color:#ec4899;"></i> {% trans "Digital Marketing" %}
-                        </a>
-                    </li>
-
-                    <!-- ═══ SECTION 2 — FINANCIAL & COMPLIANCE ═══ -->
-                    <li class="nav-item">
-                        <div class="px-3 pt-3 pb-1">
-                            <small class="text-info text-uppercase fw-bold" style="font-size:0.65rem;letter-spacing:0.08em;">
-                                <i class="fas fa-balance-scale me-1" style="font-size:0.6rem;"></i>Financial & Compliance
-                            </small>
-                        </div>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'daily_gold_rates' %}" class="nav-link {% block gold_rates_active %}{% endblock %}">
-                            <i class="fas fa-coins" style="color:#fcd34d;"></i> Daily Gold Rates &amp; LTV
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'accounting_day_book' %}" class="nav-link {% block day_book_active %}{% endblock %}">
-                            <i class="fas fa-book-open" style="color:#38bdf8;"></i> Day Book (GL)
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'accounting_trial_balance' %}" class="nav-link {% block trial_balance_active %}{% endblock %}">
-                            <i class="fas fa-balance-scale" style="color:#67e8f9;"></i> Trial Balance &amp; P&amp;L
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'gst_dashboard' %}" class="nav-link {% block gst_active %}{% endblock %}">
-                            <i class="fas fa-receipt" style="color:#f87171;"></i> GST
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'scheme_list' %}" class="nav-link {% block schemes_active %}{% endblock %}">
-                            <i class="fas fa-percentage" style="color:#c084fc;"></i> Loan Schemes
-                        </a>
-                    </li>
-
-                    <!-- ═══ SECTION 3 — SALES & INVENTORY ═══ -->
-                    <li class="nav-item">
-                        <div class="px-3 pt-3 pb-1">
-                            <small class="text-light text-uppercase fw-bold" style="font-size:0.65rem;letter-spacing:0.08em;">
-                                <i class="fas fa-store me-1" style="font-size:0.6rem;"></i>Sales & Inventory
-                            </small>
-                        </div>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'sale_list' %}" class="nav-link {% block sales_active %}{% endblock %}">
-                            <i class="fas fa-shopping-cart" style="color:#fb923c;"></i> Sales
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'item_list' %}" class="nav-link {% block inventory_active %}{% endblock %}">
-                            <i class="fas fa-box-open" style="color:#86efac;"></i> Inventory
-                        </a>
-                    </li>
-
-                    <!-- ═══ SECTION 4 — REPORTS & ANALYTICS ═══ -->
-                    <li class="nav-item">
-                        <div class="px-3 pt-3 pb-1">
-                            <small class="text-light text-uppercase fw-bold" style="font-size:0.65rem;letter-spacing:0.08em;">
-                                <i class="fas fa-chart-bar me-1" style="font-size:0.6rem;"></i>Reports & Analytics
-                            </small>
-                        </div>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'report_list' %}" class="nav-link {% block reports_active %}{% endblock %}">
-                            <i class="fas fa-chart-bar" style="color:#f472b6;"></i> Reports
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'analytics:dashboard' %}" class="nav-link {% block risk_analytics_active %}{% endblock %}">
-                            <i class="fas fa-chart-pie" style="color:#2dd4bf;"></i> Risk Analytics
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'dashboard_list' %}" class="nav-link {% block dashboards_active %}{% endblock %}">
-                            <i class="fas fa-chart-line" style="color:#e879f9;"></i> Analytics
-                        </a>
-                    </li>
-
-                    <!-- ═══ SECTION 5 — ADMINISTRATION ═══ -->
-                    {% if perms.branches.view_branch or perms.accounts.view_customuser or perms.accounts.view_role or user.is_superuser or user.is_pawnshop_admin or user.is_organization_admin %}
-                    <li class="nav-item">
-                        <div class="px-3 pt-3 pb-1">
-                            <small class="text-light text-uppercase fw-bold" style="font-size:0.65rem;letter-spacing:0.08em;">
-                                <i class="fas fa-cog me-1" style="font-size:0.6rem;"></i>Administration
-                            </small>
-                        </div>
-                    </li>
-                    {% if perms.branches.view_branch or user.is_superuser or user.is_pawnshop_admin or user.is_organization_admin %}
-                    <li class="nav-item">
-                        <a href="{% url 'branch_list' %}" class="nav-link {% block branches_active %}{% endblock %}">
-                            <i class="fas fa-store" style="color:#fdba74;"></i> Branches
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% if perms.accounts.view_customuser or user.is_superuser or user.is_pawnshop_admin or user.is_organization_admin %}
-                    <li class="nav-item">
-                        <a href="{% url 'user_list' %}" class="nav-link {% block users_active %}{% endblock %}">
-                            <i class="fas fa-user-shield" style="color:#93c5fd;"></i> Users
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% if perms.accounts.view_role or user.is_superuser or user.is_pawnshop_admin or user.is_organization_admin %}
-                    <li class="nav-item">
-                        <a href="{% url 'role_list' %}" class="nav-link {% block roles_active %}{% endblock %}">
-                            <i class="fas fa-user-tag" style="color:#fca5a5;"></i> Roles
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% if user.is_superuser or user.is_pawnshop_admin or user.is_organization_admin %}
-                    <li class="nav-item">
-                        <a href="{% url 'biometric_settings' %}" class="nav-link {% block biometrics_active %}{% endblock %}">
-                            <i class="fas fa-fingerprint" style="color:#6ee7b7;"></i> Biometrics
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% endif %}
-
-                    <!-- ═══ SECTION 6 — SYSTEM ═══ -->
-                    {% if user.is_superuser or user.is_pawnshop_admin or user.is_organization_admin %}
-                    <li class="nav-item">
-                        <div class="px-3 pt-3 pb-1">
-                            <small class="text-light text-uppercase fw-bold" style="font-size:0.65rem;letter-spacing:0.08em;">
-                                <i class="fas fa-plug me-1" style="font-size:0.6rem;"></i>System
-                            </small>
-                        </div>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'integration_list' %}" class="nav-link {% block integrations_active %}{% endblock %}">
-                            <i class="fas fa-plug" style="color:#a5b4fc;"></i> Integrations
-                        </a>
-                    </li>
-                    <li class="nav-item mb-4">
-                        <a href="{% url 'subscription_plans' %}" class="nav-link {% block subscription_active %}{% endblock %}">
-                            <i class="fas fa-crown" style="color:#fde68a;"></i> Subscription Plans
-                        </a>
-                    </li>
-                    {% endif %}
-
-                </ul>
+                <!-- Desktop Sidebar Navigation List -->
+                {% include '_sidebar.html' %}
             </div>
             
-            <!-- Main Content -->
-            <div class="col-md-9 col-lg-10 ml-sm-auto px-4 main-content">
+            <!-- Main Content Area -->
+            <div class="col-md-9 col-lg-10 ml-sm-auto main-content">
                 <!-- Top Navigation Bar -->
-                <nav class="navbar navbar-expand-lg navbar-light sticky-top mb-4">
-                    <div class="container">
-                        <!-- Toggle button for offcanvas sidebar on mobile -->
-                        <button class="navbar-toggler d-md-none me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas" aria-controls="sidebarOffcanvas" aria-label="Toggle navigation">
-                            <span class="navbar-toggler-icon"></span>
-                        </button>
+                <nav class="navbar sticky-top mb-3">
+                    <div class="container-fluid px-1 px-md-2 d-flex align-items-center justify-content-between">
                         
-                        <a class="navbar-brand d-md-none" href="#">Pawnshop MS</a>
-
-                        <div class="collapse navbar-collapse" id="navbarNav">
-                            <ul class="navbar-nav me-auto">
-                                <!-- Global Search Form -->
-                                <li class="nav-item position-relative" style="min-width: 320px; max-width: 460px;">
-                                    <form class="d-flex" action="{% url 'global_search' %}" method="GET" id="globalSearchForm">
-                                        <div class="input-group shadow-xs">
-                                            <span class="input-group-text bg-white border-end-0 text-muted ps-2 pe-1">
-                                                <i class="fas fa-search text-primary" style="font-size: 0.85rem;"></i>
-                                            </span>
-                                            <input class="form-control border-start-0 border-end-0 ps-1" type="search" name="q" id="globalNavSearchInput"
-                                                   value="{{ request.GET.q|default:'' }}"
-                                                   placeholder="Search loans, customers, city, ornaments..."
-                                                   aria-label="Global Search" autocomplete="off"
-                                                   style="font-size: 0.88rem;">
-                                            <button class="btn btn-primary btn-sm px-3 fw-semibold" type="submit">
-                                                Search
-                                            </button>
-                                        </div>
-                                    </form>
-                                    <!-- Instant Autocomplete Dropdown Container -->
-                                    <div id="globalNavSearchDropdown" class="dropdown-menu shadow-lg w-100 mt-1 py-0 border-0"
-                                         style="display:none; position:absolute; top:100%; left:0; z-index:1050; max-height:480px; overflow-y:auto; border-radius:8px;">
-                                    </div>
-                                </li>
-                            </ul>
+                        <!-- Left Section: Mobile Menu Button & Brand -->
+                        <div class="d-flex align-items-center gap-2">
+                            <!-- Mobile Sidebar Toggle Button -->
+                            <button class="btn btn-outline-secondary btn-sm d-md-none border-0 px-2 py-1 text-dark" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas" aria-controls="sidebarOffcanvas" aria-label="Toggle Navigation Menu">
+                                <i class="fas fa-bars fs-5"></i>
+                            </button>
                             
-                            <!-- Compact Modern Date & Time Widget -->
-                            <div class="datetime-widget me-2" id="datetimeWidget" title="Current System Time">
+                            <!-- Mobile Brand Logo -->
+                            <div class="d-flex align-items-center gap-1.5 d-md-none">
+                                <i class="fas fa-coins text-warning fs-5"></i>
+                                <span class="fw-bold text-dark" style="font-size: 1.02rem;">Pawnshop MS</span>
+                            </div>
+                        </div>
+
+                        <!-- Center Section: Desktop Global Search -->
+                        <div class="d-none d-lg-block position-relative" style="min-width: 320px; max-width: 480px; flex: 1; margin: 0 1.5rem;">
+                            <form class="d-flex" action="{% url 'global_search' %}" method="GET" id="globalSearchForm">
+                                <div class="input-group shadow-xs">
+                                    <span class="input-group-text bg-white border-end-0 text-muted ps-2.5 pe-1">
+                                        <i class="fas fa-search text-primary" style="font-size: 0.85rem;"></i>
+                                    </span>
+                                    <input class="form-control border-start-0 border-end-0 ps-1 bg-white" type="search" name="q" id="globalNavSearchInput"
+                                           value="{{ request.GET.q|default:'' }}"
+                                           placeholder="{% trans 'Search loans, customers, city, ornaments...' %}"
+                                           aria-label="Global Search" autocomplete="off"
+                                           style="font-size: 0.88rem;">
+                                    <button class="btn btn-primary btn-sm px-3 fw-semibold" type="submit">
+                                        {% trans "Search" %}
+                                    </button>
+                                </div>
+                            </form>
+                            <!-- Instant Autocomplete Dropdown Container -->
+                            <div id="globalNavSearchDropdown" class="dropdown-menu shadow-lg w-100 mt-1 py-0 border-0"
+                                 style="display:none; position:absolute; top:100%; left:0; z-index:1050; max-height:480px; overflow-y:auto;">
+                            </div>
+                        </div>
+
+                        <!-- Right Section: Tools, Language & User Profile -->
+                        <div class="d-flex align-items-center gap-1 gap-md-2">
+                            <!-- Mobile Search Trigger Button (Reveals expandable search) -->
+                            <button class="btn btn-light btn-sm border d-lg-none py-1 px-2.5" type="button" data-bs-toggle="collapse" data-bs-target="#mobileSearchCollapse" aria-expanded="false" aria-controls="mobileSearchCollapse" title="Search">
+                                <i class="fas fa-search text-primary"></i>
+                            </button>
+
+                            <!-- Desktop Date & Time Widget -->
+                            <div class="datetime-widget d-none d-xl-inline-flex" id="datetimeWidget" title="Current System Time">
                                 <i class="far fa-clock text-warning" style="font-size:0.75rem;"></i>
                                 <span id="dateTimeDisplay">--/--/-- --:--:--</span>
                                 <span class="opacity-50">&bull;</span>
@@ -632,10 +541,10 @@
                             </div>
                             
                             <!-- Language Switcher Dropdown -->
-                            <div class="dropdown me-2">
-                                <button class="btn btn-outline-secondary btn-sm dropdown-toggle py-1 px-2" type="button" id="languageDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="font-size:0.78rem;">
-                                    <i class="fas fa-language me-1 text-primary"></i>
-                                    {% if LANGUAGE_CODE|slice:':2' == 'ta' %}தமிழ்{% else %}English{% endif %}
+                            <div class="dropdown">
+                                <button class="btn btn-outline-secondary btn-sm dropdown-toggle py-1 px-2 d-flex align-items-center gap-1" type="button" id="languageDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="font-size:0.78rem;">
+                                    <i class="fas fa-language text-primary"></i>
+                                    <span class="d-none d-sm-inline">{% if LANGUAGE_CODE|slice:':2' == 'ta' %}தமிழ்{% else %}English{% endif %}</span>
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="languageDropdown">
                                     <li>
@@ -643,7 +552,10 @@
                                             {% csrf_token %}
                                             <input type="hidden" name="next" value="{{ request.get_full_path }}">
                                             <input type="hidden" name="language" value="en">
-                                            <button type="submit" class="dropdown-item py-1" style="font-size:0.82rem;">English</button>
+                                            <button type="submit" class="dropdown-item py-1.5 d-flex align-items-center justify-content-between {% if LANGUAGE_CODE|slice:':2' == 'en' %}active fw-bold{% endif %}" style="font-size:0.82rem;">
+                                                English
+                                                {% if LANGUAGE_CODE|slice:':2' == 'en' %}<i class="fas fa-check small"></i>{% endif %}
+                                            </button>
                                         </form>
                                     </li>
                                     <li>
@@ -651,40 +563,30 @@
                                             {% csrf_token %}
                                             <input type="hidden" name="next" value="{{ request.get_full_path }}">
                                             <input type="hidden" name="language" value="ta">
-                                            <button type="submit" class="dropdown-item py-1" style="font-size:0.82rem;">தமிழ்</button>
+                                            <button type="submit" class="dropdown-item py-1.5 d-flex align-items-center justify-content-between {% if LANGUAGE_CODE|slice:':2' == 'ta' %}active fw-bold{% endif %}" style="font-size:0.82rem;">
+                                                தமிழ்
+                                                {% if LANGUAGE_CODE|slice:':2' == 'ta' %}<i class="fas fa-check small"></i>{% endif %}
+                                            </button>
                                         </form>
                                     </li>
                                 </ul>
                             </div>
 
-                            <!-- Current Login User with Role Profile Card -->
+                            <!-- Current Login User Dropdown -->
                             {% if user.is_authenticated %}
                             <div class="dropdown">
-                                <a class="btn btn-white border shadow-xs d-flex align-items-center gap-2 py-1 px-2 dropdown-toggle bg-white" href="#" role="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="border-radius: 8px;">
-                                    <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center fw-bold" style="width: 30px; height: 30px; font-size: 0.85rem;">
+                                <a class="btn btn-white border shadow-xs d-flex align-items-center gap-1.5 py-1 px-2 dropdown-toggle bg-white" href="#" role="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="border-radius: 8px;">
+                                    <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center fw-bold" style="width: 28px; height: 28px; font-size: 0.82rem;">
                                         <i class="fas fa-user-tie"></i>
                                     </div>
-                                    <div class="text-start pe-1 lh-sm">
-                                        <div class="fw-bold text-dark text-truncate" style="max-width: 140px; font-size: 0.82rem;">
+                                    <div class="text-start pe-1 lh-sm d-none d-md-block">
+                                        <div class="fw-bold text-dark text-truncate" style="max-width: 130px; font-size: 0.82rem;">
                                             {{ user.get_full_name|default:user.username }}
                                         </div>
                                         <div class="d-flex align-items-center gap-1">
-                                            <span class="badge {% if user.is_superuser %}bg-danger{% elif user.is_organization_admin %}bg-purple text-white{% elif user.role.role_type == 'branch_manager' %}bg-success{% elif user.role.role_type == 'senior_appraiser' or user.role.role_type == 'loan_officer' %}bg-warning text-dark{% else %}bg-primary{% endif %}" style="font-size: 0.62rem; padding: 2px 4px;">
-                                                {% if user.is_superuser %}
-                                                    Super Admin
-                                                {% elif user.role %}
-                                                    {{ user.role.name }}
-                                                {% elif user.is_organization_admin %}
-                                                    Org Admin
-                                                {% else %}
-                                                    Staff
-                                                {% endif %}
+                                            <span class="badge {% if user.is_superuser %}bg-danger{% elif user.is_organization_admin %}bg-purple text-white{% elif user.role.role_type == 'branch_manager' %}bg-success{% else %}bg-primary{% endif %}" style="font-size: 0.60rem; padding: 1px 4px;">
+                                                {% if user.is_superuser %}Super Admin{% elif user.role %}{{ user.role.name }}{% elif user.is_organization_admin %}Org Admin{% else %}Staff{% endif %}
                                             </span>
-                                            {% if user.branch %}
-                                            <span class="text-muted text-truncate" style="font-size: 0.68rem; max-width: 80px;" title="{{ user.branch.name }}">
-                                                &bull; {{ user.branch.name }}
-                                            </span>
-                                            {% endif %}
                                         </div>
                                     </div>
                                 </a>
@@ -702,7 +604,7 @@
                                         </div>
                                     </li>
                                     <li><a class="dropdown-item py-2" href="{% url 'profile' %}"><i class="fas fa-user-circle me-2 text-primary"></i>{% trans "Profile" %}</a></li>
-                                    {% if user.is_superuser %}
+                                    {% if user.is_superuser or user.is_organization_admin %}
                                         <li><hr class="dropdown-divider my-1"></li>
                                         <li><h6 class="dropdown-header text-uppercase" style="font-size:0.65rem;">Administration</h6></li>
                                         <li><a class="dropdown-item py-1" href="{% url 'superadmin_dashboard' %}">
@@ -726,16 +628,38 @@
                                     </li>
                                 </ul>
                             </div>
-                            {% else %}
-                            <a class="btn btn-outline-primary btn-sm" href="{% url 'login' %}">{% trans "Login" %}</a>
                             {% endif %}
-                        </div><!-- /.collapse.navbar-collapse -->
-                    </div><!-- /.container -->
+                        </div>
+
+                    </div>
+
+                    <!-- Expandable Mobile Search Bar (Collapsible on Mobile) -->
+                    <div class="collapse w-100 mt-2 px-1 d-lg-none" id="mobileSearchCollapse">
+                        <div class="position-relative">
+                            <form action="{% url 'global_search' %}" method="GET" id="mobileSearchForm">
+                                <div class="input-group shadow-xs">
+                                    <span class="input-group-text bg-white border-end-0 text-muted ps-2.5 pe-1">
+                                        <i class="fas fa-search text-primary" style="font-size: 0.85rem;"></i>
+                                    </span>
+                                    <input class="form-control border-start-0 border-end-0 ps-1 bg-white" type="search" name="q" id="mobileNavSearchInput"
+                                           placeholder="{% trans 'Search loans, customers...' %}"
+                                           aria-label="Mobile Search" autocomplete="off">
+                                    <button class="btn btn-primary btn-sm px-3 fw-semibold" type="submit">
+                                        {% trans "Search" %}
+                                    </button>
+                                </div>
+                            </form>
+                            <!-- Mobile Instant Autocomplete Dropdown Container -->
+                            <div id="mobileNavSearchDropdown" class="dropdown-menu shadow-lg w-100 mt-1 py-0 border-0"
+                                 style="display:none; position:absolute; top:100%; left:0; z-index:1060; max-height:380px; overflow-y:auto;">
+                            </div>
+                        </div>
+                    </div>
                 </nav>
                 
                 <!-- Messages Area -->
                 {% if messages %}
-                    <div class="messages">
+                    <div class="messages mb-3">
                         {% for message in messages %}
                             <div class="alert {% if 'error' in message.tags or 'danger' in message.tags %}alert-danger border-danger{% elif 'success' in message.tags %}alert-success border-success{% elif 'warning' in message.tags %}alert-warning border-warning{% elif 'info' in message.tags %}alert-info border-info{% else %}alert-{{ message.tags }}{% endif %} alert-dismissible fade show shadow-sm d-flex align-items-center" role="alert">
                                 {% if 'error' in message.tags or 'danger' in message.tags %}
@@ -778,34 +702,61 @@
         {% endif %}
     {% endif %}
 
-    <!-- Universal Content Block (used by both authenticated and unauthenticated pages) -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- UNIVERSAL CONTENT BLOCK                                            -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
     {% block content %}{% endblock %}
 
     {% if user.is_authenticated and not hide_sidebar %}
                 <!-- Footer -->
-                <footer class="footer mt-5">
+                <footer class="footer mt-4">
                     <div class="container-fluid">
-                        <span class="text-muted">&copy; {% now "Y" %} Pawnshop Management System. All rights reserved.</span>
+                        <span>&copy; {% now "Y" %} Pawnshop Management System. All rights reserved.</span>
                     </div>
                 </footer>
             </div><!-- /.main-content col -->
         </div><!-- /.row -->
     </div><!-- /.container-fluid.app-shell -->
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- MOBILE QUICK ACTION BOTTOM BAR (Native App Experience)            -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <nav class="mobile-bottom-nav d-md-none" id="mobileBottomNav">
+        <a href="{% url 'dashboard' %}" class="mobile-bottom-item {% block mobile_nav_dashboard %}{% endblock %}" data-nav="dashboard">
+            <i class="fas fa-tachometer-alt"></i>
+            <span>{% trans "Home" %}</span>
+        </a>
+        <a href="{% url 'loan_list' %}" class="mobile-bottom-item {% block mobile_nav_loans %}{% endblock %}" data-nav="loans">
+            <i class="fas fa-hand-holding-usd"></i>
+            <span>{% trans "Loans" %}</span>
+        </a>
+        <a href="{% url 'customer_list' %}" class="mobile-bottom-item {% block mobile_nav_customers %}{% endblock %}" data-nav="customers">
+            <i class="fas fa-users"></i>
+            <span>{% trans "Customers" %}</span>
+        </a>
+        <a href="{% url 'cash_till_dashboard' %}" class="mobile-bottom-item {% block mobile_nav_cash %}{% endblock %}" data-nav="cash">
+            <i class="fas fa-cash-register"></i>
+            <span>{% trans "Till" %}</span>
+        </a>
+        <button type="button" class="mobile-bottom-item" data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas" aria-controls="sidebarOffcanvas">
+            <i class="fas fa-bars"></i>
+            <span>{% trans "Menu" %}</span>
+        </button>
+    </nav>
     {% else %}
     </div><!-- /.unauth-wrapper-root -->
     {% endif %}
     
-    <!-- Bootstrap Bundle with Popper -->
+    <!-- Bootstrap 5 Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <!-- Custom Scripts -->
+    <!-- Custom Page Scripts -->
     {% block extra_scripts %}{% endblock %}
     {% block extra_js %}{% endblock %}
     
-    <!-- Navigation Highlighting Script -->
+    <!-- Navigation Highlighting & Core App JavaScript -->
     <script>
-        // Navigation highlighting functionality
         $(document).ready(function() {
             highlightActiveNavigation();
             
@@ -814,28 +765,37 @@
                 setTimeout(highlightActiveNavigation, 100);
             });
             
-            // Handle immediate visual feedback on clicks
-            $('.sidebar .nav-link').on('click', function(e) {
-                // Don't prevent default navigation
-                $('.sidebar .nav-link').removeClass('active');
+            // Handle immediate visual feedback on sidebar clicks
+            $('.sidebar-nav-list .nav-link').on('click', function() {
+                $('.sidebar-nav-list .nav-link').removeClass('active');
                 $(this).addClass('active');
-                console.log('Navigation clicked:', $(this).attr('href'));
-                
-                // Force visual update immediately
-                $(this).css('background-color', 'var(--primary-color)');
+            });
+
+            // Auto-close offcanvas on mobile when clicking internal links
+            $('.mobile-sidebar-offcanvas .nav-link').on('click', function() {
+                const href = $(this).attr('href');
+                if (href && !href.startsWith('#') && !$(this).attr('target')) {
+                    const offcanvasEl = document.getElementById('sidebarOffcanvas');
+                    if (offcanvasEl) {
+                        const bsOffcanvas = bootstrap.Offcanvas.getInstance(offcanvasEl);
+                        if (bsOffcanvas) {
+                            bsOffcanvas.hide();
+                        }
+                    }
+                }
             });
         });
         
         function highlightActiveNavigation() {
             const currentPath = window.location.pathname;
-            const sidebarLinks = $('.sidebar .nav-link');
+            const sidebarLinks = $('.sidebar-nav-list .nav-link');
+            const bottomNavItems = $('.mobile-bottom-item');
             
             // Remove existing active classes
             sidebarLinks.removeClass('active');
+            bottomNavItems.removeClass('active');
             
-            console.log('Checking navigation for path:', currentPath);
-            
-            // Enhanced matching logic
+            // 1. Highlight Sidebar Links
             let bestMatch = null;
             let bestScore = 0;
             
@@ -844,58 +804,29 @@
                 const href = $link.attr('href');
                 
                 if (!href || href.startsWith('http') || href.includes('admin:index')) {
-                    return; // Skip external links
+                    return;
                 }
                 
                 let score = 0;
-                
-                // Exact match gets highest score
                 if (currentPath === href) {
                     score = 1000;
-                    console.log(`Exact match: ${currentPath} = ${href}, score: ${score}`);
-                }
-                // Partial match for sub-pages
-                else if (href !== '/' && currentPath.startsWith(href)) {
-                    score = 500 + href.length; // Longer paths get higher scores
-                    console.log(`Partial match: ${currentPath} starts with ${href}, score: ${score}`);
-                }
-                // Special cases for specific navigation items
-                else {
-                    // Dashboard special case
-                    if ((currentPath === '/' || currentPath === '/dashboard/') && 
-                        (href.includes('/dashboard') || href === '/')) {
+                } else if (href !== '/' && currentPath.startsWith(href)) {
+                    score = 500 + href.length;
+                } else {
+                    if ((currentPath === '/' || currentPath === '/dashboard/') && (href.includes('/dashboard') || href === '/')) {
                         score = 400;
-                        console.log(`Dashboard match: ${currentPath} matches ${href}, score: ${score}`);
-                    }
-                    // Inventory special case
-                    else if (currentPath.startsWith('/inventory/') && href.includes('/item')) {
+                    } else if (currentPath.startsWith('/inventory/') && href.includes('/item')) {
                         score = 450;
-                        console.log(`Inventory match: ${currentPath} matches item href ${href}, score: ${score}`);
-                    }
-                    // Reports special case
-                    else if (currentPath.startsWith('/reporting/reports/') && href.includes('/report')) {
+                    } else if (currentPath.startsWith('/reporting/reports/') && href.includes('/report')) {
                         score = 450;
-                        console.log(`Reports match: ${currentPath} matches report href ${href}, score: ${score}`);
-                    }
-                    // Analytics special case
-                    else if (currentPath.startsWith('/reporting/dashboards/') && href.includes('/dashboard_list')) {
+                    } else if (currentPath.startsWith('/reporting/dashboards/') && href.includes('/dashboard_list')) {
                         score = 450;
-                        console.log(`Analytics match: ${currentPath} matches dashboard_list href ${href}, score: ${score}`);
-                    }
-                    // Biometrics special case
-                    else if (currentPath.startsWith('/biometrics/') && href.includes('/biometric')) {
+                    } else if (currentPath.startsWith('/biometrics/') && href.includes('/biometric')) {
                         score = 450;
-                        console.log(`Biometrics match: ${currentPath} matches biometric href ${href}, score: ${score}`);
-                    }
-                    // Integrations special case
-                    else if (currentPath.startsWith('/integrations/') && href.includes('/integration')) {
+                    } else if (currentPath.startsWith('/integrations/') && href.includes('/integration')) {
                         score = 450;
-                        console.log(`Integrations match: ${currentPath} matches integration href ${href}, score: ${score}`);
-                    }
-                    // Subscription special case
-                    else if (currentPath.startsWith('/dashboard/subscription') && href.includes('/subscription')) {
+                    } else if (currentPath.startsWith('/dashboard/subscription') && href.includes('/subscription')) {
                         score = 450;
-                        console.log(`Subscription match: ${currentPath} matches subscription href ${href}, score: ${score}`);
                     }
                 }
                 
@@ -905,20 +836,22 @@
                 }
             });
             
-            // Apply the best match
             if (bestMatch) {
                 bestMatch.addClass('active');
-                console.log(`Applied highlighting to: ${bestMatch.attr('href')} - "${bestMatch.text().trim()}" (Score: ${bestScore})`);
-            } else {
-                console.log('No match found for:', currentPath);
             }
-            
-            // Debug output
-            const activeLinks = $('.sidebar .nav-link.active');
-            console.log(`Total active links: ${activeLinks.length}`);
+
+            // 2. Highlight Mobile Bottom Nav Items
+            if (currentPath === '/' || currentPath === '/dashboard/' || currentPath.includes('dashboard')) {
+                bottomNavItems.filter('[data-nav="dashboard"]').addClass('active');
+            } else if (currentPath.includes('/loan') || currentPath.includes('/transactions/loan')) {
+                bottomNavItems.filter('[data-nav="loans"]').addClass('active');
+            } else if (currentPath.includes('/customer') || currentPath.includes('/accounts/customer')) {
+                bottomNavItems.filter('[data-nav="customers"]').addClass('active');
+            } else if (currentPath.includes('/cash') || currentPath.includes('cash_till')) {
+                bottomNavItems.filter('[data-nav="cash"]').addClass('active');
+            }
         }
         
-        // Force re-highlight after page transitions
         $(document).on('DOMContentLoaded', highlightActiveNavigation);
         
         // Close flash message alerts automatically after 5 seconds
@@ -930,9 +863,11 @@
         
         // DateTime Widget Update Function
         function updateDateTime() {
+            const dateEl = document.getElementById('dateTimeDisplay');
+            const dayEl = document.getElementById('dayDisplay');
+            if (!dateEl) return;
+
             const now = new Date();
-            
-            // Format: DD/MM/YYYY HH:MM:SS
             const day = String(now.getDate()).padStart(2, '0');
             const month = String(now.getMonth() + 1).padStart(2, '0');
             const year = now.getFullYear();
@@ -941,8 +876,6 @@
             const seconds = String(now.getSeconds()).padStart(2, '0');
             
             const dateTimeStr = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
-            
-            // Get day name in English and Tamil
             const daysEn = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
             const daysTa = ['ஞாயிற்றுக்கிழமை', 'திங்கட்கிழமை', 'செவ்வாய்க்கிழமை', 'புதன்கிழமை', 'வியாழக்கிழமை', 'வெள்ளிக்கிழமை', 'சனிக்கிழமை'];
             
@@ -950,58 +883,56 @@
             const languageCode = document.documentElement.lang || 'en';
             const dayName = languageCode.startsWith('ta') ? daysTa[dayIndex] : daysEn[dayIndex];
             
-            // Update the display
-            document.getElementById('dateTimeDisplay').textContent = dateTimeStr;
-            document.getElementById('dayDisplay').textContent = dayName;
+            dateEl.textContent = dateTimeStr;
+            if (dayEl) dayEl.textContent = dayName;
         }
         
-        // Update on page load
         updateDateTime();
-        
-        // Update every second
         setInterval(updateDateTime, 1000);
 
         // ══════════════════════════════════════════════════
-        // Global Instant Autocomplete Search
+        // Global & Mobile Instant Autocomplete Search Engine
         // ══════════════════════════════════════════════════
-        const navSearchInput = document.getElementById('globalNavSearchInput');
-        const navSearchDropdown = document.getElementById('globalNavSearchDropdown');
-        let searchDebounceTimer = null;
+        function setupLiveSearch(inputId, dropdownId) {
+            const input = document.getElementById(inputId);
+            const dropdown = document.getElementById(dropdownId);
+            if (!input || !dropdown) return;
 
-        if (navSearchInput && navSearchDropdown) {
-            navSearchInput.addEventListener('input', function() {
+            let debounceTimer = null;
+
+            input.addEventListener('input', function() {
                 const query = this.value.trim();
-                clearTimeout(searchDebounceTimer);
+                clearTimeout(debounceTimer);
 
                 if (query.length < 2) {
-                    navSearchDropdown.style.display = 'none';
-                    navSearchDropdown.innerHTML = '';
+                    dropdown.style.display = 'none';
+                    dropdown.innerHTML = '';
                     return;
                 }
 
-                searchDebounceTimer = setTimeout(() => {
+                debounceTimer = setTimeout(() => {
                     fetch(`{% url 'global_search_api' %}?q=${encodeURIComponent(query)}`)
                         .then(r => r.json())
                         .then(data => {
                             if (!data.results || data.total_count === 0) {
-                                navSearchDropdown.innerHTML = `
+                                dropdown.innerHTML = `
                                     <div class="p-3 text-center text-muted small">
-                                        <i class="fas fa-search me-1 text-secondary"></i>No matching results for "<strong>${escapeHtml(query)}</strong>"
-                                        <div class="mt-1"><a href="{% url 'global_search' %}?q=${encodeURIComponent(query)}" class="btn btn-outline-primary btn-xs mt-1">Full Search Page</a></div>
+                                        <i class="fas fa-search me-1 text-secondary"></i>{% trans "No matching results for" %} "<strong>${escapeHtml(query)}</strong>"
+                                        <div class="mt-1"><a href="{% url 'global_search' %}?q=${encodeURIComponent(query)}" class="btn btn-outline-primary btn-sm mt-1">{% trans "Full Search Page" %}</a></div>
                                     </div>`;
-                                navSearchDropdown.style.display = 'block';
+                                dropdown.style.display = 'block';
                                 return;
                             }
 
                             let html = `<div class="p-2 border-bottom bg-light d-flex justify-content-between align-items-center">
-                                <small class="fw-bold text-uppercase text-secondary" style="font-size:0.68rem;letter-spacing:0.05em;">Quick Matches (${data.total_count})</small>
-                                <a href="{% url 'global_search' %}?q=${encodeURIComponent(query)}" class="small fw-semibold text-primary text-decoration-none" style="font-size:0.75rem;">View All Results &rarr;</a>
+                                <small class="fw-bold text-uppercase text-secondary" style="font-size:0.68rem;letter-spacing:0.05em;">{% trans "Quick Matches" %} (${data.total_count})</small>
+                                <a href="{% url 'global_search' %}?q=${encodeURIComponent(query)}" class="small fw-semibold text-primary text-decoration-none" style="font-size:0.75rem;">{% trans "View All" %} &rarr;</a>
                             </div>`;
 
                             // 1. Customers
                             if (data.results.customers && data.results.customers.length > 0) {
                                 html += `<div class="px-3 py-1 bg-white text-uppercase fw-bold text-muted border-bottom" style="font-size:0.65rem;">
-                                    <i class="fas fa-users text-primary me-1"></i>Customers
+                                    <i class="fas fa-users text-primary me-1"></i>{% trans "Customers" %}
                                 </div>`;
                                 data.results.customers.forEach(c => {
                                     html += `
@@ -1018,7 +949,7 @@
                             // 2. Loans
                             if (data.results.loans && data.results.loans.length > 0) {
                                 html += `<div class="px-3 py-1 bg-white text-uppercase fw-bold text-muted border-bottom" style="font-size:0.65rem;">
-                                    <i class="fas fa-hand-holding-usd text-success me-1"></i>Loans
+                                    <i class="fas fa-hand-holding-usd text-success me-1"></i>{% trans "Loans" %}
                                 </div>`;
                                 data.results.loans.forEach(l => {
                                     html += `
@@ -1035,7 +966,7 @@
                             // 3. Ornaments
                             if (data.results.ornaments && data.results.ornaments.length > 0) {
                                 html += `<div class="px-3 py-1 bg-white text-uppercase fw-bold text-muted border-bottom" style="font-size:0.65rem;">
-                                    <i class="fas fa-gem text-warning me-1"></i>Ornaments
+                                    <i class="fas fa-gem text-warning me-1"></i>{% trans "Ornaments" %}
                                 </div>`;
                                 data.results.ornaments.forEach(o => {
                                     html += `
@@ -1052,7 +983,7 @@
                             // 4. Vault Pouches
                             if (data.results.vault_pouches && data.results.vault_pouches.length > 0) {
                                 html += `<div class="px-3 py-1 bg-white text-uppercase fw-bold text-muted border-bottom" style="font-size:0.65rem;">
-                                    <i class="fas fa-shield-alt text-warning me-1"></i>Vault Pouches
+                                    <i class="fas fa-shield-alt text-warning me-1"></i>{% trans "Vault Pouches" %}
                                 </div>`;
                                 data.results.vault_pouches.forEach(v => {
                                     html += `
@@ -1067,13 +998,13 @@
                             }
 
                             html += `<div class="p-2 text-center bg-light">
-                                <a href="{% url 'global_search' %}?q=${encodeURIComponent(query)}" class="btn btn-primary btn-xs w-100 py-1 fw-bold">
-                                    <i class="fas fa-search me-1"></i> View All Results for "${escapeHtml(query)}"
+                                <a href="{% url 'global_search' %}?q=${encodeURIComponent(query)}" class="btn btn-primary btn-sm w-100 py-1 fw-bold">
+                                    <i class="fas fa-search me-1"></i> {% trans "View All Results for" %} "${escapeHtml(query)}"
                                 </a>
                             </div>`;
 
-                            navSearchDropdown.innerHTML = html;
-                            navSearchDropdown.style.display = 'block';
+                            dropdown.innerHTML = html;
+                            dropdown.style.display = 'block';
                         })
                         .catch(err => {
                             console.error('Search API error:', err);
@@ -1083,18 +1014,22 @@
 
             // Close dropdown when clicking outside
             document.addEventListener('click', function(e) {
-                if (!navSearchInput.contains(e.target) && !navSearchDropdown.contains(e.target)) {
-                    navSearchDropdown.style.display = 'none';
+                if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+                    dropdown.style.display = 'none';
                 }
             });
 
-            // Re-open if query is present on focus
-            navSearchInput.addEventListener('focus', function() {
-                if (this.value.trim().length >= 2 && navSearchDropdown.innerHTML.trim() !== '') {
-                    navSearchDropdown.style.display = 'block';
+            // Re-open on focus if query exists
+            input.addEventListener('focus', function() {
+                if (this.value.trim().length >= 2 && dropdown.innerHTML.trim() !== '') {
+                    dropdown.style.display = 'block';
                 }
             });
         }
+
+        // Initialize search for both Desktop and Mobile inputs
+        setupLiveSearch('globalNavSearchInput', 'globalNavSearchDropdown');
+        setupLiveSearch('mobileNavSearchInput', 'mobileNavSearchDropdown');
 
         function escapeHtml(str) {
             if (!str) return '';
@@ -1134,6 +1069,3 @@
     </script>
 </body>
 </html>
-
-
-

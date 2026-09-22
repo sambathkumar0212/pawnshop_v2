@@ -182,6 +182,74 @@
         align-items: center;
         gap: 0.5rem;
     }
+
+    /* Mobile Responsive Optimizations */
+    @media (max-width: 767.98px) {
+        .stats-card {
+            padding: 1rem 0.85rem;
+            border-radius: 12px;
+        }
+        .stat-value {
+            font-size: 1.65rem;
+            margin: 0.25rem 0;
+        }
+        .stat-label {
+            font-size: 0.78rem;
+        }
+        .stat-trend {
+            font-size: 0.72rem;
+            margin-top: 0.25rem;
+        }
+        .module-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        .module-card {
+            padding: 1rem 0.6rem;
+            border-radius: 10px;
+        }
+        .module-icon {
+            height: 46px;
+            width: 46px;
+            font-size: 1.4rem;
+            margin-bottom: 0.6rem;
+            border-radius: 10px;
+        }
+        .module-card h5 {
+            font-size: 0.92rem;
+            margin-bottom: 0.25rem;
+        }
+        .module-card p {
+            font-size: 0.72rem !important;
+            margin-bottom: 0.6rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .module-card .btn {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            width: 100%;
+        }
+        .chart-container {
+            padding: 1rem 0.75rem;
+            min-height: 270px;
+            margin-bottom: 1rem;
+        }
+        .quick-action-card {
+            padding: 1rem 0.75rem;
+        }
+        .action-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        .welcome-header {
+            padding: 1rem;
+            border-radius: 12px;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -189,36 +257,42 @@
 
 
 <!-- Key Performance Indicators -->
-<div class="row mb-3">
-    <div class="col-lg-3 col-md-6 mb-3">
+<div class="row mb-2 mb-md-3 g-2 g-md-3">
+    <div class="col-6 col-md-6 col-lg-3">
         <div class="stats-card stats-loans">
             <div class="stat-label">Active Loans</div>
             <div class="stat-value">{{ active_loans|default:"0" }}</div>
-            <div class="stat-trend">
+            <div class="stat-trend d-none d-sm-block">
                 <i class="fas fa-exclamation-triangle"></i> {{ overdue_loans|default:"0" }} overdue
                 • {{ loans_due_today|default:"0" }} due today
             </div>
-        </div>
-    </div>
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="stats-card stats-sales">
-            <div class="stat-label">Today's Revenue</div>
-            <div class="stat-value">Rs: {{ total_sales|default:"0" }}</div>
-            <div class="stat-trend">
-                <i class="fas fa-arrow-up"></i> 3.48% vs yesterday
+            <div class="stat-trend d-sm-none">
+                <i class="fas fa-exclamation-triangle"></i> {{ overdue_loans|default:"0" }} overdue
             </div>
         </div>
     </div>
-    <div class="col-lg-3 col-md-6 mb-3">
+    <div class="col-6 col-md-6 col-lg-3">
+        <div class="stats-card stats-sales">
+            <div class="stat-label">Today's Revenue</div>
+            <div class="stat-value"><span style="font-size: 0.65em;">₹</span>{{ total_sales|default:"0" }}</div>
+            <div class="stat-trend">
+                <i class="fas fa-arrow-up"></i> Today's Total
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-6 col-lg-3">
         <div class="stats-card stats-inventory">
             <div class="stat-label">Inventory Items</div>
             <div class="stat-value">{{ total_items|default:"0" }}</div>
-            <div class="stat-trend">
+            <div class="stat-trend d-none d-sm-block">
                 {{ available_items|default:"0" }} available • {{ pawned_items|default:"0" }} pawned
+            </div>
+            <div class="stat-trend d-sm-none">
+                {{ available_items|default:"0" }} available
             </div>
         </div>
     </div>
-    <div class="col-lg-3 col-md-6 mb-3">
+    <div class="col-6 col-md-6 col-lg-3">
         <div class="stats-card stats-customers">
             <div class="stat-label">Total Customers</div>
             <div class="stat-value">{{ customer_count|default:"0" }}</div>

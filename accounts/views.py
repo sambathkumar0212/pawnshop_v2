@@ -1128,12 +1128,27 @@ class CustomerListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin,
         return context
 
 
-class CustomerCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
+class CustomerCreateView(LoginRequiredMixin, RoleBranchAccessMixin, PermissionRequiredMixin, CreateView):
     model = Customer
     form_class = CustomerForm  # Use the CustomerForm instead of fields
     template_name = 'accounts/customer_form.html'
     success_url = reverse_lazy('customer_list')
     permission_required = 'accounts.add_customer'
+
+    def has_permission(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+        if user.is_superuser or getattr(user, 'is_pawnshop_admin', False) or getattr(user, 'is_organization_admin', False):
+            return True
+        if user.is_branch_manager or user.is_regional_manager:
+            return True
+        if hasattr(user, 'role') and user.role:
+            if user.role.role_type in [Role.BRANCH_MANAGER, Role.REGIONAL_MANAGER, Role.LOAN_OFFICER, Role.CASHIER, Role.CUSTOMER_SERVICE]:
+                return True
+            if user.role.has_permission('add_customer'):
+                return True
+        return super().has_permission()
     
     def form_valid(self, form):
         remove_profile_photo = (self.request.POST.get('remove_profile_photo') == '1')
@@ -1359,12 +1374,32 @@ class CustomerResendWelcomeWishView(LoginRequiredMixin, RoleBranchAccessMixin, V
         return redirect('customer_detail', pk=customer.pk)
 
 
-class CustomerUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
+class CustomerUpdateView(LoginRequiredMixin, RoleBranchAccessMixin, PermissionRequiredMixin, UpdateView):
     model = Customer
     form_class = CustomerForm  # Use the CustomerForm instead of fields
     template_name = 'accounts/customer_form.html'
     success_url = reverse_lazy('customer_list')
     permission_required = 'accounts.change_customer'
+
+    def get_object(self, queryset=None):
+        obj = super().get_object(queryset=queryset)
+        self.check_object_branch_access(obj, branch_attr='branch')
+        return obj
+
+    def has_permission(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+        if user.is_superuser or getattr(user, 'is_pawnshop_admin', False) or getattr(user, 'is_organization_admin', False):
+            return True
+        if user.is_branch_manager or user.is_regional_manager:
+            return True
+        if hasattr(user, 'role') and user.role:
+            if user.role.role_type in [Role.BRANCH_MANAGER, Role.REGIONAL_MANAGER, Role.LOAN_OFFICER, Role.CUSTOMER_SERVICE]:
+                return True
+            if user.role.has_permission('change_customer'):
+                return True
+        return super().has_permission()
     
     def form_valid(self, form):
         remove_profile_photo = (self.request.POST.get('remove_profile_photo') == '1')
@@ -1406,12 +1441,32 @@ class CustomerUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView
         return kwargs
 
 
-class CustomerDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
+class CustomerDeleteView(LoginRequiredMixin, RoleBranchAccessMixin, PermissionRequiredMixin, DeleteView):
     model = Customer
     template_name = 'accounts/customer_confirm_delete.html'
     context_object_name = 'customer'
     success_url = reverse_lazy('customer_list')
     permission_required = 'accounts.delete_customer'
+
+    def get_object(self, queryset=None):
+        obj = super().get_object(queryset=queryset)
+        self.check_object_branch_access(obj, branch_attr='branch')
+        return obj
+
+    def has_permission(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+        if user.is_superuser or getattr(user, 'is_pawnshop_admin', False) or getattr(user, 'is_organization_admin', False):
+            return True
+        if user.is_branch_manager or user.is_regional_manager:
+            return True
+        if hasattr(user, 'role') and user.role:
+            if user.role.role_type in [Role.BRANCH_MANAGER, Role.REGIONAL_MANAGER]:
+                return True
+            if user.role.has_permission('delete_customer'):
+                return True
+        return super().has_permission()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1452,9 +1507,21 @@ class CustomerDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView
             return redirect('customer_detail', pk=self.object.pk)
 
 
-class CustomerJsonView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
+class CustomerJsonView(LoginRequiredMixin, RoleBranchAccessMixin, PermissionRequiredMixin, DetailView):
     model = Customer
     permission_required = 'accounts.view_customer'
+
+    def has_permission(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+        if user.is_superuser or getattr(user, 'is_pawnshop_admin', False) or getattr(user, 'is_organization_admin', False):
+            return True
+        if user.is_branch_manager or user.is_regional_manager:
+            return True
+        if hasattr(user, 'role') and user.role:
+            return True
+        return super().has_permission()
     
     def get(self, request, *args, **kwargs):
         customer = self.get_object()
