@@ -95,6 +95,21 @@ class Branch(models.Model):
     is_active = models.BooleanField(default=True)
     opening_time = models.TimeField(default='09:00')
     closing_time = models.TimeField(default='18:00')
+    
+    # UPI QR & Digital Payment Configuration
+    upi_vpa = models.CharField(
+        max_length=100, 
+        blank=True, 
+        null=True, 
+        help_text="Branch UPI Virtual Payment Address (e.g. branch@icici or business@okaxis)"
+    )
+    upi_merchant_name = models.CharField(
+        max_length=100, 
+        blank=True, 
+        null=True, 
+        help_text="Merchant Name displayed on GooglePay/PhonePe/Paytm"
+    )
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

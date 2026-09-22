@@ -69,6 +69,12 @@
         </a>
     </li>
     <li class="nav-item">
+        <a href="{% url 'pending_upi_payments' %}" class="nav-link {% block pending_upi_active %}{% endblock %}">
+            <i class="fas fa-qrcode" style="color:#38bdf8;"></i>
+            <span>{% trans "UPI Verifications" %}</span>
+        </a>
+    </li>
+    <li class="nav-item">
         <a href="{% url 'cash_till_dashboard' %}" class="nav-link {% block cash_till_active %}{% endblock %}">
             <i class="fas fa-cash-register" style="color:#a3e635;"></i>
             <span>{% trans "Cash Till & Scroll" %}</span>

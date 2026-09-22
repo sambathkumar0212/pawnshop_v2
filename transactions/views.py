@@ -3268,6 +3268,102 @@ class PaymentDetailView(LoginRequiredMixin, DetailView):
     context_object_name = 'payment'
 
 
+class PendingUPIPaymentsListView(LoginRequiredMixin, RoleBranchAccessMixin, ListView):
+    """
+    Queue of customer submitted online/UPI payments with 12-digit UTR numbers awaiting staff verification.
+    """
+    model = Payment
+    template_name = 'transactions/pending_upi_payments.html'
+    context_object_name = 'pending_payments'
+    paginate_by = 25
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = Payment.objects.filter(
+            verification_status='pending'
+        ).select_related('loan', 'loan__customer', 'loan__branch', 'received_by').order_by('-created_at')
+
+        allowed_branches = self.get_allowed_branches(user)
+        if allowed_branches is not None:
+            qs = qs.filter(loan__branch__in=allowed_branches)
+        elif getattr(user, 'organization', None):
+            qs = qs.filter(loan__branch__organization=user.organization)
+
+        # Search filter
+        query = self.request.GET.get('q', '').strip()
+        if query:
+            qs = qs.filter(
+                Q(utr_number__icontains=query) |
+                Q(loan__loan_number__icontains=query) |
+                Q(loan__customer__first_name__icontains=query) |
+                Q(loan__customer__last_name__icontains=query) |
+                Q(loan__customer__phone__icontains=query)
+            )
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['pending_count'] = self.get_queryset().count()
+        context['search_query'] = self.request.GET.get('q', '')
+        return context
+
+
+class VerifyUPIPaymentActionView(LoginRequiredMixin, RoleBranchAccessMixin, View):
+    """
+    Staff / Manager endpoint to Approve or Reject a submitted UPI payment with 12-digit UTR.
+    """
+    def post(self, request, pk, *args, **kwargs):
+        payment = get_object_or_404(Payment, pk=pk)
+        self.check_object_branch_access(payment.loan, branch_attr='branch')
+
+        action = request.POST.get('action', '').strip() # 'approve' or 'reject'
+        rejection_reason = request.POST.get('rejection_reason', '').strip()
+
+        if action == 'approve':
+            payment.verification_status = 'verified'
+            payment.verified_by = request.user
+            payment.verified_at = timezone.now()
+            payment.rejection_reason = None
+            payment.save(update_fields=['verification_status', 'verified_by', 'verified_at', 'rejection_reason'])
+
+            messages.success(
+                request,
+                f"✅ UPI Payment of ₹{payment.amount:,.2f} for Loan #{payment.loan.loan_number} (UTR: {payment.utr_number or payment.reference_number}) approved and credited!"
+            )
+        elif action == 'reject':
+            payment.verification_status = 'rejected'
+            payment.verified_by = request.user
+            payment.verified_at = timezone.now()
+            payment.rejection_reason = rejection_reason or "UTR could not be verified with bank records."
+            payment.save(update_fields=['verification_status', 'verified_by', 'verified_at', 'rejection_reason'])
+
+            messages.warning(
+                request,
+                f"⚠️ UPI Payment of ₹{payment.amount:,.2f} for Loan #{payment.loan.loan_number} marked as Rejected. Reason: {payment.rejection_reason}"
+            )
+        else:
+            messages.error(request, "Invalid action requested.")
+
+        return redirect(request.POST.get('next') or 'pending_upi_payments')
+
+
+class LoanUPIQRDataView(LoginRequiredMixin, RoleBranchAccessMixin, View):
+    """
+    API endpoint returning dynamic Base64 UPI QR code and payment URI for a specific loan.
+    """
+    def get(self, request, loan_number, *args, **kwargs):
+        loan = get_object_or_404(Loan, loan_number=loan_number)
+        self.check_object_branch_access(loan, branch_attr='branch')
+
+        from transactions.services_upi import get_loan_upi_payment_payload
+        requested_amount = request.GET.get('amount')
+        try:
+            payload = get_loan_upi_payment_payload(loan, requested_amount=requested_amount)
+            return JsonResponse({'success': True, **payload})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=400)
+
+
 class LoanExtensionCreateView(LoginRequiredMixin, RoleBranchAccessMixin, CreateView):
     model = LoanExtension
     form_class = LoanExtensionForm

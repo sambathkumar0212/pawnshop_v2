@@ -1189,13 +1189,21 @@ class CustomerCreateView(LoginRequiredMixin, RoleBranchAccessMixin, PermissionRe
         
         response = super().form_valid(form)
 
+        # Automatically provision customer self-service portal account & temporary PIN
+        try:
+            from accounts.services_portal import provision_customer_portal_credentials
+            portal_user, temp_pin = provision_customer_portal_credentials(self.object, reset_by=self.request.user)
+            logger.info(f"Auto-provisioned customer portal account {portal_user.username} for #{self.object.id}")
+        except Exception as e:
+            logger.warning(f"Could not auto-provision customer portal account: {e}")
+
         # Trigger automated background WhatsApp welcome wish
         try:
             from transactions.services_whatsapp_automator import send_customer_welcome_whatsapp_async
             send_customer_welcome_whatsapp_async(self.object.id, user_id=self.request.user.id)
             messages.success(
                 self.request,
-                f"Customer {self.object.full_name} created successfully! 📲 Automated WhatsApp welcome wish is being dispatched in the background."
+                f"Customer {self.object.full_name} created! 🔑 Portal Username: {getattr(self.object.user, 'username', 'fm_' + str(self.object.phone)[-10:])} | 📲 WhatsApp welcome wish queued."
             )
         except Exception as e:
             logger.warning("Could not spawn welcome WhatsApp worker: %s", e)
@@ -1349,6 +1357,17 @@ class CustomerDetailView(LoginRequiredMixin, RoleBranchAccessMixin, PermissionRe
         welcome_msg = build_customer_welcome_whatsapp_message(customer, lang='ta')
         context['welcome_msg_text'] = welcome_msg
         context['welcome_whatsapp_link'] = get_whatsapp_link(raw_phone, welcome_msg)
+
+        # Customer Portal Credentials & Direct WhatsApp Delivery Link
+        from accounts.services_portal import get_customer_portal_whatsapp_url, provision_customer_portal_credentials
+        if not customer.user:
+            try:
+                provision_customer_portal_credentials(customer, reset_by=self.request.user, force_new_password=False)
+                customer.refresh_from_db()
+            except Exception as e:
+                logger.warning(f"Could not provision customer portal user on detail view: {e}")
+                
+        context['portal_whatsapp_url'] = get_customer_portal_whatsapp_url(customer, request=self.request)
         
         return context
 
@@ -2387,5 +2406,70 @@ class GlobalSearchAjaxView(LoginRequiredMixin, RoleBranchAccessMixin, View):
                 'vault_pouches': vault_pouches
             }
         })
+
+
+class CustomerAdminResetCredentialsView(LoginRequiredMixin, View):
+    """
+    Super-Admin exclusive endpoint to force-reset and regenerate customer portal login credentials.
+    Branch Managers and regular staff are restricted from resetting passwords directly.
+    """
+    def post(self, request, pk, *args, **kwargs):
+        from accounts.models import Customer, Role
+        from accounts.services_portal import provision_customer_portal_credentials
+
+        customer = get_object_or_404(Customer, pk=pk)
+        
+        # Enforce Admin-only access
+        user = request.user
+        is_super_admin = (
+            user.is_superuser or 
+            getattr(user, 'is_pawnshop_admin', False) or 
+            getattr(user, 'is_organization_admin', False) or
+            (hasattr(user, 'role') and user.role and user.role.role_type == Role.IT_ADMIN)
+        )
+        
+        if not is_super_admin:
+            raise PermissionDenied("Access Denied: Only System Super-Administrators hold permission to force-reset customer portal credentials.")
+            
+        user_obj, temp_pin = provision_customer_portal_credentials(customer, reset_by=user, force_new_password=True)
+        
+        messages.success(
+            request, 
+            f"🔑 Customer credentials regenerated successfully! Username: {user_obj.username} | Temporary PIN: {temp_pin}. You can now send the updated details via WhatsApp."
+        )
+        return redirect('customer_detail', pk=customer.pk)
+
+
+class CustomerAdminTogglePortalView(LoginRequiredMixin, View):
+    """
+    Super-Admin exclusive endpoint to enable or disable customer portal access.
+    """
+    def post(self, request, pk, *args, **kwargs):
+        from accounts.models import Customer, Role
+
+        customer = get_object_or_404(Customer, pk=pk)
+        
+        user = request.user
+        is_super_admin = (
+            user.is_superuser or 
+            getattr(user, 'is_pawnshop_admin', False) or 
+            getattr(user, 'is_organization_admin', False) or
+            (hasattr(user, 'role') and user.role and user.role.role_type == Role.IT_ADMIN)
+        )
+        
+        if not is_super_admin:
+            raise PermissionDenied("Access Denied: Only System Super-Administrators can change customer portal access status.")
+            
+        customer.portal_active = not customer.portal_active
+        customer.save(update_fields=['portal_active'])
+        
+        if customer.user:
+            customer.user.is_active = customer.portal_active
+            customer.user.save(update_fields=['is_active'])
+            
+        status_str = "activated" if customer.portal_active else "disabled"
+        messages.success(request, f"Customer portal access for {customer.full_name} has been {status_str}.")
+        return redirect('customer_detail', pk=customer.pk)
+
 
 

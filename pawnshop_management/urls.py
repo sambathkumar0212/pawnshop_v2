@@ -64,6 +64,7 @@ def migration_status(request):
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('portal/', include('accounts.urls_portal')),
     path('accounts/', include('accounts.urls')),
     path('branches/', include('branches.urls')),
     path('inventory/', include('inventory.urls')),

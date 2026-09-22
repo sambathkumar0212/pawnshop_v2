@@ -1791,11 +1791,18 @@ class Payment(models.Model):
     """Payment model for tracking loan payments"""
     PAYMENT_METHOD_CHOICES = [
         ('cash', 'Cash'),
+        ('upi', 'UPI QR / Digital'),
         ('credit_card', 'Credit Card'),
         ('debit_card', 'Debit Card'),
         ('bank_transfer', 'Bank Transfer'),
         ('online', 'Online Payment'),
         ('other', 'Other'),
+    ]
+
+    VERIFICATION_STATUS_CHOICES = [
+        ('pending', 'Pending Verification'),
+        ('verified', 'Verified'),
+        ('rejected', 'Rejected'),
     ]
     
     loan = models.ForeignKey(Loan, on_delete=models.CASCADE, related_name='payments')
@@ -1803,6 +1810,31 @@ class Payment(models.Model):
     payment_date = models.DateField()
     payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES)
     reference_number = models.CharField(max_length=255, blank=True, null=True)  # Increased from 100 to 255
+    utr_number = models.CharField(
+        max_length=50, 
+        blank=True, 
+        null=True, 
+        db_index=True, 
+        help_text="12-digit Indian UPI / Bank transaction UTR reference number"
+    )
+    verification_status = models.CharField(
+        max_length=20, 
+        choices=VERIFICATION_STATUS_CHOICES, 
+        default='verified', 
+        db_index=True, 
+        help_text="Verification status of the payment"
+    )
+    verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='verified_payments',
+        help_text="Staff or Branch Manager who verified the UTR"
+    )
+    verified_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp when payment was verified")
+    rejection_reason = models.TextField(blank=True, null=True, help_text="Reason for rejection if UTR is unverified/invalid")
+    
     received_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, 
                                   null=True, related_name='payments_received')
     notes = models.TextField(blank=True, null=True)

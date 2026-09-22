@@ -164,6 +164,73 @@
         </div>
     </div>
 
+    <!-- Self-Service Customer Portal Credentials & WhatsApp Dispatch Strip -->
+    <div class="card border-0 shadow-2xs rounded-3 mb-2 bg-white border-start border-success border-4" style="background: linear-gradient(to right, #f0fdf4, #ffffff);">
+        <div class="card-body p-2 px-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center gap-3 flex-wrap">
+                <div class="rounded-circle d-flex align-items-center justify-content-center bg-success text-white shadow-2xs" style="width: 38px; height: 38px;">
+                    <i class="fas fa-shield-alt fa-lg"></i>
+                </div>
+                <div>
+                    <div class="fw-bold d-flex align-items-center gap-2 text-dark flex-wrap" style="font-size: 0.86rem;">
+                        <span>Customer Portal Login:</span>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle">
+                            <i class="fas fa-user-circle me-1"></i>{{ customer.user.username|default:"fm_"|add:customer.phone }}
+                        </span>
+                        {% if customer.temp_password_plain %}
+                            <span class="badge bg-warning-subtle text-dark border border-warning-subtle" title="Initial Temporary PIN">
+                                <i class="fas fa-key me-1"></i>Temp PIN: <strong class="font-monospace text-primary ms-1">{{ customer.temp_password_plain }}</strong>
+                            </span>
+                        {% endif %}
+                        {% if customer.portal_active %}
+                            <span class="badge bg-emerald-100 text-success border" style="font-size: 0.72rem;"><i class="fas fa-check me-1"></i>Portal Active</span>
+                        {% else %}
+                            <span class="badge bg-danger-subtle text-danger border" style="font-size: 0.72rem;"><i class="fas fa-ban me-1"></i>Portal Disabled</span>
+                        {% endif %}
+
+                        {% if not request.user.is_superuser and request.user.role.role_type != 'it_admin' and not request.user.is_pawnshop_admin %}
+                            <span class="badge bg-light text-secondary border ms-1" style="font-size: 0.70rem;" title="Security Governance: Branch Managers have view-only access. Credential resets are restricted to System Super-Admin.">
+                                <i class="fas fa-lock me-1 text-muted"></i>View-Only (Manager)
+                            </span>
+                        {% endif %}
+                    </div>
+                    <small class="text-muted d-block" style="font-size: 0.74rem;">
+                        Customers can login to view active loans and pay interest via UPI QR.
+                        {% if customer.last_credential_reset_at %}
+                            (Last credential update: {{ customer.last_credential_reset_at|date:"d-M-Y h:i A" }}{% if customer.last_credential_reset_by %} by {{ customer.last_credential_reset_by.username }}{% endif %})
+                        {% endif %}
+                    </small>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                {% if portal_whatsapp_url %}
+                <a href="{{ portal_whatsapp_url }}" target="_blank" class="btn btn-sm btn-success fw-bold px-3 shadow-xs d-flex align-items-center gap-2 text-white" title="Send Login Credentials via WhatsApp to Customer">
+                    <i class="fab fa-whatsapp fa-lg"></i>
+                    <span>Send Login via WhatsApp</span>
+                </a>
+                {% endif %}
+
+                {% if request.user.is_superuser or request.user.is_pawnshop_admin or request.user.role.role_type == 'it_admin' %}
+                    <!-- Super-Admin Exclusive Force-Reset Action -->
+                    <form method="POST" action="{% url 'customer_admin_reset_credentials' customer.id %}" class="d-inline" onsubmit="return confirm('⚠️ Super-Admin Action: Are you sure you want to FORCE-RESET and regenerate login credentials for {{ customer.full_name }}? A new temporary PIN will be generated.');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-outline-danger fw-bold shadow-2xs" title="Super-Admin Exclusive: Force-Reset & Generate Fresh PIN">
+                            <i class="fas fa-key me-1"></i>Force-Reset PIN
+                        </button>
+                    </form>
+
+                    <!-- Super-Admin Portal Toggle -->
+                    <form method="POST" action="{% url 'customer_admin_toggle_portal' customer.id %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm {% if customer.portal_active %}btn-outline-secondary{% else %}btn-outline-success{% endif %} fw-bold shadow-2xs" title="Super-Admin: Toggle Portal Access">
+                            <i class="fas fa-power-off me-1"></i>{% if customer.portal_active %}Disable Portal{% else %}Enable Portal{% endif %}
+                        </button>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
     <!-- Customer Dossier Summary Card (High-Density Top Card) -->
     <div class="customer-dossier-card p-3 mb-2">
         <div class="row g-3 align-items-center">

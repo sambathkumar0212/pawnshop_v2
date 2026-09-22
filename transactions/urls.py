@@ -59,6 +59,9 @@ urlpatterns = [
     
     # Payments
     path('payments/', views.PaymentListView.as_view(), name='payment_list'),
+    path('payments/pending-upi/', views.PendingUPIPaymentsListView.as_view(), name='pending_upi_payments'),
+    path('payments/<int:pk>/verify-upi/', views.VerifyUPIPaymentActionView.as_view(), name='verify_upi_payment'),
+    path('loans/<str:loan_number>/upi-qr-data/', views.LoanUPIQRDataView.as_view(), name='loan_upi_qr_data'),
     path('payments/<int:pk>/', views.PaymentDetailView.as_view(), name='payment_detail'),
     path('payments/<int:payment_id>/receipt/', views.PaymentReceiptView.as_view(), name='payment_receipt'),
     

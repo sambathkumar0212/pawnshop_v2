@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ customer.full_name|default:"Customer" }} - First Money Gold Portal</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-navy: #0f172a;
+            --primary-accent: #1e293b;
+            --accent-gold: #d97706;
+            --accent-gold-light: #fef3c7;
+            --emerald-accent: #059669;
+        }
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #f1f5f9;
+            color: #1e293b;
+            min-height: 100vh;
+        }
+        .portal-navbar {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            border-bottom: 3px solid var(--accent-gold);
+        }
+        .portal-metric-card {
+            background: #ffffff;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .portal-metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .section-card {
+            background: #ffffff;
+            border-radius: 14px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+            overflow: hidden;
+        }
+        .table-portal thead th {
+            background-color: #f8fafc;
+            color: #475569;
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            font-weight: 700;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 10px 14px;
+        }
+        .table-portal tbody td {
+            padding: 12px 14px;
+            vertical-align: middle;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 0.88rem;
+        }
+        .btn-pay-upi {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            color: #ffffff;
+            border: none;
+            font-weight: 700;
+            border-radius: 8px;
+            padding: 6px 14px;
+            box-shadow: 0 2px 6px rgba(5, 150, 105, 0.3);
+            transition: all 0.2s ease;
+        }
+        .btn-pay-upi:hover {
+            background: linear-gradient(135deg, #047857 0%, #065f46 100%);
+            color: #ffffff;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(5, 150, 105, 0.4);
+        }
+        .qr-display-box {
+            background: #ffffff;
+            border: 2px dashed #cbd5e1;
+            border-radius: 12px;
+            padding: 12px;
+            display: inline-block;
+        }
+        .upi-badge {
+            font-size: 0.72rem;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Top Navigation Bar -->
+<nav class="navbar navbar-dark portal-navbar py-2 shadow-sm sticky-top">
+    <div class="container-fluid px-3 px-md-4">
+        <div class="d-flex align-items-center gap-2">
+            <div class="rounded-circle d-flex align-items-center justify-content-center bg-warning text-dark fw-bold" style="width: 38px; height: 38px; font-size: 1.1rem;">
+                <i class="fas fa-coins"></i>
+            </div>
+            <div>
+                <a class="navbar-brand fw-bold mb-0 text-white" href="{% url 'portal_dashboard' %}" style="font-size: 1.05rem;">
+                    First Money Gold
+                </a>
+                <span class="badge bg-warning-subtle text-dark border border-warning ms-1 d-none d-sm-inline-block" style="font-size: 0.68rem;">
+                    Self-Service Portal
+                </span>
+            </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-3">
+            <div class="text-end d-none d-md-block text-white">
+                <div class="fw-bold" style="font-size: 0.88rem;">{{ customer.full_name }}</div>
+                <small class="text-white-50" style="font-size: 0.72rem;">
+                    <i class="fas fa-building me-1"></i>{{ customer.branch.name|default:"Main Branch" }}
+                </small>
+            </div>
+            <form method="POST" action="{% url 'portal_logout' %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-light btn-sm px-3 fw-semibold rounded-3 shadow-2xs">
+                    <i class="fas fa-sign-out-alt me-1"></i>Logout
+                </button>
+            </form>
+        </div>
+    </div>
+</nav>
+
+<!-- Main Container -->
+<div class="container-fluid px-3 px-md-4 py-4">
+
+    <!-- Flash Messages -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert {% if message.tags == 'error' %}alert-danger{% elif message.tags == 'success' %}alert-success{% else %}alert-info{% endif %} alert-dismissible fade show shadow-2xs rounded-3 mb-3 p-3" role="alert">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fas {% if message.tags == 'success' %}fa-check-circle fa-lg text-success{% elif message.tags == 'error' %}fa-exclamation-circle fa-lg text-danger{% else %}fa-info-circle fa-lg text-primary{% endif %}"></i>
+                    <div>{{ message }}</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Profile Context & Summary Cards -->
+    <div class="row g-3 mb-4">
+        <!-- Customer Profile Card -->
+        <div class="col-lg-3 col-md-6">
+            <div class="portal-metric-card p-3 h-100 border-start border-4 border-primary">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center shadow-xs" style="width: 50px; height: 50px; font-size: 1.4rem;">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold text-dark fs-6">{{ customer.full_name }}</div>
+                        <small class="text-muted d-block"><i class="fas fa-phone-alt me-1"></i>{{ customer.phone }}</small>
+                        <span class="badge bg-light text-secondary border mt-1" style="font-size: 0.70rem;">ID: #{{ customer.id }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Outstanding Balance -->
+        <div class="col-lg-3 col-md-6">
+            <div class="portal-metric-card p-3 h-100 border-start border-4 border-danger">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-muted text-uppercase fw-bold" style="font-size: 0.72rem; letter-spacing: 0.05em;">Total Outstanding</small>
+                        <h4 class="fw-bold text-danger mb-0 mt-1">₹{{ total_outstanding|floatformat:2 }}</h4>
+                        <small class="text-muted" style="font-size: 0.74rem;">Principal: ₹{{ total_principal|floatformat:0 }} + Interest</small>
+                    </div>
+                    <div class="rounded-3 bg-danger-subtle text-danger p-2 px-3 fs-4">
+                        <i class="fas fa-wallet"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Interest Accrued / Due -->
+        <div class="col-lg-3 col-md-6">
+            <div class="portal-metric-card p-3 h-100 border-start border-4 border-warning">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-muted text-uppercase fw-bold" style="font-size: 0.72rem; letter-spacing: 0.05em;">Current Interest Due</small>
+                        <h4 class="fw-bold text-dark mb-0 mt-1">₹{{ total_interest_due|floatformat:2 }}</h4>
+                        <small class="text-success fw-semibold" style="font-size: 0.74rem;">Payable via UPI QR</small>
+                    </div>
+                    <div class="rounded-3 bg-warning-subtle text-warning-emphasis p-2 px-3 fs-4">
+                        <i class="fas fa-percent"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Loans & Due Date -->
+        <div class="col-lg-3 col-md-6">
+            <div class="portal-metric-card p-3 h-100 border-start border-4 border-success">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-muted text-uppercase fw-bold" style="font-size: 0.72rem; letter-spacing: 0.05em;">Active Loans Count</small>
+                        <h4 class="fw-bold text-success mb-0 mt-1">{{ active_loans_count }} Active</h4>
+                        {% if next_due_date %}
+                            <small class="text-danger fw-semibold" style="font-size: 0.74rem;"><i class="fas fa-calendar-alt me-1"></i>Next Due: {{ next_due_date|date:"d-M-Y" }}</small>
+                        {% else %}
+                            <small class="text-muted" style="font-size: 0.74rem;">All loans in good standing</small>
+                        {% endif %}
+                    </div>
+                    <div class="rounded-3 bg-success-subtle text-success p-2 px-3 fs-4">
+                        <i class="fas fa-file-invoice-dollar"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Loans Table Section -->
+    <div class="section-card mb-4">
+        <div class="card-header bg-white py-3 px-3 border-bottom d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-gem text-warning fa-lg"></i>
+                <h6 class="mb-0 fw-bold text-dark">Active Pawn Loans & Quick Pay</h6>
+                <span class="badge bg-primary text-white ms-1">{{ active_loans_count }}</span>
+            </div>
+            <small class="text-muted d-none d-sm-inline">Scan & pay interest using any UPI App (GPay / PhonePe / Paytm)</small>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover table-portal align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Loan Number</th>
+                        <th>Issue Date</th>
+                        <th>Scheme</th>
+                        <th>Pledged Ornaments</th>
+                        <th>Principal Amount</th>
+                        <th>Interest Due</th>
+                        <th>Next Due Date</th>
+                        <th class="text-end pe-3">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for loan in active_loans %}
+                    <tr>
+                        <td>
+                            <strong class="text-primary font-monospace fs-6">#{{ loan.loan_number }}</strong>
+                            <div class="text-muted" style="font-size: 0.74rem;">{{ loan.branch.name|default:"Main Branch" }}</div>
+                        </td>
+                        <td>{{ loan.issue_date|date:"d-M-Y" }}</td>
+                        <td>
+                            <span class="badge bg-light text-dark border">{{ loan.scheme.name|default:"Standard Scheme" }}</span>
+                            <div class="text-muted" style="font-size: 0.72rem;">{{ loan.scheme.monthly_interest_rate|default:loan.interest_rate }}% monthly</div>
+                        </td>
+                        <td>
+                            {% for item in loan.loanitem_set.all %}
+                                <div class="small fw-semibold text-dark">{{ item.item.name }} ({{ item.gross_weight }}g)</div>
+                            {% empty %}
+                                <span class="text-muted small">Gold Ornaments</span>
+                            {% endfor %}
+                        </td>
+                        <td>
+                            <strong class="text-dark">₹{{ loan.amount|floatformat:2 }}</strong>
+                        </td>
+                        <td>
+                            <span class="fw-bold text-danger">₹{{ loan.calculated_interest|floatformat:2 }}</span>
+                        </td>
+                        <td>
+                            {% if loan.maturity_date %}
+                                <span class="badge bg-warning-subtle text-dark border border-warning-subtle">
+                                    {{ loan.maturity_date|date:"d-M-Y" }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-3">
+                            <button type="button" class="btn btn-pay-upi btn-sm shadow-xs" onclick="openUPIPayModal('{{ loan.loan_number }}', '{{ loan.calculated_interest|floatformat:2 }}', '{{ loan.current_total_due|floatformat:2 }}')">
+                                <i class="fas fa-qrcode me-1"></i>Pay via UPI QR
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">
+                            <i class="fas fa-box-open fa-2x mb-2 text-secondary opacity-50"></i>
+                            <div>No active loans found on your account.</div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Repayment History Logs Table Section -->
+    <div class="section-card mb-4">
+        <div class="card-header bg-white py-3 px-3 border-bottom d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-history text-primary fa-lg"></i>
+                <h6 class="mb-0 fw-bold text-dark">Repayment History & UTR Status Logs</h6>
+                <span class="badge bg-secondary text-white">{{ repayments_count }}</span>
+            </div>
+            <small class="text-muted">Total Verified Repayments: <strong class="text-success">₹{{ total_repaid|floatformat:2 }}</strong></small>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover table-portal align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Loan Number</th>
+                        <th>Amount</th>
+                        <th>Payment Mode</th>
+                        <th>12-Digit UTR / Ref No.</th>
+                        <th>Verification Status</th>
+                        <th>Notes / Staff Remarks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in repayments %}
+                    <tr>
+                        <td>
+                            <div class="fw-semibold">{{ p.payment_date|date:"d-M-Y" }}</div>
+                            <small class="text-muted">{{ p.created_at|date:"h:i A" }}</small>
+                        </td>
+                        <td>
+                            <strong class="text-primary font-monospace">#{{ p.loan.loan_number }}</strong>
+                        </td>
+                        <td>
+                            <span class="fw-bold text-success fs-6">₹{{ p.amount|floatformat:2 }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark border text-uppercase">{{ p.get_payment_method_display }}</span>
+                        </td>
+                        <td>
+                            <span class="font-monospace text-dark fw-bold">{{ p.utr_number|default:p.reference_number|default:"—" }}</span>
+                        </td>
+                        <td>
+                            {% if p.verification_status == 'verified' %}
+                                <span class="badge bg-success text-white">
+                                    <i class="fas fa-check-circle me-1"></i>Verified & Credited
+                                </span>
+                            {% elif p.verification_status == 'pending' %}
+                                <span class="badge bg-warning text-dark border border-warning">
+                                    <i class="fas fa-clock me-1"></i>Pending Verification
+                                </span>
+                            {% elif p.verification_status == 'rejected' %}
+                                <span class="badge bg-danger text-white" title="{{ p.rejection_reason }}">
+                                    <i class="fas fa-times-circle me-1"></i>Rejected
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary text-white">{{ p.verification_status|title }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small class="text-muted">{{ p.notes|default:"—" }}</small>
+                            {% if p.rejection_reason %}
+                                <div class="text-danger small fw-semibold"><i class="fas fa-info-circle me-1"></i>Reason: {{ p.rejection_reason }}</div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">
+                            <i class="fas fa-receipt fa-2x mb-2 opacity-50"></i>
+                            <div>No repayment transactions logged yet.</div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Closed / Settled Loans History Section -->
+    {% if closed_loans %}
+    <div class="section-card">
+        <div class="card-header bg-white py-3 px-3 border-bottom d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-archive text-secondary fa-lg"></i>
+                <h6 class="mb-0 fw-bold text-dark">Closed & Settled Loans History</h6>
+                <span class="badge bg-secondary text-white">{{ closed_loans_count }}</span>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover table-portal align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Loan Number</th>
+                        <th>Issue Date</th>
+                        <th>Status</th>
+                        <th>Settled Principal</th>
+                        <th>Branch</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cl in closed_loans %}
+                    <tr>
+                        <td><strong class="font-monospace text-secondary">#{{ cl.loan_number }}</strong></td>
+                        <td>{{ cl.issue_date|date:"d-M-Y" }}</td>
+                        <td><span class="badge bg-secondary text-white">{{ cl.get_status_display }}</span></td>
+                        <td>₹{{ cl.amount|floatformat:2 }}</td>
+                        <td>{{ cl.branch.name|default:"Main Branch" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<!-- Dynamic UPI QR & 12-Digit UTR Payment Modal -->
+<div class="modal fade" id="upiPaymentModal" tabindex="-1" aria-labelledby="upiPaymentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header text-white" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-bottom: 3px solid var(--accent-gold);">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fas fa-qrcode text-warning fa-lg"></i>
+                    <div>
+                        <h6 class="modal-title fw-bold mb-0" id="upiPaymentModalLabel">UPI Payment - Loan #<span id="modalLoanNo"></span></h6>
+                        <small class="text-white-50" style="font-size: 0.72rem;">Scan QR code with GPay, PhonePe, Paytm, or BHIM</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <form method="POST" id="upiPaymentForm" action="">
+                {% csrf_token %}
+                <div class="modal-body p-4 text-center">
+                    <!-- Loading Spinner -->
+                    <div id="qrLoading" class="py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading QR...</span>
+                        </div>
+                        <p class="text-muted small mt-2">Generating secure dynamic UPI QR code...</p>
+                    </div>
+
+                    <!-- QR Matrix Container -->
+                    <div id="qrContent" style="display: none;">
+                        <div class="qr-display-box mb-3 shadow-xs">
+                            <img id="qrImage" src="" alt="Scan UPI QR" class="img-fluid" style="width: 200px; height: 200px;">
+                        </div>
+
+                        <div class="mb-3">
+                            <span class="badge bg-light text-dark border px-3 py-1 font-monospace fs-6" id="merchantVpaBadge"></span>
+                        </div>
+
+                        <div class="d-flex justify-content-center gap-2 mb-3">
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle"><i class="fab fa-google-pay me-1"></i>GPay</span>
+                            <span class="badge bg-purple-subtle text-purple border border-purple-subtle" style="background-color: #ede9fe; color: #6b21a8;"><i class="fas fa-bolt me-1"></i>PhonePe</span>
+                            <span class="badge bg-info-subtle text-info border border-info-subtle"><i class="fas fa-wallet me-1"></i>Paytm</span>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="fas fa-university me-1"></i>BHIM UPI</span>
+                        </div>
+
+                        <!-- 12-Digit UTR Sub-Form -->
+                        <div class="card border bg-light text-start p-3 rounded-3 mb-2">
+                            <label class="form-label fw-bold text-dark small mb-1">
+                                <i class="fas fa-rupee-sign text-success me-1"></i>Payment Amount (₹)
+                            </label>
+                            <input type="number" step="0.01" name="amount" id="payAmountInput" class="form-control form-control-sm mb-3 fw-bold fs-6 text-success" required onchange="refreshQRWithCustomAmount()">
+
+                            <label class="form-label fw-bold text-dark small mb-1">
+                                <i class="fas fa-receipt text-primary me-1"></i>Enter 12-Digit UPI Reference / UTR Number
+                            </label>
+                            <input type="text" name="utr_number" id="utrNumberInput" class="form-control form-control-sm font-monospace fs-6 mb-2" placeholder="e.g. 324512984512" required pattern="[a-zA-Z0-9]{6,25}" maxlength="25">
+                            <small class="text-muted d-block" style="font-size: 0.72rem;">
+                                💡 Found in your UPI app payment receipt as <strong>UPI Ref ID / UTR / Transaction No.</strong>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer py-2 bg-light d-flex justify-content-between">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success btn-sm fw-bold px-4 shadow-2xs" id="btnSubmitUtr" disabled>
+                        <i class="fas fa-check-circle me-1"></i>Confirm & Submit UTR
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    let currentLoanNo = '';
+    const upiModal = new bootstrap.Modal(document.getElementById('upiPaymentModal'));
+
+    function openUPIPayModal(loanNumber, interestDue, totalDue) {
+        currentLoanNo = loanNumber;
+        document.getElementById('modalLoanNo').textContent = loanNumber;
+        document.getElementById('upiPaymentForm').action = `/portal/pay/${loanNumber}/`;
+        
+        // Default amount to interest due, fallback to totalDue
+        let defaultAmt = parseFloat(interestDue) > 0 ? interestDue : totalDue;
+        document.getElementById('payAmountInput').value = defaultAmt;
+        document.getElementById('utrNumberInput').value = '';
+        document.getElementById('btnSubmitUtr').disabled = true;
+
+        document.getElementById('qrLoading').style.display = 'block';
+        document.getElementById('qrContent').style.display = 'none';
+        
+        upiModal.show();
+        loadQRData(loanNumber, defaultAmt);
+    }
+
+    function loadQRData(loanNumber, amount) {
+        fetch(`/portal/pay-qr/${loanNumber}/?amount=${encodeURIComponent(amount)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('qrImage').src = data.qr_base64;
+                    document.getElementById('merchantVpaBadge').textContent = `UPI VPA: ${data.vpa}`;
+                    document.getElementById('qrLoading').style.display = 'none';
+                    document.getElementById('qrContent').style.display = 'block';
+                } else {
+                    alert('Error loading UPI QR: ' + data.error);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Could not generate UPI QR. Please try again.');
+            });
+    }
+
+    function refreshQRWithCustomAmount() {
+        const amt = document.getElementById('payAmountInput').value;
+        if (currentLoanNo && amt > 0) {
+            document.getElementById('qrLoading').style.display = 'block';
+            document.getElementById('qrContent').style.display = 'none';
+            loadQRData(currentLoanNo, amt);
+        }
+    }
+
+    // Enable submit button once UTR is entered
+    document.getElementById('utrNumberInput').addEventListener('input', function(e) {
+        const val = e.target.value.trim();
+        document.getElementById('btnSubmitUtr').disabled = (val.length < 6);
+    });
+</script>
+</body>
+</html>

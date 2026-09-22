@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Portal Login - First Money Gold</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-navy: #0f172a;
+            --accent-gold: #d97706;
+            --accent-gold-hover: #b45309;
+            --emerald-accent: #059669;
+        }
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            color: #334155;
+        }
+        .portal-card {
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 440px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .portal-header {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            padding: 2rem 1.5rem 1.5rem;
+            text-align: center;
+            color: #ffffff;
+            position: relative;
+            border-bottom: 3px solid var(--accent-gold);
+        }
+        .gold-badge-logo {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            font-size: 1.6rem;
+            box-shadow: 0 4px 12px rgba(217, 119, 6, 0.4);
+            margin-bottom: 0.8rem;
+        }
+        .btn-portal-gold {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: #ffffff;
+            border: none;
+            font-weight: 700;
+            padding: 0.75rem 1.25rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(217, 119, 6, 0.3);
+            transition: all 0.2s ease;
+        }
+        .btn-portal-gold:hover {
+            background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+            color: #ffffff;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 14px rgba(217, 119, 6, 0.4);
+        }
+        .form-control:focus {
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15);
+        }
+    </style>
+</head>
+<body>
+
+<div class="portal-card">
+    <div class="portal-header">
+        <div class="gold-badge-logo">
+            <i class="fas fa-coins"></i>
+        </div>
+        <h4 class="fw-bold mb-1 tracking-tight text-white">First Money Gold</h4>
+        <div class="badge bg-warning-subtle text-warning-emphasis px-3 py-1 fw-bold border border-warning" style="font-size: 0.75rem;">
+            <i class="fas fa-shield-alt me-1"></i>Self-Service Customer Portal
+        </div>
+        <p class="text-white-50 small mb-0 mt-2">Check active loans, repayment logs & pay interest via UPI</p>
+    </div>
+
+    <div class="p-4">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-info{% endif %} alert-dismissible fade show p-2 px-3 small" role="alert">
+                    <i class="fas {% if message.tags == 'error' %}fa-exclamation-circle{% else %}fa-info-circle{% endif %} me-1"></i>
+                    {{ message }}
+                    <button type="button" class="btn-close p-2" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="POST" action="{% url 'portal_login' %}">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label class="form-label fw-bold small text-dark">
+                    <i class="fas fa-user-circle text-primary me-1"></i>Username / Customer ID
+                </label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light text-muted"><i class="fas fa-user"></i></span>
+                    <input type="text" name="username" class="form-control" placeholder="e.g. fm_9876543210" required autofocus>
+                </div>
+                <small class="text-muted" style="font-size: 0.72rem;">Sent to your registered WhatsApp upon onboarding</small>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label fw-bold small text-dark d-flex justify-content-between">
+                    <span><i class="fas fa-key text-warning me-1"></i>Password / Temporary PIN</span>
+                </label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light text-muted"><i class="fas fa-lock"></i></span>
+                    <input type="password" name="password" id="portalPassword" class="form-control" placeholder="Enter your 8-digit PIN" required>
+                    <button type="button" class="btn btn-outline-secondary" onclick="togglePasswordVisibility()">
+                        <i class="fas fa-eye" id="toggleIcon"></i>
+                    </button>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-portal-gold w-100 mb-3">
+                <i class="fas fa-sign-in-alt me-1"></i>Login to Customer Portal
+            </button>
+        </form>
+
+        <div class="bg-light p-2 rounded-3 border text-center small text-muted">
+            <i class="fas fa-headset text-primary me-1"></i>Need assistance or forgot your PIN?
+            <div class="fw-semibold text-dark mt-1">Contact your registered pawn branch directly.</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function togglePasswordVisibility() {
+        const input = document.getElementById('portalPassword');
+        const icon = document.getElementById('toggleIcon');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+    }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

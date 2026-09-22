@@ -98,12 +98,14 @@ class Role(models.Model):
     FRONTLINE = 'frontline'
     SUPPORT = 'support'
     HEADOFFICE = 'headoffice'
+    CUSTOMER = 'customer'
     
     ROLE_CATEGORY_CHOICES = [
         (MANAGEMENT, _('Management')),
         (FRONTLINE, _('Front-Line Staff')),
         (SUPPORT, _('Support')),
         (HEADOFFICE, _('Head Office')),
+        (CUSTOMER, _('Customer / Self-Service')),
     ]
     
     # Specific Role Types
@@ -118,6 +120,7 @@ class Role(models.Model):
     IT_ADMIN = 'it_admin'
     FINANCE_MANAGER = 'finance_manager'
     COMPLIANCE_OFFICER = 'compliance_officer'
+    CUSTOMER = 'customer'
     
     ROLE_TYPE_CHOICES = [
         (BRANCH_MANAGER, _('Branch Manager')),
@@ -131,6 +134,7 @@ class Role(models.Model):
         (IT_ADMIN, _('IT Administrator')),
         (FINANCE_MANAGER, _('Finance/Accounting Manager')),
         (COMPLIANCE_OFFICER, _('Compliance Officer')),
+        (CUSTOMER, _('Customer (Self-Service Portal)')),
     ]
     
     name = models.CharField(max_length=50, unique=True)
@@ -361,6 +365,39 @@ class Customer(models.Model):
     bank_ifsc_code = models.CharField(max_length=20, blank=True, null=True, help_text="Bank IFSC Code")
     bank_name = models.CharField(max_length=100, blank=True, null=True, help_text="Bank Name")
     bank_beneficiary_name = models.CharField(max_length=150, blank=True, null=True, help_text="Beneficiary / Account Holder Name")
+    
+    # Customer Self-Service Portal & Automated Authentication Link
+    user = models.OneToOneField(
+        'accounts.CustomUser',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='customer_profile',
+        help_text="Dedicated login account for customer self-service portal"
+    )
+    portal_active = models.BooleanField(
+        default=True,
+        help_text="Flag indicating whether customer has active portal access"
+    )
+    temp_password_plain = models.CharField(
+        max_length=128,
+        blank=True,
+        null=True,
+        help_text="Temporary plain password/PIN for initial delivery and staff WhatsApp trigger"
+    )
+    last_credential_reset_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp when portal credentials were last generated or reset"
+    )
+    last_credential_reset_by = models.ForeignKey(
+        'accounts.CustomUser',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='customer_credential_resets',
+        help_text="Super-Admin user who force-reset customer credentials"
+    )
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
