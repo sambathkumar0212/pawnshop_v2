@@ -47,7 +47,7 @@ def clean_stale_locks():
 
 
 def get_launch_context_options(headless: bool = True) -> dict:
-    """Standardizes launch parameters for persistent Chromium context to bypass WhatsApp browser version checks."""
+    """Standardizes launch parameters for persistent Chromium context to bypass WhatsApp browser version checks on cloud containers."""
     clean_stale_locks()
     return {
         "user_data_dir": get_session_dir(),
@@ -60,8 +60,12 @@ def get_launch_context_options(headless: bool = True) -> dict:
             "--no-sandbox",
             "--disable-setuid-sandbox",
             "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--disable-software-rasterizer",
             "--no-first-run",
             "--no-zygote",
+            "--disable-extensions",
+            "--disable-features=IsolateOrigins,site-per-process",
         ],
     }
 
@@ -354,7 +358,7 @@ def _run_headless_qr_pairing_worker(force_relink: bool = False, timeout_seconds:
                 _save_pairing_state(LIVE_PAIRING_STATE)
 
             try:
-                page.goto("https://web.whatsapp.com/", timeout=50000)
+                page.goto("https://web.whatsapp.com/", wait_until="domcontentloaded", timeout=30000)
             except Exception as nav_err:
                 logger.warning("WhatsApp Web navigation notice: %s", nav_err)
 
@@ -448,9 +452,9 @@ def _run_headless_qr_pairing_worker(force_relink: bool = False, timeout_seconds:
 
                 # 2. Check for QR code canvas/element
                 try:
-                    qr_loc = page.locator('canvas, div[data-testid="qrcode"], div[data-ref]').first
+                    qr_loc = page.locator('canvas, div[data-testid="qrcode"], div[data-ref], div[aria-label="Scan this QR code"], div[role="button"][data-ref], img[alt="Scan me!"]').first
                     if qr_loc.is_visible():
-                        time.sleep(0.5)
+                        time.sleep(0.3)
                         qr_bytes = qr_loc.screenshot()
                         qr_b64 = "data:image/png;base64," + base64.b64encode(qr_bytes).decode('utf-8')
                         with LIVE_PAIRING_LOCK:

@@ -4227,8 +4227,8 @@ async function pollInlineQRStatus() {
     const errorTitle = document.getElementById('dmQRErrorTitle');
     const errorMsg = document.getElementById('dmQRErrorMsg');
 
-    // Auto-timeout after 30 attempts (~40s) so it never spins indefinitely
-    if (dmQRPollAttempts > 30) {
+    // Auto-timeout after 55 attempts (~70s) so it never spins indefinitely
+    if (dmQRPollAttempts > 55) {
         if (dmQRPollTimer) {
             clearInterval(dmQRPollTimer);
             dmQRPollTimer = null;
@@ -4237,11 +4237,11 @@ async function pollInlineQRStatus() {
         if (imgWrap) imgWrap.classList.add('d-none');
         if (pairedBanner) pairedBanner.classList.add('d-none');
         if (errorBanner) errorBanner.classList.remove('d-none');
-        if (errorTitle) errorTitle.innerText = 'Cloud Browser Notice';
-        if (errorMsg) errorMsg.innerHTML = 'Headless browser engine took too long to start. You can broadcast instantly via <strong>1-Click WhatsApp Direct</strong> from your browser without pairing!';
+        if (errorTitle) errorTitle.innerText = 'Connection Timeout';
+        if (errorMsg) errorMsg.innerHTML = 'Browser engine took longer than expected. Click <strong>Generate New QR Code</strong> below, or broadcast directly via <strong>1-Click WhatsApp Direct</strong>!';
         if (statusBadge) {
             statusBadge.className = 'badge bg-warning text-dark font-monospace';
-            statusBadge.innerText = 'NOTICE';
+            statusBadge.innerText = 'TIMEOUT';
         }
         return;
     }

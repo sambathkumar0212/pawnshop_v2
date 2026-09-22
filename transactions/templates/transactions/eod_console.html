@@ -1118,7 +1118,7 @@ async function pollEodQRStatus() {
     const imgWrap = document.getElementById('eodQRImageWrap');
     const liveImg = document.getElementById('eodLiveQRImg');
 
-    if (eodQRPollAttempts > 30) {
+    if (eodQRPollAttempts > 55) {
         if (eodQRPollTimer) {
             clearInterval(eodQRPollTimer);
             eodQRPollTimer = null;
@@ -1127,7 +1127,7 @@ async function pollEodQRStatus() {
         if (imgWrap) imgWrap.classList.add('d-none');
         if (msg) {
             msg.className = 'alert alert-warning small font-monospace mb-3';
-            msg.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> QR generator startup timed out. You can send alerts via <strong>1-Click WhatsApp Direct</strong>!';
+            msg.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> QR generator startup timed out. Click <strong>Reload QR Code</strong> or send alerts via <strong>1-Click WhatsApp Direct</strong>!';
         }
         return;
     }
