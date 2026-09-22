@@ -13,10 +13,15 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='loan',
-            name='updated_at',
-            field=models.DateTimeField(auto_now=True),
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.AddField(
+                    model_name='loan',
+                    name='updated_at',
+                    field=models.DateTimeField(auto_now=True),
+                ),
+            ],
+            database_operations=[]
         ),
         migrations.AddField(
             model_name='payment',
