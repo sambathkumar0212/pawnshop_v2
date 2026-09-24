@@ -14,8 +14,8 @@
             <h4 class="fw-bold text-dark mb-0 d-flex align-items-center">
                 <i class="fas fa-users text-primary me-2"></i>Customer Directory &amp; Records
             </h4>
-            <span class="badge {% if current_tab == 'loan' or not current_tab %}bg-success-subtle text-success border border-success-subtle{% elif current_tab == 'used_gold' %}bg-warning-subtle text-warning-emphasis border border-warning-subtle{% else %}bg-primary-subtle text-primary border border-primary-subtle{% endif %} font-monospace" style="font-size: 0.75rem;">
-                {% if current_tab == 'loan' or not current_tab %}🏦 Gold Loan Clients
+            <span class="badge {% if current_tab == 'loan' %}bg-success-subtle text-success border border-success-subtle{% elif current_tab == 'used_gold' %}bg-warning-subtle text-warning-emphasis border border-warning-subtle{% else %}bg-primary-subtle text-primary border border-primary-subtle{% endif %} font-monospace" style="font-size: 0.75rem;">
+                {% if current_tab == 'loan' %}🏦 Gold Loan Clients
                 {% elif current_tab == 'used_gold' %}💰 Used Gold Sellers
                 {% else %}👥 All Registered Customers{% endif %}
             </span>
@@ -52,25 +52,43 @@
 
     <!-- Space-Efficient KPI Stat Cards (4-Column Strip) -->
     <div class="row g-2 mb-2">
-        <!-- 1. Gold Loan Customers Card (Default) -->
+        <!-- 1. All Registered Customers Card (Default) -->
         <div class="col-6 col-md-3">
-            <a href="?tab=loan{% if search_query %}&search={{ search_query }}{% endif %}" class="text-decoration-none d-block h-100">
-                <div class="card border-0 shadow-sm rounded-3 h-100 transition-all {% if current_tab == 'loan' or not current_tab %}bg-success text-white ring-active{% else %}bg-white hover-shadow border-start border-success border-3{% endif %}">
+            <a href="?tab=all{% if search_query %}&search={{ search_query }}{% endif %}" class="text-decoration-none d-block h-100">
+                <div class="card border-0 shadow-sm rounded-3 h-100 transition-all {% if current_tab == 'all' or not current_tab %}bg-primary text-white ring-active{% else %}bg-white hover-shadow border-start border-primary border-3{% endif %}">
                     <div class="card-body p-2 px-3 d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="small text-uppercase fw-semibold d-block {% if current_tab == 'loan' or not current_tab %}text-white-50{% else %}text-muted{% endif %}" style="font-size: 0.68rem; letter-spacing: 0.03em;">🏦 GOLD LOAN CLIENTS</span>
+                            <span class="small text-uppercase fw-semibold d-block {% if current_tab == 'all' or not current_tab %}text-white-50{% else %}text-muted{% endif %}" style="font-size: 0.68rem; letter-spacing: 0.03em;">👥 ALL REGISTERED</span>
                             <div class="d-flex align-items-baseline gap-2">
-                                <h5 class="mb-0 fw-bold {% if current_tab == 'loan' or not current_tab %}text-white{% else %}text-success{% endif %}">{{ loan_customers_count }}</h5>
-                                <span class="{% if current_tab == 'loan' or not current_tab %}text-white-50{% else %}text-muted{% endif %}" style="font-size: 0.72rem;">({{ active_loan_customers_count }} active)</span>
+                                <h5 class="mb-0 fw-bold {% if current_tab == 'all' or not current_tab %}text-white{% else %}text-primary{% endif %}">{{ total_customers }}</h5>
+                                <span class="{% if current_tab == 'all' or not current_tab %}text-white-50{% else %}text-muted{% endif %}" style="font-size: 0.72rem;">(Directory total)</span>
                             </div>
                         </div>
-                        <i class="fas fa-hand-holding-usd fa-lg {% if current_tab == 'loan' or not current_tab %}text-white-50{% else %}text-success opacity-50{% endif %}"></i>
+                        <i class="fas fa-users fa-lg {% if current_tab == 'all' or not current_tab %}text-white-50{% else %}text-primary opacity-50{% endif %}"></i>
                     </div>
                 </div>
             </a>
         </div>
 
-        <!-- 2. Used Gold Sale Customers Card -->
+        <!-- 2. Gold Loan Customers Card -->
+        <div class="col-6 col-md-3">
+            <a href="?tab=loan{% if search_query %}&search={{ search_query }}{% endif %}" class="text-decoration-none d-block h-100">
+                <div class="card border-0 shadow-sm rounded-3 h-100 transition-all {% if current_tab == 'loan' %}bg-success text-white ring-active{% else %}bg-white hover-shadow border-start border-success border-3{% endif %}">
+                    <div class="card-body p-2 px-3 d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="small text-uppercase fw-semibold d-block {% if current_tab == 'loan' %}text-white-50{% else %}text-muted{% endif %}" style="font-size: 0.68rem; letter-spacing: 0.03em;">🏦 GOLD LOAN CLIENTS</span>
+                            <div class="d-flex align-items-baseline gap-2">
+                                <h5 class="mb-0 fw-bold {% if current_tab == 'loan' %}text-white{% else %}text-success{% endif %}">{{ loan_customers_count }}</h5>
+                                <span class="{% if current_tab == 'loan' %}text-white-50{% else %}text-muted{% endif %}" style="font-size: 0.72rem;">({{ active_loan_customers_count }} active)</span>
+                            </div>
+                        </div>
+                        <i class="fas fa-hand-holding-usd fa-lg {% if current_tab == 'loan' %}text-white-50{% else %}text-success opacity-50{% endif %}"></i>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- 3. Used Gold Sale Customers Card -->
         <div class="col-6 col-md-3">
             <a href="?tab=used_gold{% if search_query %}&search={{ search_query }}{% endif %}" class="text-decoration-none d-block h-100">
                 <div class="card border-0 shadow-sm rounded-3 h-100 transition-all {% if current_tab == 'used_gold' %}bg-warning text-dark ring-active{% else %}bg-white hover-shadow border-start border-warning border-3{% endif %}">
@@ -83,24 +101,6 @@
                             </div>
                         </div>
                         <i class="fas fa-coins fa-lg text-warning opacity-75"></i>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <!-- 3. All Registered Customers Card -->
-        <div class="col-6 col-md-3">
-            <a href="?tab=all{% if search_query %}&search={{ search_query }}{% endif %}" class="text-decoration-none d-block h-100">
-                <div class="card border-0 shadow-sm rounded-3 h-100 transition-all {% if current_tab == 'all' %}bg-primary text-white ring-active{% else %}bg-white hover-shadow border-start border-primary border-3{% endif %}">
-                    <div class="card-body p-2 px-3 d-flex justify-content-between align-items-center">
-                        <div>
-                            <span class="small text-uppercase fw-semibold d-block {% if current_tab == 'all' %}text-white-50{% else %}text-muted{% endif %}" style="font-size: 0.68rem; letter-spacing: 0.03em;">👥 ALL REGISTERED</span>
-                            <div class="d-flex align-items-baseline gap-2">
-                                <h5 class="mb-0 fw-bold {% if current_tab == 'all' %}text-white{% else %}text-primary{% endif %}">{{ total_customers }}</h5>
-                                <span class="{% if current_tab == 'all' %}text-white-50{% else %}text-muted{% endif %}" style="font-size: 0.72rem;">(Directory total)</span>
-                            </div>
-                        </div>
-                        <i class="fas fa-users fa-lg {% if current_tab == 'all' %}text-white-50{% else %}text-primary opacity-50{% endif %}"></i>
                     </div>
                 </div>
             </a>
@@ -130,11 +130,19 @@
             <!-- Nav Pills -->
             <ul class="nav nav-pills gap-1" id="customerTypeTabs">
                 <li class="nav-item">
-                    <a class="nav-link px-3 py-1 fw-semibold btn-sm {% if current_tab == 'loan' or not current_tab %}active bg-success text-white{% else %}text-secondary bg-light{% endif %}" 
+                    <a class="nav-link px-3 py-1 fw-semibold btn-sm {% if current_tab == 'all' or not current_tab %}active bg-primary text-white{% else %}text-secondary bg-light{% endif %}" 
+                       href="?tab=all{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}"
+                       style="font-size: 0.8rem;">
+                        <i class="fas fa-users me-1"></i> All Customers 
+                        <span class="badge {% if current_tab == 'all' or not current_tab %}bg-white text-primary{% else %}bg-secondary-subtle text-secondary{% endif %} ms-1">{{ total_customers }}</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link px-3 py-1 fw-semibold btn-sm {% if current_tab == 'loan' %}active bg-success text-white{% else %}text-secondary bg-light{% endif %}" 
                        href="?tab=loan{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}"
                        style="font-size: 0.8rem;">
                         <i class="fas fa-hand-holding-usd me-1"></i> Gold Loan Customers 
-                        <span class="badge {% if current_tab == 'loan' or not current_tab %}bg-white text-success{% else %}bg-secondary-subtle text-secondary{% endif %} ms-1">{{ loan_customers_count }}</span>
+                        <span class="badge {% if current_tab == 'loan' %}bg-white text-success{% else %}bg-secondary-subtle text-secondary{% endif %} ms-1">{{ loan_customers_count }}</span>
                     </a>
                 </li>
                 <li class="nav-item">
@@ -143,14 +151,6 @@
                        style="font-size: 0.8rem;">
                         <i class="fas fa-coins me-1"></i> Used Gold Sale Customers 
                         <span class="badge {% if current_tab == 'used_gold' %}bg-dark text-white{% else %}bg-warning-subtle text-warning{% endif %} ms-1">{{ used_gold_customers_count }}</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link px-3 py-1 fw-semibold btn-sm {% if current_tab == 'all' %}active bg-dark text-white{% else %}text-secondary bg-light{% endif %}" 
-                       href="?tab=all{% if search_query %}&search={{ search_query }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}"
-                       style="font-size: 0.8rem;">
-                        <i class="fas fa-users me-1"></i> All Customers 
-                        <span class="badge {% if current_tab == 'all' %}bg-light text-dark{% else %}bg-secondary-subtle text-secondary{% endif %} ms-1">{{ total_customers }}</span>
                     </a>
                 </li>
             </ul>
@@ -214,7 +214,7 @@
                                             {% else %}<i class="fas fa-sort text-muted opacity-50"></i>{% endif %}
                                         </a>
                                     </th>
-                                {% elif current_tab == 'loan' or not current_tab %}
+                                {% elif current_tab == 'loan' %}
                                     <!-- Gold Loan Customers Specific Columns -->
                                     <th class="px-2 py-2 text-secondary text-uppercase font-monospace" style="font-size: 0.72rem; min-width: 170px;">Active Gold Loans</th>
                                     <th class="px-2 py-2 text-secondary text-uppercase font-monospace text-center" style="font-size: 0.72rem; width: 110px;">Loan History</th>
@@ -305,7 +305,7 @@
                                         <td class="px-2 py-1 text-end font-monospace fw-bold text-success" style="font-size: 0.82rem;">
                                             ₹{{ customer.annotated_gold_purchased_amount|default:0|floatformat:0 }}
                                         </td>
-                                    {% elif current_tab == 'loan' or not current_tab %}
+                                    {% elif current_tab == 'loan' %}
                                         <!-- Gold Loan Customer Specific Body -->
                                         <td class="px-2 py-1">
                                             {% if customer.annotated_active_loans_count %}
@@ -415,7 +415,7 @@
                     <div class="rounded-circle bg-light d-inline-flex p-3 mb-2 text-muted">
                         {% if current_tab == 'used_gold' %}
                             <i class="fas fa-coins fs-3 text-warning"></i>
-                        {% elif current_tab == 'loan' or not current_tab %}
+                        {% elif current_tab == 'loan' %}
                             <i class="fas fa-hand-holding-usd fs-3 text-primary"></i>
                         {% else %}
                             <i class="fas fa-users-slash fs-3 text-secondary"></i>
@@ -423,7 +423,7 @@
                     </div>
                     <h6 class="fw-bold text-dark mb-1">
                         {% if current_tab == 'used_gold' %}No Used Gold Sale Customers Found
-                        {% elif current_tab == 'loan' or not current_tab %}No Gold Loan Customers Found
+                        {% elif current_tab == 'loan' %}No Gold Loan Customers Found
                         {% else %}No Customers Found{% endif %}
                     </h6>
                     <p class="text-muted small mb-2" style="font-size: 0.8rem;">

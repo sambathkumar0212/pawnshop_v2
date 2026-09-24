@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.views import LoginView, LogoutView, PasswordChangeView, PasswordResetView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin, PermissionRequiredMixin
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, TemplateView, View
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.contrib import messages
 from django.db.models import Count, Sum, Q
 from django.utils import timezone
@@ -21,6 +21,9 @@ from datetime import datetime
 import os
 import glob
 from decimal import Decimal
+import logging
+
+logger = logging.getLogger(__name__)
 
 from .models import CustomUser, Role, UserActivity, Customer, Organization
 from .mixins import RoleBranchAccessMixin
@@ -703,10 +706,10 @@ class CustomerListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin,
             queryset = queryset.filter(branch__organization=user.organization)
         
         # Tab / Type segmentation
-        # 'loan' / 'loan_customers' -> Customers who have taken gold loans (default selection)
+        # 'loan' / 'loan_customers' -> Customers who have taken gold loans
         # 'used_gold' / 'used_gold_customers' -> Customers who sold old/used gold to the pawnshop
-        # 'all' -> All registered customers
-        customer_type = self.request.GET.get('type') or self.request.GET.get('tab') or 'loan'
+        # 'all' -> All registered customers (default view)
+        customer_type = self.request.GET.get('type') or self.request.GET.get('tab') or 'all'
         if customer_type in ['loan', 'loan_customers', 'loans']:
             queryset = queryset.filter(loans__isnull=False).distinct()
         elif customer_type in ['used_gold', 'used_gold_customers', 'gold_sale', 'gold_purchase']:
@@ -715,16 +718,23 @@ class CustomerListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin,
         # Search functionality
         search = self.request.GET.get('search')
         if search:
-            queryset = queryset.filter(
-                Q(first_name__icontains=search) |
-                Q(last_name__icontains=search) |
-                Q(email__icontains=search) |
-                Q(phone__icontains=search) |
-                Q(id_number__icontains=search) |
-                Q(branch__name__icontains=search) |
-                Q(loans__loan_number__icontains=search) |
-                Q(gold_purchases__purchase_number__icontains=search)
-            ).distinct()
+            search_term = search.strip()
+            search_filter = (
+                Q(first_name__icontains=search_term) |
+                Q(last_name__icontains=search_term) |
+                Q(email__icontains=search_term) |
+                Q(phone__icontains=search_term) |
+                Q(id_number__icontains=search_term) |
+                Q(branch__name__icontains=search_term) |
+                Q(loans__loan_number__icontains=search_term) |
+                Q(gold_purchases__purchase_number__icontains=search_term)
+            )
+            # Support direct ID lookup like "#99" or "99"
+            id_val = search_term.lstrip('#').strip()
+            if id_val.isdigit():
+                search_filter |= Q(id=int(id_val))
+
+            queryset = queryset.filter(search_filter).distinct()
         
         # Filter functionality
         filter_type = self.request.GET.get('filter')
@@ -1093,7 +1103,7 @@ class CustomerListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin,
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        customer_type = self.request.GET.get('type') or self.request.GET.get('tab') or 'loan'
+        customer_type = self.request.GET.get('type') or self.request.GET.get('tab') or 'all'
         context['current_tab'] = customer_type
         context['search_query'] = self.request.GET.get('search', '')
         context['filter'] = self.request.GET.get('filter', '')
