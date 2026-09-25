@@ -593,6 +593,38 @@ class Loan(models.Model):
         net = base - proc_fee_deduction - first_month_interest_deduction
         return max(Decimal('0'), round(net, 2))
 
+    @property
+    def advance_interest_amount(self):
+        """Returns the 1st month interest amount paid/deducted upfront if is_first_month_interest_paid is True."""
+        if not self.is_first_month_interest_paid:
+            return Decimal('0.00')
+        from decimal import Decimal
+        base = self.original_distribution_amount
+        annual_rate = Decimal('0')
+        if self.scheme and getattr(self.scheme, 'interest_rate_structure', None):
+            annual_rate = Decimal(str(self.scheme.get_interest_rate_for_days(30)))
+        elif self.interest_rate:
+            annual_rate = Decimal(str(self.interest_rate))
+        elif self.scheme and getattr(self.scheme, 'interest_rate', None):
+            annual_rate = Decimal(str(self.scheme.interest_rate))
+        else:
+            annual_rate = Decimal('12.00')
+        monthly_rate = annual_rate / Decimal('12')
+        return Decimal(str(round((base * monthly_rate) / Decimal('100'), 2)))
+
+    @property
+    def effective_principal_amount(self):
+        """
+        Returns the true net principal liability owed by the customer:
+        If first month interest was pre-deducted from loan proceeds (is_first_month_interest_paid = True),
+        that pre-paid interest is deducted from principal_amount so the customer is not double-charged on redemption.
+        """
+        from decimal import Decimal
+        principal = self.principal_amount or Decimal('0.00')
+        if self.is_first_month_interest_paid:
+            return max(Decimal('0.00'), principal - self.advance_interest_amount)
+        return principal
+
     def save(self, *args, **kwargs):
         # Check if this is a creation
         is_create = self.pk is None
@@ -1122,7 +1154,7 @@ class Loan(models.Model):
         if self.status != 'active':
             return Decimal('0.00')
         
-        principal_amount = self.principal_amount or Decimal('0.00')
+        principal_amount = self.effective_principal_amount
         
         # Get scheme details from the scheme model
         if not self.scheme:
@@ -1142,7 +1174,7 @@ class Loan(models.Model):
         if not self.due_date or self.status != 'active' or not self.scheme:
             return Decimal('0.00')
         
-        principal_amount = self.principal_amount
+        principal_amount = self.effective_principal_amount
         
         # For schemes with no_interest_period_days, check if loan duration is within that period
         if self.scheme.no_interest_period_days and (self.due_date - self.issue_date).days <= self.scheme.no_interest_period_days:

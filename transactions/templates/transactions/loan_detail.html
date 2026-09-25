@@ -571,8 +571,11 @@
                             <i class="fas fa-calculator fa-lg"></i>
                         </div>
                     </div>
-                    <div class="mt-2 small text-muted">
-                        <i class="fas fa-percentage me-1 text-danger"></i><strong>Today's Accrued Int:</strong> Rs: {{ today_interest_due|floatformat:0|intcomma }}
+                    <div class="mt-2 small text-muted d-flex justify-content-between align-items-center flex-wrap gap-1">
+                        <span><i class="fas fa-percentage me-1 text-danger"></i><strong>Today's Accrued Int:</strong> Rs: {{ today_interest_due|floatformat:0|intcomma }}</span>
+                        {% if loan.is_first_month_interest_paid %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle py-0" style="font-size: 0.65rem;" title="1st Month advance interest (₹{{ loan.advance_interest_amount|floatformat:0 }}) pre-deducted from settlement"><i class="fas fa-check-circle me-1"></i>Adv. Int: ₹{{ loan.advance_interest_amount|floatformat:0 }}</span>
+                        {% endif %}
                     </div>
                 </div>
             </div>

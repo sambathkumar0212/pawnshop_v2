@@ -2629,10 +2629,10 @@ class LoanDetailView(LoginRequiredMixin, RoleBranchAccessMixin, DetailView):
             from transactions.services_partial_release import get_loan_current_interest_due
             today_interest_due = get_loan_current_interest_due(loan)
             context['today_interest_due'] = today_interest_due
-            context['today_net_payable'] = loan.principal_amount + today_interest_due
+            context['today_net_payable'] = loan.effective_principal_amount + today_interest_due
         except Exception:
             context['today_interest_due'] = Decimal('0.00')
-            context['today_net_payable'] = loan.principal_amount
+            context['today_net_payable'] = getattr(loan, 'effective_principal_amount', loan.principal_amount)
         
         # Process item photos for the template using centralized function
         context['item_photos_list'] = process_item_photos_for_display(loan.item_photos)
@@ -3103,14 +3103,16 @@ class PaymentCreateView(LoginRequiredMixin, RoleBranchAccessMixin, CreateView):
             from transactions.services_partial_release import get_loan_current_interest_due
             today_interest = get_loan_current_interest_due(loan)
             context['today_interest'] = today_interest
-            context['today_net_payable'] = loan.principal_amount + today_interest
-            context['loan_principal'] = loan.principal_amount
-            context['remaining_balance'] = loan.principal_amount + today_interest
+            effective_principal = loan.effective_principal_amount
+            context['today_net_payable'] = effective_principal + today_interest
+            context['loan_principal'] = effective_principal
+            context['remaining_balance'] = effective_principal + today_interest
         except Exception:
             context['today_interest'] = Decimal('0.00')
-            context['today_net_payable'] = loan.principal_amount
-            context['loan_principal'] = loan.principal_amount
-            context['remaining_balance'] = loan.principal_amount
+            effective_principal = getattr(loan, 'effective_principal_amount', loan.principal_amount)
+            context['today_net_payable'] = effective_principal
+            context['loan_principal'] = effective_principal
+            context['remaining_balance'] = effective_principal
 
         # Payment history
         context['payments'] = loan.payments.order_by('-payment_date')[:10]

@@ -103,7 +103,7 @@ def _get_total_payable(loan):
         interest_due = get_loan_current_interest_due(loan)
     except Exception:
         interest_due = Decimal('0.00')
-    principal = Decimal(str(getattr(loan, 'principal_amount', 0) or 0))
+    principal = getattr(loan, 'effective_principal_amount', getattr(loan, 'principal_amount', Decimal('0.00')))
     return principal + interest_due, interest_due
 
 

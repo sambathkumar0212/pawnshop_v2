@@ -125,11 +125,12 @@ class LoanPartialReleaseView(LoginRequiredMixin, View):
         existing_ltv = ((loan.principal_amount / total_pledged_val) * Decimal('100')).quantize(Decimal('0.01')) if total_pledged_val > 0 else Decimal('0.00')
 
         total_accrued = get_loan_current_interest_due(loan)
-        total_net_payable = (loan.principal_amount + total_accrued).quantize(Decimal('0.01'))
+        effective_principal = getattr(loan, 'effective_principal_amount', loan.principal_amount)
+        total_net_payable = (effective_principal + total_accrued).quantize(Decimal('0.01'))
 
         for item_dict in items_with_val:
             u_val = item_dict['unit_valuation']
-            item_p = (loan.principal_amount * (u_val / total_pledged_val)).quantize(Decimal('0.01')) if total_pledged_val > 0 else Decimal('0.00')
+            item_p = (effective_principal * (u_val / total_pledged_val)).quantize(Decimal('0.01')) if total_pledged_val > 0 else Decimal('0.00')
             item_i = (total_accrued * (u_val / total_pledged_val)).quantize(Decimal('0.01')) if total_pledged_val > 0 else Decimal('0.00')
             item_dict['unit_release_principal'] = item_p
             item_dict['unit_release_interest'] = item_i
