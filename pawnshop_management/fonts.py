@@ -234,7 +234,7 @@ def render_html_to_pdf_bytes(html_content, page_size='A4', margins=None):
         finally:
             shutil.rmtree(tmp_dir, ignore_errors=True)
 
-    # 3. Tertiary Fallback: xhtml2pdf
+    # 3. Tertiary Fallback: xhtml2pdf (ReportLab)
     try:
         from xhtml2pdf import pisa
         import io
@@ -248,9 +248,12 @@ def render_html_to_pdf_bytes(html_content, page_size='A4', margins=None):
                 return os.path.join(settings.STATIC_ROOT or (Path(settings.BASE_DIR) / 'static'), uri.replace(settings.STATIC_URL, ''))
             return uri
 
-        pisa_status = pisa.CreatePDF(html_content, dest=out_stream, link_callback=link_callback)
-        if not pisa_status.err:
-            return out_stream.getvalue()
+        # Strip large base64 @font-face blocks because xhtml2pdf uses fonts registered via pdfmetrics
+        clean_html = re.sub(r'@font-face\s*\{[^}]*\}', '', html_content, flags=re.DOTALL)
+        pisa_status = pisa.CreatePDF(clean_html, dest=out_stream, link_callback=link_callback)
+        pdf_bytes = out_stream.getvalue()
+        if pdf_bytes and len(pdf_bytes) > 500:
+            return pdf_bytes
     except Exception as xh_err:
         print(f"[PDF Engine] xhtml2pdf fallback error: {xh_err}")
 

@@ -645,10 +645,24 @@ class GoldPurchaseReceiptPDFView(LoginRequiredMixin, View):
         disposition = request.GET.get('disposition', 'attachment')
 
         pdf_bytes = render_html_to_pdf_bytes(html)
-        if pdf_bytes:
+        if pdf_bytes and len(pdf_bytes) > 500:
             response = HttpResponse(pdf_bytes, content_type='application/pdf')
             response['Content-Disposition'] = f'{disposition}; filename="{pdf_filename}"'
             return response
 
-        # Final Fallback to HTML
-        return HttpResponse(html)
+        # Emergency Fallback to ensure application/pdf response
+        try:
+            from xhtml2pdf import pisa
+            import io
+            clean_html = re.sub(r'@font-face\s*\{[^}]*\}', '', html, flags=re.DOTALL)
+            buf = io.BytesIO()
+            pisa.CreatePDF(clean_html, dest=buf)
+            fallback_pdf = buf.getvalue()
+            if fallback_pdf and len(fallback_pdf) > 500:
+                response = HttpResponse(fallback_pdf, content_type='application/pdf')
+                response['Content-Disposition'] = f'{disposition}; filename="{pdf_filename}"'
+                return response
+        except Exception as e:
+            print(f"Emergency PDF generation error: {e}")
+
+        return HttpResponse('Error generating PDF document. Please try again.', status=500, content_type='text/plain')
