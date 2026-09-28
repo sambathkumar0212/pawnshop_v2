@@ -3773,13 +3773,9 @@ class LoanPaymentHistoryDownloadView(LoginRequiredMixin, RoleBranchAccessMixin, 
         
         elements.append(Paragraph("PAYMENT SUMMARY", section_style))
         
-        # Calculate remaining balance - ensure it's never negative (0 for fully paid loans)
-        remaining_balance = max(0, loan.total_payable_till_date)
-        
         summary_data = [
             ['Total Payments Made:', str(total_payments)],
             ['Total Amount Paid:', f"Rs {total_amount_paid:,.2f}"],
-            ['Remaining Balance:', f"Rs {remaining_balance:,.2f}"],
         ]
         
         summary_table = Table(summary_data, colWidths=[2*inch, 4*inch])
@@ -3796,7 +3792,6 @@ class LoanPaymentHistoryDownloadView(LoginRequiredMixin, RoleBranchAccessMixin, 
             ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#BDC3C7')),
             ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#E8F6F3')),
-            ('BACKGROUND', (1, -1), (1, -1), colors.HexColor('#FADBD8')),  # Highlight remaining balance
         ]))
         
         elements.append(summary_table)
@@ -4418,13 +4413,9 @@ class LoanScheduleView(LoginRequiredMixin, RoleBranchAccessMixin, View):
         
         elements.append(Paragraph("PAYMENT SUMMARY", section_style))
         
-        # Calculate remaining balance - ensure it's never negative (0 for fully paid loans)
-        remaining_balance = max(0, loan.total_payable_till_date)
-        
         summary_data = [
             ['Total Payments Made:', str(total_payments)],
             ['Total Amount Paid:', f"Rs {total_amount_paid:,.2f}"],
-            ['Remaining Balance:', f"Rs {remaining_balance:,.2f}"],
         ]
         
         summary_table = Table(summary_data, colWidths=[2*inch, 4*inch])
@@ -4441,7 +4432,6 @@ class LoanScheduleView(LoginRequiredMixin, RoleBranchAccessMixin, View):
             ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#BDC3C7')),
             ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#E8F6F3')),
-            ('BACKGROUND', (1, -1), (1, -1), colors.HexColor('#FADBD8')),  # Highlight remaining balance
         ]))
         
         elements.append(summary_table)
