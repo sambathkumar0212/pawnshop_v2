@@ -504,6 +504,8 @@ class GoldPurchaseReceiptPDFView(LoginRequiredMixin, View):
         branch = purchase.branch
 
         from transactions.views import get_branch_bill_details, get_branch_bill_header_phones
+        from pawnshop_management.fonts import get_tamil_font_base64, get_tamil_font_uri, render_html_to_pdf_bytes
+
         bill_details = get_branch_bill_details(branch)
 
         amount_in_words = amount_to_english_words(purchase.net_payable_amount)
@@ -563,10 +565,10 @@ class GoldPurchaseReceiptPDFView(LoginRequiredMixin, View):
 
         # Prepare item list with Tamil translations
         PAYMENT_METHOD_TAMIL = {
-            'cash': 'ரொக்கம் (Cash)',
-            'bank_transfer': 'வங்கி பரிமாற்றம் (Bank Transfer)',
-            'upi': 'யுபிஐ / டிஜிட்டல் (UPI / GPay / PhonePe)',
-            'cheque': 'காசோலை (Cheque)',
+            'cash': '??????? (Cash)',
+            'bank_transfer': '????? ?????????? (Bank Transfer)',
+            'upi': '????? / ???????? (UPI / GPay / PhonePe)',
+            'cheque': '?????? (Cheque)',
         }
         payment_method_display_tamil = PAYMENT_METHOD_TAMIL.get(purchase.payment_method, purchase.get_payment_method_display())
 
@@ -575,31 +577,31 @@ class GoldPurchaseReceiptPDFView(LoginRequiredMixin, View):
                 return ''
             ln = name.lower()
             if 'chain' in ln and 'dollar' in ln:
-                return 'டாலர் சங்கிலி'
+                return '????? ??????'
             elif 'chain' in ln:
-                return 'தங்க சங்கிலி'
+                return '???? ??????'
             elif 'ring' in ln or 'mothiram' in ln:
-                return 'மோதிரம்'
+                return '???????'
             elif 'bangle' in ln or 'valai' in ln:
-                return 'வளையல்'
+                return '??????'
             elif 'necklace' in ln or 'malai' in ln or 'haram' in ln:
-                return 'நெக்லஸ் / மாலை'
+                return '??????? / ????'
             elif 'earring' in ln or 'jimikki' in ln:
-                return 'ஜிமிக்கி / கம்மல்'
+                return '?????? / ????????'
             elif 'stud' in ln or 'thodu' in ln:
-                return 'தோடு'
+                return '????'
             elif 'thali' in ln or 'mangalsutra' in ln or 'kodi' in ln:
-                return 'தாலி / மாங்கல்யம்'
+                return '???? / ???????? ????'
             elif 'coin' in ln or 'kasoo' in ln:
-                return 'தங்கக் காசு'
+                return '???? ????'
             elif 'bracelet' in ln or 'kappu' in ln:
-                return 'பிரேஸ்லெட் / காப்பு'
+                return '?????????? / ??????'
             elif 'anklet' in ln or 'kolusu' in ln:
-                return 'கொலுசு'
+                return '??????'
             elif 'toe' in ln or 'metti' in ln:
-                return 'மெட்டி'
+                return '??????'
             elif 'scrap' in ln or 'melt' in ln or 'bit' in ln or 'bar' in ln:
-                return 'உருக்கு / பழைய தங்கம்'
+                return '???????? ?????? / ??????'
             return ''
 
         items_list = list(purchase.items.all())
@@ -626,7 +628,8 @@ class GoldPurchaseReceiptPDFView(LoginRequiredMixin, View):
             'bill_logo_url': bill_details.get('logo_url', ''),
             'date_today': timezone.now(),
             'date_today_display': timezone.now().strftime('%d-%b-%Y %H:%M:%S'),
-            'tamil_font_file_uri': f"file:///{str((settings.BASE_DIR / 'static' / 'fonts' / 'NotoSansTamil-Regular.ttf')).replace(os.sep, '/')}",
+            'tamil_font_file_uri': get_tamil_font_uri(),
+            'tamil_font_base64': get_tamil_font_base64(),
         }
 
         template = get_template('transactions/gold_purchase_receipt_pdf.html')
@@ -641,92 +644,11 @@ class GoldPurchaseReceiptPDFView(LoginRequiredMixin, View):
         pdf_filename = f"{clean_name}_{clean_voucher}.pdf" if clean_name else f"gold_purchase_voucher_{clean_voucher}.pdf"
         disposition = request.GET.get('disposition', 'attachment')
 
-        # 1. Primary PDF Engine: Headless Chromium (Chrome/Edge) for pixel-perfect Tamil OpenType script shaping
-        browser = self._find_browser_executable()
-        if browser:
-            tmp_dir = tempfile.mkdtemp(prefix='gp_pdf_')
-            html_path = os.path.join(tmp_dir, 'gold_purchase_receipt.html')
-            pdf_path = os.path.join(tmp_dir, 'gold_purchase_receipt.pdf')
-            profile_dir = os.path.join(tmp_dir, 'profile')
-            os.makedirs(profile_dir, exist_ok=True)
-            try:
-                with open(html_path, 'w', encoding='utf-8') as f:
-                    f.write(html)
-
-                cmd = [
-                    browser,
-                    "--headless=new",
-                    "--disable-gpu",
-                    "--no-sandbox",
-                    f"--user-data-dir={profile_dir}",
-                    "--allow-file-access-from-files",
-                    "--disable-web-security",
-                    "--print-to-pdf-no-header",
-                    f"--print-to-pdf={pdf_path}",
-                    f"file:///{html_path.replace(os.sep, '/')}",
-                ]
-
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-                if result.returncode == 0 and os.path.exists(pdf_path):
-                    with open(pdf_path, 'rb') as f:
-                        pdf_bytes = f.read()
-                    if pdf_bytes:
-                        response = HttpResponse(pdf_bytes, content_type='application/pdf')
-                        response['Content-Disposition'] = f'{disposition}; filename="{pdf_filename}"'
-                        return response
-            except Exception as e:
-                print(f"Browser PDF generation failed for Gold Purchase, falling back to xhtml2pdf: {e}")
-            finally:
-                try:
-                    shutil.rmtree(tmp_dir, ignore_errors=True)
-                except Exception:
-                    pass
-
-        # 2. Secondary Fallback: xhtml2pdf
-        if pisa:
-            response = HttpResponse(content_type='application/pdf')
+        pdf_bytes = render_html_to_pdf_bytes(html)
+        if pdf_bytes:
+            response = HttpResponse(pdf_bytes, content_type='application/pdf')
             response['Content-Disposition'] = f'{disposition}; filename="{pdf_filename}"'
+            return response
 
-            try:
-                from reportlab.pdfbase import pdfmetrics
-                from reportlab.pdfbase.ttfonts import TTFont
-                from xhtml2pdf.default import DEFAULT_FONT
-                tamil_font_path = os.path.join(settings.BASE_DIR, 'static', 'fonts', 'NotoSansTamil-Regular.ttf')
-                if os.path.exists(tamil_font_path):
-                    pdfmetrics.registerFont(TTFont('NotoSansTamil', tamil_font_path))
-                    DEFAULT_FONT['notosanstamil'] = 'NotoSansTamil'
-                    DEFAULT_FONT['notosans-tamil'] = 'NotoSansTamil'
-                    DEFAULT_FONT['tamil'] = 'NotoSansTamil'
-            except Exception:
-                pass
-
-            def link_callback(uri, rel):
-                if uri.startswith(settings.MEDIA_URL):
-                    path = os.path.join(settings.MEDIA_ROOT, uri.replace(settings.MEDIA_URL, ""))
-                elif uri.startswith(settings.STATIC_URL):
-                    path = os.path.join(settings.STATIC_ROOT or (settings.BASE_DIR / 'static'), uri.replace(settings.STATIC_URL, ""))
-                else:
-                    path = uri
-                return path
-
-            pisa_status = pisa.CreatePDF(html, dest=response, link_callback=link_callback)
-            if not pisa_status.err:
-                return response
-
-        # 3. Final Fallback to HTML
+        # Final Fallback to HTML
         return HttpResponse(html)
-
-    def _find_browser_executable(self):
-        """Find an installed Chromium-based browser executable (Chrome or Edge)."""
-        candidates = [
-            shutil.which('chrome'),
-            shutil.which('msedge'),
-            r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-            r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
-            r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
-            r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-        ]
-        for candidate in candidates:
-            if candidate and os.path.exists(candidate):
-                return candidate
-        return None

@@ -12,7 +12,9 @@
         }
         @font-face {
             font-family: 'NotoSansTamil';
-            src: url('{{ tamil_font_file_uri }}') format('truetype');
+            src: {% if tamil_font_base64 %}url('data:font/truetype;charset=utf-8;base64,{{ tamil_font_base64 }}') format('truetype'){% else %}url('{{ tamil_font_file_uri }}') format('truetype'){% endif %};
+            font-weight: normal;
+            font-style: normal;
         }
         html, body {
             margin: 0;

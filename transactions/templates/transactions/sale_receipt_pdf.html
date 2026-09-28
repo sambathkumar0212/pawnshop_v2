@@ -9,9 +9,11 @@
     <style>
         @font-face {
             font-family: 'NotoSansTamil';
-            src: url('{{ tamil_font_file_uri|default:"" }}') format('truetype'), 
+            src: {% if tamil_font_base64 %}url('data:font/truetype;charset=utf-8;base64,{{ tamil_font_base64 }}') format('truetype'){% else %}url('{{ tamil_font_file_uri|default:"" }}') format('truetype'){% endif %}, 
                  local('Noto Sans Tamil'), 
                  local('NotoSansTamil');
+            font-weight: normal;
+            font-style: normal;
         }
         @page { size: A4; margin: 0.5cm; }
         html, body { margin: 0; padding: 0; }

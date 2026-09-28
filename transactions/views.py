@@ -3451,30 +3451,7 @@ class LoanDocumentView(LoginRequiredMixin, RoleBranchAccessMixin, View):
         loan = get_object_or_404(Loan, loan_number=loan_number)
         # enforce branch access
         self.check_object_branch_access(loan, branch_attr='branch')
-        # Keep original agreement layout; prefer Chromium rendering for reliable Tamil glyph shaping.
-        try:
-            return self._generate_browser_pdf(request, loan)
-        except Exception as e:
-            print(f"Browser PDF generation failed, falling back to xhtml2pdf: {e}")
-            return self._generate_xhtml2pdf(request, loan)
 
-    def _find_browser_executable(self):
-        """Find an installed Chromium-based browser executable."""
-        candidates = [
-            shutil.which('chrome'),
-            shutil.which('msedge'),
-            r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-            r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
-            r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
-            r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-        ]
-        for candidate in candidates:
-            if candidate and os.path.exists(candidate):
-                return candidate
-        return None
-
-    def _generate_browser_pdf(self, request, loan):
-        """Render loan agreement HTML via headless Chromium to get proper Tamil rendering."""
         current_language = getattr(request, 'LANGUAGE_CODE', 'en')
         # Process item photos for PDF using centralized function
         processed_photos = process_item_photos_for_display(loan.item_photos)
@@ -3496,10 +3473,7 @@ class LoanDocumentView(LoginRequiredMixin, RoleBranchAccessMixin, View):
         loan_items = loan.loanitem_set.exclude(status='released')
         language_context = build_loan_pdf_language_context(loan, current_language)
 
-        # Same filename logic used by template-based method
         from django.utils.text import slugify
-        import re
-
         customer_name = ""
         if loan.customer:
             customer_name = f"{loan.customer.first_name}_{loan.customer.last_name}"
@@ -3522,15 +3496,18 @@ class LoanDocumentView(LoginRequiredMixin, RoleBranchAccessMixin, View):
             filename_base = f"{customer_name}_{loan.loan_number}_agreement"
         else:
             filename_base = f"loan_{loan.loan_number}_agreement"
-        filename_base = re.sub(r'[^a-zA-Z0-9_-]', '_', filename_base)[:200]
+        filename_base = re.sub(r'[^a-zA-Z0-9_\-]', '_', filename_base)[:200]
         detailed_filename = f"{filename_base}.pdf"
+
+        from pawnshop_management.fonts import get_tamil_font_base64, get_tamil_font_uri, render_html_to_pdf_bytes
 
         context = {
             'loan': loan,
             'loan_items': loan_items,
             'item_photos': item_photos,
             'customer_photo': customer_photo,
-            'tamil_font_file_uri': f"file:///{str((settings.BASE_DIR / 'static' / 'fonts' / 'NotoSansTamil-Regular.ttf')).replace(os.sep, '/')}",
+            'tamil_font_file_uri': get_tamil_font_uri(),
+            'tamil_font_base64': get_tamil_font_base64(),
             'pdf_renderer': 'browser',
             **language_context,
         }
@@ -3538,186 +3515,13 @@ class LoanDocumentView(LoginRequiredMixin, RoleBranchAccessMixin, View):
         template = get_template('transactions/loan_document_pdf.html')
         html = template.render(context)
 
-        browser = self._find_browser_executable()
-        if not browser:
-            raise RuntimeError("No Chrome/Edge executable found on system")
-
-        tmp_dir = tempfile.mkdtemp(prefix='loan_pdf_')
-        html_path = os.path.join(tmp_dir, 'loan_document.html')
-        pdf_path = os.path.join(tmp_dir, 'loan_document.pdf')
-        profile_dir = os.path.join(tmp_dir, 'profile')
-        os.makedirs(profile_dir, exist_ok=True)
-
-        try:
-            with open(html_path, 'w', encoding='utf-8') as f:
-                f.write(html)
-
-            cmd = [
-                browser,
-                "--headless=new",
-                "--disable-gpu",
-                "--no-sandbox",
-                f"--user-data-dir={profile_dir}",
-                "--allow-file-access-from-files",
-                "--disable-web-security",
-                "--print-to-pdf-no-header",
-                f"--print-to-pdf={pdf_path}",
-                f"file:///{html_path.replace(os.sep, '/')}",
-            ]
-
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
-            if result.returncode != 0 or not os.path.exists(pdf_path):
-                raise RuntimeError(f"Chromium PDF render failed: {result.stderr or result.stdout}")
-
-            with open(pdf_path, 'rb') as f:
-                pdf_bytes = f.read()
-            if not pdf_bytes:
-                raise RuntimeError("Generated PDF is empty")
-
-            response = HttpResponse(content_type='application/pdf')
+        pdf_bytes = render_html_to_pdf_bytes(html)
+        if pdf_bytes:
+            response = HttpResponse(pdf_bytes, content_type='application/pdf')
             response['Content-Disposition'] = f'attachment; filename="{detailed_filename}"'
-            response.write(pdf_bytes)
             return response
-        finally:
-            try:
-                shutil.rmtree(tmp_dir, ignore_errors=True)
-            except Exception:
-                pass
 
-    def _generate_xhtml2pdf(self, request, loan):
-        """Fallback method using xhtml2pdf"""
-        current_language = getattr(request, 'LANGUAGE_CODE', 'en')
-        
-        # Process item photos for PDF using centralized function
-        processed_photos = process_item_photos_for_display(loan.item_photos)
-        
-        # Convert photos to base64 format for PDF embedding
-        item_photos = []
-        for photo in processed_photos:
-            if photo.startswith('data:image/'):
-                # Extract just the base64 data part (remove data:image/jpeg;base64, prefix)
-                base64_data = photo.split(',')[1] if ',' in photo else photo
-                item_photos.append(base64_data)
-            else:
-                # If it's already base64 without prefix, use directly
-                item_photos.append(photo)
-        
-        # Debug: Print photo information
-        print(f"Processing loan {loan.loan_number}: Found {len(processed_photos)} processed photos")
-        print(f"Raw item_photos data: {loan.item_photos[:100] if loan.item_photos else 'None'}...")
-        print(f"Final item_photos for template: {len(item_photos)} photos")
-        
-        # Process customer photo
-        customer_photo = None
-        if loan.customer_face_capture:
-            if loan.customer_face_capture.startswith('data:image/'):
-                customer_photo = loan.customer_face_capture.split(',')[1]
-            else:
-                customer_photo = loan.customer_face_capture
-        
-        # Ensure we have loan items (active pledged items)
-        loan_items = loan.loanitem_set.exclude(status='released')
-        language_context = build_loan_pdf_language_context(loan, current_language)
-        print(f"Found {loan_items.count()} loan items")
-        
-        # Generate detailed filename with customer name and item details
-        def generate_loan_document_filename(loan):
-            from django.utils.text import slugify
-            import re
-            
-            # Get customer name (clean it for filename)
-            customer_name = ""
-            if loan.customer:
-                customer_name = f"{loan.customer.first_name}_{loan.customer.last_name}"
-                customer_name = slugify(customer_name).replace('-', '_')
-            
-            # Get item names from loan items
-            item_names = []
-            loan_items = loan.loanitem_set.all()
-            for loan_item in loan_items:
-                if loan_item.item and loan_item.item.name:
-                    item_name = slugify(loan_item.item.name).replace('-', '_')
-                    item_names.append(item_name)
-            
-            # If no items found, use item_name from loan model or default
-            if not item_names:
-                if hasattr(loan, 'item_name') and loan.item_name:
-                    item_name = slugify(loan.item_name).replace('-', '_')
-                    item_names = [item_name]
-                else:
-                    item_names = ['gold_item']
-            
-            # Combine item names (limit to first 2 items to avoid very long filenames)
-            items_part = '_'.join(item_names[:2])
-            
-            # Create filename: CustomerName_ItemNames_LoanNumber_agreement.pdf
-            if customer_name and items_part:
-                filename_base = f"{customer_name}_{items_part}_{loan.loan_number}_agreement"
-            elif customer_name:
-                filename_base = f"{customer_name}_{loan.loan_number}_agreement"
-            else:
-                filename_base = f"loan_{loan.loan_number}_agreement"
-            
-            # Clean filename for filesystem compatibility
-            filename_base = re.sub(r'[^a-zA-Z0-9_-]', '_', filename_base)
-            
-            # Limit filename length to avoid filesystem issues
-            if len(filename_base) > 200:
-                filename_base = filename_base[:200]
-            
-            return f"{filename_base}.pdf"
-        
-        context = {
-            'loan': loan,
-            'loan_items': loan_items,
-            'item_photos': item_photos,
-            'customer_photo': customer_photo,
-            'pdf_renderer': 'xhtml2pdf',
-            **language_context,
-        }
-        
-        # Render PDF
-        template = get_template('transactions/loan_document_pdf.html')
-        html = template.render(context)
-        
-        response = HttpResponse(content_type='application/pdf')
-        
-        # Generate detailed filename
-        detailed_filename = generate_loan_document_filename(loan)
-        response['Content-Disposition'] = f'attachment; filename="{detailed_filename}"'
-        
-        def link_callback(uri, rel):
-            """
-            Resolve static/media URIs to absolute filesystem paths for xhtml2pdf.
-            Required so Tamil font files under /static/fonts can be loaded.
-            """
-            parsed = urlparse(uri)
-            path = parsed.path or uri
-            if path.startswith(settings.STATIC_URL):
-                return os.path.join(settings.BASE_DIR, 'static', path.replace(settings.STATIC_URL, '', 1))
-            if path.startswith(settings.MEDIA_URL):
-                return os.path.join(settings.MEDIA_ROOT, path.replace(settings.MEDIA_URL, '', 1))
-            if path.startswith('/static/'):
-                return os.path.join(settings.BASE_DIR, 'static', path.replace('/static/', '', 1))
-            if path.startswith('/media/'):
-                return os.path.join(settings.MEDIA_ROOT, path.replace('/media/', '', 1))
-            return uri
-
-        # Register Tamil font directly with reportlab to avoid xhtml2pdf @font-face temp-file issues on Windows.
-        try:
-            tamil_font_path = os.path.join(settings.BASE_DIR, 'static', 'fonts', 'NotoSansTamil-Regular.ttf')
-            if os.path.exists(tamil_font_path):
-                pdfmetrics.registerFont(TTFont('NotoSansTamil', tamil_font_path))
-        except Exception:
-            pass
-
-        pisa_status = pisa.CreatePDF(html, dest=response, link_callback=link_callback)
-        if pisa_status.err:
-            return HttpResponse('Error generating PDF', status=500)
-        
-        return response
-
-
+        return HttpResponse('Error generating PDF', status=500)
 class LoanPaymentHistoryDownloadView(LoginRequiredMixin, RoleBranchAccessMixin, View):
     def get(self, request, loan_number):
         loan = get_object_or_404(Loan, loan_number=loan_number)
@@ -5009,21 +4813,23 @@ class PaymentReceiptView(LoginRequiredMixin, View):
             'total_items_count': get_loan_total_items_count(loan),
             'amount_in_words': amount_in_words,
             'amount_in_words_tamil': amount_in_words_tamil,
-            'tamil_font_file_uri': f"file:///{str((settings.BASE_DIR / 'static' / 'fonts' / 'NotoSansTamil-Regular.ttf')).replace(os.sep, '/')}",
+            'tamil_font_file_uri': get_tamil_font_uri(),
+            'tamil_font_base64': get_tamil_font_base64(),
         }
         
+        from pawnshop_management.fonts import get_tamil_font_base64, get_tamil_font_uri, render_html_to_pdf_bytes
+
         # Render PDF
         template = get_template('transactions/payment_receipt_pdf.html')
         html = template.render(context)
         
-        response = HttpResponse(content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="payment_receipt_{payment.id}.pdf"'
+        pdf_bytes = render_html_to_pdf_bytes(html)
+        if pdf_bytes:
+            response = HttpResponse(pdf_bytes, content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="payment_receipt_{payment.id}.pdf"'
+            return response
         
-        pisa_status = pisa.CreatePDF(html, dest=response)
-        if pisa_status.err:
-            return HttpResponse('Error generating PDF', status=500)
-        
-        return response
+        return HttpResponse('Error generating PDF', status=500)
 
 
 class SaleListView(LoginRequiredMixin, ListView):
@@ -5133,21 +4939,23 @@ class SaleReceiptView(LoginRequiredMixin, View):
             'bill_logo_url': bill_details.get('logo_url', ''),
             'total_items_count': 1,
             'now': timezone.now(),
-            'tamil_font_file_uri': f"file:///{str((settings.BASE_DIR / 'static' / 'fonts' / 'NotoSansTamil-Regular.ttf')).replace(os.sep, '/')}",
+            'tamil_font_file_uri': get_tamil_font_uri(),
+            'tamil_font_base64': get_tamil_font_base64(),
         }
         
+        from pawnshop_management.fonts import get_tamil_font_base64, get_tamil_font_uri, render_html_to_pdf_bytes
+
         # Render PDF
         template = get_template('transactions/sale_receipt_pdf.html')
         html = template.render(context)
         
-        response = HttpResponse(content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="sale_receipt_{sale.id}.pdf"'
+        pdf_bytes = render_html_to_pdf_bytes(html)
+        if pdf_bytes:
+            response = HttpResponse(pdf_bytes, content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="sale_receipt_{sale.id}.pdf"'
+            return response
         
-        pisa_status = pisa.CreatePDF(html, dest=response)
-        if pisa_status.err:
-            return HttpResponse('Error generating PDF', status=500)
-        
-        return response
+        return HttpResponse('Error generating PDF', status=500)
 
 
 def number_to_words(request, number):

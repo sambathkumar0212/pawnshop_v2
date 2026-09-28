@@ -12,7 +12,7 @@ export RENDER=true
 echo "==> Installing Python dependencies..."
 pip install --no-cache-dir -r requirements.txt
 
-# Install Playwright browser binaries for WhatsApp Web engine
+# Install Playwright browser binaries for WhatsApp Web and PDF rendering engine
 echo "==> Installing Playwright Chromium browser binaries..."
 export PLAYWRIGHT_BROWSERS_PATH=0
 playwright install --with-deps chromium || playwright install chromium || true
@@ -25,4 +25,4 @@ python manage.py migrate --noinput
 echo "==> Collecting static assets..."
 python manage.py collectstatic --noinput
 
-echo "==> ✅ Build completed successfully!"
+echo "==> Build completed successfully!"
