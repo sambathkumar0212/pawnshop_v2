@@ -278,56 +278,27 @@
         </tr>
     </table>
 
-    <!-- Customer Details & Photos Meta Table -->
-    <table class="meta-table">
-        <tr>
-            <!-- Customer Information (Left) -->
-            <td width="70%" style="vertical-align: top; padding-right: 4px;">
-                <table class="info-table">
-                    <tr>
-                        <td class="info-label" width="30%">Customer / <span class="ta">வாடிக்கையாளர் பெயர்</span>:</td>
-                        <td class="info-val" width="26%"><strong>{{ customer_name_display|default:purchase.customer.full_name }}</strong></td>
-                        <td class="info-label" width="18%">Branch / <span class="ta">கிளை</span>:</td>
-                        <td class="info-val" width="26%">{{ purchase.branch.name }}</td>
-                    </tr>
-                    <tr>
-                        <td class="info-label">Mobile / <span class="ta">கைபேசி எண்</span>:</td>
-                        <td class="info-val">{{ purchase.customer.phone|default:"-" }}</td>
-                        <td class="info-label">KYC / <span class="ta">அடையாளச் சான்று</span>:</td>
-                        <td class="info-val">{{ purchase.get_id_proof_type_display }}: {{ purchase.id_proof_number|default:"Verified" }}</td>
-                    </tr>
-                    <tr>
-                        <td class="info-label">Address / <span class="ta">முகவரி</span>:</td>
-                        <td class="info-val" colspan="3">{{ purchase.customer.address|default:"On File" }}</td>
-                    </tr>
-                </table>
-            </td>
-
-            <!-- Customer Photo (Center) -->
-            <td width="15%" style="vertical-align: top; text-align: center; padding-right: 2px;">
-                <div class="photo-box">
-                    {% if customer_photo %}
-                    <img src="data:image/jpeg;base64,{{ customer_photo }}" class="photo-img" alt="Customer Photo">
-                    {% else %}
-                    <div style="height: 60px; line-height: 60px; font-size: 6pt; color: #94a3b8;">No Photo</div>
-                    {% endif %}
-                    <div class="photo-label">Customer / <span class="ta">வாடிக்கையாளர்</span></div>
-                </div>
-            </td>
-
-            <!-- KYC Document Photo (Right) -->
-            <td width="15%" style="vertical-align: top; text-align: center;">
-                <div class="photo-box">
-                    {% if kyc_document_photo %}
-                    <img src="data:image/jpeg;base64,{{ kyc_document_photo }}" class="photo-img" alt="KYC Document">
-                    {% else %}
-                    <div style="height: 60px; line-height: 60px; font-size: 6pt; color: #94a3b8;">No Doc</div>
-                    {% endif %}
-                    <div class="photo-label">KYC / <span class="ta">அடையாளச் சான்று</span></div>
-                </div>
-            </td>
-        </tr>
-    </table>
+    <!-- Customer Details Full Width Panel -->
+    <div class="customer-panel" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 4px; background: #f8fafc; margin-bottom: 5px; padding: 4px 6px;">
+        <table class="info-table" style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <td class="info-label" width="18%">Customer / <span class="ta">வாடிககையாளர்</span>:</td>
+                <td class="info-val" width="32%"><strong>{{ customer_name_display|default:purchase.customer.full_name }}</strong></td>
+                <td class="info-label" width="18%">Branch / <span class="ta">கிளை</span>:</td>
+                <td class="info-val" width="32%">{{ purchase.branch.name }}</td>
+            </tr>
+            <tr>
+                <td class="info-label">Mobile / <span class="ta">கைபேசி எண்</span>:</td>
+                <td class="info-val">{{ purchase.customer.phone|default:"-" }}</td>
+                <td class="info-label">KYC / <span class="ta">அடயாளச் சான்று</span>:</td>
+                <td class="info-val">{{ purchase.get_id_proof_type_display }}: {{ purchase.id_proof_number|default:"Verified" }}</td>
+            </tr>
+            <tr>
+                <td class="info-label">Address / <span class="ta">முகவரி</span>:</td>
+                <td class="info-val" colspan="3">{{ purchase.customer.address|default:"On File" }}</td>
+            </tr>
+        </table>
+    </div>
 
     <!-- Purchased Gold Items Table -->
     <table class="items-table">
@@ -408,15 +379,53 @@
         {% endif %}
     </div>
 
-    <!-- Gold Ornaments Photos Section (If captured) -->
-    {% if item_photos %}
-    <div class="item-photos-section">
-        <div class="section-header">Purchased Gold Ornaments Photos / <span class="ta">வாங்கப்பட்ட நகைகளின் புகைப்படங்கள்</span> ({{ item_photos|length }})</div>
-        <table class="item-photos-table">
+    <!-- =========================================================================
+         VERIFICATION & AUDIT PHOTOS GALLERY (Customer, KYC ID, Gold Ornaments)
+         ========================================================================= -->
+    {% if customer_photo or kyc_document_photo or item_photos %}
+    <div class="unified-photos-section">
+        <div class="unified-photos-header">
+            <span>VERIFICATION & AUDIT PHOTOS / <span class="ta">சரிபார்ப்பு புகைப்படங்கள்</span></span>
+            <span style="font-size: 5.8pt; font-weight: normal; opacity: 0.95;">Customer &bull; KYC Document &bull; Purchased Gold Items</span>
+        </div>
+        <table class="photos-grid-table">
             <tr>
+                <!-- 1. Customer Photo Box -->
+                {% if customer_photo %}
+                <td class="photo-card-cell" width="{% if kyc_document_photo and item_photos %}28%{% elif kyc_document_photo or item_photos %}35%{% else %}100%{% endif %}">
+                    <div class="photo-card-box">
+                        <img src="data:image/jpeg;base64,{{ customer_photo }}" class="photo-card-img" alt="Customer Photo">
+                        <div class="photo-card-label">
+                            <span class="ta">வாடிககையாளர்</span> / Customer
+                        </div>
+                        <div class="photo-card-sub">{{ customer_name_display|default:purchase.customer.full_name }}</div>
+                    </div>
+                </td>
+                {% endif %}
+
+                <!-- 2. KYC Document Photo Box -->
+                {% if kyc_document_photo %}
+                <td class="photo-card-cell" width="{% if customer_photo and item_photos %}32%{% elif customer_photo or item_photos %}35%{% else %}100%{% endif %}">
+                    <div class="photo-card-box">
+                        <img src="data:image/jpeg;base64,{{ kyc_document_photo }}" class="photo-card-img" alt="KYC Document">
+                        <div class="photo-card-label">
+                            <span class="ta">அடயாளச் சான்று</span> / KYC ID Proof
+                        </div>
+                        <div class="photo-card-sub">{{ purchase.get_id_proof_type_display }}: {{ purchase.id_proof_number|default:"Verified" }}</div>
+                    </div>
+                </td>
+                {% endif %}
+
+                <!-- 3. Purchased Gold Ornaments Photos -->
                 {% for p in item_photos %}
-                <td width="{% if item_photos|length == 1 %}100%{% elif item_photos|length == 2 %}50%{% elif item_photos|length == 3 %}33%{% else %}25%{% endif %}">
-                    <img src="data:image/jpeg;base64,{{ p }}" class="item-photo-img" alt="Ornament Photo {{ forloop.counter }}">
+                <td class="photo-card-cell" width="{% if customer_photo and kyc_document_photo %}40%{% elif customer_photo or kyc_document_photo %}35%{% else %}50%{% endif %}">
+                    <div class="photo-card-box">
+                        <img src="data:image/jpeg;base64,{{ p }}" class="photo-card-img" alt="Purchased Gold Photo {{ forloop.counter }}">
+                        <div class="photo-card-label">
+                            <span class="ta">தங்க நகை</span> / Gold Ornament {% if item_photos|length > 1 %}#{{ forloop.counter }}{% endif %}
+                        </div>
+                        <div class="photo-card-sub">{{ purchase.total_net_weight|floatformat:3 }}g Net Wt &bull; {{ purchase.items.count }} Item(s)</div>
+                    </div>
                 </td>
                 {% if forloop.counter|divisibleby:4 and not forloop.last %}
                 </tr><tr>
@@ -463,7 +472,7 @@
     </table>
 
     <div class="footer">
-        Computer generated Gold Purchase Voucher &bull; Section 269ST Compliant &bull; <span class="ta">கணினி மூலம் உருவாக்கப்பட்ட தங்கம் கொள்முதல் ரசீது</span> &bull; {{ date_today_display|default:date_today|date:"d-m-Y H:i:s" }}
+        Computer generated Gold Purchase Voucher &bull; Section 269ST Compliant &bull; <span class="ta">கணினி மூலம் உருவாக்கப்பட்ட தங்கம் கொள்முதல் ரசீது</span> &bull; {{ purchase_date_display|default:purchase.purchase_date|date:"d-m-Y" }}
     </div>
 
 </div>
