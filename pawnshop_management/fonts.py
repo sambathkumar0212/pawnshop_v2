@@ -59,12 +59,48 @@ def get_tamil_font_uri():
 def find_browser_executable():
     """
     Find an installed Chromium-based browser executable across:
+    - CHROME_BIN / CHROMIUM_PATH environment variables
+    - Linux Docker / Render paths (/usr/bin/chromium, /usr/bin/google-chrome, etc.)
     - Playwright Chromium binaries (Linux / Render / Docker / Windows / macOS)
     - System Google Chrome / Chromium / Edge binaries in PATH
-    - Standard Linux binary paths (/usr/bin/google-chrome, /usr/bin/chromium, etc.)
     - Standard Windows & macOS paths
     """
-    # 1. Direct Playwright sync_api executable path
+    # 0. Check explicit environment variables (e.g. In Docker/Render)
+    for env_var in ['CHROME_BIN', 'CHROMIUM_PATH', 'GOOGLE_CHROME_BIN', 'CHROME_PATH']:
+        val = os.environ.get(env_var)
+        if val and os.path.exists(val):
+            return val
+
+    # 1. Standard Linux container paths (Docker, Ubuntu, Debian, Render)
+    linux_paths = [
+        "/usr/bin/chromium",
+        "/usr/bin/chromium-browser",
+        "/usr/bin/google-chrome",
+        "/usr/bin/google-chrome-stable",
+        "/usr/local/bin/chromium",
+        "/usr/local/bin/google-chrome",
+        "/snap/bin/chromium",
+    ]
+    for p in linux_paths:
+        if os.path.exists(p):
+            return p
+
+    # 2. System PATH search
+    system_names = [
+        'chromium',
+        'chromium-browser',
+        'google-chrome',
+        'google-chrome-stable',
+        'chrome',
+        'msedge',
+        'microsoft-edge',
+    ]
+    for name in system_names:
+        p = shutil.which(name)
+        if p and os.path.exists(p):
+            return p
+
+    # 3. Direct Playwright sync_api executable path
     try:
         from playwright.sync_api import sync_playwright
         with sync_playwright() as p:
@@ -74,10 +110,9 @@ def find_browser_executable():
     except Exception:
         pass
 
-    # 2. Direct check for Playwright cached browser directories on Linux / Render / Docker / Windows
+    # 4. Direct check for Playwright cached browser directories on Linux / Render / Docker / Windows
     home_dir = os.path.expanduser("~")
     possible_playwright_patterns = [
-        # PLAYWRIGHT_BROWSERS_PATH=0 in Python site-packages
         os.path.join(home_dir, ".cache", "ms-playwright", "chromium-*", "chrome-linux", "chrome"),
         os.path.join(home_dir, ".cache", "ms-playwright", "chromium_headless_shell-*", "chrome-linux", "headless_shell"),
         "/opt/render/project/src/.venv/lib/python*/site-packages/playwright/driver/package/.local-browsers/chromium-*/chrome-linux/chrome",
@@ -92,35 +127,6 @@ def find_browser_executable():
             for match in matches:
                 if os.path.exists(match):
                     return match
-
-    # 3. System PATH search
-    system_names = [
-        'google-chrome',
-        'google-chrome-stable',
-        'chromium',
-        'chromium-browser',
-        'chrome',
-        'msedge',
-        'microsoft-edge',
-    ]
-    for name in system_names:
-        p = shutil.which(name)
-        if p and os.path.exists(p):
-            return p
-
-    # 4. Standard Linux paths
-    linux_paths = [
-        "/usr/bin/google-chrome",
-        "/usr/bin/google-chrome-stable",
-        "/usr/bin/chromium",
-        "/usr/bin/chromium-browser",
-        "/usr/local/bin/google-chrome",
-        "/usr/local/bin/chromium",
-        "/snap/bin/chromium",
-    ]
-    for p in linux_paths:
-        if os.path.exists(p):
-            return p
 
     # 5. Standard Windows paths
     win_paths = [
@@ -157,13 +163,15 @@ def render_html_to_pdf_bytes(html_content, page_size='A4', margins=None):
     if margins is None:
         margins = {'top': '0.5cm', 'right': '0.5cm', 'bottom': '0.5cm', 'left': '0.5cm'}
 
+    browser_exe = find_browser_executable()
+
     # 1. Primary Method: Playwright Python API
     try:
         from playwright.sync_api import sync_playwright
         with sync_playwright() as p:
-            browser = p.chromium.launch(
-                headless=True,
-                args=[
+            launch_kwargs = {
+                'headless': True,
+                'args': [
                     '--no-sandbox',
                     '--disable-gpu',
                     '--disable-dev-shm-usage',
@@ -171,7 +179,11 @@ def render_html_to_pdf_bytes(html_content, page_size='A4', margins=None):
                     '--allow-file-access-from-files',
                     '--disable-web-security',
                 ]
-            )
+            }
+            if browser_exe and os.path.exists(browser_exe):
+                launch_kwargs['executable_path'] = browser_exe
+
+            browser = p.chromium.launch(**launch_kwargs)
             page = browser.new_page()
             page.set_content(html_content, wait_until='load')
             pdf_bytes = page.pdf(
@@ -187,7 +199,6 @@ def render_html_to_pdf_bytes(html_content, page_size='A4', margins=None):
         print(f"[PDF Engine] Playwright API generation info: {pw_err}")
 
     # 2. Secondary Method: Headless Browser Subprocess
-    browser_exe = find_browser_executable()
     if browser_exe:
         tmp_dir = tempfile.mkdtemp(prefix='render_pdf_')
         html_path = os.path.join(tmp_dir, 'document.html')
