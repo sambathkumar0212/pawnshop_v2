@@ -2711,11 +2711,23 @@
                     if (data.interest_rate || data.interest_rate_structure) {
                         let effectiveRate = data.interest_rate || 24;
                         if (data.interest_rate_structure) {
-                            for (const [range, rate] of Object.entries(data.interest_rate_structure)) {
-                                if (range === '1' || range === '1-3' || range === '1-6' || range === '1-12' || range.startsWith('1-')) {
-                                    effectiveRate = parseFloat(rate);
-                                    break;
-                                }
+                            const sortedEntries = Object.entries(data.interest_rate_structure).sort(([a], [b]) => {
+                                const parseKey = (k) => {
+                                    if (k.includes('-')) {
+                                        const parts = k.split('-');
+                                        return [parseInt(parts[0], 10) || 0, parseInt(parts[1], 10) || 999999];
+                                    } else if (k.endsWith('+')) {
+                                        return [parseInt(k.replace('+', ''), 10) || 0, 999999];
+                                    } else {
+                                        return [0, parseInt(k, 10) || 999999];
+                                    }
+                                };
+                                const [startA, endA] = parseKey(a);
+                                const [startB, endB] = parseKey(b);
+                                return startA !== startB ? startA - startB : endA - endB;
+                            });
+                            if (sortedEntries.length > 0) {
+                                effectiveRate = parseFloat(sortedEntries[0][1]);
                             }
                         }
                         if (!_isEditMode || !$('#id_interest_rate').val() || $('#id_interest_rate').val() === '12.00') {

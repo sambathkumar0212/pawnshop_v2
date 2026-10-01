@@ -1331,8 +1331,31 @@ class Loan(models.Model):
         # Determine tier level name
         tier_level = "Tier 1"
         if hasattr(self.scheme, 'interest_rate_structure') and self.scheme.interest_rate_structure:
-            idx = 1
+            sorted_items = []
             for k, r in self.scheme.interest_rate_structure.items():
+                if '-' in k:
+                    try:
+                        s, e = k.split('-')
+                        sorted_items.append((int(s.strip()), int(e.strip()), k, r))
+                    except Exception:
+                        sorted_items.append((0, 999999, k, r))
+                elif k.endswith('+'):
+                    try:
+                        s = int(k.rstrip('+').strip())
+                        sorted_items.append((s, 999999, k, r))
+                    except Exception:
+                        sorted_items.append((0, 999999, k, r))
+                elif k.isdigit():
+                    try:
+                        sorted_items.append((0, int(k.strip()), k, r))
+                    except Exception:
+                        sorted_items.append((0, 999999, k, r))
+                else:
+                    sorted_items.append((0, 999999, k, r))
+            sorted_items.sort(key=lambda x: (x[0], x[1]))
+            
+            idx = 1
+            for s, e, k, r in sorted_items:
                 if Decimal(str(r)) == active_rate:
                     tier_level = f"Tier {idx}"
                     break
@@ -1581,47 +1604,57 @@ class Loan(models.Model):
         if self.scheme.interest_rate_structure:
             is_days = self.scheme.is_days_based
             
-            level_idx = 1
+            sorted_items = []
             for key, rate in self.scheme.interest_rate_structure.items():
                 if '-' in key:
-                    start_val, end_val = key.split('-')
-                    start_num = int(start_val.strip())
-                    end_num = int(end_val.strip())
-                    
-                    if is_days:
-                        from_date = issue_dt + datetime.timedelta(days=start_num)
-                        to_date = issue_dt + datetime.timedelta(days=end_num)
-                        from_date_str = from_date.strftime('%d %b, %Y')
-                        to_date_str = to_date.strftime('%d %b, %Y')
-                    else:
-                        from_date_str = f"Month {start_num}"
-                        to_date_str = f"Month {end_num}"
+                    try:
+                        parts = key.split('-')
+                        start_num = int(parts[0].strip())
+                        end_num = int(parts[1].strip())
+                    except Exception:
+                        start_num, end_num = 0, 999999
+                    sorted_items.append((start_num, end_num, key, rate, False))
                 elif key.endswith('+'):
-                    start_num = int(key[:-1].strip())
-                    if is_days:
-                        from_date = issue_dt + datetime.timedelta(days=start_num)
-                        from_date_str = from_date.strftime('%d %b, %Y')
+                    try:
+                        start_num = int(key.rstrip('+').strip())
+                    except Exception:
+                        start_num = 0
+                    sorted_items.append((start_num, 999999, key, rate, True))
+                elif key.isdigit():
+                    try:
+                        end_num = int(key.strip())
+                    except Exception:
+                        end_num = 30
+                    sorted_items.append((0, end_num, key, rate, False))
+                else:
+                    sorted_items.append((0, 999999, key, rate, False))
+            
+            sorted_items.sort(key=lambda x: (x[0], x[1]))
+            
+            total_items = len(sorted_items)
+            level_idx = 1
+            for start_num, end_num, key, rate, is_plus in sorted_items:
+                if is_days:
+                    from_date = issue_dt + datetime.timedelta(days=start_num)
+                    from_date_str = from_date.strftime('%d %b, %Y')
+                    if is_plus or end_num == 999999:
                         to_date_str = "No Limit (Beyond)"
                     else:
+                        to_date = issue_dt + datetime.timedelta(days=end_num)
+                        to_date_str = to_date.strftime('%d %b, %Y')
+                else:
+                    if is_plus or end_num == 999999:
                         from_date_str = f"Month {start_num}+"
                         to_date_str = "No Limit"
-                else:
-                    start_num = 0
-                    end_num = int(key.strip()) if key.isdigit() else 30
-                    if is_days:
-                        from_date = issue_dt + datetime.timedelta(days=start_num)
-                        to_date = issue_dt + datetime.timedelta(days=end_num)
-                        from_date_str = from_date.strftime('%d %b, %Y')
-                        to_date_str = to_date.strftime('%d %b, %Y')
                     else:
-                        from_date_str = "Month 0"
+                        from_date_str = f"Month {start_num}"
                         to_date_str = f"Month {end_num}"
 
                 annual = Decimal(str(rate))
                 monthly = (annual / Decimal('12')).quantize(Decimal('0.01'))
                 
                 level_name = f"Level {level_idx}"
-                if key.endswith('+') or level_idx == 5:
+                if level_idx == total_items or is_plus:
                     level_name = f"Level {level_idx} (Default/Late)"
                     
                 tiers.append({

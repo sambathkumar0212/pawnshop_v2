@@ -259,7 +259,23 @@ def get_loan_tiered_rates(loan, use_tamil=False):
         return tiered_rates
     s = getattr(loan, 'scheme', None)
     if s and s.interest_rate_structure:
-        sorted_keys = sorted(s.interest_rate_structure.keys(), key=lambda k: [int(x) if x.isdigit() else 999999 for x in k.replace('+', '').split('-') if x])
+        def _tier_sort_key(k):
+            if '-' in k:
+                parts = k.split('-')
+                try:
+                    return (int(parts[0].strip()), int(parts[1].strip()))
+                except Exception:
+                    return (0, 999999)
+            elif k.endswith('+'):
+                try:
+                    return (int(k.rstrip('+').strip()), 999999)
+                except Exception:
+                    return (0, 999999)
+            elif k.isdigit():
+                return (0, int(k.strip()))
+            return (0, 999999)
+
+        sorted_keys = sorted(s.interest_rate_structure.keys(), key=_tier_sort_key)
         for range_key in sorted_keys:
             rate = s.interest_rate_structure[range_key]
             # Use 'days' suffix if days-based scheme (e.g., 0-30days)
@@ -270,24 +286,15 @@ def get_loan_tiered_rates(loan, use_tamil=False):
             range_display = f"{range_key}{suffix}"
             try:
                 original_dist = loan.principal_amount - Decimal(str(loan.processing_fee or 0))
-                monthly_rate = (Decimal(str(rate)) / Decimal('12')).quantize(Decimal('0.01'))
+                annual_rate = Decimal(str(rate))
+                monthly_rate = (annual_rate / Decimal('12')).quantize(Decimal('0.01'))
                 interest_amount = (original_dist * monthly_rate / Decimal('100')).quantize(Decimal('0.01'))
                 
-                # Format rate in Rupees (e.g. 1 Rupee, 1.50 Rupees, 3 Rupees)
-                if monthly_rate == monthly_rate.to_integral_value():
-                    rate_num = str(int(monthly_rate))
-                else:
-                    rate_num = f"{monthly_rate:.2f}"
-
-                if use_tamil:
-                    rate_val = f"{rate_num} ரூபாய்"
-                else:
-                    unit = "Rupee" if rate_num == "1" else "Rupees"
-                    rate_val = f"{rate_num} {unit}"
-
+                # Format rate as Annual Interest % p.a. (e.g. 12.00% p.a., 18.00% p.a., 24.00% p.a., 36.00% p.a., 48.00% p.a.)
+                rate_val = f"{annual_rate:.2f}% p.a."
                 amount_val = f"Rs {round(interest_amount):,}"
             except Exception:
-                rate_val = f"{rate} Rupees" if not use_tamil else f"{rate} ரூபாய்"
+                rate_val = f"{rate}% p.a."
                 amount_val = ""
             
             tiered_rates.append({
@@ -383,6 +390,7 @@ def build_loan_pdf_language_context(loan, current_language):
         'principal_amount': 'Principal Amount',
         'processing_fee': 'Processing Fee',
         'distribution_amount': 'Distribution Amount',
+        'interest_rate': 'Interest Rate',
         'monthly_interest': 'Monthly Interest',
         'issue_date': 'Loan Date',
         'due_date': 'Due Date',
@@ -424,6 +432,7 @@ def build_loan_pdf_language_context(loan, current_language):
             'principal_amount': 'முதன்மை தொகை',
             'processing_fee': 'செயலாக்கக் கட்டணம்',
             'distribution_amount': 'வழங்கப்பட்ட தொகை',
+            'interest_rate': 'வட்டி விகிதம்',
             'monthly_interest': 'மாத வட்டி',
             'issue_date': 'வழங்கிய தேதி',
             'due_date': 'கடைசி தேதி',

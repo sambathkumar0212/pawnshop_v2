@@ -650,8 +650,8 @@
                                         <tr>
                                             <th colspan="{{ tiered_rates|length }}"
                                                 style="text-align: center; font-weight: bold; border: 1px solid #e1e1e1; padding: 2px; font-size: 8px;">
-                                                {% if current_language|slice:':2' == 'ta' %}வட்டி வரம்பு (விகிதம் /
-                                                நாட்கள்){% else %}Tenure/ Interest Range (Days Based){% endif %}
+                                                {% if current_language|slice:':2' == 'ta' %}வட்டி வரம்பு (ஆண்டு வட்டி % /
+                                                நாட்கள்){% else %}Interest Range (Annual % p.a. / Days){% endif %}
                                             </th>
                                         </tr>
                                         <tr>
@@ -667,10 +667,10 @@
                                             {% for item in tiered_rates %}
                                             <td
                                                 style="text-align: center; border: 1px solid #e1e1e1; padding: 2px; font-size: 8px;">
-                                                <div>{{ item.rate }}</div>
+                                                <div style="font-weight: bold;">{{ item.rate }}</div>
                                                 {% if item.amount %}
                                                 <div
-                                                    style="color: #555; font-size: 7px; font-weight: bold; margin-top: 1px;">
+                                                    style="color: #555; font-size: 7px; font-weight: normal; margin-top: 1px;">
                                                     ({{ item.amount }})</div>
                                                 {% endif %}
                                             </td>
@@ -683,11 +683,11 @@
                             <div class="field-row">
                                 <span
                                     class="field-label {% if current_language|slice:':2' == 'ta' %}tamil-text{% endif %}">
-                                    {{ labels.monthly_interest }}:
+                                    {{ labels.interest_rate|default:labels.monthly_interest }}:
                                 </span>
                                 <span class="field-content financial-value">
-                                    Rs {{ loan.monthly_interest.amount|floatformat:0 }}
-                                    ({{ loan.monthly_interest.rate }}% monthly)
+                                    {{ loan.interest_rate|floatformat:2 }}% p.a.
+                                    <span style="color: #555; font-size: 10px; font-weight: normal;">(Rs {{ loan.monthly_interest.amount|floatformat:0 }} / month)</span>
                                 </span>
                             </div>
                             {% endif %}

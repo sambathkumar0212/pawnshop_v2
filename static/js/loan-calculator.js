@@ -265,11 +265,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (interestRateInput && (!shouldPreserve || !interestRateInput.value || interestRateInput.value === '12.00')) {
                     let effectiveRate = scheme.interest_rate;
                     if (scheme.interest_rate_structure) {
-                        for (const [range, rate] of Object.entries(scheme.interest_rate_structure)) {
-                            if (range === '1' || range === '1-3' || range === '1-6' || range === '1-12' || range.startsWith('1-')) {
-                                effectiveRate = parseFloat(rate);
-                                break;
-                            }
+                        const sortedEntries = Object.entries(scheme.interest_rate_structure).sort(([a], [b]) => {
+                            const parseKey = (k) => {
+                                if (k.includes('-')) {
+                                    const parts = k.split('-');
+                                    return [parseInt(parts[0], 10) || 0, parseInt(parts[1], 10) || 999999];
+                                } else if (k.endsWith('+')) {
+                                    return [parseInt(k.replace('+', ''), 10) || 0, 999999];
+                                } else {
+                                    return [0, parseInt(k, 10) || 999999];
+                                }
+                            };
+                            const [startA, endA] = parseKey(a);
+                            const [startB, endB] = parseKey(b);
+                            return startA !== startB ? startA - startB : endA - endB;
+                        });
+                        if (sortedEntries.length > 0) {
+                            effectiveRate = parseFloat(sortedEntries[0][1]);
                         }
                     }
                     if (effectiveRate && (!shouldPreserve || !interestRateInput.value)) {
@@ -322,6 +334,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Add dynamic interest rate structure if available
                 if (scheme.interest_rate_structure && Object.keys(scheme.interest_rate_structure).length > 0) {
+                    const isDaysBased = Object.keys(scheme.interest_rate_structure).some(k => {
+                        const parts = k.replace('+', '').split('-');
+                        return parts.some(p => parseInt(p.trim(), 10) > 12);
+                    });
+                    const unit = isDaysBased ? 'days' : 'months';
+                    
+                    const sortedEntries = Object.entries(scheme.interest_rate_structure).sort(([a], [b]) => {
+                        const parseKey = (k) => {
+                            if (k.includes('-')) {
+                                const parts = k.split('-');
+                                return [parseInt(parts[0], 10) || 0, parseInt(parts[1], 10) || 999999];
+                            } else if (k.endsWith('+')) {
+                                return [parseInt(k.replace('+', ''), 10) || 0, 999999];
+                            } else {
+                                return [0, parseInt(k, 10) || 999999];
+                            }
+                        };
+                        const [startA, endA] = parseKey(a);
+                        const [startB, endB] = parseKey(b);
+                        return startA !== startB ? startA - startB : endA - endB;
+                    });
+
                     schemeDetailsHTML += `
                         <div class="mt-3">
                             <h6 class="font-weight-bold">Dynamic Interest Rate Structure</h6>
@@ -337,14 +371,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     `;
                     
                     // Add each interest rate range
-                    for (const [range, rate] of Object.entries(scheme.interest_rate_structure)) {
+                    for (const [range, rate] of sortedEntries) {
                         let rangeDisplay = range;
                         if (range.includes('-')) {
-                            rangeDisplay = `${range} months`;
+                            rangeDisplay = `${range} ${unit}`;
                         } else if (range.endsWith('+')) {
-                            rangeDisplay = `> ${range.replace('+', '')} months`;
+                            rangeDisplay = `> ${range.replace('+', '')} ${unit}`;
                         } else {
-                            rangeDisplay = `${range} month${range !== '1' ? 's' : ''}`;
+                            rangeDisplay = `${range} ${unit}`;
                         }
                         
                         schemeDetailsHTML += `
@@ -359,7 +393,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     </tbody>
                                 </table>
                             </div>
-                            <p class="small text-muted mb-0">Interest rate is determined based on loan tenure in months</p>
+                            <p class="small text-muted mb-0">Interest rate is determined based on loan tenure in ${unit}</p>
                         </div>
                     `;
                 }

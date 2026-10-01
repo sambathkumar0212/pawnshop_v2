@@ -175,21 +175,27 @@ class Scheme(models.Model):
             
         tenure = Decimal(str(tenure_months))
         
+        # Sort key ranges to check from smallest to largest
+        sorted_keys = []
         for range_key, rate in self.interest_rate_structure.items():
             if '-' in range_key:
                 start, end = range_key.split('-')
                 if start and end:
-                    if Decimal(start) <= tenure <= Decimal(end):
-                        return Decimal(str(rate))
+                    sorted_keys.append((Decimal(start), Decimal(end), range_key, Decimal(str(rate))))
                 elif start:
-                    if Decimal(start) <= tenure:
-                        return Decimal(str(rate))
+                    sorted_keys.append((Decimal(start), Decimal('999999'), range_key, Decimal(str(rate))))
             elif range_key.endswith('+'):
                 min_value = Decimal(range_key.rstrip('+'))
-                if tenure >= min_value:
-                    return Decimal(str(rate))
-            elif range_key == str(int(tenure)):
-                return Decimal(str(rate))
+                sorted_keys.append((min_value, Decimal('999999'), range_key, Decimal(str(rate))))
+            elif range_key.isdigit():
+                val = Decimal(range_key)
+                sorted_keys.append((Decimal('0'), val, range_key, Decimal(str(rate))))
+        
+        sorted_keys.sort()
+        
+        for start, end, range_key, rate in sorted_keys:
+            if start <= tenure <= end:
+                return rate
                 
         return self.interest_rate
 
@@ -236,7 +242,7 @@ class Scheme(models.Model):
                 sorted_keys.append((min_val, Decimal('999999'), range_key, Decimal(str(rate))))
             elif range_key.isdigit():
                 val = Decimal(range_key)
-                sorted_keys.append((val, val, range_key, Decimal(str(rate))))
+                sorted_keys.append((Decimal('0'), val, range_key, Decimal(str(rate))))
         
         # Sort primarily by lower bound, then upper bound
         sorted_keys.sort()
@@ -258,27 +264,53 @@ class Scheme(models.Model):
         unit = "Days" if is_days else "Months"
         
         if self.interest_rate_structure:
-            idx = 1
-            total_items = len(self.interest_rate_structure)
+            sorted_ranges = []
             for range_key, rate in self.interest_rate_structure.items():
+                if '-' in range_key:
+                    try:
+                        start, end = range_key.split('-')
+                        sorted_ranges.append((Decimal(start.strip()), Decimal(end.strip()), range_key, Decimal(str(rate))))
+                    except Exception:
+                        sorted_ranges.append((Decimal('0'), Decimal('999999'), range_key, Decimal(str(rate))))
+                elif range_key.endswith('+'):
+                    try:
+                        start = Decimal(range_key.rstrip('+').strip())
+                        sorted_ranges.append((start, Decimal('999999'), range_key, Decimal(str(rate))))
+                    except Exception:
+                        sorted_ranges.append((Decimal('0'), Decimal('999999'), range_key, Decimal(str(rate))))
+                elif range_key.isdigit():
+                    try:
+                        val = Decimal(range_key.strip())
+                        sorted_ranges.append((Decimal('0'), val, range_key, Decimal(str(rate))))
+                    except Exception:
+                        sorted_ranges.append((Decimal('0'), Decimal('999999'), range_key, Decimal(str(rate))))
+                else:
+                    sorted_ranges.append((Decimal('0'), Decimal('999999'), range_key, Decimal(str(rate))))
+            
+            # Sort ranges numerically: start ascending, then end ascending
+            sorted_ranges.sort(key=lambda x: (x[0], x[1]))
+            
+            idx = 1
+            total_items = len(sorted_ranges)
+            for start_val, end_val, range_key, rate in sorted_ranges:
                 level_label = f"Level {idx}"
                 if idx == total_items:
                     level_label += " (Default/Late)"
                     
                 if '-' in range_key:
                     start, end = range_key.split('-')
-                    from_str = f"{start}"
-                    to_str = f"{end}"
-                    range_label = f"{start} to {end} {unit}"
+                    from_str = f"{start.strip()}"
+                    to_str = f"{end.strip()}"
+                    range_label = f"{from_str} to {to_str} {unit}"
                 elif range_key.endswith('+'):
-                    start = range_key.rstrip('+')
+                    start = range_key.rstrip('+').strip()
                     from_str = f"{start}"
                     to_str = "∞ (No Limit)"
                     range_label = f"Above {start} {unit}"
                 else:
                     from_str = "0"
-                    to_str = f"{range_key}"
-                    range_label = f"{range_key} {unit}"
+                    to_str = f"{range_key.strip()}"
+                    range_label = f"{range_key.strip()} {unit}"
                     
                 annual = Decimal(str(rate))
                 monthly = (annual / Decimal('12')).quantize(Decimal('0.01'))
