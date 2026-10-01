@@ -1,0 +1,121 @@
+Using SQLite database in all environments
+Database path: /Users/sku316/Documents/Final_projects/pawnshop/db.sqlite3
+Database connection successful
+{
+  "status": "ok",
+  "timestamp": "2025-10-25T16:19:28.729560",
+  "applied_migrations": {
+    "accounts": [
+      "0001_initial",
+      "0002_initial",
+      "0003_customer_profile_photo",
+      "0004_update_customer_branch_field",
+      "0005_region_role_category_role_role_type_and_more",
+      "0006_load_default_roles",
+      "0007_ensure_role_defaults",
+      "0008_customuser_is_organization_admin_organization_and_more",
+      "0009_add_auto_renew_to_organization",
+      "0010_alter_customer_id_type",
+      "0011_auto_20251021_0922"
+    ],
+    "admin": [
+      "0001_initial",
+      "0002_logentry_remove_auto_add",
+      "0003_logentry_add_action_flag_choices"
+    ],
+    "analytics": [
+      "0001_initial",
+      "0002_expensecategory_businessexpense_recurringexpense"
+    ],
+    "auth": [
+      "0001_initial",
+      "0002_alter_permission_name_max_length",
+      "0003_alter_user_email_max_length",
+      "0004_alter_user_username_opts",
+      "0005_alter_user_last_login_null",
+      "0006_require_contenttypes_0002",
+      "0007_alter_validators_add_error_messages",
+      "0008_alter_user_username_max_length",
+      "0009_alter_user_last_name_max_length",
+      "0010_alter_group_name_max_length",
+      "0011_update_proxy_permissions",
+      "0012_alter_user_first_name_max_length"
+    ],
+    "authtoken": [
+      "0001_initial",
+      "0002_auto_20160226_1747",
+      "0003_tokenproxy",
+      "0004_alter_tokenproxy_options"
+    ],
+    "biometrics": [
+      "0001_initial",
+      "0002_alter_faceauthlog_options_and_more",
+      "0003_alter_biometricsetting_lockout_duration"
+    ],
+    "branches": [
+      "0001_initial",
+      "0002_branch_region",
+      "0003_branch_organization"
+    ],
+    "contenttypes": [
+      "0001_initial",
+      "0002_remove_content_type_name"
+    ],
+    "gst": [
+      "0001_initial",
+      "0002_companygstdetails_registration_type"
+    ],
+    "integrations": [
+      "0001_initial"
+    ],
+    "inventory": [
+      "0001_initial",
+      "0002_item_loans",
+      "0003_alter_item_loans"
+    ],
+    "reporting": [
+      "0001_initial"
+    ],
+    "schemes": [
+      "0001_initial",
+      "0002_rename_schemes_sche_status_e91afc_idx_schemes_sch_status_739aec_idx_and_more",
+      "0003_scheme_interest_rate_structure",
+      "0004_scheme_organization",
+      "0005_scheme_is_default_alter_scheme_organization",
+      "0006_scheme_auction_on_expiry_scheme_expiry_period_and_more",
+      "0007_scheme_early_period_interest_rate_and_more"
+    ],
+    "sessions": [
+      "0001_initial"
+    ],
+    "transactions": [
+      "0001_initial",
+      "0002_loan_gold_karat_loan_gross_weight_loan_net_weight_and_more",
+      "0003_alter_sale_customer_alter_loan_customer_and_more",
+      "0004_loan_distribution_amount_loan_processing_fee",
+      "0005_loan_customer_face_capture_loan_item_photos",
+      "0006_loan_scheme",
+      "0007_add_loan_last_updated_fields",
+      "0008_alter_loan_distribution_amount_and_more",
+      "0009_alter_payment_reference_number",
+      "0010_alter_sale_reference_number",
+      "0011_alter_loan_customer_face_capture",
+      "0012_alter_loan_scheme",
+      "0013_merge_0012_alter_loan_scheme_add_updated_at_field",
+      "0014_remove_loan_last_updated_remove_loan_last_updated_by_and_more",
+      "0015_loan_updated_at",
+      "0016_alter_loan_processing_fee",
+      "0017_sale_cgst_amount_sale_cgst_rate_sale_customer_gstin_and_more",
+      "0018_loan_loan_document",
+      "add_updated_at_field"
+    ]
+  },
+  "total_applied": 74,
+  "missing_critical_apps": [],
+  "unapplied_migrations": [],
+  "last_migration": {
+    "app": "transactions",
+    "name": "add_updated_at_field",
+    "applied": "2025-06-28T07:44:39.270166+00:00"
+  }
+}
