@@ -725,12 +725,22 @@ class Loan(models.Model):
         
         def _send_notification():
             try:
+                from utils.async_tasks import run_in_background, async_render_loan_pdf
                 from transactions.models import Loan
-                loan = Loan.objects.get(pk=loan_id)
-                loan.send_loan_notification_email(_is_create, changes=_changes)
+
+                def _bg_loan_notification():
+                    try:
+                        loan = Loan.objects.select_related('customer', 'branch', 'scheme', 'branch__organization').prefetch_related('loanitem_set', 'loanitem_set__item').get(pk=loan_id)
+                        loan.send_loan_notification_email(_is_create, changes=_changes)
+                    except Exception as err:
+                        import logging
+                        logging.getLogger(__name__).warning("Async loan notification email error: %s", err)
+
+                run_in_background(_bg_loan_notification)
+                async_render_loan_pdf(loan_id)
             except Exception as e:
                 import traceback
-                print(f"Error sending loan email notification: {str(e)}")
+                print(f"Error queuing loan email notification: {str(e)}")
                 traceback.print_exc()
         
         from django.db import transaction
@@ -974,58 +984,10 @@ class Loan(models.Model):
         template = get_template('transactions/loan_document_pdf.html')
         html = template.render(context)
 
-        # Try headless Chromium first
-        browser = None
-        for candidate in [
-            shutil.which('chrome'),
-            shutil.which('msedge'),
-            r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-            r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
-            r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
-            r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-        ]:
-            if candidate and os.path.exists(candidate):
-                browser = candidate
-                break
-
-        if browser:
-            tmp_dir = tempfile.mkdtemp(prefix='loan_pdf_email_')
-            try:
-                html_path = os.path.join(tmp_dir, 'loan_document.html')
-                pdf_path = os.path.join(tmp_dir, 'loan_document.pdf')
-                profile_dir = os.path.join(tmp_dir, 'profile')
-                os.makedirs(profile_dir, exist_ok=True)
-                with open(html_path, 'w', encoding='utf-8') as f:
-                    f.write(html)
-                cmd = [
-                    browser,
-                    "--headless=new", "--disable-gpu", "--no-sandbox",
-                    f"--user-data-dir={profile_dir}",
-                    "--allow-file-access-from-files", "--disable-web-security",
-                    "--print-to-pdf-no-header",
-                    f"--print-to-pdf={pdf_path}",
-                    f"file:///{html_path.replace(os.sep, '/')}",
-                ]
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
-                if result.returncode == 0 and os.path.exists(pdf_path):
-                    with open(pdf_path, 'rb') as f:
-                        pdf_bytes = f.read()
-                    if pdf_bytes:
-                        return pdf_bytes, pdf_filename
-            finally:
-                shutil.rmtree(tmp_dir, ignore_errors=True)
-
-        # Fallback: xhtml2pdf
-        from io import BytesIO
-        try:
-            from xhtml2pdf import pisa
-            buffer = BytesIO()
-            pisa.CreatePDF(html, dest=buffer)
-            pdf_bytes = buffer.getvalue()
-            if pdf_bytes:
-                return pdf_bytes, pdf_filename
-        except ImportError:
-            pass
+        from pawnshop_management.fonts import render_html_to_pdf_bytes
+        pdf_bytes = render_html_to_pdf_bytes(html)
+        if pdf_bytes:
+            return pdf_bytes, pdf_filename
 
         return None, pdf_filename
 
@@ -1968,14 +1930,23 @@ class Payment(models.Model):
             payment_pk = self.pk
             def _send_receipt():
                 try:
-                    from transactions.services_email import send_customer_payment_email
-                    from transactions.models import Payment as _Payment
-                    p = _Payment.objects.select_related('loan__customer', 'loan__branch').get(pk=payment_pk)
-                    send_customer_payment_email(p)
+                    from utils.async_tasks import run_in_background
+                    def _bg_payment_mail():
+                        try:
+                            from transactions.services_email import send_customer_payment_email
+                            from transactions.models import Payment as _Payment
+                            p = _Payment.objects.select_related('loan__customer', 'loan__branch').get(pk=payment_pk)
+                            send_customer_payment_email(p, async_mode=False)
+                        except Exception as _exc:
+                            import logging as _logging
+                            _logging.getLogger(__name__).warning(
+                                "Async payment receipt email failed for pk=%s: %s", payment_pk, _exc
+                            )
+                    run_in_background(_bg_payment_mail)
                 except Exception as _exc:
                     import logging as _logging
                     _logging.getLogger(__name__).warning(
-                        "Payment receipt email failed for pk=%s: %s", payment_pk, _exc
+                        "Payment receipt email queueing failed for pk=%s: %s", payment_pk, _exc
                     )
             from django.db import transaction as _transaction
             _transaction.on_commit(_send_receipt)

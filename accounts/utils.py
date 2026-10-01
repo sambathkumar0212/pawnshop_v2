@@ -171,15 +171,33 @@ def send_organization_verification_email(organization, request=None):
         f"Best regards,\nThe Pawnshop Team"
     )
     
-    # 5. Send email
+    # 5. Send email asynchronously
     from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@myapp.com')
-    send_mail(
-        subject=subject,
-        message=plain_message,
-        from_email=from_email,
-        recipient_list=[organization.contact_email],
-        html_message=html_message,
-        fail_silently=False,
-    )
+    recipient = organization.contact_email
+    try:
+        from utils.async_tasks import run_in_background
+        def _bg_send():
+            try:
+                send_mail(
+                    subject=subject,
+                    message=plain_message,
+                    from_email=from_email,
+                    recipient_list=[recipient],
+                    html_message=html_message,
+                    fail_silently=True,
+                )
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning("Async verification email failed: %s", e)
+        run_in_background(_bg_send)
+    except Exception:
+        send_mail(
+            subject=subject,
+            message=plain_message,
+            from_email=from_email,
+            recipient_list=[recipient],
+            html_message=html_message,
+            fail_silently=True,
+        )
     
     return verification_token

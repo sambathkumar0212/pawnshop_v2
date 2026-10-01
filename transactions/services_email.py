@@ -172,8 +172,21 @@ TAMIL = {
 # Public API
 # ---------------------------------------------------------------------------
 
-def send_customer_payment_email(payment, lang=None):
+def send_customer_payment_email(payment, lang=None, async_mode=True):
     """Send a payment-receipt confirmation email to the borrower."""
+    if async_mode:
+        from utils.async_tasks import run_in_background
+        payment_id = getattr(payment, 'pk', payment)
+        def _bg():
+            from transactions.models import Payment as _P
+            try:
+                p = _P.objects.select_related('loan__customer', 'loan__branch').get(pk=payment_id)
+                send_customer_payment_email(p, lang=lang, async_mode=False)
+            except Exception as e:
+                logger.warning("Async payment receipt email failed: %s", e)
+        run_in_background(_bg)
+        return
+
     try:
         loan = payment.loan
         email = _customer_email(loan)
@@ -234,8 +247,21 @@ def send_customer_payment_email(payment, lang=None):
         logger.warning("send_customer_payment_email failed: %s", exc)
 
 
-def send_due_date_reminder_email(loan, days_left=None, lang=None):
+def send_due_date_reminder_email(loan, days_left=None, lang=None, async_mode=True):
     """Send a due-date reminder OR overdue notice email to the borrower."""
+    if async_mode:
+        from utils.async_tasks import run_in_background
+        loan_id = getattr(loan, 'pk', loan)
+        def _bg():
+            from transactions.models import Loan as _L
+            try:
+                l = _L.objects.select_related('customer', 'branch', 'scheme').get(pk=loan_id)
+                send_due_date_reminder_email(l, days_left=days_left, lang=lang, async_mode=False)
+            except Exception as e:
+                logger.warning("Async reminder email failed: %s", e)
+        run_in_background(_bg)
+        return
+
     try:
         email = _customer_email(loan)
         if not email:
@@ -331,11 +357,27 @@ def send_due_date_reminder_email(loan, days_left=None, lang=None):
         logger.warning("send_due_date_reminder_email failed for loan %s: %s", getattr(loan, 'loan_number', '?'), exc)
 
 
-def send_loan_expiry_notice_email(loan, request_user=None, lang=None):
+def send_loan_expiry_notice_email(loan, request_user=None, lang=None, async_mode=True):
     """
     Send a formal Expiry / Demand Notice email to the borrower.
-    Returns True if sent successfully, False otherwise.
+    Returns True if dispatched successfully, False otherwise.
     """
+    if async_mode:
+        from utils.async_tasks import run_in_background
+        loan_id = getattr(loan, 'pk', loan)
+        req_user_id = getattr(request_user, 'pk', None) if request_user else None
+        def _bg():
+            from transactions.models import Loan as _L
+            from accounts.models import CustomUser
+            try:
+                l = _L.objects.select_related('customer', 'branch', 'scheme', 'branch__organization').prefetch_related('loanitem_set__item').get(pk=loan_id)
+                u = CustomUser.objects.filter(pk=req_user_id).first() if req_user_id else None
+                send_loan_expiry_notice_email(l, request_user=u, lang=lang, async_mode=False)
+            except Exception as e:
+                logger.warning("Async demand notice email failed: %s", e)
+        run_in_background(_bg)
+        return True
+
     try:
         email = _customer_email(loan)
         if not email:
@@ -403,7 +445,7 @@ def send_loan_expiry_notice_email(loan, request_user=None, lang=None):
         msg = EmailMultiAlternatives(subject=subject, body=text_body,
                                      from_email=_from_email(), to=[email])
         msg.attach_alternative(html_body, 'text/html')
-        msg.send(fail_silently=False)
+        msg.send(fail_silently=True)
 
         logger.info("Demand notice email sent for loan %s to %s (tamil=%s, by %s)",
                     loan.loan_number, email, use_tamil, context['issued_by'] or 'system')

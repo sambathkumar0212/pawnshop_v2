@@ -156,12 +156,24 @@ def find_browser_executable():
 def render_html_to_pdf_bytes(html_content, page_size='A4', margins=None):
     """
     Render HTML content to PDF bytes using:
-    1. Playwright CDP API (highest quality, HarfBuzz OpenType script shaping)
-    2. Headless Chromium CLI Subprocess
-    3. xhtml2pdf Fallback
+    1. Memory Cache (Instant 0.001s return for pre-rendered / repeated PDFs)
+    2. Playwright CDP API (highest quality, HarfBuzz OpenType script shaping)
+    3. Headless Chromium CLI Subprocess
+    4. xhtml2pdf Fallback
     """
     if margins is None:
         margins = {'top': '0.5cm', 'right': '0.5cm', 'bottom': '0.5cm', 'left': '0.5cm'}
+
+    # 0. Check in-memory pre-rendered cache
+    cache_key = None
+    try:
+        from utils.async_tasks import compute_html_hash, get_cached_pdf_bytes, set_cached_pdf_bytes
+        cache_key = compute_html_hash(html_content, extra_key=page_size)
+        cached_pdf = get_cached_pdf_bytes(cache_key)
+        if cached_pdf:
+            return cached_pdf
+    except Exception:
+        pass
 
     browser_exe = find_browser_executable()
 
@@ -194,6 +206,11 @@ def render_html_to_pdf_bytes(html_content, page_size='A4', margins=None):
             )
             browser.close()
             if pdf_bytes and len(pdf_bytes) > 500:
+                if cache_key:
+                    try:
+                        set_cached_pdf_bytes(cache_key, pdf_bytes)
+                    except Exception:
+                        pass
                 return pdf_bytes
     except Exception as pw_err:
         print(f"[PDF Engine] Playwright API generation info: {pw_err}")
@@ -228,6 +245,11 @@ def render_html_to_pdf_bytes(html_content, page_size='A4', margins=None):
                 with open(pdf_path, 'rb') as f:
                     pdf_bytes = f.read()
                 if pdf_bytes and len(pdf_bytes) > 500:
+                    if cache_key:
+                        try:
+                            set_cached_pdf_bytes(cache_key, pdf_bytes)
+                        except Exception:
+                            pass
                     return pdf_bytes
         except Exception as sub_err:
             print(f"[PDF Engine] Subprocess browser PDF error: {sub_err}")
@@ -253,6 +275,11 @@ def render_html_to_pdf_bytes(html_content, page_size='A4', margins=None):
         pisa_status = pisa.CreatePDF(clean_html, dest=out_stream, link_callback=link_callback)
         pdf_bytes = out_stream.getvalue()
         if pdf_bytes and len(pdf_bytes) > 500:
+            if cache_key:
+                try:
+                    set_cached_pdf_bytes(cache_key, pdf_bytes)
+                except Exception:
+                    pass
             return pdf_bytes
     except Exception as xh_err:
         print(f"[PDF Engine] xhtml2pdf fallback error: {xh_err}")
