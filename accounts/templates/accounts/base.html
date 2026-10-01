@@ -64,6 +64,49 @@
         .card-header {
             background-color: #f8f9fa;
         }
+
+        /* Page Speed Indicator & Footer styling */
+        .footer {
+            background-color: transparent;
+            padding: 1.15rem 0;
+            border-top: 1px solid #e2e8f0;
+            font-size: 0.82rem;
+            color: #64748b;
+        }
+        .page-speed-indicator {
+            display: inline-flex;
+            align-items: center;
+            user-select: none;
+        }
+        .speed-badge {
+            font-size: 0.74rem !important;
+            font-weight: 500;
+            letter-spacing: 0.01em;
+            padding: 0.28rem 0.65rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+            text-decoration: none;
+        }
+        .speed-badge:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 6px rgba(0,0,0,0.08);
+        }
+        .speed-badge-fast {
+            background-color: #ecfdf5 !important;
+            color: #065f46 !important;
+            border: 1px solid #a7f3d0 !important;
+        }
+        .speed-badge-medium {
+            background-color: #fffbeb !important;
+            color: #92400e !important;
+            border: 1px solid #fde68a !important;
+        }
+        .speed-badge-slow {
+            background-color: #fef2f2 !important;
+            color: #991b1b !important;
+            border: 1px solid #fecaca !important;
+        }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
@@ -288,8 +331,14 @@
                 
                 <!-- Footer -->
                 <footer class="footer mt-5">
-                    <div class="container-fluid">
-                        <span class="text-muted">Â© {% now "Y" %} Pawnshop Management System. All rights reserved.</span>
+                    <div class="container-fluid d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <span>&copy; {% now "Y" %} Pawnshop Management System. All rights reserved.</span>
+                        <div class="page-speed-indicator" id="pageSpeedWidget" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true" title="Measuring page load speed...">
+                            <span class="badge rounded-pill bg-light text-secondary border d-inline-flex align-items-center gap-1.5 px-2.5 py-1 speed-badge" id="speedBadge">
+                                <i class="fas fa-gauge-high speed-icon" id="speedIcon" style="font-size: 0.75rem;"></i>
+                                <span class="speed-label fw-semibold" id="speedText">Measuring...</span>
+                            </span>
+                        </div>
                     </div>
                 </footer>
             </div>
@@ -311,6 +360,110 @@
                 $(this).remove();
             });
         }, 5000);
+
+        // Page Load Speed Performance Monitor
+        (function() {
+            function initPageSpeedMeter() {
+                setTimeout(function() {
+                    let totalLoadTime = 0;
+                    let serverTime = 0;
+                    let domTime = 0;
+
+                    if (window.performance && typeof window.performance.getEntriesByType === 'function') {
+                        const navEntries = window.performance.getEntriesByType('navigation');
+                        if (navEntries && navEntries.length > 0) {
+                            const nav = navEntries[0];
+                            totalLoadTime = Math.round(nav.duration || (nav.loadEventEnd > 0 ? (nav.loadEventEnd - nav.startTime) : performance.now()));
+                            if (nav.responseEnd > 0 && nav.requestStart > 0) {
+                                serverTime = Math.round(nav.responseEnd - nav.requestStart);
+                            }
+                            if (nav.domComplete > 0 && nav.responseEnd > 0) {
+                                domTime = Math.round(nav.domComplete - nav.responseEnd);
+                            }
+                        }
+                    }
+                    
+                    if (!totalLoadTime && window.performance && window.performance.timing) {
+                        const t = window.performance.timing;
+                        if (t.navigationStart > 0) {
+                            const end = t.loadEventEnd > 0 ? t.loadEventEnd : Date.now();
+                            totalLoadTime = Math.round(end - t.navigationStart);
+                            if (t.responseEnd > 0 && t.requestStart > 0) {
+                                serverTime = Math.round(t.responseEnd - t.requestStart);
+                            }
+                            if (t.domComplete > 0 && t.responseEnd > 0) {
+                                domTime = Math.round(t.domComplete - t.responseEnd);
+                            }
+                        }
+                    }
+
+                    if (totalLoadTime <= 0) {
+                        totalLoadTime = Math.round(performance.now());
+                    }
+
+                    if (serverTime < 0 || isNaN(serverTime)) serverTime = 0;
+                    if (domTime < 0 || isNaN(domTime)) domTime = 0;
+
+                    const displayTime = totalLoadTime < 1000 
+                        ? totalLoadTime + ' ms' 
+                        : (totalLoadTime / 1000).toFixed(2) + ' s';
+
+                    let badgeClass = 'speed-badge-fast';
+                    let iconClass = 'fa-bolt text-success';
+                    let rating = 'Fast 🚀';
+
+                    if (totalLoadTime > 2500) {
+                        badgeClass = 'speed-badge-slow';
+                        iconClass = 'fa-triangle-exclamation text-danger';
+                        rating = 'Slow ⏳';
+                    } else if (totalLoadTime > 1000) {
+                        badgeClass = 'speed-badge-medium';
+                        iconClass = 'fa-gauge-simple text-warning';
+                        rating = 'Good ⚡';
+                    }
+
+                    const tooltipHtml = `<div class='text-start p-1' style='font-size:0.75rem; min-width:160px;'><div class='fw-bold mb-1 border-bottom border-secondary border-opacity-25 pb-1 d-flex justify-content-between'><span>Page Speed:</span><span>${rating}</span></div><div class='d-flex justify-content-between py-0.5'><span>Total Load:</span><span class='fw-bold'>${displayTime}</span></div>${serverTime > 0 ? `<div class='d-flex justify-content-between text-muted py-0.5'><span>Server TTFB:</span><span>${serverTime} ms</span></div>` : ''}${domTime > 0 ? `<div class='d-flex justify-content-between text-muted py-0.5'><span>DOM Parse:</span><span>${domTime} ms</span></div>` : ''}</div>`;
+
+                    const badge = document.getElementById('speedBadge');
+                    if (badge) {
+                        badge.classList.remove('speed-badge-fast', 'speed-badge-medium', 'speed-badge-slow', 'bg-light', 'text-secondary');
+                        badge.classList.add(badgeClass);
+                        
+                        const icon = badge.querySelector('.speed-icon');
+                        if (icon) {
+                            icon.className = 'fas ' + iconClass + ' speed-icon me-1';
+                        }
+                        const label = badge.querySelector('.speed-label');
+                        if (label) {
+                            label.textContent = 'Speed: ' + displayTime;
+                        }
+
+                        const widget = badge.closest('.page-speed-indicator');
+                        if (widget) {
+                            widget.setAttribute('data-bs-original-title', tooltipHtml);
+                            widget.setAttribute('title', tooltipHtml);
+                            if (window.bootstrap && window.bootstrap.Tooltip) {
+                                try {
+                                    const inst = window.bootstrap.Tooltip.getInstance(widget);
+                                    if (inst) inst.dispose();
+                                    new window.bootstrap.Tooltip(widget, {
+                                        html: true,
+                                        placement: 'top',
+                                        trigger: 'hover focus click'
+                                    });
+                                } catch (e) {}
+                            }
+                        }
+                    }
+                }, 120);
+            }
+
+            if (document.readyState === 'complete') {
+                initPageSpeedMeter();
+            } else {
+                window.addEventListener('load', initPageSpeedMeter);
+            }
+        })();
     </script>
 </body>
 </html>

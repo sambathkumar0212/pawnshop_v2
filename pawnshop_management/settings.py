@@ -95,6 +95,7 @@ INSTALLED_APPS = [
 ]
 
 BASE_MIDDLEWARE = [
+    'pawnshop_management.middleware.PageLoadPerformanceMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',

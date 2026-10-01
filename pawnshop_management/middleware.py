@@ -6,6 +6,25 @@ from django.urls import resolve, reverse
 
 
 import sys
+import time
+
+class PageLoadPerformanceMiddleware:
+    """
+    Middleware that records server-side execution time for the request
+    and injects 'X-Server-Response-Time' and 'Server-Timing' headers.
+    """
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        start_time = time.perf_counter()
+        response = self.get_response(request)
+        duration_ms = (time.perf_counter() - start_time) * 1000
+        
+        # Set performance headers
+        response['X-Server-Response-Time'] = f"{duration_ms:.2f}ms"
+        response['Server-Timing'] = f'server;dur={duration_ms:.2f};desc="Django Server Response"'
+        return response
 
 class DatabaseConnectionMiddleware:
     """

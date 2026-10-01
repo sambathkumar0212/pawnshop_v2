@@ -134,8 +134,14 @@
     
     <!-- Footer -->
     <footer class="footer mt-5">
-        <div class="container-fluid">
-            <span class="text-muted">Â© {% now "Y" %} Pawnshop Management System. All rights reserved.</span>
+        <div class="container-fluid d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span class="text-muted">&copy; {% now "Y" %} Pawnshop Management System. All rights reserved.</span>
+            <div class="page-speed-indicator" id="pageSpeedWidget" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true" title="Measuring page load speed...">
+                <span class="badge rounded-pill bg-light text-secondary border d-inline-flex align-items-center gap-1.5 px-2.5 py-1 speed-badge" id="speedBadge">
+                    <i class="fas fa-gauge-high speed-icon" id="speedIcon" style="font-size: 0.75rem;"></i>
+                    <span class="speed-label fw-semibold" id="speedText">Measuring...</span>
+                </span>
+            </div>
         </div>
     </footer>
 </div>
