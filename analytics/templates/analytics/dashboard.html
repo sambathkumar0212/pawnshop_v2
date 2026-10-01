@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 {% load humanize %}
 {% load analytics_filters %}
 
@@ -254,8 +255,8 @@
     </div>
 </div>
 
-<!-- JavaScript for Charts -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- JavaScript for Charts (Self-Hosted) -->
+<script src="{% static 'vendor/chartjs/chart.min.js' %}"></script>
 <script>
 // Seasonal Analysis Chart
 const seasonalCtx = document.getElementById('seasonalChart').getContext('2d');

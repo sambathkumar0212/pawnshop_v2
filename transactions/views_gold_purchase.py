@@ -431,6 +431,9 @@ class GoldPurchaseDetailView(LoginRequiredMixin, RoleBranchAccessMixin, DetailVi
     template_name = 'transactions/gold_purchase_detail.html'
     context_object_name = 'purchase'
 
+    def get_queryset(self):
+        return GoldPurchase.objects.select_related('customer', 'branch', 'purchased_by').prefetch_related('items', 'items__inventory_item')
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         purchase = self.object

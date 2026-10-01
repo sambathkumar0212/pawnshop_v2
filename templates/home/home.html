@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Home - Pawnshop Management System{% endblock %}
 
@@ -510,8 +511,8 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<!-- Chart.js CDN -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Chart.js (Self-Hosted) -->
+<script src="{% static 'vendor/chartjs/chart.min.js' %}"></script>
 
 <script>
     $(document).ready(function() {

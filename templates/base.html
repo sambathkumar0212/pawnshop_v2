@@ -1,4 +1,4 @@
-{% load i18n %}
+{% load i18n static %}
 <!DOCTYPE html>
 {% get_current_language as LANGUAGE_CODE %}
 <html lang="{{ LANGUAGE_CODE }}">
@@ -6,10 +6,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>{% block title %}Pawnshop Management System{% endblock %}</title>
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome 6 -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Bootstrap 5 CSS (Self-Hosted) -->
+    <link href="{% static 'vendor/bootstrap/css/bootstrap.min.css' %}" rel="stylesheet">
+    <!-- Font Awesome 6 (Self-Hosted) -->
+    <link rel="stylesheet" href="{% static 'vendor/fontawesome/css/all.min.css' %}">
     <!-- Google Fonts - Inter, Plus Jakarta Sans & Noto Sans Tamil -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -798,10 +798,10 @@
     </div><!-- /.unauth-wrapper-root -->
     {% endif %}
     
-    <!-- Bootstrap 5 Bundle with Popper -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Bootstrap 5 Bundle with Popper (Self-Hosted) -->
+    <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+    <!-- jQuery (Self-Hosted) -->
+    <script src="{% static 'vendor/jquery/jquery.min.js' %}"></script>
     <!-- Custom Page Scripts -->
     {% block extra_scripts %}{% endblock %}
     {% block extra_js %}{% endblock %}

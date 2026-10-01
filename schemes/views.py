@@ -23,7 +23,7 @@ class NewSchemeListView(LoginRequiredMixin, ListView):
     paginate_by = 10
     
     def get_queryset(self):
-        queryset = Scheme.objects.all()
+        queryset = Scheme.objects.select_related('branch', 'branch__organization')
         user = self.request.user
         
         # Filter by user's organization or branch access
@@ -79,7 +79,7 @@ class NewSchemeListView(LoginRequiredMixin, ListView):
         else:
             queryset = queryset.order_by('name')  # Default fallback
             
-        return queryset.select_related('branch')
+        return queryset.select_related('branch', 'branch__organization')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -160,6 +160,9 @@ class NewSchemeDetailView(LoginRequiredMixin, DetailView):
     model = Scheme
     template_name = 'schemes/new_scheme_detail.html'
     context_object_name = 'scheme'
+
+    def get_queryset(self):
+        return Scheme.objects.select_related('branch', 'branch__organization').prefetch_related('audit_logs')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

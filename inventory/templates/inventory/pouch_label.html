@@ -1,13 +1,14 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vault Pouch Label - #{{ pouch.pouch_number }}</title>
-    <!-- JsBarcode for crisp scannable barcodes -->
-    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-    <!-- QRCode.js -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <!-- JsBarcode (Self-Hosted) -->
+    <script src="{% static 'vendor/jsbarcode/JsBarcode.all.min.js' %}"></script>
+    <!-- QRCode.js (Self-Hosted) -->
+    <script src="{% static 'vendor/qrcodejs/qrcode.min.js' %}"></script>
     <style>
         * {
             box-sizing: border-box;

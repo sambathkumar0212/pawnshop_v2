@@ -8,7 +8,7 @@ def get_item(dictionary, key):
     Template filter to get an item from a dictionary using a dynamic key.
     Usage: {{ my_dict|get_item:key_variable }}
     """
-    if dictionary is None:
+    if not isinstance(dictionary, dict):
         return None
     return dictionary.get(key)
 

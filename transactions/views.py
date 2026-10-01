@@ -1151,7 +1151,7 @@ class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, Lis
     paginate_by = 15
     
     def get_queryset(self):
-        queryset = Loan.objects.all()
+        queryset = Loan.objects.select_related('customer', 'branch', 'scheme', 'branch__organization').prefetch_related('loanitem_set', 'loanitem_set__item')
         user = self.request.user
 
         # Apply centralized branch/region access rules and organization isolation
@@ -1250,7 +1250,7 @@ class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, Lis
         else:
             queryset = queryset.order_by('-issue_date')  # Default fallback
 
-        return queryset.select_related('customer', 'branch').prefetch_related('loanitem_set', 'loanitem_set__item')
+        return queryset.select_related('customer', 'branch', 'scheme', 'branch__organization').prefetch_related('loanitem_set', 'loanitem_set__item')
 
     def get_download_filename(self, format_type='csv'):
         """Generate download filename for loans export"""
@@ -1555,7 +1555,7 @@ class LoanListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin, Lis
         # Compute monetary summaries in Python using model properties (accurate
         # even when values are computed via methods). Prefetch payments to avoid
         # N+1 queries.
-        loans_iter = base_queryset.select_related('customer', 'branch').prefetch_related('payments')
+        loans_iter = base_queryset.select_related('customer', 'branch', 'scheme', 'branch__organization').prefetch_related('payments', 'loanitem_set')
 
         def loan_outstanding(ln):
             try:
@@ -2248,7 +2248,7 @@ class LoanBatchWhatsAppHelperMixin:
             qs = self.filter_queryset_by_branches(qs, branch_field_name='branch')
             if request.user.organization:
                 qs = qs.filter(branch__organization=request.user.organization)
-            return qs.select_related('customer', 'branch', 'scheme')
+            return qs.select_related('customer', 'branch', 'scheme', 'branch__organization').prefetch_related('loanitem_set', 'loanitem_set__item')
 
         # Otherwise, resolve all loans matching the current filter parameters
         qs = Loan.objects.all()
@@ -2321,7 +2321,7 @@ class LoanBatchWhatsAppHelperMixin:
         elif filter_type == 'due_window_5':
             qs = qs.filter(status='active', due_date__gte=today - timezone.timedelta(days=5), due_date__lte=today + timezone.timedelta(days=5))
 
-        return qs.select_related('customer', 'branch', 'scheme').order_by('-due_date')
+        return qs.select_related('customer', 'branch', 'scheme', 'branch__organization').prefetch_related('loanitem_set', 'loanitem_set__item').order_by('-due_date')
 
 
 class LoanBatchWhatsAppPreviewView(LoginRequiredMixin, RoleBranchAccessMixin, LoanBatchWhatsAppHelperMixin, View):
@@ -2587,6 +2587,9 @@ class LoanDetailView(LoginRequiredMixin, RoleBranchAccessMixin, DetailView):
     context_object_name = 'loan'
     slug_field = 'loan_number'
     slug_url_kwarg = 'loan_number'
+
+    def get_queryset(self):
+        return Loan.objects.select_related('customer', 'branch', 'scheme', 'branch__organization').prefetch_related('loanitem_set', 'loanitem_set__item', 'payments', 'extensions')
 
     def get_object(self, queryset=None):
         obj = super().get_object(queryset=queryset)
@@ -3266,17 +3269,43 @@ class PaymentCreateView(LoginRequiredMixin, RoleBranchAccessMixin, CreateView):
         return reverse('loan_detail', kwargs={'loan_number': self.kwargs.get('loan_number')})
 
 
-class PaymentListView(LoginRequiredMixin, ListView):
+class PaymentListView(LoginRequiredMixin, RoleBranchAccessMixin, ListView):
     model = Payment
     template_name = 'transactions/interest_paid_list.html'
     context_object_name = 'payments'
     paginate_by = 20
 
+    def get_queryset(self):
+        user = self.request.user
+        qs = Payment.objects.select_related(
+            'loan',
+            'loan__customer',
+            'loan__branch',
+            'loan__scheme',
+            'received_by'
+        ).prefetch_related('loan__loanitem_set')
 
-class PaymentDetailView(LoginRequiredMixin, DetailView):
+        allowed_branches = self.get_allowed_branches(user)
+        if allowed_branches is not None:
+            qs = qs.filter(loan__branch__in=allowed_branches)
+        elif getattr(user, 'organization', None):
+            qs = qs.filter(loan__branch__organization=user.organization)
+        return qs.order_by('-payment_date', '-created_at')
+
+
+class PaymentDetailView(LoginRequiredMixin, RoleBranchAccessMixin, DetailView):
     model = Payment
     template_name = 'transactions/payment_detail.html'
     context_object_name = 'payment'
+
+    def get_queryset(self):
+        return Payment.objects.select_related(
+            'loan',
+            'loan__customer',
+            'loan__branch',
+            'loan__scheme',
+            'received_by'
+        ).prefetch_related('loan__loanitem_set')
 
 
 class PendingUPIPaymentsListView(LoginRequiredMixin, RoleBranchAccessMixin, ListView):
@@ -3292,7 +3321,7 @@ class PendingUPIPaymentsListView(LoginRequiredMixin, RoleBranchAccessMixin, List
         user = self.request.user
         qs = Payment.objects.filter(
             verification_status='pending'
-        ).select_related('loan', 'loan__customer', 'loan__branch', 'received_by').order_by('-created_at')
+        ).select_related('loan', 'loan__customer', 'loan__branch', 'loan__scheme', 'received_by').prefetch_related('loan__loanitem_set').order_by('-created_at')
 
         allowed_branches = self.get_allowed_branches(user)
         if allowed_branches is not None:
@@ -4831,11 +4860,21 @@ class PaymentReceiptView(LoginRequiredMixin, View):
         return HttpResponse('Error generating PDF', status=500)
 
 
-class SaleListView(LoginRequiredMixin, ListView):
+class SaleListView(LoginRequiredMixin, RoleBranchAccessMixin, ListView):
     model = Sale
     template_name = 'transactions/sale_list.html'
     context_object_name = 'sales'
     paginate_by = 20
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = Sale.objects.select_related('customer', 'item', 'branch', 'branch__organization', 'sold_by', 'gst_rate')
+        allowed_branches = self.get_allowed_branches(user)
+        if allowed_branches is not None:
+            qs = qs.filter(branch__in=allowed_branches)
+        elif getattr(user, 'organization', None):
+            qs = qs.filter(branch__organization=user.organization)
+        return qs.order_by('-sale_date')
 
 
 class SaleCreateView(LoginRequiredMixin, CreateView):
@@ -4845,7 +4884,7 @@ class SaleCreateView(LoginRequiredMixin, CreateView):
     success_url = reverse_lazy('sale_list')
     
     def form_valid(self, form):
-        form.instance.created_by = self.request.user
+        form.instance.sold_by = self.request.user
 
         # Assign branch: use user's branch if set, else fall back to first
         # branch in the user's organization (covers superusers / admin accounts
@@ -4876,10 +4915,13 @@ class SaleCreateView(LoginRequiredMixin, CreateView):
         return super().form_valid(form)
 
 
-class SaleDetailView(LoginRequiredMixin, DetailView):
+class SaleDetailView(LoginRequiredMixin, RoleBranchAccessMixin, DetailView):
     model = Sale
     template_name = 'transactions/sale_detail.html'
     context_object_name = 'sale'
+
+    def get_queryset(self):
+        return Sale.objects.select_related('customer', 'item', 'branch', 'branch__organization', 'sold_by', 'gst_rate')
 
 
 class SaleUpdateView(LoginRequiredMixin, UpdateView):
@@ -5000,7 +5042,7 @@ class LoanApprovalQueueView(LoginRequiredMixin, View):
         role = getattr(user, 'role', None)
         role_type = getattr(role, 'role_type', None) if role else str(getattr(user, 'role', ''))
 
-        qs = Loan.objects.select_related('customer', 'branch', 'scheme', 'maker', 'checker_bm', 'checker_ro', 'checker_ho').all()
+        qs = Loan.objects.select_related('customer', 'branch', 'scheme', 'maker', 'checker_bm', 'checker_ro', 'checker_ho', 'branch__organization').prefetch_related('loanitem_set', 'loanitem_set__item').all()
 
         # Role-based hierarchy scoping
         if user.is_superuser or role_type in ['admin', 'headoffice', 'finance_manager']:

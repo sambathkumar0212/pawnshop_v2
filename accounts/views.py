@@ -519,7 +519,7 @@ class UserListView(LoginRequiredMixin, PermissionRequiredMixin, DownloadMixin, L
         return super().has_permission()
     
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = CustomUser.objects.select_related('role', 'branch', 'organization')
         user = self.request.user
         
         # If user is an organization admin/owner, only show users for that organization
@@ -575,7 +575,7 @@ class UserListView(LoginRequiredMixin, PermissionRequiredMixin, DownloadMixin, L
         else:
             queryset = queryset.order_by('-date_joined')  # Default fallback
             
-        return queryset.select_related('branch', 'role')
+        return queryset.select_related('branch', 'role', 'organization')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -696,7 +696,7 @@ class CustomerListView(LoginRequiredMixin, RoleBranchAccessMixin, DownloadMixin,
     download_headers = ['Roll Number', 'First Name', 'Last Name', 'Phone', 'Email', 'Address', 'City', 'State', 'ZIP Code', 'ID Type', 'ID Number', 'Branch', 'Created At']
 
     def get_queryset(self):
-        queryset = Customer.objects.select_related('branch', 'branch__organization').prefetch_related('loans', 'gold_purchases')
+        queryset = Customer.objects.select_related('branch', 'branch__organization').prefetch_related('loans', 'loans__scheme', 'loans__branch', 'loans__loanitem_set', 'gold_purchases')
         user = self.request.user
         
         # Apply branch/region access rules
@@ -1258,6 +1258,9 @@ class CustomerDetailView(LoginRequiredMixin, RoleBranchAccessMixin, PermissionRe
     template_name = 'accounts/customer_detail.html'
     context_object_name = 'customer'
     permission_required = 'accounts.view_customer'
+
+    def get_queryset(self):
+        return Customer.objects.select_related('branch', 'branch__organization').prefetch_related('loans', 'loans__scheme', 'loans__branch', 'loans__loanitem_set', 'gold_purchases')
 
     def get_object(self, queryset=None):
         obj = super().get_object(queryset=queryset)

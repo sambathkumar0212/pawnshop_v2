@@ -24,7 +24,7 @@ class ItemListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     paginate_by = 10
     
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = Item.objects.select_related('category', 'branch', 'branch__organization').prefetch_related('images')
         user = self.request.user
         
         # First filter by organization
@@ -78,7 +78,7 @@ class ItemListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
         else:
             queryset = queryset.order_by('-created_at')  # Default fallback
             
-        return queryset.select_related('category', 'branch')
+        return queryset.select_related('category', 'branch', 'branch__organization').prefetch_related('images')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -197,6 +197,9 @@ class ItemDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     template_name = 'inventory/item_detail.html'
     context_object_name = 'item'
     permission_required = 'inventory.view_item'
+
+    def get_queryset(self):
+        return Item.objects.select_related('category', 'branch', 'branch__organization', 'customer').prefetch_related('images')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

@@ -743,10 +743,10 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<!-- JSZip library for creating ZIP files -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<!-- FileSaver library for downloading files -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<!-- JSZip library (Self-Hosted) -->
+<script src="{% static 'vendor/jszip/jszip.min.js' %}"></script>
+<!-- FileSaver library (Self-Hosted) -->
+<script src="{% static 'vendor/filesaver/FileSaver.min.js' %}"></script>
 <!-- Load the loan calculator script -->
 <script>
     window.isEditMode = {% if form.instance.pk %}true{% else %}false{% endif %};
