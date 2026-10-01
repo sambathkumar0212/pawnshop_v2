@@ -10,6 +10,7 @@ Provides:
 """
 import os
 import sys
+import re
 import base64
 import shutil
 import glob
@@ -114,10 +115,17 @@ def find_browser_executable():
     home_dir = os.path.expanduser("~")
     possible_playwright_patterns = [
         os.path.join(home_dir, ".cache", "ms-playwright", "chromium-*", "chrome-linux", "chrome"),
+        os.path.join(home_dir, ".cache", "ms-playwright", "chromium-*", "chrome-linux64", "chrome"),
         os.path.join(home_dir, ".cache", "ms-playwright", "chromium_headless_shell-*", "chrome-linux", "headless_shell"),
+        os.path.join(home_dir, ".cache", "ms-playwright", "chromium_headless_shell-*", "chrome-linux64", "headless_shell"),
         "/opt/render/project/src/.venv/lib/python*/site-packages/playwright/driver/package/.local-browsers/chromium-*/chrome-linux/chrome",
+        "/opt/render/project/src/.venv/lib/python*/site-packages/playwright/driver/package/.local-browsers/chromium-*/chrome-linux64/chrome",
+        "/opt/render/project/src/.venv/lib/python*/site-packages/playwright/driver/package/.local-browsers/chromium_headless_shell-*/chrome-linux/headless_shell",
+        "/opt/render/project/src/.venv/lib/python*/site-packages/playwright/driver/package/.local-browsers/chromium_headless_shell-*/chrome-linux64/headless_shell",
         "/opt/render/.cache/ms-playwright/chromium-*/chrome-linux/chrome",
+        "/opt/render/.cache/ms-playwright/chromium-*/chrome-linux64/chrome",
         "/root/.cache/ms-playwright/chromium-*/chrome-linux/chrome",
+        "/root/.cache/ms-playwright/chromium-*/chrome-linux64/chrome",
         os.path.expandvars(r"%LOCALAPPDATA%\ms-playwright\chromium-*\chrome-win\chrome.exe"),
         os.path.expandvars(r"%LOCALAPPDATA%\ms-playwright\chromium-*\chrome-win64\chrome.exe"),
     ]
@@ -158,8 +166,8 @@ def render_html_to_pdf_bytes(html_content, page_size='A4', margins=None):
     Render HTML content to PDF bytes using:
     1. Memory Cache (Instant 0.001s return for pre-rendered / repeated PDFs)
     2. Playwright CDP API (highest quality, HarfBuzz OpenType script shaping)
-    3. Headless Chromium CLI Subprocess
-    4. xhtml2pdf Fallback
+    3. Headless Chromium CLI Subprocess (quick 6s timeout)
+    4. xhtml2pdf Fallback (pure Python ReportLab TTF renderer)
     """
     if margins is None:
         margins = {'top': '0.5cm', 'right': '0.5cm', 'bottom': '0.5cm', 'left': '0.5cm'}
@@ -188,16 +196,24 @@ def render_html_to_pdf_bytes(html_content, page_size='A4', margins=None):
                     '--disable-gpu',
                     '--disable-dev-shm-usage',
                     '--disable-setuid-sandbox',
+                    '--single-process',
+                    '--no-zygote',
+                    '--disable-software-rasterizer',
                     '--allow-file-access-from-files',
                     '--disable-web-security',
                 ]
             }
-            if browser_exe and os.path.exists(browser_exe):
-                launch_kwargs['executable_path'] = browser_exe
+            try:
+                browser = p.chromium.launch(**launch_kwargs)
+            except Exception:
+                if browser_exe and os.path.exists(browser_exe):
+                    launch_kwargs['executable_path'] = browser_exe
+                    browser = p.chromium.launch(**launch_kwargs)
+                else:
+                    raise
 
-            browser = p.chromium.launch(**launch_kwargs)
             page = browser.new_page()
-            page.set_content(html_content, wait_until='load')
+            page.set_content(html_content, wait_until='domcontentloaded', timeout=10000)
             pdf_bytes = page.pdf(
                 format=page_size,
                 margin=margins,
@@ -215,7 +231,7 @@ def render_html_to_pdf_bytes(html_content, page_size='A4', margins=None):
     except Exception as pw_err:
         print(f"[PDF Engine] Playwright API generation info: {pw_err}")
 
-    # 2. Secondary Method: Headless Browser Subprocess
+    # 2. Secondary Method: Headless Browser Subprocess (with short 6s timeout)
     if browser_exe:
         tmp_dir = tempfile.mkdtemp(prefix='render_pdf_')
         html_path = os.path.join(tmp_dir, 'document.html')
@@ -228,11 +244,16 @@ def render_html_to_pdf_bytes(html_content, page_size='A4', margins=None):
 
             cmd = [
                 browser_exe,
-                "--headless=new",
+                "--headless",
                 "--disable-gpu",
                 "--no-sandbox",
                 "--disable-dev-shm-usage",
                 "--disable-setuid-sandbox",
+                "--single-process",
+                "--no-zygote",
+                "--disable-software-rasterizer",
+                "--run-all-compositor-stages-before-draw",
+                "--virtual-time-budget=2000",
                 f"--user-data-dir={profile_dir}",
                 "--allow-file-access-from-files",
                 "--disable-web-security",
@@ -240,7 +261,7 @@ def render_html_to_pdf_bytes(html_content, page_size='A4', margins=None):
                 f"--print-to-pdf={pdf_path}",
                 f"file:///{html_path.replace(os.sep, '/')}",
             ]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=35)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=6)
             if result.returncode == 0 and os.path.exists(pdf_path):
                 with open(pdf_path, 'rb') as f:
                     pdf_bytes = f.read()
