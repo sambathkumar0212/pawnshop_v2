@@ -611,9 +611,12 @@ class GoldPurchaseReceiptPDFView(LoginRequiredMixin, View):
         for it in items_list:
             it.tamil_name = _get_ornament_tamil(it.item_name)
 
+        p_date = purchase.purchase_date or getattr(purchase, 'created_at', None) or timezone.now().date()
+        purchase_date_display = p_date.strftime('%d-%b-%Y') if hasattr(p_date, 'strftime') else str(p_date)
+
         context = {
             'purchase': purchase,
-            'purchase_date_display': purchase.purchase_date.strftime('%d-%b-%Y') if purchase.purchase_date else '',
+            'purchase_date_display': purchase_date_display,
             'items': items_list,
             'payment_method_display_tamil': payment_method_display_tamil,
             'customer_name_display': customer_name_display,

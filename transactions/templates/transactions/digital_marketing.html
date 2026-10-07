@@ -1805,18 +1805,18 @@
                                         <!-- Speed Selector -->
                                         <div class="mb-3">
                                             <div class="d-flex justify-content-between align-items-center mb-1">
-                                                <label class="form-label fw-bold text-dark small mb-0"><i class="fas fa-bolt text-warning me-1"></i>2. Delivery Interval</label>
-                                                <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace" id="automatedSpeedBadge" style="font-size:0.68rem;">Fast (5s gap)</span>
+                                                <label class="form-label fw-bold text-dark small mb-0"><i class="fas fa-shield-alt text-success me-1"></i>2. Anti-Ban Uneven Interval</label>
+                                                <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace" id="automatedSpeedBadge" style="font-size:0.68rem;">⚡ Fast (~4-8s uneven)</span>
                                             </div>
                                             <div class="btn-group w-100" role="group">
                                                 <input type="radio" class="btn-check" name="auto_speed" id="speed_fast" value="5" checked onchange="setAutomatedSpeed(this)">
-                                                <label class="btn btn-outline-success btn-sm fw-bold py-1" for="speed_fast" style="font-size:0.74rem;">⚡ Fast<br><small class="fw-normal opacity-75">5s gap</small></label>
+                                                <label class="btn btn-outline-success btn-sm fw-bold py-1" for="speed_fast" style="font-size:0.74rem;">⚡ Fast<br><small class="fw-normal opacity-75">~4-8s uneven</small></label>
 
                                                 <input type="radio" class="btn-check" name="auto_speed" id="speed_normal" value="8" onchange="setAutomatedSpeed(this)">
-                                                <label class="btn btn-outline-primary btn-sm fw-bold py-1" for="speed_normal" style="font-size:0.74rem;">🚀 Normal<br><small class="fw-normal opacity-75">8s gap</small></label>
+                                                <label class="btn btn-outline-primary btn-sm fw-bold py-1" for="speed_normal" style="font-size:0.74rem;">🚀 Normal<br><small class="fw-normal opacity-75">~7-14s uneven</small></label>
 
                                                 <input type="radio" class="btn-check" name="auto_speed" id="speed_safe" value="15" onchange="setAutomatedSpeed(this)">
-                                                <label class="btn btn-outline-secondary btn-sm fw-bold py-1" for="speed_safe" style="font-size:0.74rem;">🛡️ Safe<br><small class="fw-normal opacity-75">15s gap</small></label>
+                                                <label class="btn btn-outline-secondary btn-sm fw-bold py-1" for="speed_safe" style="font-size:0.74rem;">🛡️ Safe<br><small class="fw-normal opacity-75">~13-22s + breaks</small></label>
                                             </div>
                                         </div>
 
@@ -3991,6 +3991,26 @@ function setPywhatkitSpeed(radio) {
         } else {
             badge.className = 'badge bg-secondary-subtle text-secondary border border-secondary-subtle';
             badge.textContent = '🛡️ Safe';
+        }
+    }
+}
+
+function setAutomatedSpeed(radio) {
+    const val = parseInt(radio.value) || 5;
+    const delayInput = document.getElementById('automatedDelaySecondsInput');
+    if (delayInput) delayInput.value = val;
+
+    const badge = document.getElementById('automatedSpeedBadge');
+    if (badge) {
+        if (val <= 5) {
+            badge.className = 'badge bg-success-subtle text-success border border-success-subtle font-monospace';
+            badge.textContent = '⚡ Fast (~4-8s uneven)';
+        } else if (val <= 10) {
+            badge.className = 'badge bg-primary-subtle text-primary border border-primary-subtle font-monospace';
+            badge.textContent = '🚀 Normal (~7-14s uneven)';
+        } else {
+            badge.className = 'badge bg-secondary-subtle text-secondary border border-secondary-subtle font-monospace';
+            badge.textContent = '🛡️ Safe (~13-22s + breaks)';
         }
     }
 }

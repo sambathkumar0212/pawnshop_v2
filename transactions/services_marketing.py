@@ -10,6 +10,7 @@ os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
 import re
 import logging
 import time
+import random
 import threading
 import urllib.parse
 from decimal import Decimal
@@ -960,6 +961,73 @@ def clear_non_whatsapp_flag(phone=None, clear_all=False):
         return {'success': False, 'error': str(e), 'cleared_count': 0}
 
 
+def is_phone_marked_non_whatsapp(phone, non_whatsapp_phones_set=None):
+    """
+    Checks if a given phone number is already recorded as invalid or not registered on WhatsApp.
+    Returns True if the number or any of its normalized variants is in the non-WhatsApp set/logs.
+    """
+    if not phone:
+        return False
+    phone_str = str(phone).strip()
+    digits = re.sub(r'\D', '', phone_str)
+    if not digits:
+        return False
+
+    clean_10 = digits[-10:] if len(digits) >= 10 else digits
+    variants = {
+        phone_str,
+        digits,
+        clean_10,
+        f"+91{clean_10}",
+        f"91{clean_10}",
+        f"0{clean_10}",
+    }
+
+    known_set = non_whatsapp_phones_set if non_whatsapp_phones_set is not None else get_known_non_whatsapp_phones()
+    return any(v in known_set for v in variants)
+
+
+def mark_phone_as_non_whatsapp(phone, reason="Phone number shared via url is invalid", user=None):
+    """
+    Explicitly logs a phone number into MarketingCampaignLog as non-WhatsApp/skipped
+    so future campaign checks and broadcasts will automatically skip it.
+    """
+    if not phone:
+        return False
+    from transactions.models import MarketingCampaignLog
+    try:
+        phone_str = str(phone).strip()
+        MarketingCampaignLog.objects.create(
+            template_key='verification',
+            campaign_name='WhatsApp Verification Check',
+            recipient_name='Auto-Verified',
+            recipient_phone=phone_str,
+            recipient_type='lead',
+            channel='whatsapp_blast',
+            status='skipped',
+            message_snippet=f"Not Registered on WhatsApp: {reason}",
+            sent_by=user if user and getattr(user, 'is_authenticated', False) else None
+        )
+        return True
+    except Exception as e:
+        logger.warning("Could not mark phone %s as non-whatsapp: %s", phone, e)
+        return False
+
+
+def get_humanized_uneven_delay(base_delay: float = 5.0) -> float:
+    """
+    Calculates an uneven, organic human-like delay with non-linear jitter and micro-variations.
+    Prevents Meta/WhatsApp bot-detection algorithms from identifying robotic clockwork timing patterns.
+    """
+    base = max(3.0, float(base_delay or 5.0))
+    # Organic jitter between -25% and +50% variation
+    jitter_factor = random.uniform(-0.25, 0.50)
+    # Sub-second randomized micro-variation
+    sub_second = random.uniform(0.15, 1.45)
+    uneven_delay = (base * (1.0 + jitter_factor)) + sub_second
+    # Guarantee a minimum safe threshold of 3.2s
+    return round(max(3.2, uneven_delay), 2)
+
 
 def get_phone_whatsapp_status(raw_phone, norm_phone, non_whatsapp_phones_set=None):
     """
@@ -1334,6 +1402,8 @@ def _run_automated_marketing_broadcast(
             except Exception as e:
                 logger.warning("WhatsApp Web pre-warm notice: %s", e)
 
+            known_non_wa = get_known_non_whatsapp_phones()
+
             for offset_idx, item in enumerate(broadcast_queue, start=1):
                 display_idx = (sent_count + failed_count + 1) if is_resume else offset_idx
 
@@ -1419,7 +1489,7 @@ def _run_automated_marketing_broadcast(
                     continue
 
                 # Check if this phone number is already marked as not registered on WhatsApp
-                if is_phone_marked_non_whatsapp(phone_clean):
+                if is_phone_marked_non_whatsapp(phone_clean, known_non_wa):
                     failed_count += 1
                     err_txt = f"Not Registered on WhatsApp: Phone +{phone_clean} was previously verified as unavailable on WhatsApp"
                     logger.info("[%d/%d] ⏭️ Skipping %s (+%s): known non-WhatsApp number", display_idx, total, cust_name, phone_clean)
@@ -1474,7 +1544,12 @@ def _run_automated_marketing_broadcast(
                                 modal_text = (invalid_modal.inner_text() or "").lower()
                                 if "phone number shared via url is invalid" in modal_text or "url is invalid" in modal_text:
                                     logger.warning("[%d/%d] ⚠️ WhatsApp confirmed phone +%s is NOT registered on WhatsApp: %s", display_idx, total, phone_clean, modal_text)
-                                    mark_phone_as_non_whatsapp(phone_clean, reason="Phone number shared via url is invalid")
+                                    mark_phone_as_non_whatsapp(phone_clean, reason="Phone number shared via url is invalid", user=user)
+                                    known_non_wa.add(str(phone_clean))
+                                    p_digits = re.sub(r'\D', '', str(phone_clean))
+                                    if len(p_digits) >= 10:
+                                        c10 = p_digits[-10:]
+                                        known_non_wa.update([c10, f"91{c10}", f"+91{c10}", f"0{c10}"])
                                     fail_reason = f"Not Registered on WhatsApp: Phone +{phone_clean} is not on WhatsApp."
                                     try:
                                         ok_btn = invalid_modal.query_selector('button')
@@ -1504,7 +1579,12 @@ def _run_automated_marketing_broadcast(
                             if invalid_modal and invalid_modal.is_visible():
                                 modal_text = (invalid_modal.inner_text() or "").lower()
                                 if "phone number shared via url is invalid" in modal_text or "url is invalid" in modal_text:
-                                    mark_phone_as_non_whatsapp(phone_clean, reason="Phone number shared via url is invalid")
+                                    mark_phone_as_non_whatsapp(phone_clean, reason="Phone number shared via url is invalid", user=user)
+                                    known_non_wa.add(str(phone_clean))
+                                    p_digits = re.sub(r'\D', '', str(phone_clean))
+                                    if len(p_digits) >= 10:
+                                        c10 = p_digits[-10:]
+                                        known_non_wa.update([c10, f"91{c10}", f"+91{c10}", f"0{c10}"])
                                     fail_reason = f"Not Registered on WhatsApp: Phone +{phone_clean} is not on WhatsApp."
                                 else:
                                     fail_reason = f"WhatsApp Alert / Dialog: {invalid_modal.inner_text()[:100]}"
@@ -1514,7 +1594,8 @@ def _run_automated_marketing_broadcast(
                             fail_reason = "Send button and chat composer not found (Chat took too long to load)."
 
                     if chat_loaded:
-                        time.sleep(1.0)
+                        # Humanized micro-pause after chat UI is ready (simulates eyes reading chat)
+                        time.sleep(random.uniform(1.1, 2.3))
 
                         # Mode: message_only OR (message_and_image without flyer file)
                         if send_mode == 'message_only' or not has_valid_image:
@@ -1522,9 +1603,10 @@ def _run_automated_marketing_broadcast(
                                 send_btn = page.query_selector(send_btn_sel)
                                 if send_btn and send_btn.is_visible():
                                     try:
+                                        time.sleep(random.uniform(0.3, 0.9))
                                         send_btn.click()
                                         sent_ok = True
-                                        time.sleep(1.8)
+                                        time.sleep(random.uniform(1.6, 2.7))
                                         break
                                     except Exception:
                                         pass
@@ -1532,9 +1614,10 @@ def _run_automated_marketing_broadcast(
 
                             if not sent_ok:
                                 try:
+                                    time.sleep(random.uniform(0.4, 0.8))
                                     page.keyboard.press("Enter")
                                     sent_ok = True
-                                    time.sleep(1.8)
+                                    time.sleep(random.uniform(1.6, 2.7))
                                 except Exception as press_e:
                                     fail_reason = f"Could not trigger Enter key: {press_e}"
 
@@ -1545,12 +1628,12 @@ def _run_automated_marketing_broadcast(
                                 attach_btn = page.query_selector(attach_btn_sel)
                                 if attach_btn and attach_btn.is_visible():
                                     attach_btn.click()
-                                    time.sleep(0.8)
+                                    time.sleep(random.uniform(0.7, 1.4))
 
                                 file_input = page.query_selector('input[type="file"]')
                                 if file_input:
                                     file_input.set_input_files(image_path)
-                                    time.sleep(2.0)
+                                    time.sleep(random.uniform(1.8, 2.9))
 
                                     if send_mode == 'message_and_image' and msg:
                                         caption_input_sel = 'div[contenteditable="true"][data-tab="10"], div[contenteditable="true"][role="textbox"], div[aria-placeholder="Add a caption"]'
@@ -1558,6 +1641,7 @@ def _run_automated_marketing_broadcast(
                                         if caption_el and caption_el.is_visible():
                                             try:
                                                 caption_el.fill(msg)
+                                                time.sleep(random.uniform(0.5, 1.2))
                                             except Exception:
                                                 pass
 
@@ -1565,16 +1649,18 @@ def _run_automated_marketing_broadcast(
                                     for _ in range(10):
                                         media_send_btn = page.query_selector(media_send_sel)
                                         if media_send_btn and media_send_btn.is_visible():
+                                            time.sleep(random.uniform(0.4, 0.9))
                                             media_send_btn.click()
                                             sent_ok = True
-                                            time.sleep(2.5)
+                                            time.sleep(random.uniform(2.2, 3.4))
                                             break
                                         time.sleep(0.5)
 
                                     if not sent_ok:
+                                        time.sleep(random.uniform(0.4, 0.8))
                                         page.keyboard.press("Enter")
                                         sent_ok = True
-                                        time.sleep(2.5)
+                                        time.sleep(random.uniform(2.2, 3.4))
                                 else:
                                     fail_reason = "File attachment input not found in WhatsApp Web DOM"
                             except Exception as attach_err:
@@ -1660,13 +1746,38 @@ def _run_automated_marketing_broadcast(
                         user=user
                     )
 
+                # ── Uneven delivery interval with organic jitter & human pacing breaks ──
                 if offset_idx < len(broadcast_queue):
-                    safe_delay = max(3, int(delay_seconds))
-                    for _ in range(safe_delay):
+                    uneven_delay = get_humanized_uneven_delay(delay_seconds)
+
+                    # Simulated natural human rest cooldown every 7-13 messages
+                    if offset_idx % random.randint(7, 13) == 0:
+                        pacing_pause = round(random.uniform(7.0, 15.0), 1)
+                        uneven_delay += pacing_pause
+                        logger.info(
+                            "🌿 Meta Anti-Ban Safety: natural human pacing cooldown of +%.1fs applied (total uneven wait: %.2fs)",
+                            pacing_pause, uneven_delay
+                        )
+
+                    logger.info(
+                        "⏱️ [%d/%d] Anti-Ban Uneven Interval: waiting %.2fs before contact #%d...",
+                        display_idx, total, uneven_delay, display_idx + 1
+                    )
+
+                    wait_start = time.time()
+                    while (time.time() - wait_start) < uneven_delay:
                         curr = get_broadcast_status()
                         if curr.get('is_stopped'):
                             break
-                        time.sleep(1)
+                        while curr.get('is_paused') and not curr.get('is_stopped'):
+                            time.sleep(1)
+                            curr = get_broadcast_status()
+
+                        time_left = max(0.0, uneven_delay - (time.time() - wait_start))
+                        _update_broadcast_status(
+                            current_contact=f"Waiting {time_left:.1f}s (anti-ban uneven interval)..."
+                        )
+                        time.sleep(min(0.8, time_left) if time_left > 0 else 0.1)
 
     except Exception as fatal_err:
         logger.error("Fatal error during automated marketing campaign: %s", fatal_err)

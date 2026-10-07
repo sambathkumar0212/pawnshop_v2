@@ -271,7 +271,7 @@
                 </div>
                 <div class="voucher-meta">
                     <strong>Voucher # / <span class="ta">ரசீது எண்</span>:</strong> {{ purchase.purchase_number }}<br>
-                    <strong>Date / <span class="ta">தேதி</span>:</strong> {{ purchase_date_display|default:purchase.purchase_date|date:"d-m-Y" }}<br>
+                    <strong>Date / <span class="ta">தேதி</span>:</strong> {{ purchase_date_display|default:purchase.purchase_date }}<br>
                     <strong>Payment / <span class="ta">வழங்கிய முறை</span>:</strong> {{ purchase.get_payment_method_display }}
                 </div>
             </td>
@@ -472,7 +472,7 @@
     </table>
 
     <div class="footer">
-        Computer generated Gold Purchase Voucher &bull; Section 269ST Compliant &bull; <span class="ta">கணினி மூலம் உருவாக்கப்பட்ட தங்கம் கொள்முதல் ரசீது</span> &bull; {{ purchase_date_display|default:purchase.purchase_date|date:"d-m-Y" }}
+        Computer generated Gold Purchase Voucher &bull; Section 269ST Compliant &bull; <span class="ta">கணினி மூலம் உருவாக்கப்பட்ட தங்கம் கொள்முதல் ரசீது</span> &bull; {{ purchase_date_display|default:purchase.purchase_date }}
     </div>
 
 </div>
