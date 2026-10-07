@@ -524,11 +524,15 @@
                                                 </div>
                                             </div>
                                             <div class="col-12">
-                                                <!-- Row 1: Capture & Upload -->
+                                                <!-- Row 1: Capture, Flip & Upload -->
                                                 <div class="d-flex gap-1 mb-1">
                                                     <button type="button" class="btn btn-xs btn-primary flex-fill text-nowrap py-1"
                                                         id="captureBtn">
                                                         <i class="fas fa-camera me-1"></i>Capture
+                                                    </button>
+                                                    <button type="button" class="btn btn-xs btn-outline-secondary px-2 py-1"
+                                                        id="flipCustCameraBtn" title="Switch between Front and Back Camera">
+                                                        <i class="fas fa-sync-alt"></i>
                                                     </button>
                                                     <label for="customerPhotoUpload"
                                                         class="btn btn-xs btn-outline-primary mb-0 flex-fill text-nowrap py-1">
@@ -1310,8 +1314,11 @@
         }
         {% endif %}
 
+        let custFacingMode = 'environment';
+        const flipCustCameraBtn = document.getElementById('flipCustCameraBtn');
+
         // Start the camera with retry mechanism
-        async function startCamera(retryCount = 0) {
+        async function startCamera(retryCount = 0, preferredFacing = custFacingMode) {
             try {
                 if (!browserSupportsCamera()) {
                     showAlert(getCameraErrorMessage(null, 'Camera is not available.'), 'danger');
@@ -1329,16 +1336,17 @@
                     return;
                 }
 
+                const fallbackFacing = preferredFacing === 'environment' ? 'user' : 'environment';
                 stream = await getPreferredCameraStream([
                     {
                         width: { ideal: 640 },
                         height: { ideal: 480 },
-                        facingMode: { ideal: 'user' }
+                        facingMode: { ideal: preferredFacing }
                     },
                     {
                         width: { ideal: 640 },
                         height: { ideal: 480 },
-                        facingMode: { ideal: 'environment' }
+                        facingMode: { ideal: fallbackFacing }
                     },
                     true
                 ]);
@@ -1356,7 +1364,7 @@
                             console.error('Error playing camera stream:', err);
                             setCustomerCameraReady('error');
                             // Try to recover
-                            setTimeout(() => startCamera(retryCount + 1), 1000);
+                            setTimeout(() => startCamera(retryCount + 1, preferredFacing), 1000);
                         });
                 };
 
@@ -1374,9 +1382,32 @@
                 // Try again with a delay
                 if (retryCount < 3) {
                     console.log(`Retrying camera initialization (attempt ${retryCount + 1})...`);
-                    setTimeout(() => startCamera(retryCount + 1), 1000);
+                    setTimeout(() => startCamera(retryCount + 1, preferredFacing), 1000);
                 }
             }
+        }
+
+        async function flipCustomerCamera() {
+            if (stream) {
+                try {
+                    stream.getTracks().forEach(track => track.stop());
+                } catch (e) {}
+                stream = null;
+            }
+            if (cameraStream) {
+                cameraStream.srcObject = null;
+            }
+            custFacingMode = (custFacingMode === 'environment') ? 'user' : 'environment';
+            const modeLabel = custFacingMode === 'environment' ? 'Rear (Back)' : 'Front (Selfie)';
+            showAlert(`Switched camera to ${modeLabel}`, 'info');
+            await startCamera(0, custFacingMode);
+        }
+
+        if (flipCustCameraBtn) {
+            flipCustCameraBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                flipCustomerCamera();
+            });
         }
 
         const removeRetryButton = () => {

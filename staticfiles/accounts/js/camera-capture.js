@@ -49,18 +49,20 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentStream = null;
     let capturedImageData = null;
     let currentTarget = 'profile'; // 'profile' or 'id'
+    let currentFacingMode = 'environment'; // Default to rear/back camera for customer photo and ID on mobile
+    const switchCameraBtn = document.getElementById('switch-camera-button');
 
     function browserSupportsCamera() {
         return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
     }
 
-    async function getCameraStream(target) {
+    async function getCameraStream(facing) {
         if (!browserSupportsCamera()) {
             throw new Error('Camera is not supported in this browser/device.');
         }
 
-        const preferredFacing = target === 'profile' ? 'user' : 'environment';
-        const fallbackFacing = target === 'profile' ? 'environment' : 'user';
+        const preferredFacing = facing || 'environment';
+        const fallbackFacing = preferredFacing === 'environment' ? 'user' : 'environment';
 
         const constraintList = [
             {
@@ -70,6 +72,11 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             {
                 facingMode: { ideal: preferredFacing }
+            },
+            {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                facingMode: { ideal: fallbackFacing }
             },
             {
                 facingMode: { ideal: fallbackFacing }
@@ -98,9 +105,45 @@ document.addEventListener('DOMContentLoaded', function() {
         throw lastError || new Error('Unable to start camera.');
     }
 
+    async function flipCamera() {
+        if (!currentStream) return;
+        currentFacingMode = (currentFacingMode === 'environment' ? 'user' : 'environment');
+        if (loading) loading.style.display = 'block';
+        if (takeBtn) takeBtn.style.display = 'none';
+
+        if (currentStream) {
+            currentStream.getTracks().forEach(track => track.stop());
+            currentStream = null;
+        }
+        if (video) video.srcObject = null;
+
+        try {
+            currentStream = await getCameraStream(currentFacingMode);
+            video.srcObject = currentStream;
+            video.onloadedmetadata = () => {
+                video.play()
+                    .then(() => {
+                        if (loading) loading.style.display = 'none';
+                        takeBtn.style.display = 'inline-block';
+                        console.log('Switched camera to:', currentFacingMode);
+                    })
+                    .catch(err => {
+                        console.error('Error playing flipped video:', err);
+                        if (loading) loading.style.display = 'none';
+                        takeBtn.style.display = 'inline-block';
+                    });
+            };
+        } catch (err) {
+            console.error('Error switching camera:', err);
+            if (loading) loading.style.display = 'none';
+            if (takeBtn) takeBtn.style.display = 'inline-block';
+        }
+    }
+
     async function openCamera(target) {
         currentTarget = target;
         capturedImageData = null;
+        currentFacingMode = 'environment'; // Always default to back camera
 
         if (modalTitle) {
             modalTitle.innerHTML = target === 'profile'
@@ -121,7 +164,7 @@ document.addEventListener('DOMContentLoaded', function() {
         confirmBtn.style.display = 'none';
 
         try {
-            currentStream = await getCameraStream(target);
+            currentStream = await getCameraStream(currentFacingMode);
             video.srcObject = currentStream;
 
             video.onloadedmetadata = () => {
@@ -129,7 +172,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     .then(() => {
                         if (loading) loading.style.display = 'none';
                         takeBtn.style.display = 'inline-block';
-                        console.log('Camera running smoothly');
+                        console.log('Camera running smoothly on back camera (environment)');
                     })
                     .catch(err => {
                         console.error('Error playing video:', err);
@@ -285,6 +328,13 @@ document.addEventListener('DOMContentLoaded', function() {
         cancelBtn.addEventListener('click', function(e) {
             e.preventDefault();
             closeCamera();
+        });
+    }
+
+    if (switchCameraBtn) {
+        switchCameraBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            flipCamera();
         });
     }
 

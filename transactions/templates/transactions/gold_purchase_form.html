@@ -204,6 +204,9 @@ input[type="number"] {
                                         <button type="button" class="btn btn-xs btn-primary flex-fill py-1 px-1" id="custStartCamBtn" onclick="toggleCamera('cust')" style="font-size: 0.7rem;">
                                             <i class="fas fa-video me-1"></i><span id="custCamBtnText">Start Cam</span>
                                         </button>
+                                        <button type="button" class="btn btn-xs btn-outline-secondary py-1 px-1" id="custFlipCamBtn" onclick="flipCamera('cust')" title="Switch Camera" style="font-size: 0.7rem;">
+                                            <i class="fas fa-sync-alt"></i>
+                                        </button>
                                         <button type="button" class="btn btn-xs btn-success flex-fill py-1 px-1" id="custCaptureBtn" onclick="capturePhoto('cust')" disabled style="font-size: 0.7rem;">
                                             <i class="fas fa-camera me-1"></i>Snap
                                         </button>
@@ -239,6 +242,9 @@ input[type="number"] {
                                         <button type="button" class="btn btn-xs btn-info text-white flex-fill py-1 px-1" id="kycStartCamBtn" onclick="toggleCamera('kyc')" style="font-size: 0.7rem;">
                                             <i class="fas fa-video me-1"></i><span id="kycCamBtnText">Start Cam</span>
                                         </button>
+                                        <button type="button" class="btn btn-xs btn-outline-secondary py-1 px-1" id="kycFlipCamBtn" onclick="flipCamera('kyc')" title="Switch Camera" style="font-size: 0.7rem;">
+                                            <i class="fas fa-sync-alt"></i>
+                                        </button>
                                         <button type="button" class="btn btn-xs btn-success flex-fill py-1 px-1" id="kycCaptureBtn" onclick="capturePhoto('kyc')" disabled style="font-size: 0.7rem;">
                                             <i class="fas fa-camera me-1"></i>Snap
                                         </button>
@@ -271,6 +277,9 @@ input[type="number"] {
                                     <div class="d-flex gap-1">
                                         <button type="button" class="btn btn-xs btn-warning text-dark flex-fill py-1 px-1" id="itemStartCamBtn" onclick="toggleCamera('item')" style="font-size: 0.7rem;">
                                             <i class="fas fa-video me-1"></i><span id="itemCamBtnText">Start Cam</span>
+                                        </button>
+                                        <button type="button" class="btn btn-xs btn-outline-secondary py-1 px-1" id="itemFlipCamBtn" onclick="flipCamera('item')" title="Switch Camera" style="font-size: 0.7rem;">
+                                            <i class="fas fa-sync-alt"></i>
                                         </button>
                                         <button type="button" class="btn btn-xs btn-success flex-fill py-1 px-1" id="itemCaptureBtn" onclick="captureOrnamentPhoto()" disabled style="font-size: 0.7rem;">
                                             <i class="fas fa-camera me-1"></i>Snap
@@ -891,6 +900,12 @@ const cameraStreams = {
     item: null
 };
 
+const cameraFacingModes = {
+    cust: 'environment',
+    kyc: 'environment',
+    item: 'environment'
+};
+
 async function toggleCamera(type) {
     if (cameraStreams[type]) {
         stopCamera(type);
@@ -900,6 +915,15 @@ async function toggleCamera(type) {
         });
         await startCamera(type);
     }
+}
+
+async function flipCamera(type) {
+    if (cameraStreams[type]) {
+        cameraStreams[type].getTracks().forEach(track => track.stop());
+        cameraStreams[type] = null;
+    }
+    cameraFacingModes[type] = (cameraFacingModes[type] === 'environment') ? 'user' : 'environment';
+    await startCamera(type);
 }
 
 async function startCamera(type) {
@@ -914,13 +938,34 @@ async function startCamera(type) {
     const startBtn = document.getElementById(`${type}StartCamBtn`);
     const camBtnText = document.getElementById(`${type}CamBtnText`);
 
-    const facing = type === 'cust' ? 'user' : 'environment';
+    const preferredFacing = cameraFacingModes[type] || 'environment';
+    const fallbackFacing = preferredFacing === 'environment' ? 'user' : 'environment';
 
-    try {
-        cameraStreams[type] = await navigator.mediaDevices.getUserMedia({
-            video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: facing },
+    const getStreamWithConstraints = async (facing) => {
+        return await navigator.mediaDevices.getUserMedia({
+            video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: { ideal: facing } },
             audio: false
         });
+    };
+
+    try {
+        cameraStreams[type] = await getStreamWithConstraints(preferredFacing);
+    } catch (err) {
+        console.warn(`${type} preferred camera (${preferredFacing}) failed, trying ${fallbackFacing}:`, err);
+        try {
+            cameraStreams[type] = await getStreamWithConstraints(fallbackFacing);
+        } catch (errFallback) {
+            console.warn(`${type} fallback camera failed, trying generic:`, errFallback);
+            try {
+                cameraStreams[type] = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            } catch (err2) {
+                alert('Unable to access camera. Please check permissions or upload from file instead.');
+                return;
+            }
+        }
+    }
+
+    if (cameraStreams[type] && video) {
         video.srcObject = cameraStreams[type];
         video.style.display = 'block';
         
@@ -936,29 +981,6 @@ async function startCamera(type) {
         if (startBtn) {
             startBtn.classList.remove('btn-primary', 'btn-info', 'btn-warning', 'text-dark', 'text-white');
             startBtn.classList.add('btn-outline-danger');
-        }
-    } catch (err) {
-        console.warn(`${type} primary camera failed, trying generic fallback:`, err);
-        try {
-            cameraStreams[type] = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-            video.srcObject = cameraStreams[type];
-            video.style.display = 'block';
-
-            const noPhoto = document.getElementById(`${type}NoPhotoText`);
-            if (noPhoto) noPhoto.style.display = 'none';
-            const img = document.getElementById(`${type}CapturedImg`);
-            if (img) img.style.display = 'none';
-            const itemContainer = document.getElementById('itemPhotosContainer');
-            if (type === 'item' && itemContainer) itemContainer.style.display = 'none';
-
-            if (captureBtn) captureBtn.disabled = false;
-            if (camBtnText) camBtnText.textContent = 'Stop Cam';
-            if (startBtn) {
-                startBtn.classList.remove('btn-primary', 'btn-info', 'btn-warning', 'text-dark', 'text-white');
-                startBtn.classList.add('btn-outline-danger');
-            }
-        } catch (err2) {
-            alert('Unable to access camera. Please check permissions or upload from file instead.');
         }
     }
 }

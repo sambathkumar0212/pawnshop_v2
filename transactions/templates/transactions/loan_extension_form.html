@@ -87,9 +87,12 @@
                                             <video id="cameraStream" style="width: 100%; height: 100%; object-fit: cover;" autoplay playsinline></video>
                                             <canvas id="videoCanvas" style="display:none;"></canvas>
                                         </div>
-                                        <div class="d-flex justify-content-center mb-3">
+                                        <div class="d-flex justify-content-center gap-2 mb-3">
                                             <button type="button" class="btn btn-primary" id="verifyFaceBtn">
                                                 <i class="fas fa-camera me-2"></i>Verify Face
+                                            </button>
+                                            <button type="button" class="btn btn-outline-secondary" id="flipExtensionCamBtn" title="Switch Front/Back Camera">
+                                                <i class="fas fa-sync-alt"></i>
                                             </button>
                                         </div>
                                     </div>
@@ -201,11 +204,14 @@
             return `${year}-${month}-${day}`;
         }
         
+        let currentFacingMode = 'environment';
+        const flipExtensionCamBtn = document.getElementById('flipExtensionCamBtn');
+        
         // Toggle face verification section
         enableFaceVerification.addEventListener('change', function() {
             if (this.checked) {
                 faceVerificationSection.style.display = 'block';
-                startCamera();
+                startCamera(currentFacingMode);
             } else {
                 faceVerificationSection.style.display = 'none';
                 stopCamera();
@@ -216,15 +222,31 @@
         });
         
         // Start camera
-        async function startCamera() {
+        async function startCamera(facing = currentFacingMode) {
+            stopCamera();
+            const fallbackFacing = (facing === 'environment') ? 'user' : 'environment';
             try {
-                stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        width: { ideal: 640 },
-                        height: { ideal: 480 },
-                        facingMode: 'user'
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            width: { ideal: 640 },
+                            height: { ideal: 480 },
+                            facingMode: { ideal: facing }
+                        }
+                    });
+                } catch (err1) {
+                    try {
+                        stream = await navigator.mediaDevices.getUserMedia({
+                            video: {
+                                width: { ideal: 640 },
+                                height: { ideal: 480 },
+                                facingMode: { ideal: fallbackFacing }
+                            }
+                        });
+                    } catch (err2) {
+                        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
                     }
-                });
+                }
                 cameraStream.srcObject = stream;
             } catch (err) {
                 console.error('Error accessing camera:', err);
@@ -236,8 +258,16 @@
         function stopCamera() {
             if (stream) {
                 stream.getTracks().forEach(track => track.stop());
+                stream = null;
                 cameraStream.srcObject = null;
             }
+        }
+
+        if (flipExtensionCamBtn) {
+            flipExtensionCamBtn.addEventListener('click', function() {
+                currentFacingMode = (currentFacingMode === 'environment') ? 'user' : 'environment';
+                startCamera(currentFacingMode);
+            });
         }
         
         // Verify face

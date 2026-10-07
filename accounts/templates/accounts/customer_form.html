@@ -462,16 +462,21 @@
                 <div class="small">Starting camera...</div>
             </div>
         </div>
-        <div class="camera-controls mt-2 d-flex justify-content-end gap-1">
-            <button type="button" id="take-picture-button" class="btn btn-primary btn-sm">
-                <i class="fas fa-camera me-1"></i>Take Picture
+        <div class="camera-controls mt-2 d-flex justify-content-between align-items-center">
+            <button type="button" id="switch-camera-button" class="btn btn-outline-secondary btn-sm" title="Switch between Front and Back Camera">
+                <i class="fas fa-sync-alt me-1"></i>Flip Camera
             </button>
-            <button type="button" id="retake-picture-button" class="btn btn-warning btn-sm" style="display: none;">
-                <i class="fas fa-redo me-1"></i>Retake
-            </button>
-            <button type="button" id="confirm-picture-button" class="btn btn-success btn-sm" style="display: none;">
-                <i class="fas fa-check me-1"></i>Use Photo
-            </button>
+            <div class="d-flex gap-1">
+                <button type="button" id="take-picture-button" class="btn btn-primary btn-sm">
+                    <i class="fas fa-camera me-1"></i>Take Picture
+                </button>
+                <button type="button" id="retake-picture-button" class="btn btn-warning btn-sm" style="display: none;">
+                    <i class="fas fa-redo me-1"></i>Retake
+                </button>
+                <button type="button" id="confirm-picture-button" class="btn btn-success btn-sm" style="display: none;">
+                    <i class="fas fa-check me-1"></i>Use Photo
+                </button>
+            </div>
         </div>
     </div>
 </div>
