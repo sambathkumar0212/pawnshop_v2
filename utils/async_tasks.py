@@ -73,10 +73,13 @@ def async_send_mail(email_message_or_func, *args, **kwargs):
         # Direct EmailMessage instance
         def _send():
             try:
-                email_message_or_func.send(fail_silently=True)
-                logger.info("[AsyncMail] Email successfully sent to %s", getattr(email_message_or_func, 'to', 'recipients'))
+                sent = email_message_or_func.send(fail_silently=False)
+                if sent:
+                    logger.info("[AsyncMail] Email successfully sent to %s", getattr(email_message_or_func, 'to', 'recipients'))
+                else:
+                    logger.warning("[AsyncMail] Email dispatch returned 0 sent messages for %s", getattr(email_message_or_func, 'to', 'recipients'))
             except Exception as e:
-                logger.warning("[AsyncMail] Error sending email: %s", e)
+                logger.error("[AsyncMail] Error sending email to %s: %s", getattr(email_message_or_func, 'to', 'recipients'), e, exc_info=True)
 
         return run_in_background(_send)
     elif callable(email_message_or_func):

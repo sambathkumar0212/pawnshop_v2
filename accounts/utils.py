@@ -184,20 +184,24 @@ def send_organization_verification_email(organization, request=None):
                     from_email=from_email,
                     recipient_list=[recipient],
                     html_message=html_message,
-                    fail_silently=True,
+                    fail_silently=False,
                 )
             except Exception as e:
                 import logging
-                logging.getLogger(__name__).warning("Async verification email failed: %s", e)
+                logging.getLogger(__name__).error("Async verification email failed for %s: %s", recipient, e, exc_info=True)
         run_in_background(_bg_send)
-    except Exception:
-        send_mail(
-            subject=subject,
-            message=plain_message,
-            from_email=from_email,
-            recipient_list=[recipient],
-            html_message=html_message,
-            fail_silently=True,
-        )
+    except Exception as exc:
+        try:
+            send_mail(
+                subject=subject,
+                message=plain_message,
+                from_email=from_email,
+                recipient_list=[recipient],
+                html_message=html_message,
+                fail_silently=False,
+            )
+        except Exception as err:
+            import logging
+            logging.getLogger(__name__).error("Verification email send failed for %s: %s", recipient, err, exc_info=True)
     
     return verification_token

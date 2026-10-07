@@ -31,3 +31,7 @@ services:
         value: admin@firstmoneygold.com
       - key: DJANGO_SUPERUSER_PASSWORD
         sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: DEFAULT_FROM_EMAIL
+        value: haris68786@gmail.com

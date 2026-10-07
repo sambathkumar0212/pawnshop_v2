@@ -290,13 +290,31 @@ AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ]
 
-EMAIL_BACKEND = env('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
-EMAIL_HOST = env('EMAIL_HOST', '')
-EMAIL_PORT = env_int('EMAIL_PORT', 25)
+# ---------------------------------------------------------------------------
+# Email Settings
+# Supports both Brevo HTTP REST API (HTTPS port 443 - works on Render Free Tier)
+# and standard SMTP / Console backends.
+# ---------------------------------------------------------------------------
+BREVO_API_KEY = env('BREVO_API_KEY', '').strip()
+BREVO_API_URL = env('BREVO_API_URL', 'https://api.brevo.com/v3/smtp/email').strip()
+
+if BREVO_API_KEY:
+    _DEFAULT_EMAIL_BACKEND = 'integrations.brevo_email_backend.BrevoApiEmailBackend'
+elif IS_PRODUCTION:
+    _DEFAULT_EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+else:
+    _DEFAULT_EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+EMAIL_BACKEND = env('EMAIL_BACKEND', _DEFAULT_EMAIL_BACKEND)
+EMAIL_HOST = env('EMAIL_HOST', 'smtp-relay.brevo.com')
+EMAIL_PORT = env_int('EMAIL_PORT', 587)
 EMAIL_USE_TLS = env_bool('EMAIL_USE_TLS', True)
+EMAIL_USE_SSL = env_bool('EMAIL_USE_SSL', False)
 EMAIL_HOST_USER = env('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', '')
-DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', 'webmaster@localhost')
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', 'haris68786@gmail.com')
+EMAIL_TIMEOUT = env_int('EMAIL_TIMEOUT', 15)
+SITE_URL = env('SITE_URL', 'http://127.0.0.1:8000')
 
 FACE_RECOGNITION_MODEL = env('FACE_RECOGNITION_MODEL', 'hog')
 FACE_RECOGNITION_TOLERANCE = float(env('FACE_RECOGNITION_TOLERANCE', '0.6').split('#')[0].strip())
@@ -320,11 +338,6 @@ CORS_ALLOWED_ORIGINS = env_list(
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = env_int('DATA_UPLOAD_MAX_MEMORY_SIZE', 26214400)  # 25 MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = env_int('FILE_UPLOAD_MAX_MEMORY_SIZE', 26214400)  # 25 MB
-
-# Email Settings
-EMAIL_BACKEND = env('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
-DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', 'noreply@myapp.com')
-SITE_URL = env('SITE_URL', 'http://127.0.0.1:8000')
 
 # Google Gemini API Settings (Free Tier)
 GEMINI_API_KEY = env('GEMINI_API_KEY', '')

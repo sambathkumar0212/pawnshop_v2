@@ -60,6 +60,8 @@ git push origin main
 | `DJANGO_SUPERUSER_USERNAME` | `admin` |
 | `DJANGO_SUPERUSER_EMAIL` | `admin@firstmoneygold.com` |
 | `DJANGO_SUPERUSER_PASSWORD` | `admin123@Password` |
+| `BREVO_API_KEY` | *(Your Brevo API Key: Settings > SMTP & API > API Keys)* |
+| `DEFAULT_FROM_EMAIL` | `haris68786@gmail.com` *(Must match your verified Brevo sender)* |
 
 6. Click **Deploy Web Service**.
 

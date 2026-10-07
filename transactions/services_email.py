@@ -240,11 +240,14 @@ def send_customer_payment_email(payment, lang=None, async_mode=True):
         msg = EmailMultiAlternatives(subject=subject, body=text_body,
                                      from_email=_from_email(), to=[email])
         msg.attach_alternative(html_body, 'text/html')
-        msg.send(fail_silently=True)
-        logger.info("Payment receipt email sent for loan %s to %s (tamil=%s)", loan.loan_number, email, use_tamil)
+        sent = msg.send(fail_silently=False)
+        if sent:
+            logger.info("Payment receipt email sent for loan %s to %s (tamil=%s)", loan.loan_number, email, use_tamil)
+        else:
+            logger.warning("Payment receipt email dispatch returned 0 for loan %s to %s", loan.loan_number, email)
 
     except Exception as exc:
-        logger.warning("send_customer_payment_email failed: %s", exc)
+        logger.error("send_customer_payment_email failed for loan %s: %s", getattr(loan, 'loan_number', '?'), exc, exc_info=True)
 
 
 def send_due_date_reminder_email(loan, days_left=None, lang=None, async_mode=True):
@@ -350,11 +353,14 @@ def send_due_date_reminder_email(loan, days_left=None, lang=None, async_mode=Tru
         msg = EmailMultiAlternatives(subject=subject, body=text_body,
                                      from_email=_from_email(), to=[email])
         msg.attach_alternative(html_body, 'text/html')
-        msg.send(fail_silently=True)
-        logger.info("Reminder email sent for loan %s to %s (tamil=%s, overdue=%s)", loan.loan_number, email, use_tamil, is_overdue)
+        sent = msg.send(fail_silently=False)
+        if sent:
+            logger.info("Reminder email sent for loan %s to %s (tamil=%s, overdue=%s)", loan.loan_number, email, use_tamil, is_overdue)
+        else:
+            logger.warning("Reminder email dispatch returned 0 for loan %s to %s", loan.loan_number, email)
 
     except Exception as exc:
-        logger.warning("send_due_date_reminder_email failed for loan %s: %s", getattr(loan, 'loan_number', '?'), exc)
+        logger.error("send_due_date_reminder_email failed for loan %s: %s", getattr(loan, 'loan_number', '?'), exc, exc_info=True)
 
 
 def send_loan_expiry_notice_email(loan, request_user=None, lang=None, async_mode=True):
@@ -445,12 +451,15 @@ def send_loan_expiry_notice_email(loan, request_user=None, lang=None, async_mode
         msg = EmailMultiAlternatives(subject=subject, body=text_body,
                                      from_email=_from_email(), to=[email])
         msg.attach_alternative(html_body, 'text/html')
-        msg.send(fail_silently=True)
-
-        logger.info("Demand notice email sent for loan %s to %s (tamil=%s, by %s)",
-                    loan.loan_number, email, use_tamil, context['issued_by'] or 'system')
-        return True
+        sent = msg.send(fail_silently=False)
+        if sent:
+            logger.info("Demand notice email sent for loan %s to %s (tamil=%s, by %s)",
+                        loan.loan_number, email, use_tamil, context['issued_by'] or 'system')
+            return True
+        else:
+            logger.warning("Demand notice email dispatch returned 0 for loan %s to %s", loan.loan_number, email)
+            return False
 
     except Exception as exc:
-        logger.warning("send_loan_expiry_notice_email failed for loan %s: %s", getattr(loan, 'loan_number', '?'), exc)
+        logger.error("send_loan_expiry_notice_email failed for loan %s: %s", getattr(loan, 'loan_number', '?'), exc, exc_info=True)
         return False
