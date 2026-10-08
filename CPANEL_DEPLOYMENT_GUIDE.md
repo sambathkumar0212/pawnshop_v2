@@ -90,28 +90,48 @@ DATABASE_NAME=db.sqlite3
 
 ### Step 4: Install Dependencies & Run Database Migrations
 
-1. In cPanel, open **Terminal** (under the **Advanced** section).
-2. Paste the virtual environment command you copied in Step 1 and press **Enter**:
+#### Option A: If Terminal is Enabled
+1. In cPanel, open **Terminal** (under **Advanced**).
+2. Paste the virtual environment command from Step 1:
    ```bash
    source /home/username/virtualenv/pawnshop_v2/3.11/bin/activate && cd /home/username/pawnshop_v2
    ```
-3. Upgrade pip and install the project requirements:
+3. Run:
    ```bash
-   pip install --upgrade pip
    pip install -r requirements.txt
-   ```
-4. Run database migrations:
-   ```bash
    python manage.py migrate
-   ```
-5. Create an initial Superuser / Admin account:
-   ```bash
    python manage.py createsuperuser
-   ```
-6. Pre-collect static assets (CSS, JS, images):
-   ```bash
    python manage.py collectstatic --noinput
    ```
+
+---
+
+#### Option B: If Terminal / SSH is DISABLED by Your Host (No-Terminal Method)
+
+If your hosting provider disabled Terminal access, **you do NOT need Terminal**! You can complete everything through the cPanel UI:
+
+##### 1. Install Packages via cPanel GUI
+1. Go to **Setup Python App** and click on your application (`pawnshop_v2`).
+2. Scroll down to the **"Configuration files"** section.
+3. In the input box, type: `requirements.txt` and click **Add**.
+4. Once added, click the blue **"Run Pip Install"** button that appears.
+   *(cPanel will install all packages directly into your virtual environment in the background!)*
+
+##### 2. Run Database Migrations & Create Admin (Using cPanel Cron Jobs)
+cPanel includes **Cron Jobs** on all accounts (even when Terminal is locked):
+1. In cPanel, search for **Cron Jobs** (under the **Advanced** section).
+2. Scroll to **"Add New Cron Job"**:
+   - **Common Settings**: Select `Once Per Minute (* * * * *)`.
+   - **Command**: Replace `USERNAME` with your cPanel username:
+     ```bash
+     /home/USERNAME/virtualenv/pawnshop_v2/3.11/bin/python /home/USERNAME/pawnshop_v2/cpanel_setup.py > /home/USERNAME/pawnshop_v2/setup_log.txt 2>&1
+     ```
+3. Click **Add New Cron Job**.
+4. Wait **60 to 90 seconds** for the cron to execute.
+5. In cPanel **File Manager**, open `/home/USERNAME/pawnshop_v2/setup_log.txt`.
+   - You will see: `SUCCESS: CPANEL SETUP COMPLETE!`
+   - It will display your default admin login (`admin` / `Admin@12345`).
+6. **IMPORTANT**: Return to **Cron Jobs** in cPanel and **Delete** the cron job so it doesn't run again!
 
 ---
 
