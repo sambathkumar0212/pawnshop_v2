@@ -68,3 +68,4 @@ scratch/
 **/android/local.properties
 **/android/app/build/
 **/windows/flutter/ephemeral/
+*.zip

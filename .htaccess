@@ -1,0 +1,43 @@
+# ========================================================
+# cPanel Apache & Phusion Passenger Configuration
+# Pawnshop Management ERP
+# ========================================================
+
+# 1. Protect Sensitive Files from direct web downloads
+<FilesMatch "(\.env|\.sqlite3|\.git|\.yml|\.bat|\.sh|requirements.*\.txt)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order deny,allow
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# 2. Prevent Directory Browsing
+Options -Indexes
+
+# 3. Direct Static & Media Delivery (Bypasses Python for higher performance)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Static files directly from staticfiles directory
+    RewriteCond %{REQUEST_URI} ^/static/(.*)$
+    RewriteRule ^static/(.*)$ staticfiles/$1 [L]
+
+    # Media uploads directly from media directory
+    RewriteCond %{REQUEST_URI} ^/media/(.*)$
+    RewriteRule ^media/(.*)$ media/$1 [L]
+</IfModule>
+
+# 4. Browser Caching for Fast Performance
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    ExpiresByType image/jpeg "access plus 1 month"
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType image/webp "access plus 1 month"
+    ExpiresByType image/svg+xml "access plus 1 month"
+    ExpiresByType font/woff2 "access plus 1 month"
+</IfModule>
