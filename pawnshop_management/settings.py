@@ -238,6 +238,11 @@ SESSION_CACHE_ALIAS = 'default'
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
+
+# When deployed under a sub-path (e.g. /erp/) on cPanel/Passenger,
+# set FORCE_SCRIPT_NAME so Django generates correct URLs.
+# On Render (root path) this env var won't be set, so it defaults to None (no effect).
+FORCE_SCRIPT_NAME = env('FORCE_SCRIPT_NAME', None)
 WHITENOISE_MANIFEST_STRICT = False
 
 STORAGES = {
