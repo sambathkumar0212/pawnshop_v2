@@ -1,0 +1,66 @@
+name: Auto Deploy to cPanel
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+concurrency:
+  group: deploy-cpanel
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Sync & Deploy to cPanel
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install minimal dependencies for collectstatic
+        run: |
+          python -m pip install --upgrade pip
+          pip install django whitenoise dj-database-url django-environ django-crispy-forms crispy-bootstrap5 djangorestframework django-filter
+
+      - name: Collect Static Files
+        run: |
+          python manage.py collectstatic --noinput
+        env:
+          DJANGO_ENV: production
+          DEBUG: 'False'
+          SECRET_KEY: 'ci-cd-build-key-only'
+          DATABASE_URL: ''
+          FORCE_SCRIPT_NAME: '/erp'
+
+      - name: Create Passenger Restart Trigger
+        run: |
+          mkdir -p tmp
+          touch tmp/restart.txt
+
+      - name: Upload Changed Files via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.CPANEL_FTP_HOST }}
+          username: ${{ secrets.CPANEL_FTP_USER }}
+          password: ${{ secrets.CPANEL_FTP_PASSWORD }}
+          server-dir: /FMG_ERP/
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/__pycache__/**
+            **/*.sqlite3
+            .env
+            .env.*
+            .vscode/**
+            .agents/**
+            *.zip
+            scratch/**
