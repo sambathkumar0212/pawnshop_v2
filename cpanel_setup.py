@@ -30,7 +30,58 @@ try:
 
     # 1. Database Migrations
     print("\n[Step 1/3] Running Database Migrations...")
-    call_command('migrate', interactive=False)
+
+    def run_migrations_with_retry(max_retries=10):
+        """
+        Run migrations. If a 'table already exists' OperationalError is raised,
+        fake that migration and retry. This handles cases where the DB and
+        migration history are out of sync (e.g. after a DB restore or copy).
+        """
+        import re
+        from django.db import OperationalError as DjangoOperationalError
+
+        for attempt in range(1, max_retries + 1):
+            try:
+                call_command('migrate', interactive=False)
+                return  # success
+            except Exception as exc:
+                err_str = str(exc)
+                # Detect "table X already exists" pattern
+                match = re.search(r'table["\s]+"?(\w+)"?\s+already exists', err_str, re.IGNORECASE)
+                if not match:
+                    raise  # Unknown error — re-raise
+                table_name = match.group(1)
+                print(f"\n  [WARNING] Table '{table_name}' already exists in DB.")
+                # Derive app + migration from Django's pending migrations
+                from django.db.migrations.executor import MigrationExecutor
+                from django.db import connection
+                executor = MigrationExecutor(connection)
+                pending = executor.migration_plan(executor.loader.graph.leaf_nodes())
+                faked = False
+                for migration, _backward in pending:
+                    # Identify which migration creates the conflicting table
+                    for op in migration.operations:
+                        op_class = type(op).__name__
+                        guessed_table = f"{migration.app_label}_{op.name.lower()}" \
+                            if hasattr(op, 'name') else ''
+                        if op_class == 'CreateModel' and guessed_table == table_name:
+                            print(f"  [FIX] Faking migration: {migration.app_label}.{migration.name}")
+                            call_command('migrate', migration.app_label, migration.name,
+                                         '--fake', interactive=False)
+                            faked = True
+                            break
+                    if faked:
+                        break
+                if not faked:
+                    print(f"  [WARNING] Could not identify migration for table '{table_name}'. "
+                          f"Attempt {attempt}/{max_retries}. Retrying migrate...")
+                if attempt >= max_retries:
+                    raise RuntimeError(
+                        f"Migration failed after {max_retries} attempts. "
+                        f"Last error: {exc}"
+                    ) from exc
+
+    run_migrations_with_retry()
     print(" -> Database tables created/updated successfully.")
 
     # 2. Collect Static Files
