@@ -1,7 +1,10 @@
 import os
 from pathlib import Path
 
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    load_dotenv = None
 
 
 def load_env():
@@ -11,7 +14,7 @@ def load_env():
     candidates = [base_dir / f'.env.{env}', base_dir / '.env']
 
     for env_path in candidates:
-        if env_path.exists():
+        if env_path.exists() and load_dotenv:
             load_dotenv(env_path, override=True)
             print(f"Loaded environment from {env_path.name}")
             return env_path
@@ -19,3 +22,4 @@ def load_env():
     # In cloud/production platforms (Render, Cloud Run, Heroku, Docker), environment
     # variables are injected directly via the platform rather than local .env files.
     return None
+

@@ -29,7 +29,8 @@ jobs:
       - name: Install minimal dependencies for collectstatic
         run: |
           python -m pip install --upgrade pip
-          pip install django whitenoise dj-database-url django-environ django-crispy-forms crispy-bootstrap5 djangorestframework django-filter
+          pip install python-dotenv dj-database-url django-environ whitenoise django django-crispy-forms crispy-bootstrap5 djangorestframework django-filter djoser django-cors-headers
+
 
       - name: Collect Static Files
         run: |
