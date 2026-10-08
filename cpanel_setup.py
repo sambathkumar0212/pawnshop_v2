@@ -4,7 +4,7 @@ One-Time Initialization Script for cPanel Hosting Without Terminal / SSH.
 
 Usage via cPanel Cron Jobs (run once, then delete cron):
 Command:
-/home/USERNAME/virtualenv/pawnshop_v2/3.11/bin/python /home/USERNAME/pawnshop_v2/cpanel_setup.py > /home/USERNAME/pawnshop_v2/setup_log.txt 2>&1
+/home/hinfotechnolo/virtualenv/FMG_ERP/3.11/bin/python /home/hinfotechnolo/FMG_ERP/cpanel_setup.py > /home/hinfotechnolo/FMG_ERP/setup_log.txt 2>&1
 """
 
 import os
