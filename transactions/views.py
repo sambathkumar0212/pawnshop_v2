@@ -3553,13 +3553,22 @@ class LoanDocumentView(LoginRequiredMixin, RoleBranchAccessMixin, View):
         template = get_template('transactions/loan_document_pdf.html')
         html = template.render(context)
 
-        pdf_bytes = render_html_to_pdf_bytes(html)
-        if pdf_bytes:
-            response = HttpResponse(pdf_bytes, content_type='application/pdf')
-            response['Content-Disposition'] = f'attachment; filename="{detailed_filename}"'
-            return response
+        # Allow instant HTML view or print when ?format=html is requested
+        if request.GET.get('format') == 'html':
+            return HttpResponse(html, content_type='text/html')
 
-        return HttpResponse('Error generating PDF', status=500)
+        try:
+            pdf_bytes = render_html_to_pdf_bytes(html)
+            if pdf_bytes and len(pdf_bytes) > 500:
+                response = HttpResponse(pdf_bytes, content_type='application/pdf')
+                response['Content-Disposition'] = f'attachment; filename="{detailed_filename}"'
+                return response
+        except Exception as e:
+            import logging
+            logging.getLogger('django.request').error(f"Error generating PDF for loan {loan_number}: {e}", exc_info=True)
+
+        # High-Fidelity Fallback: If server lacks headless Chromium / PDF binary, serve the printable HTML view directly
+        return HttpResponse(html, content_type='text/html')
 class LoanPaymentHistoryDownloadView(LoginRequiredMixin, RoleBranchAccessMixin, View):
     def get(self, request, loan_number):
         loan = get_object_or_404(Loan, loan_number=loan_number)
@@ -4848,16 +4857,20 @@ class PaymentReceiptView(LoginRequiredMixin, View):
         from pawnshop_management.fonts import get_tamil_font_base64, get_tamil_font_uri, render_html_to_pdf_bytes
 
         # Render PDF
-        template = get_template('transactions/payment_receipt_pdf.html')
-        html = template.render(context)
+        if request.GET.get('format') == 'html':
+            return HttpResponse(html, content_type='text/html')
+
+        try:
+            pdf_bytes = render_html_to_pdf_bytes(html)
+            if pdf_bytes and len(pdf_bytes) > 500:
+                response = HttpResponse(pdf_bytes, content_type='application/pdf')
+                response['Content-Disposition'] = f'attachment; filename="payment_receipt_{payment.id}.pdf"'
+                return response
+        except Exception as e:
+            import logging
+            logging.getLogger('django.request').error(f"Payment receipt PDF error: {e}", exc_info=True)
         
-        pdf_bytes = render_html_to_pdf_bytes(html)
-        if pdf_bytes:
-            response = HttpResponse(pdf_bytes, content_type='application/pdf')
-            response['Content-Disposition'] = f'attachment; filename="payment_receipt_{payment.id}.pdf"'
-            return response
-        
-        return HttpResponse('Error generating PDF', status=500)
+        return HttpResponse(html, content_type='text/html')
 
 
 class SaleListView(LoginRequiredMixin, RoleBranchAccessMixin, ListView):
@@ -4988,15 +5001,20 @@ class SaleReceiptView(LoginRequiredMixin, View):
 
         # Render PDF
         template = get_template('transactions/sale_receipt_pdf.html')
-        html = template.render(context)
+        if request.GET.get('format') == 'html':
+            return HttpResponse(html, content_type='text/html')
+
+        try:
+            pdf_bytes = render_html_to_pdf_bytes(html)
+            if pdf_bytes and len(pdf_bytes) > 500:
+                response = HttpResponse(pdf_bytes, content_type='application/pdf')
+                response['Content-Disposition'] = f'attachment; filename="sale_receipt_{sale.id}.pdf"'
+                return response
+        except Exception as e:
+            import logging
+            logging.getLogger('django.request').error(f"Sale receipt PDF error: {e}", exc_info=True)
         
-        pdf_bytes = render_html_to_pdf_bytes(html)
-        if pdf_bytes:
-            response = HttpResponse(pdf_bytes, content_type='application/pdf')
-            response['Content-Disposition'] = f'attachment; filename="sale_receipt_{sale.id}.pdf"'
-            return response
-        
-        return HttpResponse('Error generating PDF', status=500)
+        return HttpResponse(html, content_type='text/html')
 
 
 def number_to_words(request, number):
