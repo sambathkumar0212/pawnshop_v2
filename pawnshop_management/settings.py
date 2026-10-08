@@ -235,14 +235,22 @@ CACHES = {
 SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
 SESSION_CACHE_ALIAS = 'default'
 
-STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = [BASE_DIR / 'static']
-
 # When deployed under a sub-path (e.g. /erp/) on cPanel/Passenger,
 # set FORCE_SCRIPT_NAME so Django generates correct URLs.
 # On Render (root path) this env var won't be set, so it defaults to None (no effect).
 FORCE_SCRIPT_NAME = env('FORCE_SCRIPT_NAME', None)
+
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [BASE_DIR / 'static']
+
+if FORCE_SCRIPT_NAME:
+    _script_prefix = FORCE_SCRIPT_NAME.rstrip('/')
+    STATIC_URL = f"{_script_prefix}/static/"
+    MEDIA_URL = f"{_script_prefix}/media/"
+else:
+    STATIC_URL = '/static/'
+    MEDIA_URL = '/media/'
+
 WHITENOISE_MANIFEST_STRICT = False
 
 STORAGES = {
@@ -253,8 +261,6 @@ STORAGES = {
         "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage" if not DEBUG else "django.contrib.staticfiles.storage.StaticFilesStorage",
     },
 }
-
-MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
