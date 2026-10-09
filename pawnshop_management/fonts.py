@@ -16,9 +16,11 @@ import shutil
 import glob
 import tempfile
 import subprocess
+import logging
 from pathlib import Path
 from django.conf import settings
 
+logger = logging.getLogger('pawnshop_management.fonts')
 _TAMIL_FONT_BASE64_CACHE = None
 
 def get_tamil_font_path():
@@ -46,7 +48,7 @@ def get_tamil_font_base64():
                 _TAMIL_FONT_BASE64_CACHE = base64.b64encode(f.read()).decode('utf-8')
                 return _TAMIL_FONT_BASE64_CACHE
         except Exception as e:
-            print(f"[Fonts] Warning reading Tamil font: {e}")
+            logger.warning(f"Warning reading Tamil font: {e}")
     _TAMIL_FONT_BASE64_CACHE = ""
     return _TAMIL_FONT_BASE64_CACHE
 
@@ -165,9 +167,9 @@ def render_html_to_pdf_bytes(html_content, page_size='A4', margins=None):
     """
     Render HTML content to PDF bytes using:
     1. Memory Cache (Instant 0.001s return for pre-rendered / repeated PDFs)
-    2. Playwright CDP API (highest quality, HarfBuzz OpenType script shaping)
-    3. Headless Chromium CLI Subprocess (quick 6s timeout)
-    4. xhtml2pdf Fallback (pure Python ReportLab TTF renderer)
+    2. Playwright CDP API (highest quality, HarfBuzz OpenType script shaping) — if browser exists
+    3. Headless Chromium CLI Subprocess (quick 6s timeout) — if browser exists
+    4. xhtml2pdf Fallback (pure Python ReportLab TTF renderer) — always works without external binaries
     """
     if margins is None:
         margins = {'top': '0.5cm', 'right': '0.5cm', 'bottom': '0.5cm', 'left': '0.5cm'}
@@ -185,54 +187,48 @@ def render_html_to_pdf_bytes(html_content, page_size='A4', margins=None):
 
     browser_exe = find_browser_executable()
 
-    # 1. Primary Method: Playwright Python API
-    try:
-        from playwright.sync_api import sync_playwright
-        with sync_playwright() as p:
-            launch_kwargs = {
-                'headless': True,
-                'args': [
-                    '--no-sandbox',
-                    '--disable-gpu',
-                    '--disable-dev-shm-usage',
-                    '--disable-setuid-sandbox',
-                    '--single-process',
-                    '--no-zygote',
-                    '--disable-software-rasterizer',
-                    '--allow-file-access-from-files',
-                    '--disable-web-security',
-                ]
-            }
-            try:
-                browser = p.chromium.launch(**launch_kwargs)
-            except Exception:
-                if browser_exe and os.path.exists(browser_exe):
-                    launch_kwargs['executable_path'] = browser_exe
-                    browser = p.chromium.launch(**launch_kwargs)
-                else:
-                    raise
-
-            page = browser.new_page()
-            page.set_content(html_content, wait_until='domcontentloaded', timeout=10000)
-            pdf_bytes = page.pdf(
-                format=page_size,
-                margin=margins,
-                print_background=True,
-                prefer_css_page_size=True,
-            )
-            browser.close()
-            if pdf_bytes and len(pdf_bytes) > 500:
-                if cache_key:
-                    try:
-                        set_cached_pdf_bytes(cache_key, pdf_bytes)
-                    except Exception:
-                        pass
-                return pdf_bytes
-    except Exception as pw_err:
-        print(f"[PDF Engine] Playwright API generation info: {pw_err}")
-
-    # 2. Secondary Method: Headless Browser Subprocess (with short 6s timeout)
+    # 1. Primary Method: Playwright Python API (Only if a valid browser binary exists)
     if browser_exe:
+        try:
+            from playwright.sync_api import sync_playwright
+            with sync_playwright() as p:
+                launch_kwargs = {
+                    'headless': True,
+                    'executable_path': browser_exe,
+                    'args': [
+                        '--no-sandbox',
+                        '--disable-gpu',
+                        '--disable-dev-shm-usage',
+                        '--disable-setuid-sandbox',
+                        '--single-process',
+                        '--no-zygote',
+                        '--disable-software-rasterizer',
+                        '--allow-file-access-from-files',
+                        '--disable-web-security',
+                    ]
+                }
+                browser = p.chromium.launch(**launch_kwargs)
+                page = browser.new_page()
+                page.set_content(html_content, wait_until='domcontentloaded', timeout=10000)
+                pdf_bytes = page.pdf(
+                    format=page_size,
+                    margin=margins,
+                    print_background=True,
+                    prefer_css_page_size=True,
+                )
+                browser.close()
+                if pdf_bytes and len(pdf_bytes) > 500:
+                    if cache_key:
+                        try:
+                            set_cached_pdf_bytes(cache_key, pdf_bytes)
+                        except Exception:
+                            pass
+                    return pdf_bytes
+        except Exception as pw_err:
+            safe_err = str(pw_err).encode('ascii', 'replace').decode('ascii')
+            logger.info(f"Playwright API generation info: {safe_err}")
+
+        # 2. Secondary Method: Headless Browser Subprocess (with short 6s timeout)
         tmp_dir = tempfile.mkdtemp(prefix='render_pdf_')
         html_path = os.path.join(tmp_dir, 'document.html')
         pdf_path = os.path.join(tmp_dir, 'document.pdf')
@@ -273,15 +269,15 @@ def render_html_to_pdf_bytes(html_content, page_size='A4', margins=None):
                             pass
                     return pdf_bytes
         except Exception as sub_err:
-            print(f"[PDF Engine] Subprocess browser PDF error: {sub_err}")
+            safe_sub = str(sub_err).encode('ascii', 'replace').decode('ascii')
+            logger.info(f"Subprocess browser PDF error: {safe_sub}")
         finally:
             shutil.rmtree(tmp_dir, ignore_errors=True)
 
-    # 3. Tertiary Fallback: xhtml2pdf (ReportLab)
+    # 3. Tertiary Fallback: xhtml2pdf (ReportLab) — pure Python, requires no browser executable
     try:
         from xhtml2pdf import pisa
         import io
-        import logging
         register_fonts()
         out_stream = io.BytesIO()
 
@@ -314,7 +310,7 @@ def render_html_to_pdf_bytes(html_content, page_size='A4', margins=None):
                     if (static_base / clean_rel).exists():
                         return str(static_base / clean_rel)
             except Exception as e:
-                logging.getLogger('django.request').warning(f"link_callback error for uri '{uri}': {e}")
+                logger.warning(f"link_callback error for uri '{uri}': {e}")
             return uri
 
         # Strip large base64 @font-face blocks because xhtml2pdf uses fonts registered via pdfmetrics
@@ -331,9 +327,8 @@ def render_html_to_pdf_bytes(html_content, page_size='A4', margins=None):
                     pass
             return pdf_bytes
     except Exception as xh_err:
-        print(f"[PDF Engine] xhtml2pdf fallback error: {xh_err}")
-        import logging
-        logging.getLogger('django.request').error(f"xhtml2pdf fallback error: {xh_err}", exc_info=True)
+        safe_xh = str(xh_err).encode('ascii', 'replace').decode('ascii')
+        logger.error(f"xhtml2pdf fallback error: {safe_xh}", exc_info=True)
 
     return None
 
@@ -355,7 +350,7 @@ def register_fonts():
             DEFAULT_FONT['notosans-tamil'] = 'NotoSansTamil'
             DEFAULT_FONT['tamil'] = 'NotoSansTamil'
         except Exception as e:
-            print(f"Warning: could not register Tamil font: {e}")
+            logger.warning(f"Could not register Tamil font: {e}")
 
 # Register on module import
 register_fonts()
