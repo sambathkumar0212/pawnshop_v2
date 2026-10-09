@@ -1,17 +1,38 @@
-# Minimal requirements for initial build
-django==5.2.0
-djangorestframework==3.16.0
-djangorestframework-simplejwt==5.3.0
-django-crispy-forms==2.0
-crispy-bootstrap5==2023.10
-django-filter==25.0
-python-dotenv==1.0.0
-gunicorn==20.1.0
-whitenoise==6.6.0
-django-environ==0.11.2
-djoser==2.2.2
-django-cors-headers==4.3.1
-xhtml2pdf==0.2.13
-reportlab>=4.0.0
-num2words==0.5.12
-openpyxl
+# =============================================================================
+# PAWNSHOP ERP — ESSENTIAL LIGHTWEIGHT REQUIREMENTS
+# Includes all mandatory core modules required for zero-error runtime execution
+# =============================================================================
+
+# --- Core Framework & Web API ---
+django>=5.2.0,<6.0                  # Core Django web framework (v5.2)
+djangorestframework>=3.16.0         # REST API framework for mobile & external endpoints
+djangorestframework-simplejwt>=5.3.0 # JWT authentication tokens for customer portal & API
+djoser>=2.2.2                       # REST auth endpoints (login, register, password reset)
+django-cors-headers>=4.0.0          # Cross-Origin Resource Sharing for API requests
+django-crispy-forms>=2.0            # Bootstrap form rendering & crispy tag helpers
+crispy-bootstrap5>=2023.10          # Bootstrap 5 template pack for crispy forms
+django-filter>=25.0                 # Dynamic query filtering for loans, inventory & customers
+python-dotenv>=1.0.0                # Loads configuration from .env files
+django-environ>=0.11.0              # Environment variable parsing helper
+whitenoise>=6.6.0                   # Production static file serving with gzip compression
+
+# --- Database Drivers & Security ---
+dj-database-url>=2.1.0              # DATABASE_URL configuration parsing (Postgres/Neon/MySQL)
+cryptography>=42.0.0                # SSL/TLS encryption & JWT security support
+
+# --- Document, PDF, Image & Excel Processing ---
+Pillow>=11.0.0                      # Image processing for customer photos, item KYC & receipts
+reportlab>=4.0.0                    # High-performance PDF generation engine & canvas drawing
+xhtml2pdf>=0.2.13                   # HTML to PDF bill, pawn receipt & loan document generation
+num2words>=0.5.12                   # Converts numbers to words (e.g. Rupees in English/Tamil)
+openpyxl>=3.1.0                     # Excel read/write for bulk imports and loan statements
+xlsxwriter>=3.2.0                   # High-speed Excel generation for GST GSTR-1 / GSTR-3B reports
+
+# --- Multi-Language & Transliteration (Tamil/English) ---
+polib>=1.1.0                        # Compiles .po translation files into .mo binary catalogs (Tamil)
+indic-transliteration>=2.3.79       # English-to-Tamil phonetic transliteration for names/search
+
+# --- Integrations, Live Gold Rates & WhatsApp ---
+requests>=2.28.0                    # HTTP client for Brevo Email API, Gemini AI & Gold Rates
+beautifulsoup4>=4.12.0              # Scrapes live Chennai retail gold prices from market feeds
+qrcode>=8.0                         # Generates dynamic UPI QR codes on loan bills & receipts
