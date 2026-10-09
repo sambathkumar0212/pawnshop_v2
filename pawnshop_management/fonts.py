@@ -293,6 +293,8 @@ def render_html_to_pdf_bytes(html_content, page_size='A4', margins=None):
 
         # Strip large base64 @font-face blocks because xhtml2pdf uses fonts registered via pdfmetrics
         clean_html = re.sub(r'@font-face\s*\{[^}]*\}', '', html_content, flags=re.DOTALL)
+        clean_html = re.sub(r'height\s*:\s*100%\s*;?', '', clean_html, flags=re.IGNORECASE)
+        clean_html = re.sub(r'min-height\s*:\s*100%\s*;?', '', clean_html, flags=re.IGNORECASE)
         pisa_status = pisa.CreatePDF(clean_html, dest=out_stream, link_callback=link_callback)
         pdf_bytes = out_stream.getvalue()
         if pdf_bytes and len(pdf_bytes) > 500:
@@ -304,6 +306,8 @@ def render_html_to_pdf_bytes(html_content, page_size='A4', margins=None):
             return pdf_bytes
     except Exception as xh_err:
         print(f"[PDF Engine] xhtml2pdf fallback error: {xh_err}")
+        import logging
+        logging.getLogger('django.request').error(f"xhtml2pdf fallback error: {xh_err}", exc_info=True)
 
     return None
 

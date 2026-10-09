@@ -12,5 +12,6 @@ django-environ==0.11.2
 djoser==2.2.2
 django-cors-headers==4.3.1
 xhtml2pdf==0.2.13
+reportlab>=4.0.0
 num2words==0.5.12
 openpyxl
