@@ -281,14 +281,40 @@ def render_html_to_pdf_bytes(html_content, page_size='A4', margins=None):
     try:
         from xhtml2pdf import pisa
         import io
+        import logging
         register_fonts()
         out_stream = io.BytesIO()
 
         def link_callback(uri, rel):
-            if uri.startswith(settings.MEDIA_URL):
-                return os.path.join(settings.MEDIA_ROOT, uri.replace(settings.MEDIA_URL, ''))
-            elif uri.startswith(settings.STATIC_URL):
-                return os.path.join(settings.STATIC_ROOT or (Path(settings.BASE_DIR) / 'static'), uri.replace(settings.STATIC_URL, ''))
+            try:
+                if not uri:
+                    return uri
+                if uri.startswith('data:'):
+                    return uri
+                if uri.startswith('file://'):
+                    clean_path = uri.replace('file:///', '').replace('file://', '')
+                    if os.path.exists(clean_path):
+                        return clean_path
+                if hasattr(settings, 'MEDIA_URL') and settings.MEDIA_URL and uri.startswith(settings.MEDIA_URL):
+                    path = os.path.join(settings.MEDIA_ROOT, uri[len(settings.MEDIA_URL):])
+                    if os.path.exists(path):
+                        return path
+                if hasattr(settings, 'STATIC_URL') and settings.STATIC_URL and uri.startswith(settings.STATIC_URL):
+                    rel_path = uri[len(settings.STATIC_URL):]
+                    if settings.STATIC_ROOT and os.path.exists(os.path.join(settings.STATIC_ROOT, rel_path)):
+                        return os.path.join(settings.STATIC_ROOT, rel_path)
+                    static_base = Path(settings.BASE_DIR) / 'static'
+                    if (static_base / rel_path).exists():
+                        return str(static_base / rel_path)
+                if uri.startswith('/static/') or uri.startswith('static/'):
+                    clean_rel = uri.lstrip('/')
+                    if clean_rel.startswith('static/'):
+                        clean_rel = clean_rel[7:]
+                    static_base = Path(settings.BASE_DIR) / 'static'
+                    if (static_base / clean_rel).exists():
+                        return str(static_base / clean_rel)
+            except Exception as e:
+                logging.getLogger('django.request').warning(f"link_callback error for uri '{uri}': {e}")
             return uri
 
         # Strip large base64 @font-face blocks because xhtml2pdf uses fonts registered via pdfmetrics
@@ -297,7 +323,7 @@ def render_html_to_pdf_bytes(html_content, page_size='A4', margins=None):
         clean_html = re.sub(r'min-height\s*:\s*100%\s*;?', '', clean_html, flags=re.IGNORECASE)
         pisa_status = pisa.CreatePDF(clean_html, dest=out_stream, link_callback=link_callback)
         pdf_bytes = out_stream.getvalue()
-        if pdf_bytes and len(pdf_bytes) > 500:
+        if pdf_bytes and len(pdf_bytes) > 200:
             if cache_key:
                 try:
                     set_cached_pdf_bytes(cache_key, pdf_bytes)
@@ -323,7 +349,8 @@ def register_fonts():
     font_path = get_tamil_font_path()
     if font_path and os.path.exists(font_path):
         try:
-            pdfmetrics.registerFont(TTFont('NotoSansTamil', font_path))
+            if 'NotoSansTamil' not in pdfmetrics.getRegisteredFontNames():
+                pdfmetrics.registerFont(TTFont('NotoSansTamil', font_path))
             DEFAULT_FONT['notosanstamil'] = 'NotoSansTamil'
             DEFAULT_FONT['notosans-tamil'] = 'NotoSansTamil'
             DEFAULT_FONT['tamil'] = 'NotoSansTamil'
@@ -332,3 +359,4 @@ def register_fonts():
 
 # Register on module import
 register_fonts()
+

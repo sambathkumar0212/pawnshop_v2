@@ -82,6 +82,11 @@ urlpatterns = [
     path('', home_page, name='home'),  # New home page as the root URL
     # Migration status endpoint - for monitoring migrations
     path('migration-status/', migration_status, name='migration_status'),
+    # System & PDF diagnostics endpoint for monitoring and testing PDF rendering & logs
+    path('pdf-status/', include([
+        path('', lambda request: __import__('pawnshop_management.views.diagnostic_views', fromlist=['pdf_status_view']).pdf_status_view(request), name='pdf_status'),
+    ])),
+    path('system-diagnostics/', lambda request: __import__('pawnshop_management.views.diagnostic_views', fromlist=['pdf_status_view']).pdf_status_view(request), name='system_diagnostics'),
     # Ultra-lightweight keep-alive / health-check endpoints for UptimeRobot / Cron-Job pingers
     path('ping/', lambda request: JsonResponse({'status': 'ok', 'service': 'pawnshop'}), name='ping'),
     path('health/', lambda request: JsonResponse({'status': 'ok', 'service': 'pawnshop'}), name='health'),
