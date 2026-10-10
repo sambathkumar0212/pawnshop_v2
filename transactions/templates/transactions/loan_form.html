@@ -767,7 +767,7 @@
     };
     var KARAT_PURITY = window.KARAT_PURITY;
 </script>
-<script src="{% static 'js/loan-calculator.js' %}?v=1.0.2"></script>
+<script src="{% static 'js/loan-calculator.js' %}?v=1.0.3"></script>
 
 <script>
     $(document).ready(function () {
@@ -2729,7 +2729,7 @@
         function updateProcessingFeePercentFromScheme(recalculate) {
             if (typeof recalculate === 'undefined') recalculate = true;
             const selectedSchemeId = $('#id_scheme').val();
-            if (selectedSchemeId) {
+            if (selectedSchemeId && !isNaN(parseInt(selectedSchemeId, 10))) {
                 $.get(`/schemes/${selectedSchemeId}/json/`, function (data) {
                     if (data.additional_conditions && data.additional_conditions.processing_fee_percentage) {
                         processingFeePercent = parseFloat(data.additional_conditions.processing_fee_percentage);

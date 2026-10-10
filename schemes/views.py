@@ -370,6 +370,13 @@ class NewSchemeDeleteView(LoginRequiredMixin, View):
 class SchemeJsonView(LoginRequiredMixin, View):
     """View to return scheme details in JSON format for AJAX requests"""
     
+    def handle_no_permission(self):
+        """Return a clean JSON 401 response instead of a 302 HTML redirect for AJAX requests"""
+        return JsonResponse({
+            'error': 'Authentication required. Your session may have expired.',
+            'login_required': True
+        }, status=401)
+        
     def get(self, request, pk):
         try:
             scheme = get_object_or_404(Scheme, pk=pk)
@@ -448,7 +455,7 @@ class SchemeJsonView(LoginRequiredMixin, View):
                 scheme_data['interest_rate_structure'] = scheme.interest_rate_structure
                 
             return JsonResponse(scheme_data)
-        except Scheme.DoesNotExist:
+        except (Scheme.DoesNotExist, Http404):
             return JsonResponse({'error': 'Scheme not found'}, status=404)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)

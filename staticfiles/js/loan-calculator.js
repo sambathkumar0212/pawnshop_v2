@@ -221,10 +221,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to load scheme details
     function loadSchemeDetails(isInitial = false) {
         const schemeSelect = document.getElementById('id_scheme');
-        const schemeId = schemeSelect.value;
+        const schemeId = schemeSelect ? schemeSelect.value : null;
         
-        // Clear scheme info if no scheme selected
-        if (!schemeId) {
+        // Clear scheme info if no scheme selected or not a valid number
+        if (!schemeId || isNaN(parseInt(schemeId, 10))) {
             if (schemeInfoBox) {
                 schemeInfoBox.style.display = 'none';
                 schemeInfoBox.innerHTML = '';
@@ -239,14 +239,47 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Fetch scheme details from API - using the correct URL pattern
-        fetch(`/schemes/${schemeId}/json/`)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Failed to load scheme details');
+        fetch(`/schemes/${schemeId}/json/`, {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+            .then(async response => {
+                const contentType = response.headers.get('content-type') || '';
+                
+                // If redirected to login page (session expired)
+                if (response.redirected && (response.url.includes('/login') || response.url.includes('/accounts/login'))) {
+                    throw new Error('Your session has expired. Please refresh the page and log in again.');
                 }
+                
+                if (response.status === 401) {
+                    throw new Error('Your session has expired. Please refresh the page and log in again.');
+                }
+                
+                if (response.status === 403) {
+                    throw new Error('You do not have permission to view this loan scheme.');
+                }
+                
+                if (response.status === 404) {
+                    throw new Error('Selected loan scheme was not found.');
+                }
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to load scheme details (HTTP ${response.status})`);
+                }
+                
+                // Guard against unexpected HTML responses (e.g. error pages, gateway issues, redirects)
+                if (!contentType.includes('application/json')) {
+                    throw new Error('Server returned an unexpected non-JSON response. Please refresh the page.');
+                }
+
                 return response.json();
             })
             .then(scheme => {
+                if (scheme && scheme.error) {
+                    throw new Error(scheme.error);
+                }
                 // Set scheme info display to visible
                 if (schemeInfoBox) {
                     schemeInfoBox.style.display = 'block';
@@ -426,7 +459,12 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 console.error('Error loading scheme details:', error);
-                showNotification('Failed to load scheme details: ' + error.message, 'error');
+                const isSessionExpired = error.message && error.message.toLowerCase().includes('session has expired');
+                if (isSessionExpired) {
+                    showNotification('Session expired. Please log in again to continue.', 'warning');
+                } else {
+                    showNotification('Failed to load scheme details: ' + error.message, 'error');
+                }
             });
     }
     
