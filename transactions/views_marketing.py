@@ -80,7 +80,7 @@ class DigitalMarketingDashboardView(LoginRequiredMixin, RoleBranchAccessMixin, V
 
         # Get latest gold rate
         try:
-            latest_gold_rate_obj = DailyGoldRate.objects.order_by('-date', '-created_at').first()
+            latest_gold_rate_obj = DailyGoldRate.get_current_rate()
             current_gold_rate = latest_gold_rate_obj.rate_22k if latest_gold_rate_obj else Decimal('6850.00')
         except Exception:
             current_gold_rate = Decimal('6850.00')

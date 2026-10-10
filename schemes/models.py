@@ -489,25 +489,105 @@ class DailyGoldRate(models.Model):
                 return self.rate_22k_per_gram
 
     @classmethod
-    def get_current_rate(cls, organization=None):
-        """Fetch the most recent active gold rate broadcasted for organization or overall."""
+    def sync_today_rate(cls, organization=None, force=False):
+        """
+        Sync today's gold rate with live market APIs.
+        If today's rate is already recorded and active (and force=False), returns it immediately.
+        Otherwise, fetches from live market API providers and creates today's rate.
+        """
+        today = timezone.now().date()
+        query = cls.objects.filter(is_active=True)
+        if organization:
+            today_rate = query.filter(organization=organization, date=today).first()
+        else:
+            today_rate = query.filter(date=today).first()
+
+        if today_rate and not force:
+            return today_rate
+
+        try:
+            from schemes.services_gold_api import fetch_live_gold_rate
+            live = fetch_live_gold_rate()
+            if live and live.get('success'):
+                # Inherit LTV cap from previous rate if available
+                prev_rate = query.order_by('-date', '-created_at').first()
+                max_ltv = prev_rate.maximum_ltv_percentage if prev_rate and prev_rate.maximum_ltv_percentage else Decimal('75.00')
+
+                rate_24k = Decimal(str(live['rate_24k_per_gram']))
+                rate_22k = Decimal(str(live['rate_22k_per_gram']))
+                rate_20k = Decimal(str(live['rate_20k_per_gram']))
+                rate_18k = Decimal(str(live['rate_18k_per_gram']))
+
+                # Create today's rate
+                new_rate = cls.objects.create(
+                    organization=organization,
+                    date=today,
+                    rate_24k_per_gram=rate_24k,
+                    rate_22k_per_gram=rate_22k,
+                    rate_20k_per_gram=rate_20k,
+                    rate_18k_per_gram=rate_18k,
+                    maximum_ltv_percentage=max_ltv,
+                    is_active=True,
+                    notes=f"Auto-synced from {live.get('source', 'Live Market API')} at {live.get('fetched_at_time', '')}"
+                )
+                # Deactivate older rates
+                cls.objects.filter(
+                    organization=organization,
+                    is_active=True
+                ).exclude(pk=new_rate.pk).update(is_active=False)
+                return new_rate
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning("DailyGoldRate live market sync failed: %s", e)
+
+        return None
+
+    @classmethod
+    def get_current_rate(cls, organization=None, auto_sync=True):
+        """
+        Fetch the most recent active gold rate broadcasted for organization or overall.
+        If the active rate is stale (date < today) or from a previous day, auto-syncs with live market rate.
+        """
+        today = timezone.now().date()
         query = cls.objects.filter(is_active=True)
         if organization:
             org_rate = query.filter(organization=organization).order_by('-date', '-created_at').first()
-            if org_rate:
+            if org_rate and org_rate.date == today:
                 return org_rate
-        # Fall back to latest available active rate
+            elif org_rate and not auto_sync:
+                return org_rate
+
         rate = query.order_by('-date', '-created_at').first()
-        if not rate:
-            rate = cls.objects.create(
-                date=timezone.now().date(),
-                rate_24k_per_gram=Decimal('7200.00'),
-                rate_22k_per_gram=Decimal('6600.00'),
-                rate_20k_per_gram=Decimal('6000.00'),
-                rate_18k_per_gram=Decimal('5400.00'),
-                maximum_ltv_percentage=Decimal('75.00'),
-                is_active=True
-            )
+        if rate and rate.date == today:
+            return rate
+
+        # Auto-sync if stale (rate is None, rate is old hardcoded default 6600, or rate.date < today)
+        if auto_sync:
+            try:
+                from django.core.cache import cache
+                cache_key = f"daily_gold_rate_sync_attempt_{organization.id if organization else 'global'}_{today}"
+                if not cache.get(cache_key):
+                    cache.set(cache_key, True, 600)  # 10 minute cooldown if external API is unreachable
+                    synced_rate = cls.sync_today_rate(organization=organization)
+                    if synced_rate:
+                        return synced_rate
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning("Auto-syncing gold rate failed: %s", e)
+
+        if rate:
+            return rate
+
+        # Fallback if no rate exists at all in the database
+        rate = cls.objects.create(
+            date=today,
+            rate_24k_per_gram=Decimal('7200.00'),
+            rate_22k_per_gram=Decimal('6600.00'),
+            rate_20k_per_gram=Decimal('6000.00'),
+            rate_18k_per_gram=Decimal('5400.00'),
+            maximum_ltv_percentage=Decimal('75.00'),
+            is_active=True
+        )
         return rate
 
     @classmethod

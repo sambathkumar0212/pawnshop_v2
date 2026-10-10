@@ -47,7 +47,7 @@ SECRET_KEY = env('SECRET_KEY', 'django-insecure-development-key')
 
 ALLOWED_HOSTS = env_list(
     'ALLOWED_HOSTS',
-    '*' if DEBUG else '127.0.0.1,localhost,.onrender.com',
+    '*' if DEBUG else '127.0.0.1,localhost,.onrender.com,firstmoneygold.com,.firstmoneygold.com',
 )
 render_external_hostname = env('RENDER_EXTERNAL_HOSTNAME')
 if render_external_hostname and render_external_hostname not in ALLOWED_HOSTS:
@@ -57,7 +57,7 @@ if '.onrender.com' not in ALLOWED_HOSTS:
 
 CSRF_TRUSTED_ORIGINS = env_list(
     'CSRF_TRUSTED_ORIGINS',
-    'https://*.onrender.com,http://127.0.0.1:8000,http://localhost:8000',
+    'https://*.onrender.com,http://127.0.0.1:8000,http://localhost:8000,https://firstmoneygold.com,https://*.firstmoneygold.com',
 )
 if render_external_hostname:
     render_origin = f"https://{render_external_hostname}"
@@ -66,6 +66,8 @@ if render_external_hostname:
 
 if env('GAE_APPLICATION') and '.appspot.com' not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append('.appspot.com')
+
+FORCE_SCRIPT_NAME = env('FORCE_SCRIPT_NAME', None)
 
 INSTALLED_APPS = [
     'django.contrib.admin',

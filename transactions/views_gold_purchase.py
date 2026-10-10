@@ -130,7 +130,7 @@ class GoldPurchaseCreateView(LoginRequiredMixin, RoleBranchAccessMixin, View):
         if not branch and user.is_superuser:
             branch = Branch.objects.filter(is_active=True).first()
 
-        rate_obj = DailyGoldRate.objects.order_by('-date', '-id').first()
+        rate_obj = DailyGoldRate.get_current_rate(organization=getattr(user, 'organization', None))
         rate_24k = Decimal(str(rate_obj.rate_24k_per_gram)) if rate_obj else Decimal('7200.00')
         rate_22k = Decimal(str(rate_obj.rate_22k_per_gram)) if rate_obj else Decimal('6600.00')
         rate_20k = Decimal(str(rate_obj.rate_20k_per_gram)) if rate_obj else Decimal('6000.00')

@@ -1842,7 +1842,7 @@ class LoanItem(models.Model):
             rate_22k = Decimal(str(self.market_price_22k or 0.0))
             if rate_22k <= Decimal('0.00'):
                 from schemes.models import DailyGoldRate
-                latest_rate = DailyGoldRate.objects.order_by('-date', '-id').first()
+                latest_rate = DailyGoldRate.get_current_rate()
                 if latest_rate:
                     rate_22k = latest_rate.rate_22k_per_gram
             val = (net_wt * (karat / Decimal('22.0')) * rate_22k)

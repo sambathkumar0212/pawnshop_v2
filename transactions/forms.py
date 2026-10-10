@@ -734,6 +734,7 @@ class LoanForm(forms.ModelForm):
                 rate_obj = DailyGoldRate.get_current_rate(organization=org)
                 if rate_obj and 'market_price_22k' in self.fields:
                     self.fields['market_price_22k'].initial = rate_obj.rate_22k_per_gram
+                    self.initial['market_price_22k'] = rate_obj.rate_22k_per_gram
             except Exception:
                 pass
 

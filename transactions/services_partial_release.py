@@ -12,7 +12,8 @@ from accounting.services import post_loan_repayment_journal
 
 def get_current_gold_rate_22k(branch=None):
     """Fetches the latest 22K gold rate from DailyGoldRate or returns fallback."""
-    rate_obj = DailyGoldRate.objects.order_by('-date', '-id').first()
+    org = getattr(branch, 'organization', None) if branch else None
+    rate_obj = DailyGoldRate.get_current_rate(organization=org)
     if rate_obj and rate_obj.rate_22k_per_gram:
         return Decimal(str(rate_obj.rate_22k_per_gram))
     return Decimal('7000.00')  # Standard default benchmark

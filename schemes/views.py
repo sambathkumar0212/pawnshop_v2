@@ -726,7 +726,7 @@ def api_get_today_gold_rate(request):
     """
     JSON endpoint for loan creation UI and branches to fetch live active rates & LTV caps.
     """
-    user = request.user if request.user.is_authenticated else None
+    user = request.user if hasattr(request, 'user') and request.user.is_authenticated else None
     org = getattr(user, 'organization', None) if user else None
     rate = DailyGoldRate.get_current_rate(organization=org)
 
