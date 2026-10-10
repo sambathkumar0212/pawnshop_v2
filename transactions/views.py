@@ -3034,6 +3034,10 @@ class LoanUpdateView(LoginRequiredMixin, RoleBranchAccessMixin, UpdateView):
                                      .replace('\\/', '/')
                                      .strip('"\''))
             form.instance.customer_face_capture = cleaned_customer_face
+        elif self.object and self.object.customer_face_capture:
+            form.instance.customer_face_capture = self.object.customer_face_capture
+        elif form.instance.customer and getattr(form.instance.customer, 'profile_photo', None):
+            form.instance.customer_face_capture = form.instance.customer.profile_photo
         
         # Track who is editing the loan
         form.instance._edited_by = self.request.user
@@ -3578,8 +3582,9 @@ class LoanDocumentView(LoginRequiredMixin, RoleBranchAccessMixin, View):
                     item_photos.append(p_clean)
 
         customer_photo = None
-        if loan.customer_face_capture:
-            raw_face = (loan.customer_face_capture
+        face_src = loan.customer_face_capture or (loan.customer.profile_photo if loan.customer else None)
+        if face_src:
+            raw_face = (face_src
                         .replace(r'\u0022', '')
                         .replace(r'\u0027', '')
                         .replace(r'\u003B', ';')
@@ -3588,11 +3593,11 @@ class LoanDocumentView(LoginRequiredMixin, RoleBranchAccessMixin, View):
                         .replace('\\/', '/')
                         .strip('"\''))
             if 'base64,' in raw_face:
-                customer_photo = raw_face.split('base64,')[1]
+                customer_photo = raw_face.split('base64,')[1].strip()
             elif raw_face.startswith('data:image/'):
-                customer_photo = raw_face.split(',')[1] if ',' in raw_face else raw_face
+                customer_photo = raw_face.split(',')[1].strip() if ',' in raw_face else raw_face.strip()
             else:
-                customer_photo = raw_face or None
+                customer_photo = raw_face.strip() or None
 
         loan_items = loan.loanitem_set.exclude(status='released')
         language_context = build_loan_pdf_language_context(loan, current_language)

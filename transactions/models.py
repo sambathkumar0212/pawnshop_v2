@@ -975,8 +975,9 @@ class Loan(models.Model):
                     item_photos.append(p_clean)
 
         customer_photo = None
-        if self.customer_face_capture:
-            raw_face = (self.customer_face_capture
+        face_src = self.customer_face_capture or (self.customer.profile_photo if self.customer else None)
+        if face_src:
+            raw_face = (face_src
                         .replace(r'\u0022', '')
                         .replace(r'\u0027', '')
                         .replace(r'\u003B', ';')
@@ -985,11 +986,11 @@ class Loan(models.Model):
                         .replace('\\/', '/')
                         .strip('"\''))
             if 'base64,' in raw_face:
-                customer_photo = raw_face.split('base64,')[1]
+                customer_photo = raw_face.split('base64,')[1].strip()
             elif raw_face.startswith('data:image/'):
-                customer_photo = raw_face.split(',')[1] if ',' in raw_face else raw_face
+                customer_photo = raw_face.split(',')[1].strip() if ',' in raw_face else raw_face.strip()
             else:
-                customer_photo = raw_face or None
+                customer_photo = raw_face.strip() or None
 
         context = {
             'loan': self,
