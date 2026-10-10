@@ -26,8 +26,8 @@ cryptography>=42.0.0                # SSL/TLS encryption & JWT security support
 
 # --- Document, PDF, Image & Excel Processing ---
 Pillow>=11.0.0                      # Image processing for customer photos, item KYC & receipts
-reportlab>=4.0.0                    # High-performance PDF generation engine & canvas drawing
-xhtml2pdf>=0.2.13                   # HTML to PDF bill, pawn receipt & loan document generation
+reportlab>=4.4.0,<5.0.0             # High-performance PDF generation engine (<5.0.0 ensures pure Python xhtml2pdf without pycairo)
+xhtml2pdf>=0.2.16                   # HTML to PDF bill, pawn receipt & loan document generation
 num2words>=0.5.12                   # Converts numbers to words (e.g. Rupees in English/Tamil)
 openpyxl>=3.1.0                     # Excel read/write for bulk imports and loan statements
 xlsxwriter>=3.2.0                   # High-speed Excel generation for GST GSTR-1 / GSTR-3B reports

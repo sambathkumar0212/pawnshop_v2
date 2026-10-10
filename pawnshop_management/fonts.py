@@ -22,6 +22,8 @@ from django.conf import settings
 
 logger = logging.getLogger('pawnshop_management.fonts')
 _TAMIL_FONT_BASE64_CACHE = None
+_BROWSER_EXE_CACHE = None
+_BROWSER_EXE_CHECKED = False
 
 def get_tamil_font_path():
     """Return the absolute path to NotoSansTamil-Regular.ttf if present."""
@@ -68,100 +70,109 @@ def find_browser_executable():
     - System Google Chrome / Chromium / Edge binaries in PATH
     - Standard Windows & macOS paths
     """
-    # 0. Check explicit environment variables (e.g. In Docker/Render)
-    for env_var in ['CHROME_BIN', 'CHROMIUM_PATH', 'GOOGLE_CHROME_BIN', 'CHROME_PATH']:
-        val = os.environ.get(env_var)
-        if val and os.path.exists(val):
-            return val
+    global _BROWSER_EXE_CACHE, _BROWSER_EXE_CHECKED
+    if _BROWSER_EXE_CHECKED:
+        return _BROWSER_EXE_CACHE
 
-    # 1. Standard Linux container paths (Docker, Ubuntu, Debian, Render)
-    linux_paths = [
-        "/usr/bin/chromium",
-        "/usr/bin/chromium-browser",
-        "/usr/bin/google-chrome",
-        "/usr/bin/google-chrome-stable",
-        "/usr/local/bin/chromium",
-        "/usr/local/bin/google-chrome",
-        "/snap/bin/chromium",
-    ]
-    for p in linux_paths:
-        if os.path.exists(p):
-            return p
+    def _resolve():
+        # 0. Check explicit environment variables (e.g. In Docker/Render)
+        for env_var in ['CHROME_BIN', 'CHROMIUM_PATH', 'GOOGLE_CHROME_BIN', 'CHROME_PATH']:
+            val = os.environ.get(env_var)
+            if val and os.path.exists(val):
+                return val
 
-    # 2. System PATH search
-    system_names = [
-        'chromium',
-        'chromium-browser',
-        'google-chrome',
-        'google-chrome-stable',
-        'chrome',
-        'msedge',
-        'microsoft-edge',
-    ]
-    for name in system_names:
-        p = shutil.which(name)
-        if p and os.path.exists(p):
-            return p
+        # 1. Standard Linux container paths (Docker, Ubuntu, Debian, Render)
+        linux_paths = [
+            "/usr/bin/chromium",
+            "/usr/bin/chromium-browser",
+            "/usr/bin/google-chrome",
+            "/usr/bin/google-chrome-stable",
+            "/usr/local/bin/chromium",
+            "/usr/local/bin/google-chrome",
+            "/snap/bin/chromium",
+        ]
+        for p in linux_paths:
+            if os.path.exists(p):
+                return p
 
-    # 3. Direct Playwright sync_api executable path
-    try:
-        from playwright.sync_api import sync_playwright
-        with sync_playwright() as p:
-            pw_path = p.chromium.executable_path
-            if pw_path and os.path.exists(pw_path):
-                return pw_path
-    except Exception:
-        pass
+        # 2. System PATH search
+        system_names = [
+            'chromium',
+            'chromium-browser',
+            'google-chrome',
+            'google-chrome-stable',
+            'chrome',
+            'msedge',
+            'microsoft-edge',
+        ]
+        for name in system_names:
+            p = shutil.which(name)
+            if p and os.path.exists(p):
+                return p
 
-    # 4. Direct check for Playwright cached browser directories on Linux / Render / Docker / Windows
-    home_dir = os.path.expanduser("~")
-    possible_playwright_patterns = [
-        os.path.join(home_dir, ".cache", "ms-playwright", "chromium-*", "chrome-linux", "chrome"),
-        os.path.join(home_dir, ".cache", "ms-playwright", "chromium-*", "chrome-linux64", "chrome"),
-        os.path.join(home_dir, ".cache", "ms-playwright", "chromium_headless_shell-*", "chrome-linux", "headless_shell"),
-        os.path.join(home_dir, ".cache", "ms-playwright", "chromium_headless_shell-*", "chrome-linux64", "headless_shell"),
-        "/opt/render/project/src/.venv/lib/python*/site-packages/playwright/driver/package/.local-browsers/chromium-*/chrome-linux/chrome",
-        "/opt/render/project/src/.venv/lib/python*/site-packages/playwright/driver/package/.local-browsers/chromium-*/chrome-linux64/chrome",
-        "/opt/render/project/src/.venv/lib/python*/site-packages/playwright/driver/package/.local-browsers/chromium_headless_shell-*/chrome-linux/headless_shell",
-        "/opt/render/project/src/.venv/lib/python*/site-packages/playwright/driver/package/.local-browsers/chromium_headless_shell-*/chrome-linux64/headless_shell",
-        "/opt/render/.cache/ms-playwright/chromium-*/chrome-linux/chrome",
-        "/opt/render/.cache/ms-playwright/chromium-*/chrome-linux64/chrome",
-        "/root/.cache/ms-playwright/chromium-*/chrome-linux/chrome",
-        "/root/.cache/ms-playwright/chromium-*/chrome-linux64/chrome",
-        os.path.expandvars(r"%LOCALAPPDATA%\ms-playwright\chromium-*\chrome-win\chrome.exe"),
-        os.path.expandvars(r"%LOCALAPPDATA%\ms-playwright\chromium-*\chrome-win64\chrome.exe"),
-    ]
-    for pattern in possible_playwright_patterns:
-        matches = glob.glob(pattern)
-        if matches:
-            for match in matches:
-                if os.path.exists(match):
-                    return match
+        # 3. Direct Playwright sync_api executable path
+        try:
+            from playwright.sync_api import sync_playwright
+            with sync_playwright() as p:
+                pw_path = p.chromium.executable_path
+                if pw_path and os.path.exists(pw_path):
+                    return pw_path
+        except Exception:
+            pass
 
-    # 5. Standard Windows paths
-    win_paths = [
-        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
-        r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
-        r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-        os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"),
-        os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\Edge\Application\msedge.exe"),
-    ]
-    for p in win_paths:
-        if os.path.exists(p):
-            return p
+        # 4. Direct check for Playwright cached browser directories on Linux / Render / Docker / Windows
+        home_dir = os.path.expanduser("~")
+        possible_playwright_patterns = [
+            os.path.join(home_dir, ".cache", "ms-playwright", "chromium-*", "chrome-linux", "chrome"),
+            os.path.join(home_dir, ".cache", "ms-playwright", "chromium-*", "chrome-linux64", "chrome"),
+            os.path.join(home_dir, ".cache", "ms-playwright", "chromium_headless_shell-*", "chrome-linux", "headless_shell"),
+            os.path.join(home_dir, ".cache", "ms-playwright", "chromium_headless_shell-*", "chrome-linux64", "headless_shell"),
+            "/opt/render/project/src/.venv/lib/python*/site-packages/playwright/driver/package/.local-browsers/chromium-*/chrome-linux/chrome",
+            "/opt/render/project/src/.venv/lib/python*/site-packages/playwright/driver/package/.local-browsers/chromium-*/chrome-linux64/chrome",
+            "/opt/render/project/src/.venv/lib/python*/site-packages/playwright/driver/package/.local-browsers/chromium_headless_shell-*/chrome-linux/headless_shell",
+            "/opt/render/project/src/.venv/lib/python*/site-packages/playwright/driver/package/.local-browsers/chromium_headless_shell-*/chrome-linux64/headless_shell",
+            "/opt/render/.cache/ms-playwright/chromium-*/chrome-linux/chrome",
+            "/opt/render/.cache/ms-playwright/chromium-*/chrome-linux64/chrome",
+            "/root/.cache/ms-playwright/chromium-*/chrome-linux/chrome",
+            "/root/.cache/ms-playwright/chromium-*/chrome-linux64/chrome",
+            os.path.expandvars(r"%LOCALAPPDATA%\ms-playwright\chromium-*\chrome-win\chrome.exe"),
+            os.path.expandvars(r"%LOCALAPPDATA%\ms-playwright\chromium-*\chrome-win64\chrome.exe"),
+        ]
+        for pattern in possible_playwright_patterns:
+            matches = glob.glob(pattern)
+            if matches:
+                for match in matches:
+                    if os.path.exists(match):
+                        return match
 
-    # 6. Standard macOS paths
-    mac_paths = [
-        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-        "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
-        "/Applications/Chromium.app/Contents/MacOS/Chromium",
-    ]
-    for p in mac_paths:
-        if os.path.exists(p):
-            return p
+        # 5. Standard Windows paths
+        win_paths = [
+            r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+            r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+            r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+            r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+            os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"),
+            os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\Edge\Application\msedge.exe"),
+        ]
+        for p in win_paths:
+            if os.path.exists(p):
+                return p
 
-    return None
+        # 6. Standard macOS paths
+        mac_paths = [
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+            "/Applications/Chromium.app/Contents/MacOS/Chromium",
+        ]
+        for p in mac_paths:
+            if os.path.exists(p):
+                return p
+
+        return None
+
+    _BROWSER_EXE_CACHE = _resolve()
+    _BROWSER_EXE_CHECKED = True
+    return _BROWSER_EXE_CACHE
 
 def render_html_to_pdf_bytes(html_content, page_size='A4', margins=None):
     """
@@ -288,9 +299,20 @@ def render_html_to_pdf_bytes(html_content, page_size='A4', margins=None):
                 if uri.startswith('data:'):
                     return uri
                 if uri.startswith('file://'):
-                    clean_path = uri.replace('file:///', '').replace('file://', '')
+                    import urllib.parse
+                    parsed_path = urllib.parse.urlparse(uri).path
+                    if os.name == 'nt' and parsed_path.startswith('/'):
+                        clean_path = parsed_path.lstrip('/')
+                    else:
+                        clean_path = parsed_path
                     if os.path.exists(clean_path):
                         return clean_path
+                    # Fallback checks
+                    alt = uri.replace('file:///', '').replace('file://', '')
+                    if os.path.exists(alt):
+                        return alt
+                    if not alt.startswith('/') and os.path.exists('/' + alt):
+                        return '/' + alt
                 if hasattr(settings, 'MEDIA_URL') and settings.MEDIA_URL and uri.startswith(settings.MEDIA_URL):
                     path = os.path.join(settings.MEDIA_ROOT, uri[len(settings.MEDIA_URL):])
                     if os.path.exists(path):
@@ -326,9 +348,15 @@ def render_html_to_pdf_bytes(html_content, page_size='A4', margins=None):
                 except Exception:
                     pass
             return pdf_bytes
+        else:
+            err_count = getattr(pisa_status, 'err', 0)
+            logger.error(
+                f"[PDF] xhtml2pdf returned invalid or empty output: err_count={err_count}, "
+                f"bytes={len(pdf_bytes) if pdf_bytes else 0}. HTML length={len(html_content)}"
+            )
     except Exception as xh_err:
         safe_xh = str(xh_err).encode('ascii', 'replace').decode('ascii')
-        logger.error(f"xhtml2pdf fallback error: {safe_xh}", exc_info=True)
+        logger.error(f"[PDF] xhtml2pdf fallback error: {safe_xh}", exc_info=True)
 
     return None
 

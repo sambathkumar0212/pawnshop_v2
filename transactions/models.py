@@ -9,8 +9,11 @@ from django.utils import timezone
 from decimal import Decimal, ROUND_HALF_UP
 import datetime
 import json
+import logging
 from .utils import item_photo_path, loan_document_path
 from utils.default_photos import get_default_person_photo, get_default_item_photo
+
+logger = logging.getLogger(__name__)
 
 class Loan(models.Model):
     """Pawn loan model"""
@@ -898,14 +901,24 @@ class Loan(models.Model):
             email.attach_alternative(html_body, "text/html")
 
         # Attach the loan agreement PDF if it can be generated
+        pdf_attached = False
         try:
             pdf_bytes, pdf_filename = self.generate_loan_pdf_bytes()
             if pdf_bytes:
                 email.attach(pdf_filename, pdf_bytes, 'application/pdf')
+                pdf_attached = True
+                logger.info(f"[Email Notification] Attached loan agreement PDF ({len(pdf_bytes):,} bytes, filename={pdf_filename}) for Loan #{self.loan_number}")
+            else:
+                logger.warning(f"[Email Notification] generate_loan_pdf_bytes returned None for Loan #{self.loan_number} - email will be sent without PDF attachment!")
         except Exception as e:
-            print(f"Could not attach PDF to loan notification email: {e}")
+            logger.error(f"[Email Notification] Could not attach PDF to loan notification email for Loan #{self.loan_number}: {e}", exc_info=True)
 
-        email.send(fail_silently=False)
+        try:
+            sent_count = email.send(fail_silently=False)
+            logger.info(f"[Email Notification] Loan {action.lower()} notification email successfully dispatched to {recipients} for Loan #{self.loan_number} (pdf_attached={pdf_attached}, sent_count={sent_count})")
+        except Exception as send_err:
+            logger.error(f"[Email Notification] Failed to send loan notification email for Loan #{self.loan_number}: {send_err}", exc_info=True)
+            raise
 
     def generate_loan_pdf_bytes(self):
         """Generate loan agreement PDF bytes using headless Chromium (with xhtml2pdf fallback).
@@ -918,6 +931,7 @@ class Loan(models.Model):
         from django.template.loader import get_template
         from django.conf import settings
         from django.utils.text import slugify
+        from pawnshop_management.fonts import get_tamil_font_base64, get_tamil_font_uri, render_html_to_pdf_bytes
 
         loan_items = self.loanitem_set.all()
 
@@ -936,26 +950,17 @@ class Loan(models.Model):
         filename_base = re.sub(r'[^a-zA-Z0-9_-]', '_', filename_base)[:200]
         pdf_filename = f"{filename_base}.pdf"
 
-        # Build template context — inline photo processing to avoid circular model→views import
-        raw_photos = self.item_photos
-        if not raw_photos:
-            processed_photos = []
-        elif isinstance(raw_photos, str) and raw_photos.startswith('data:image/'):
-            processed_photos = [raw_photos]
-        elif isinstance(raw_photos, str) and raw_photos.startswith('['):
-            try:
-                processed_photos = json.loads(raw_photos)
-            except Exception:
-                processed_photos = []
-        elif isinstance(raw_photos, list):
-            processed_photos = raw_photos
-        else:
+        # Build template context — use centralized photo processor
+        try:
+            from transactions.views import process_item_photos_for_display
+            processed_photos = process_item_photos_for_display(self.item_photos)
+        except Exception:
             processed_photos = []
         item_photos = []
         for photo in processed_photos:
-            if photo.startswith('data:image/'):
+            if photo and isinstance(photo, str) and photo.startswith('data:image/'):
                 item_photos.append(photo.split(',')[1] if ',' in photo else photo)
-            else:
+            elif photo:
                 item_photos.append(photo)
 
         customer_photo = None
@@ -969,7 +974,8 @@ class Loan(models.Model):
             'loan_items': loan_items,
             'item_photos': item_photos,
             'customer_photo': customer_photo,
-            'tamil_font_file_uri': f"file:///{str((settings.BASE_DIR / 'static' / 'fonts' / 'NotoSansTamil-Regular.ttf')).replace(os.sep, '/')}",
+            'tamil_font_file_uri': get_tamil_font_uri(),
+            'tamil_font_base64': get_tamil_font_base64(),
             'pdf_renderer': 'browser',
         }
 
@@ -979,15 +985,23 @@ class Loan(models.Model):
             language_context = build_loan_pdf_language_context(self, 'en')
             context.update(language_context)
         except Exception as e:
-            print(f"Could not build PDF language context: {e}")
+            logger.warning(f"[Loan #{self.loan_number}] Could not build PDF language context: {e}", exc_info=True)
 
-        template = get_template('transactions/loan_document_pdf.html')
-        html = template.render(context)
+        try:
+            template = get_template('transactions/loan_document_pdf.html')
+            html = template.render(context)
+        except Exception as tpl_err:
+            logger.error(f"[Loan #{self.loan_number}] Template render error for loan_document_pdf.html: {tpl_err}", exc_info=True)
+            return None, pdf_filename
 
-        from pawnshop_management.fonts import render_html_to_pdf_bytes
-        pdf_bytes = render_html_to_pdf_bytes(html)
-        if pdf_bytes:
-            return pdf_bytes, pdf_filename
+        try:
+            pdf_bytes = render_html_to_pdf_bytes(html)
+            if pdf_bytes and len(pdf_bytes) > 200:
+                return pdf_bytes, pdf_filename
+            else:
+                logger.error(f"[Loan #{self.loan_number}] render_html_to_pdf_bytes returned {len(pdf_bytes) if pdf_bytes else 0} bytes")
+        except Exception as pdf_err:
+            logger.error(f"[Loan #{self.loan_number}] Exception in render_html_to_pdf_bytes: {pdf_err}", exc_info=True)
 
         return None, pdf_filename
 

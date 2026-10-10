@@ -101,7 +101,7 @@ def get_pdf_diagnostics():
             diag['pdf_test'] = {
                 'success': True,
                 'pdf_size_bytes': len(pdf_bytes),
-                'message': f'PDF generation successful ({len(pdf_bytes):,} bytes generated).'
+                'message': f'Simple PDF generation successful ({len(pdf_bytes):,} bytes generated).'
             }
         else:
             diag['pdf_test'] = {
@@ -115,6 +115,36 @@ def get_pdf_diagnostics():
             'error': str(e),
             'traceback': traceback.format_exc(),
             'message': f'PDF generation failed with exception: {e}'
+        }
+
+    # 5. Run live Loan Agreement PDF generation test on actual database loan
+    try:
+        from transactions.models import Loan
+        latest_loan = Loan.objects.order_by('-id').first()
+        if latest_loan:
+            loan_bytes, loan_fname = latest_loan.generate_loan_pdf_bytes()
+            if loan_bytes and len(loan_bytes) > 500:
+                diag['loan_pdf_test'] = {
+                    'success': True,
+                    'loan_number': latest_loan.loan_number,
+                    'pdf_size_bytes': len(loan_bytes),
+                    'filename': loan_fname,
+                    'message': f'Actual Loan Agreement PDF (#{latest_loan.loan_number}) generated successfully ({len(loan_bytes):,} bytes).'
+                }
+            else:
+                diag['loan_pdf_test'] = {
+                    'success': False,
+                    'loan_number': latest_loan.loan_number,
+                    'message': f'generate_loan_pdf_bytes returned null or empty output for Loan #{latest_loan.loan_number}. Check django.log for details.'
+                }
+        else:
+            diag['loan_pdf_test'] = {'success': True, 'message': 'No loans in database yet to test.'}
+    except Exception as e:
+        diag['loan_pdf_test'] = {
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc(),
+            'message': f'Actual Loan Agreement PDF test failed with exception: {e}'
         }
 
     return diag
@@ -148,7 +178,7 @@ def pdf_status_view(request):
         if not is_authorized:
             return JsonResponse({'error': 'Unauthorized. Staff login or secret token required.'}, status=403)
         try:
-            cmd = [sys.executable, "-m", "pip", "install", "xhtml2pdf>=0.2.13", "reportlab>=4.0.0"]
+            cmd = [sys.executable, "-m", "pip", "install", "xhtml2pdf>=0.2.16", "reportlab>=4.4.0,<5.0.0"]
             res = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
             pip_output = {
                 'returncode': res.returncode,
@@ -173,6 +203,22 @@ def pdf_status_view(request):
         except Exception as e:
             return HttpResponse(f"Error generating test PDF: {e}<pre>{traceback.format_exc()}</pre>", status=500)
 
+    # Action: Download live loan agreement PDF test
+    if request.GET.get('action') == 'download_sample_loan_pdf':
+        try:
+            from transactions.models import Loan
+            latest_loan = Loan.objects.order_by('-id').first()
+            if not latest_loan:
+                return HttpResponse("No loans found in database to test.", status=404)
+            pdf_bytes, filename = latest_loan.generate_loan_pdf_bytes()
+            if pdf_bytes:
+                resp = HttpResponse(pdf_bytes, content_type='application/pdf')
+                resp['Content-Disposition'] = f'attachment; filename="{filename}"'
+                return resp
+            return HttpResponse(f"generate_loan_pdf_bytes returned None for loan #{latest_loan.loan_number}. Check django.log for details.", status=500)
+        except Exception as e:
+            return HttpResponse(f"Error generating sample loan PDF: {e}<pre>{traceback.format_exc()}</pre>", status=500)
+
     diag = get_pdf_diagnostics()
 
     if request.GET.get('format') == 'json':
@@ -189,6 +235,29 @@ def pdf_status_view(request):
         badge = '<span style="color:#16a34a;font-weight:bold;">&#10004; Installed</span>' if is_ok else '<span style="color:#dc2626;font-weight:bold;">&#10008; Missing</span>'
         detail = info.get('version', info.get('error', ''))
         pkg_rows += f"<tr><td style='padding:8px;border-bottom:1px solid #e2e8f0;'><strong>{pkg}</strong></td><td style='padding:8px;border-bottom:1px solid #e2e8f0;'>{badge}</td><td style='padding:8px;border-bottom:1px solid #e2e8f0;font-family:monospace;font-size:12px;'>{detail}</td></tr>"
+
+    loan_diag = diag.get('loan_pdf_test', {})
+    loan_test_html = ""
+    if loan_diag:
+        loan_is_ok = loan_diag.get('success', False)
+        loan_test_html = f"""
+        <div style="padding:16px;border-radius:8px;background:{'#f0fdf4;border:1px solid #bbf7d0;' if loan_is_ok else '#fef2f2;border:1px solid #fecaca;'}margin-bottom:16px;">
+          <p style="margin:0 0 8px 0;font-weight:600;color:{'#166534' if loan_is_ok else '#991b1b'};">
+            {loan_diag.get('message')}
+          </p>
+          {f'<pre style="color:#f87171;">{loan_diag.get("traceback") or loan_diag.get("error")}</pre>' if not loan_is_ok and loan_diag.get('error') else ''}
+          <div style="margin-top:12px;display:flex;gap:12px;">
+            <a href="?action=download_test_pdf" class="btn btn-primary" target="_blank">&#8595; Download Simple Test PDF</a>
+            <a href="?action=download_sample_loan_pdf" class="btn btn-success" target="_blank">&#8595; Download Actual Loan Agreement PDF</a>
+          </div>
+        </div>
+        """
+    else:
+        loan_test_html = """
+          <div style="margin-top:12px;">
+            <a href="?action=download_test_pdf" class="btn btn-primary" target="_blank">&#8595; Download Simple Test PDF</a>
+          </div>
+        """
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -229,15 +298,18 @@ def pdf_status_view(request):
     {f'<div class="alert alert-danger"><strong>Pip Install Error:</strong><pre>{pip_output.get("stderr") or pip_output.get("error")}</pre></div>' if pip_output and not pip_output.get('success') else ''}
 
     <h2>1. Live PDF Generation Test</h2>
-    <div style="padding:16px;border-radius:8px;background:{'#f0fdf4;border:1px solid #bbf7d0;' if diag['pdf_test'].get('success') else '#fef2f2;border:1px solid #fecaca;'}margin-bottom:16px;">
+    <div style="padding:16px;border-radius:8px;background:{'#f0fdf4;border:1px solid #bbf7d0;' if diag['pdf_test'].get('success') else '#fef2f2;border:1px solid #fecaca;'}margin-bottom:12px;">
       <p style="margin:0 0 8px 0;font-weight:600;color:{'#166534' if diag['pdf_test'].get('success') else '#991b1b'};">
         {diag['pdf_test'].get('message')}
       </p>
       {f'<pre style="color:#f87171;">{diag["pdf_test"].get("traceback") or diag["pdf_test"].get("error")}</pre>' if not diag['pdf_test'].get('success') and diag['pdf_test'].get('error') else ''}
-      <div style="margin-top:12px;">
-        <a href="?action=download_test_pdf" class="btn btn-primary" target="_blank">&#8595; Download Sample Test PDF</a>
+      <div style="margin-top:10px;">
+        <a href="?action=download_test_pdf" class="btn btn-primary" target="_blank">&#8595; Download Simple Test PDF</a>
       </div>
     </div>
+
+    <h3>Live Loan Agreement PDF Engine Test</h3>
+    {loan_test_html}
 
     <h2>2. PDF Engine & Python Dependencies</h2>
     <table>
