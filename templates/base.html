@@ -6,6 +6,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>{% block title %}Pawnshop Management System{% endblock %}</title>
+    <!-- Dynamic ERP URL Prefix Resolver for subpath deployments (e.g., https://firstmoneygold.com/erp) -->
+    <script>
+        (function() {
+            var path = window.location.pathname || '';
+            window.APP_URL_PREFIX = path.startsWith('/erp') ? '/erp' : '';
+            window.getAppUrl = function(endpoint) {
+                if (!endpoint) return '';
+                if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) return endpoint;
+                var clean = endpoint.startsWith('/') ? endpoint : '/' + endpoint;
+                if (window.APP_URL_PREFIX && !clean.startsWith(window.APP_URL_PREFIX + '/')) {
+                    return window.APP_URL_PREFIX + clean;
+                }
+                return clean;
+            };
+        })();
+    </script>
     <!-- Bootstrap 5 CSS (Self-Hosted) -->
     <link href="{% static 'vendor/bootstrap/css/bootstrap.min.css' %}" rel="stylesheet">
     <!-- Font Awesome 6 (Self-Hosted) -->

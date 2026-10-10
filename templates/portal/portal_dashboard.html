@@ -510,7 +510,8 @@
     }
 
     function loadQRData(loanNumber, amount) {
-        fetch(`/portal/pay-qr/${loanNumber}/?amount=${encodeURIComponent(amount)}`)
+        const qrUrl = (window.getAppUrl ? window.getAppUrl(`/portal/pay-qr/${loanNumber}/?amount=${encodeURIComponent(amount)}`) : `/portal/pay-qr/${loanNumber}/?amount=${encodeURIComponent(amount)}`);
+        fetch(qrUrl)
             .then(res => res.json())
             .then(data => {
                 if (data.success) {

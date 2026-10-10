@@ -686,7 +686,8 @@ function fetchWords(n) {
     if (n <= 0) { wrd.textContent = ''; return; }
     clearTimeout(wordsTimer);
     wordsTimer = setTimeout(() => {
-        fetch(`/transactions/number_to_words/${Math.round(n)}/`)
+        const url = (window.getAppUrl ? window.getAppUrl(`/transactions/number_to_words/${Math.round(n)}/`) : `/transactions/number_to_words/${Math.round(n)}/`);
+        fetch(url)
             .then(r => r.json())
             .then(d => { if (d.words) wrd.textContent = d.words; })
             .catch(() => { wrd.textContent = ''; });

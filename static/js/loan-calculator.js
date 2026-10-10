@@ -238,8 +238,19 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        // Determine base url prefix dynamically (e.g., /erp or root /)
+        let prefix = '';
+        if (typeof window !== 'undefined') {
+            if (window.APP_URL_PREFIX !== undefined) {
+                prefix = window.APP_URL_PREFIX;
+            } else if (window.location && window.location.pathname && window.location.pathname.startsWith('/erp')) {
+                prefix = '/erp';
+            }
+        }
+        const endpoint = (window.getAppUrl ? window.getAppUrl(`/schemes/${schemeId}/json/`) : `${prefix}/schemes/${schemeId}/json/`);
+
         // Fetch scheme details from API - using the correct URL pattern
-        fetch(`/schemes/${schemeId}/json/`, {
+        fetch(endpoint, {
             headers: {
                 'Accept': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest'

@@ -445,7 +445,8 @@ document.addEventListener('DOMContentLoaded', function () {
     function fetchWords(n, el) {
         clearTimeout(wordsTimer);
         wordsTimer = setTimeout(() => {
-            fetch(`/transactions/number_to_words/${Math.round(n)}/`)
+            const url = (window.getAppUrl ? window.getAppUrl(`/transactions/number_to_words/${Math.round(n)}/`) : `/transactions/number_to_words/${Math.round(n)}/`);
+            fetch(url)
                 .then(r => r.json())
                 .then(d => { if (d.words) el.textContent = d.words + ' only'; })
                 .catch(() => { el.textContent = ''; });

@@ -2732,7 +2732,8 @@
             if (typeof recalculate === 'undefined') recalculate = true;
             const selectedSchemeId = $('#id_scheme').val();
             if (selectedSchemeId && !isNaN(parseInt(selectedSchemeId, 10))) {
-                $.get(`/schemes/${selectedSchemeId}/json/`, function (data) {
+                const schemeUrl = (window.getAppUrl ? window.getAppUrl(`/schemes/${selectedSchemeId}/json/`) : `/schemes/${selectedSchemeId}/json/`);
+                $.get(schemeUrl, function (data) {
                     if (data.additional_conditions && data.additional_conditions.processing_fee_percentage) {
                         processingFeePercent = parseFloat(data.additional_conditions.processing_fee_percentage);
                     } else {
@@ -2919,7 +2920,7 @@
             }
 
             // 2. Safely verify with server API (uses trailing slash to avoid 301 redirects)
-            const apiUrl = `/transactions/number_to_words/${val}/`;
+            const apiUrl = (window.getAppUrl ? window.getAppUrl(`/transactions/number_to_words/${val}/`) : `/transactions/number_to_words/${val}/`);
             $.get(apiUrl)
                 .done(function(response) {
                     if (response && response.words && typeof response.words === 'string' && response.words.trim()) {
@@ -3095,7 +3096,8 @@
         function syncCustomerBankDetails() {
             const customerId = $('#id_customer').val();
             if (!customerId) return;
-            $.get(`/transactions/customer-bank-details/${customerId}/`, function (res) {
+            const bankUrl = (window.getAppUrl ? window.getAppUrl(`/transactions/customer-bank-details/${customerId}/`) : `/transactions/customer-bank-details/${customerId}/`);
+            $.get(bankUrl, function (res) {
                 if (res && res.success) {
                     if (res.bank_account_number && !$('#id_bank_account_number').val()) {
                         $('#id_bank_account_number').val(res.bank_account_number);
@@ -3224,7 +3226,8 @@
         $('#id_market_price_22k').prop('readonly', true).addClass('bg-light');
 
         // Fetch Live Central Gold Rates from HO
-        $.get('/schemes/api/today-rate/', function(res) {
+        const goldRateUrl = (window.getAppUrl ? window.getAppUrl('/schemes/api/today-rate/') : '/schemes/api/today-rate/');
+        $.get(goldRateUrl, function(res) {
             if (res && res.status === 'success') {
                 window.activeDailyGoldRates = res;
                 const rate22kInt = Math.round(res.rate_22k_per_gram);
