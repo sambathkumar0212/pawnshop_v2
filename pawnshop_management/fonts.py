@@ -335,10 +335,13 @@ def render_html_to_pdf_bytes(html_content, page_size='A4', margins=None):
                 logger.warning(f"link_callback error for uri '{uri}': {e}")
             return uri
 
-        # Strip large base64 @font-face blocks because xhtml2pdf uses fonts registered via pdfmetrics
+        # Strip large base64 @font-face blocks and troublesome CSS properties that crash ReportLab
         clean_html = re.sub(r'@font-face\s*\{[^}]*\}', '', html_content, flags=re.DOTALL)
         clean_html = re.sub(r'height\s*:\s*100%\s*;?', '', clean_html, flags=re.IGNORECASE)
         clean_html = re.sub(r'min-height\s*:\s*100%\s*;?', '', clean_html, flags=re.IGNORECASE)
+        clean_html = re.sub(r'page-break-inside\s*:\s*avoid\s*;?', '', clean_html, flags=re.IGNORECASE)
+
+        patch_reportlab()
         pisa_status = pisa.CreatePDF(clean_html, dest=out_stream, link_callback=link_callback)
         pdf_bytes = out_stream.getvalue()
         if pdf_bytes and len(pdf_bytes) > 200:
@@ -360,8 +363,24 @@ def render_html_to_pdf_bytes(html_content, page_size='A4', margins=None):
 
     return None
 
+def patch_reportlab():
+    """Fix ReportLab KeepTogether AttributeError where draw() method is missing when nested in tables."""
+    try:
+        from reportlab.platypus import KeepTogether
+        if not hasattr(KeepTogether, 'draw'):
+            def _keep_together_draw(self):
+                for f in getattr(self, '_content', []):
+                    if hasattr(f, 'drawOn'):
+                        f.drawOn(self.canv, 0, 0)
+                    elif hasattr(f, 'draw'):
+                        f.draw()
+            KeepTogether.draw = _keep_together_draw
+    except Exception:
+        pass
+
 def register_fonts():
     """Register fonts with ReportLab if they exist on disk."""
+    patch_reportlab()
     try:
         from reportlab.pdfbase import pdfmetrics
         from reportlab.pdfbase.ttfonts import TTFont
@@ -380,6 +399,7 @@ def register_fonts():
         except Exception as e:
             logger.warning(f"Could not register Tamil font: {e}")
 
-# Register on module import
+# Register and patch on module import
+patch_reportlab()
 register_fonts()
 
