@@ -96,6 +96,7 @@ urlpatterns = [
 
     # Utilities
     path('number_to_words/<str:number>/', views.number_to_words, name='number_to_words'),
+    path('number_to_words/<str:number>', views.number_to_words, name='number_to_words_no_slash'),
     path('customer-bank-details/<int:customer_id>/', views.get_customer_bank_details, name='customer_bank_details'),
     path('transliterate/', views.transliterate_between_english_tamil, name='transliterate_between_english_tamil'),
 ]

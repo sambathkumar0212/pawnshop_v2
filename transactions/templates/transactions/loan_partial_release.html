@@ -543,7 +543,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             if (data.total_release_value > 0) {
-                fetch(`/transactions/number_to_words/${Math.round(data.total_release_value)}`)
+                fetch(`/transactions/number_to_words/${Math.round(data.total_release_value)}/`)
                     .then(r => r.json())
                     .then(res => {
                         const wordsEl = document.getElementById('dispTotalReleaseWords');

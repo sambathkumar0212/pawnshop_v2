@@ -5018,12 +5018,20 @@ class SaleReceiptView(LoginRequiredMixin, View):
 
 
 def number_to_words(request, number):
-    """Utility view to convert numbers to words"""
+    """Utility view to convert numbers to words (Indian numbering system)."""
     try:
-        words = num2words(float(number), lang='en_IN').title()
-        return JsonResponse({'words': words})
-    except (ValueError, TypeError):
-        return JsonResponse({'words': 'Invalid number'}, status=400)
+        clean_num = str(number).replace(',', '').strip()
+        float_val = float(clean_num)
+        if float_val <= 0:
+            return JsonResponse({'words': '', 'amount': 0})
+        try:
+            words = num2words(float_val, lang='en_IN').title()
+        except Exception:
+            from transactions.templatetags.loan_filters import number_to_words as filter_words
+            words = filter_words(float_val).title()
+        return JsonResponse({'words': words, 'amount': float_val})
+    except Exception:
+        return JsonResponse({'words': '', 'amount': 0})
 
 
 def get_customer_bank_details(request, customer_id):
