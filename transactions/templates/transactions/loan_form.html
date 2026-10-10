@@ -215,9 +215,9 @@
             <form method="post" id="loanForm" enctype="multipart/form-data" novalidate>
                 {% csrf_token %}
                 <input type="hidden" name="customer_face_capture" id="customerFaceCapture"
-                    value="{% if form.instance.customer_face_capture %}{{ form.instance.customer_face_capture|escapejs }}{% elif form.customer_face_capture.value %}{{ form.customer_face_capture.value|escapejs }}{% elif submitted_customer_face_capture %}{{ submitted_customer_face_capture|escapejs }}{% endif %}">
+                    value="{% if form.instance.customer_face_capture %}{{ form.instance.customer_face_capture }}{% elif form.customer_face_capture.value %}{{ form.customer_face_capture.value }}{% elif submitted_customer_face_capture %}{{ submitted_customer_face_capture }}{% endif %}">
                 <input type="hidden" name="item_photos" id="itemPhotosData"
-                    value="{% if form.instance.item_photos %}{{ form.instance.item_photos|escapejs }}{% elif form.item_photos.value %}{{ form.item_photos.value|escapejs }}{% elif request.POST.item_photos %}{{ request.POST.item_photos|escapejs }}{% endif %}">
+                    value="{% if form.instance.item_photos %}{{ form.instance.item_photos }}{% elif form.item_photos.value %}{{ form.item_photos.value }}{% elif request.POST.item_photos %}{{ request.POST.item_photos }}{% endif %}">
                 <input type="hidden" name="interest_rate" id="id_interest_rate"
                     value="{% if form.instance.pk and form.instance.interest_rate %}{{ form.instance.interest_rate|stringformat:'.2f' }}{% elif form.instance.scheme and form.instance.scheme.interest_rate %}{{ form.instance.scheme.interest_rate|stringformat:'.2f' }}{% elif form.interest_rate.value %}{{ form.interest_rate.value }}{% else %}24.00{% endif %}">
 
@@ -1302,6 +1302,7 @@
         {% if form.instance.customer_face_capture or form.customer_face_capture.value or submitted_customer_face_capture %}
         console.log("Initializing existing customer photo");
         var existingCustPhoto = "{% if form.instance.customer_face_capture %}{{ form.instance.customer_face_capture|escapejs }}{% elif form.customer_face_capture.value %}{{ form.customer_face_capture.value|escapejs }}{% elif submitted_customer_face_capture %}{{ submitted_customer_face_capture|escapejs }}{% endif %}";
+        existingCustPhoto = (existingCustPhoto || '').replace(/\\\//g, '/').replace(/\\u003B/g, ';').replace(/\\u003D/g, '=');
         if (customerFaceCapture) {
             customerFaceCapture.value = existingCustPhoto;
         }
@@ -1634,9 +1635,10 @@
 
             // Now add photos properly through JavaScript
             {% for photo in item_photos_list %}
+            var cleanItemPhoto{{ forloop.counter }} = ('{{ photo|escapejs }}' || '').replace(/\\\//g, '/').replace(/\\u003B/g, ';').replace(/\\u003D/g, '=');
             itemPhotos.push({
                 id: 'existing-item-photo-{{ forloop.counter }}',
-                dataUrl: '{{ photo|escapejs }}'
+                dataUrl: cleanItemPhoto{{ forloop.counter }}
             });
             {% endfor %}
 

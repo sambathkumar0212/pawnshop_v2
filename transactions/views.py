@@ -1050,7 +1050,8 @@ def number_to_tamil_words(amount):
 def process_item_photos_for_display(item_photos):
     """
     Centralized function to process item photos for display across the project.
-    Handles both old file-based photos and new database-stored base64 photos.
+    Handles both old file-based photos and new database-stored base64 photos,
+    with robust unescaping of legacy JSON / escapejs sequences.
     
     Args:
         item_photos: String containing either JSON array of photos or single photo data
@@ -1064,21 +1065,41 @@ def process_item_photos_for_display(item_photos):
     try:
         photo_list = []
         
-        # Handle single base64 image
-        if isinstance(item_photos, str) and item_photos.startswith('data:image/'):
-            return [item_photos]
-        
-        # Handle JSON array of photos
+        # Clean escaped characters if present (from escapejs or corrupt json)
         if isinstance(item_photos, str):
-            if item_photos.startswith('['):
-                photos_data = json.loads(item_photos)
+            cleaned_input = (item_photos
+                             .replace(r'\u0022', '"')
+                             .replace(r'\u0027', "'")
+                             .replace(r'\u003B', ';')
+                             .replace(r'\u003D', '=')
+                             .replace(r'\/', '/')
+                             .replace('\\/', '/'))
+            
+            # Handle single base64 image
+            if cleaned_input.startswith('data:image/'):
+                return [cleaned_input]
+            
+            # Handle JSON array of photos
+            if cleaned_input.startswith('['):
+                try:
+                    photos_data = json.loads(cleaned_input)
+                except json.JSONDecodeError:
+                    photos_data = re.findall(r'(?:data:image/[^"\',]+;base64,[^"\',]+|/media/[^"\',]+)', cleaned_input)
             else:
-                photos_data = [item_photos]
+                photos_data = [cleaned_input]
         else:
             photos_data = item_photos if isinstance(item_photos, list) else [item_photos]
         
         for photo in photos_data:
             if photo and isinstance(photo, str):
+                photo = (photo
+                         .replace(r'\u0022', '')
+                         .replace(r'\u0027', '')
+                         .replace(r'\u003B', ';')
+                         .replace(r'\u003D', '=')
+                         .replace(r'\/', '/')
+                         .replace('\\/', '/')
+                         .strip('"\''))
                 if photo.startswith('data:image/'):
                     # Already base64 format, use directly
                     photo_list.append(photo)
@@ -1100,7 +1121,7 @@ def process_item_photos_for_display(item_photos):
                     except Exception as e:
                         print(f"Error processing file photo {photo}: {str(e)}")
                         continue
-                else:
+                elif photo:
                     # Assume it's already base64 (without data: prefix)
                     photo_list.append(f"data:image/jpeg;base64,{photo}")
         
@@ -2946,6 +2967,8 @@ class LoanUpdateView(LoginRequiredMixin, RoleBranchAccessMixin, UpdateView):
             initial['distribution_amount_with_deduction'] = deduct_val
         return initial
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
         # Process item photos for form editing or restoring from failed POST
         if self.object and self.object.item_photos:
             context['item_photos_list'] = process_item_photos_for_display(self.object.item_photos)
@@ -2953,6 +2976,10 @@ class LoanUpdateView(LoginRequiredMixin, RoleBranchAccessMixin, UpdateView):
             post_item_photos = self.request.POST.get('item_photos', '')
             if post_item_photos:
                 context['item_photos_list'] = process_item_photos_for_display(post_item_photos)
+
+        if self.object and self.object.customer_face_capture:
+            context['submitted_customer_face_capture'] = self.object.customer_face_capture
+        elif self.request.method == 'POST':
             post_customer_face = self.request.POST.get('customer_face_capture', '')
             if post_customer_face:
                 context['submitted_customer_face_capture'] = post_customer_face
@@ -2963,11 +2990,50 @@ class LoanUpdateView(LoginRequiredMixin, RoleBranchAccessMixin, UpdateView):
         item_photos_data = self.request.POST.get('item_photos', '')
         customer_face_capture = self.request.POST.get('customer_face_capture', '')
         
-        # Save photos directly to database
+        # Save photos directly to database with proper parsing, deduplication, and cleaning
         if item_photos_data:
-            form.instance.item_photos = item_photos_data
+            cleaned_item_photos = (item_photos_data
+                                   .replace(r'\u0022', '"')
+                                   .replace(r'\u0027', "'")
+                                   .replace(r'\u003B', ';')
+                                   .replace(r'\u003D', '=')
+                                   .replace(r'\/', '/')
+                                   .replace('\\/', '/'))
+            try:
+                photos_list = json.loads(cleaned_item_photos)
+                if isinstance(photos_list, list):
+                    unique_photos = []
+                    seen = set()
+                    for p in photos_list:
+                        if p and isinstance(p, str):
+                            p_clean = (p.replace(r'\u003B', ';')
+                                        .replace(r'\u003D', '=')
+                                        .replace(r'\/', '/')
+                                        .replace('\\/', '/')
+                                        .strip('"\''))
+                            if p_clean not in seen:
+                                unique_photos.append(p_clean)
+                                seen.add(p_clean)
+                    form.instance.item_photos = json.dumps(unique_photos)
+                else:
+                    form.instance.item_photos = cleaned_item_photos
+            except json.JSONDecodeError:
+                data_uris = re.findall(r'(?:data:image/[^"\',]+;base64,[^"\',]+)', cleaned_item_photos)
+                if data_uris:
+                    form.instance.item_photos = json.dumps(data_uris)
+                elif cleaned_item_photos.strip():
+                    form.instance.item_photos = cleaned_item_photos
+
         if customer_face_capture:
-            form.instance.customer_face_capture = customer_face_capture
+            cleaned_customer_face = (customer_face_capture
+                                     .replace(r'\u0022', '')
+                                     .replace(r'\u0027', '')
+                                     .replace(r'\u003B', ';')
+                                     .replace(r'\u003D', '=')
+                                     .replace(r'\/', '/')
+                                     .replace('\\/', '/')
+                                     .strip('"\''))
+            form.instance.customer_face_capture = cleaned_customer_face
         
         # Track who is editing the loan
         form.instance._edited_by = self.request.user
@@ -3495,18 +3561,38 @@ class LoanDocumentView(LoginRequiredMixin, RoleBranchAccessMixin, View):
         processed_photos = process_item_photos_for_display(loan.item_photos)
         item_photos = []
         for photo in processed_photos:
-            if photo.startswith('data:image/'):
-                base64_data = photo.split(',')[1] if ',' in photo else photo
-                item_photos.append(base64_data)
-            else:
-                item_photos.append(photo)
+            if photo and isinstance(photo, str):
+                p_clean = (photo
+                           .replace(r'\u0022', '')
+                           .replace(r'\u0027', '')
+                           .replace(r'\u003B', ';')
+                           .replace(r'\u003D', '=')
+                           .replace(r'\/', '/')
+                           .replace('\\/', '/')
+                           .strip('"\''))
+                if 'base64,' in p_clean:
+                    item_photos.append(p_clean.split('base64,')[1])
+                elif p_clean.startswith('data:image/'):
+                    item_photos.append(p_clean.split(',')[1] if ',' in p_clean else p_clean)
+                else:
+                    item_photos.append(p_clean)
 
         customer_photo = None
         if loan.customer_face_capture:
-            if loan.customer_face_capture.startswith('data:image/'):
-                customer_photo = loan.customer_face_capture.split(',')[1]
+            raw_face = (loan.customer_face_capture
+                        .replace(r'\u0022', '')
+                        .replace(r'\u0027', '')
+                        .replace(r'\u003B', ';')
+                        .replace(r'\u003D', '=')
+                        .replace(r'\/', '/')
+                        .replace('\\/', '/')
+                        .strip('"\''))
+            if 'base64,' in raw_face:
+                customer_photo = raw_face.split('base64,')[1]
+            elif raw_face.startswith('data:image/'):
+                customer_photo = raw_face.split(',')[1] if ',' in raw_face else raw_face
             else:
-                customer_photo = loan.customer_face_capture
+                customer_photo = raw_face or None
 
         loan_items = loan.loanitem_set.exclude(status='released')
         language_context = build_loan_pdf_language_context(loan, current_language)

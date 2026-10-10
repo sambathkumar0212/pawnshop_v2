@@ -958,16 +958,38 @@ class Loan(models.Model):
             processed_photos = []
         item_photos = []
         for photo in processed_photos:
-            if photo and isinstance(photo, str) and photo.startswith('data:image/'):
-                item_photos.append(photo.split(',')[1] if ',' in photo else photo)
-            elif photo:
-                item_photos.append(photo)
+            if photo and isinstance(photo, str):
+                p_clean = (photo
+                           .replace(r'\u0022', '')
+                           .replace(r'\u0027', '')
+                           .replace(r'\u003B', ';')
+                           .replace(r'\u003D', '=')
+                           .replace(r'\/', '/')
+                           .replace('\\/', '/')
+                           .strip('"\''))
+                if 'base64,' in p_clean:
+                    item_photos.append(p_clean.split('base64,')[1])
+                elif p_clean.startswith('data:image/'):
+                    item_photos.append(p_clean.split(',')[1] if ',' in p_clean else p_clean)
+                else:
+                    item_photos.append(p_clean)
 
         customer_photo = None
         if self.customer_face_capture:
-            customer_photo = (self.customer_face_capture.split(',')[1]
-                              if self.customer_face_capture.startswith('data:image/')
-                              else self.customer_face_capture)
+            raw_face = (self.customer_face_capture
+                        .replace(r'\u0022', '')
+                        .replace(r'\u0027', '')
+                        .replace(r'\u003B', ';')
+                        .replace(r'\u003D', '=')
+                        .replace(r'\/', '/')
+                        .replace('\\/', '/')
+                        .strip('"\''))
+            if 'base64,' in raw_face:
+                customer_photo = raw_face.split('base64,')[1]
+            elif raw_face.startswith('data:image/'):
+                customer_photo = raw_face.split(',')[1] if ',' in raw_face else raw_face
+            else:
+                customer_photo = raw_face or None
 
         context = {
             'loan': self,
