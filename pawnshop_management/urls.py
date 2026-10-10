@@ -18,8 +18,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from django.views.generic import TemplateView
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.db.migrations.recorder import MigrationRecorder
 from django.views.i18n import set_language
 
@@ -90,6 +89,11 @@ urlpatterns = [
     # Ultra-lightweight keep-alive / health-check endpoints for UptimeRobot / Cron-Job pingers
     path('ping/', lambda request: JsonResponse({'status': 'ok', 'service': 'pawnshop'}), name='ping'),
     path('health/', lambda request: JsonResponse({'status': 'ok', 'service': 'pawnshop'}), name='health'),
+    # Standard robots.txt response
+    path('robots.txt', lambda request: HttpResponse(
+        "User-agent: *\nDisallow: /admin/\nDisallow: /dashboard/\nDisallow: /portal/\nDisallow: /transactions/\nDisallow: /schemes/\nDisallow: /inventory/\nDisallow: /accounting/\nDisallow: /reporting/\nDisallow: /analytics/\nDisallow: /biometrics/\nDisallow: /api/\nAllow: /login/\nAllow: /ping/\nAllow: /health/\n",
+        content_type="text/plain"
+    ), name='robots_txt'),
 ]
 
 # Serve media files during development

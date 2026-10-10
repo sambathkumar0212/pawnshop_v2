@@ -1,0 +1,15 @@
+User-agent: *
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /portal/
+Disallow: /transactions/
+Disallow: /schemes/
+Disallow: /inventory/
+Disallow: /accounting/
+Disallow: /reporting/
+Disallow: /analytics/
+Disallow: /biometrics/
+Disallow: /api/
+Allow: /login/
+Allow: /ping/
+Allow: /health/
